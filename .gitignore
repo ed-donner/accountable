@@ -54,6 +54,10 @@ coverage/
 supabase/.temp/
 supabase/.branches/
 
+# Coding agents' personal settings
+.claude/settings.local.json
+.github/copilot/settings.local.json
+
 # Editors and OS
 .idea/
 .vscode/*

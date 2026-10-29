@@ -50,4 +50,4 @@ Then choose **File**, **Open Folder** and pick the `accountable` folder. If VS C
 
 ## Start your coding agent
 
-In the VS Code terminal, inside the `accountable` folder, start your agent (`claude` for Claude Code) and accept its prompt to trust the folder. Claude Code ignores the project's settings until you do. Then carry on with the rest of your agent's guide.
+Opening the folder reloads VS Code and closes the terminal, so open a new one from the **Terminal** menu with **New Terminal**. It opens in the `accountable` folder. Start your agent (`claude` for Claude Code) and accept its prompt to trust the folder. Claude Code ignores the project's settings until you do. Then carry on with the rest of your agent's guide.

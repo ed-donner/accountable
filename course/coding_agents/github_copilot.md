@@ -26,7 +26,7 @@ These are the Claude Code commands I use in the lessons, with the closest match 
 
 ## 1. Install and sign in
 
-Every Copilot plan includes Copilot CLI. Copilot Free has limited use; Copilot Pro is $10 a month.
+Every Copilot plan includes Copilot CLI. Copilot Free has limited use, and the paid plans and their prices are at [github.com/features/copilot/plans](https://github.com/features/copilot/plans).
 
 Mac:
 

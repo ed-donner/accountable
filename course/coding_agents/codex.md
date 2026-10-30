@@ -25,7 +25,7 @@ These are the Claude Code commands I use in the lessons, with the closest match 
 
 ## 1. Install and sign in
 
-You need ChatGPT Plus ($20 a month) or higher, or an OpenAI API key billed by use. OpenAI's pricing page lists the Codex CLI from Plus up; the Free and Go plans list Codex in the desktop app only.
+You need ChatGPT Plus or higher, or an OpenAI API key billed by use. OpenAI's [pricing page](https://learn.chatgpt.com/docs/pricing) lists the Codex CLI from Plus up; the Free and Go plans list Codex in the desktop app only.
 
 Mac:
 

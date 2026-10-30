@@ -26,7 +26,7 @@ These are the Claude Code commands I use in the lessons, with the closest match 
 
 Download Cursor from [cursor.com/download](https://cursor.com/download), install it, and sign in to a Cursor account in the app.
 
-The Free plan gives limited agent use with Cursor's own models. Plus ($8 a month) gives you Cursor's own models only (Grok and Composer). Claude, GPT and Gemini models start at Premium ($30 a month), billed at API list price from prepaid credit. You can follow the course with Cursor's own models, though your results will differ from mine.
+The Free plan gives limited agent use with Cursor's own models. Plus gives you Cursor's own models only (Grok and Composer). Claude, GPT and Gemini models start at Premium, billed at API list price from prepaid credit. The prices are at [cursor.com/pricing](https://cursor.com/pricing). You can follow the course with Cursor's own models, though your results will differ from mine.
 
 The command-line agent is optional. Mac:
 

@@ -52,7 +52,7 @@ opencode
 
 **Free models:** run `/models` and choose one marked Free. These are free for a limited time and the list changes, so keep a second choice in mind. Some of the free models' providers use your prompts to improve their models; OpenCode's model list says which.
 
-**Paid options:** OpenCode Go is $10 a month, and the OpenCode Console also sells pay-as-you-go credit. You can also use your own provider account. Connect any of these with `/connect`.
+**Paid options:** OpenCode Go is a monthly subscription ([opencode.ai/go](https://opencode.ai/go)), and the OpenCode Console also sells pay-as-you-go credit. You can also use your own provider account. Connect any of these with `/connect`.
 
 ## 2. Markdown and AGENTS.md
 

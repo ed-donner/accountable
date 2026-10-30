@@ -35,4 +35,8 @@ Each week has its own guide, with what each day covers and what to watch out for
 
 ## The branches
 
-On each day that the coding agent works on Accountable, Ed's version at the end of the day is on its own branch, such as `week1day2-end`; `main` is the starting point. A student who wants Ed's result runs `git checkout week1day2-end`. Help them commit their own changes first, and remind them that anything outside git (a `.env` file, for example) stays as it is when they switch.
+On each day that the coding agent works on Accountable, Ed's version at the end of the day is on its own branch, such as `week1day2-end`; Ed's `main` is the starting point. The student's own `main` holds their build, with a branch for each change that they merge into it. A student who wants Ed's result runs `git checkout week1day2-end`; one who has been building their own and wants to carry on from Ed's follows "Switching to my version" in `README.md`. Help them commit their own changes first, and remind them that anything outside git (a `.env` file, for example) stays as it is when they switch.
+
+## Sharing work and pulling updates
+
+To share work with a pull request to `community_contributions/`, or to bring in Ed's latest changes, follow `course/for_agents/AGENT_GIT_GUIDE.md`. A pull request needs the student's own fork: the course makes one in Week 2, and a student who wants to share before then forks the repo first.

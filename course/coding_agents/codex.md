@@ -201,6 +201,7 @@ accountable/
 │   ├── rules/default.rules      added today
 │   └── config.toml              added today
 ├── assets/
+├── community_contributions/
 ├── course/
 ├── docs/
 │   ├── intent.md

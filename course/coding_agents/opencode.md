@@ -195,6 +195,7 @@ accountable/
 │   ├── brand/SKILL.md           added today
 │   └── frontend-design/         added today
 ├── assets/
+├── community_contributions/
 ├── course/
 ├── docs/
 │   ├── intent.md

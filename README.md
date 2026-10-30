@@ -14,6 +14,7 @@ _If you're looking at this in VS Code or Cursor, right-click `README.md` in the 
 - `course/`: your guides. [course/SETUP.md](course/SETUP.md) installs the tools, and [course/coding_agents/](course/coding_agents/) has the steps for each coding agent.
 - `course/for_agents/`: guides for your coding agent, so it can help you with the course.
 - `AGENTS.md`: the instructions your coding agent reads at the start of each session.
+- `community_contributions/`: work shared by students, added by pull request.
 
 ## Key links
 
@@ -59,6 +60,10 @@ Your `main` holds your own build for the whole course, and each change gets a br
 git branch my-version
 git checkout --no-track -B main origin/week1day2-end
 ```
+
+## Share your work
+
+I'd love to see what you build! Please share it with a pull request to `community_contributions`. A pull request needs your own fork of the repo: we make one in Week 2, so fork it sooner if you want to share before then. The steps, and how to pull my latest changes, are in [course/for_agents/AGENT_GIT_GUIDE.md](course/for_agents/AGENT_GIT_GUIDE.md), and your coding agent can take you through them.
 
 ## The journey
 

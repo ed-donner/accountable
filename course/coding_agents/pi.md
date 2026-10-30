@@ -183,6 +183,7 @@ accountable/
 ├── .pi/
 │   └── mcp.json                 added today
 ├── assets/
+├── community_contributions/
 ├── course/
 ├── docs/
 │   ├── intent.md

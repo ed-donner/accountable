@@ -190,6 +190,7 @@ accountable/
 │   ├── mcp.json                 added today
 │   └── permissions.json         added today
 ├── assets/
+├── community_contributions/
 ├── course/
 ├── docs/
 │   ├── intent.md

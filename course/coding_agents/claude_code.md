@@ -212,6 +212,7 @@ accountable/
 │   ├── settings.json            added today
 │   └── settings.local.json      ignored by git
 ├── assets/
+├── community_contributions/
 ├── course/
 ├── docs/
 │   ├── intent.md

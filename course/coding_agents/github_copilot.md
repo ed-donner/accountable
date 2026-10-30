@@ -213,6 +213,7 @@ accountable/
 ├── .agents/skills/
 │   └── brand/SKILL.md           added today
 ├── assets/
+├── community_contributions/
 ├── course/
 ├── docs/
 │   ├── intent.md

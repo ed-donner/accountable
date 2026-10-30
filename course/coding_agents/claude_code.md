@@ -164,7 +164,7 @@ claude mcp add -s project playwright -- npx @playwright/mcp@latest
 
 This writes `.mcp.json` at the repo root. `-s` is short for `--scope`. Without `-s project`, the server would be stored privately in `~/.claude.json` for you alone, and there would be nothing to commit.
 
-Start `claude` again and approve the project's MCP server when asked. Then run `/mcp` to check that `playwright` is connected.
+Start `claude` again. When it says it found a new MCP server in this project, choose "Use this MCP server" (pressing Enter straight away picks "Continue without using this MCP server"). Your answer is saved in `.claude/settings.local.json`, so everyone who clones the repo is asked once. Then run `/mcp` to check that `playwright` is connected. If you turned it down by mistake, run `claude mcp reset-project-choices` in the terminal and start `claude` again.
 
 ## 8. Code Mode
 
@@ -199,13 +199,7 @@ npx skills add vercel-labs/agent-skills --skill web-design-guidelines -a claude-
 
 ## 10. A plugin
 
-In Claude Code, run:
-
-```text
-/plugin install frontend-design@claude-plugins-official
-```
-
-Choose the project scope when asked. The plugin is recorded in `.claude/settings.json`; anyone else working in the repo installs it once on their own machine. It contains one skill, `frontend-design`, which Claude uses for front-end work. If Claude Code asks you to, run `/reload-plugins`.
+In Claude Code, run `/plugin`. On the Discover tab, type `frontend-design`, press Enter on it, and choose "Install for all collaborators on this repository (project scope)". The plugin is recorded in `.claude/settings.json` as `frontend-design@anthropic-plugin-directory`; anyone else working in the repo installs it once on their own machine. It contains one skill, `frontend-design`, which Claude uses for front-end work. If Claude Code asks you to, run `/reload-plugins`.
 
 ## 11. Check and commit your setup
 
@@ -215,7 +209,8 @@ Your repo should now look like this:
 accountable/
 ├── .claude/
 │   ├── skills/brand/SKILL.md    added today
-│   └── settings.json            added today
+│   ├── settings.json            added today
+│   └── settings.local.json      ignored by git
 ├── assets/
 ├── course/
 ├── docs/

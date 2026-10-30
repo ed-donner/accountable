@@ -19,6 +19,8 @@ The setup steps from Week 1 Day 2. On a PC, the terminal in VS Code is PowerShel
    - PC: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
    - Mac: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 
+5. **Google Chrome**: the Playwright MCP server and the project's browser tests use it. If you don't have it, install it from https://www.google.com/chrome
+
 Quit VS Code and open it again so the terminal finds the new tools. Then check each one:
 
 ```

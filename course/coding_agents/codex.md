@@ -20,7 +20,7 @@ These are the Claude Code commands I use in the lessons, with the closest match 
 | Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` |
 
 - Codex has no `/effort` command: `/model` asks for the model and then the reasoning effort.
-- Codex has no `/context` command: `/status` shows your token use and how much context is left.
+- Codex has no `/context` command. After your first message, `/status` shows how much of the context window is left as one figure, below your settings and above your usage limits. To keep it in view, add `context-used` to the footer with `/statusline`.
 - `/plugins` is plural in Codex. To add a plugin from the terminal, use `codex plugin add`.
 
 ## 1. Install and sign in

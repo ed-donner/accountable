@@ -22,6 +22,7 @@ These are the Claude Code commands I use in the lessons, with the closest match 
 - OpenCode uses plurals: `/models`, `/mcps` and `/plugins`.
 - `/variants` sets the reasoning effort (`/thinking` and `/effort` open it too), and Ctrl+T cycles through the variants.
 - OpenCode has no `/context` command: the session sidebar shows tokens, the share of the context window used and the cost.
+- `/compact` only appears in the list once the conversation has started.
 
 ## 1. Install and sign in
 

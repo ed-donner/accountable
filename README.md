@@ -48,10 +48,17 @@ You can follow the whole course with your own build. On each day that we work on
 
 | Command | What it gets you |
 |---|---|
-| `git checkout main` | The starting point: the documents in `docs/` and nothing set up yet |
+| `git checkout main` | Your own build. When you first clone, it's the starting point: the documents in `docs/` and nothing set up yet |
 | `git checkout week1day2-end` | My setup from Week 1 Day 2 in Claude Code: permissions, the Playwright MCP server, the brand skill and the frontend-design plugin |
 
 Commit your own changes before you switch branches.
+
+Your `main` holds your own build for the whole course, and each change gets a branch of its own that you merge into `main` (Week 1 Day 3 explains this). If you've been building your own version and want to carry on from mine instead, keep yours on a branch, then move your `main` onto my branch for the day you want:
+
+```bash
+git branch my-version
+git checkout --no-track -B main origin/week1day2-end
+```
 
 ## The journey
 

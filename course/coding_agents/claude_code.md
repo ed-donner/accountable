@@ -27,7 +27,7 @@ These are the Claude Code commands I use in the lessons, with the closest match 
 
 ## 1. Install and sign in
 
-You need a Claude Pro plan ($20 a month) or higher (Max, Team or Enterprise). A Claude Console account with prepaid API credits also works. Claude Code has no free route; if you want to spend nothing, use the OpenCode or Pi guide.
+You need a Claude Pro plan or higher. The plans and their prices are at [claude.com/pricing](https://claude.com/pricing). A Claude Console account with prepaid API credits also works. Claude Code has no free route; if you want to spend nothing, use the OpenCode or Pi guide.
 
 Mac:
 

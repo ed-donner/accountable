@@ -23,6 +23,7 @@ test-results/
 playwright-report/
 playwright/.cache/
 blob-report/
+.playwright-mcp/
 
 # Python (backend, uv)
 .venv/

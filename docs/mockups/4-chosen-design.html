@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 4: Chosen design</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .app { display: flex; flex-direction: column; height: 100vh; min-height: 760px; }
+
+  .top {
+    flex: none; display: flex; align-items: center; gap: 28px; height: 56px; margin: 12px 20px 0;
+    padding: 0 18px 0 20px; background: var(--panel); border-radius: 16px;
+  }
+  .brand { font: 600 19px/24px var(--sans); }
+  .top nav { display: flex; gap: 2px; }
+  .top nav a { display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border-radius: 8px; font-weight: 500; }
+  .top nav a .icon { width: 17px; height: 17px; }
+  .top nav a:hover { background: var(--page); }
+  .top nav a.on { background: var(--sea-green); font-weight: 600; }
+  .top .today { margin-left: auto; color: var(--muted); font-size: 13px; }
+
+  .title { flex: none; display: flex; align-items: baseline; gap: 18px; padding: 12px 24px 10px; }
+
+  [data-screen] { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .panel { background: var(--panel); border-radius: 16px; padding: 16px 18px; min-height: 0; }
+
+  .desk { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 396px; gap: 12px; padding: 0 20px 16px; }
+  .left { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.12fr) auto minmax(0, 1fr); gap: 12px; }
+  .rail { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; }
+
+  .hero { position: relative; padding: 0; overflow: hidden; }
+  .hero-chart { position: absolute; inset: 0; }
+  .hero-text { position: absolute; top: 8px; left: 12px; padding: 8px 12px 8px 8px; border-radius: 10px; background: var(--panel); }
+  .hero-text .label { font: 600 14px/20px var(--sans); }
+  .hero-text .value { font: 500 52px/60px var(--mono); letter-spacing: -0.03em; }
+  .hero-text .context { color: var(--muted); font-size: 13px; line-height: 18px; }
+
+  .strip { display: grid; grid-template-columns: 182px 170px minmax(0, 1fr); gap: 8px; align-items: center; padding: 12px; }
+  .stat { display: block; padding: 0 6px; }
+  .stat span { display: block; }
+  .stat .label { font: 600 13px/18px var(--sans); }
+  .stat .value { font: 500 24px/30px var(--mono); letter-spacing: -0.02em; }
+  .stat .context { color: var(--muted); font-size: 13px; line-height: 18px; }
+  .band { display: flex; gap: 2px; height: 76px; }
+  .block { min-width: 104px; padding: 8px 10px; border-radius: 4px; }
+  .block:first-child { border-radius: 10px 4px 4px 10px; }
+  .block:last-child { border-radius: 4px 10px 10px 4px; }
+  .block span { display: block; }
+  .block .name { font: 600 14px/18px var(--sans); }
+  .block .value { font: 500 15px/20px var(--mono); }
+  .block .count { font-size: 13px; line-height: 18px; font-weight: 500; }
+
+  .pair { min-height: 0; display: grid; grid-template-columns: 0.76fr 1.24fr; gap: 12px; }
+  .won { display: flex; flex-direction: column; }
+  .won-head { display: flex; align-items: baseline; gap: 12px; }
+  .won-head .value { font: 500 24px/30px var(--mono); }
+  .won-head .context { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .chart { flex: 1; min-height: 0; }
+
+  .funnel-panel { display: flex; flex-direction: column; }
+  .funnel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .funnel-head span { color: var(--muted); font-size: 13px; }
+  .funnel { flex: 1; min-height: 0; margin-top: 8px; }
+
+  .list-panel { display: flex; flex-direction: column; }
+  .list-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .list-head span { color: var(--muted); font-size: 13px; }
+  .scroll { flex: 1; min-height: 0; margin: 6px -8px 0 0; padding-right: 8px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--sea-mist) transparent; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .row .main { min-width: 0; flex: 1; }
+  .row .main div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .main .line { font-weight: 500; }
+  .row .sub { color: var(--muted); font-size: 13px; line-height: 18px; }
+  .row .when { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .row .split { display: flex; justify-content: space-between; gap: 10px; }
+  .row .split .link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .board-totals { display: flex; gap: 28px; margin-left: auto; font-size: 13px; }
+  .board-totals b { font-weight: 600; margin-right: 8px; }
+  .board-totals .num { font: 500 20px/26px var(--mono); letter-spacing: -0.02em; }
+  .board { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; padding: 0 20px 16px; }
+  .col { display: flex; flex-direction: column; min-height: 0; }
+  .col-head { flex: none; height: 142px; padding: 14px 14px 12px; border-radius: 16px; display: flex; flex-direction: column; }
+  .col-title { display: flex; justify-content: space-between; align-items: baseline; font: 600 16px/22px var(--sans); }
+  .col-title .num { font-size: 15px; font-weight: 500; }
+  .col-value { margin-top: 8px; font: 500 24px/30px var(--mono); letter-spacing: -0.02em; }
+  .col-exp { font: 500 13px/18px var(--mono); }
+  .add {
+    display: flex; align-items: center; gap: 4px; margin-top: auto; padding: 0; border: 0; background: none;
+    color: inherit; font: 600 14px/20px var(--sans); cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+  }
+  .add .icon { width: 15px; height: 15px; }
+  .cards { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px 0; overflow-y: auto; scrollbar-width: none; }
+  .card { flex: none; display: block; padding: 12px 13px; border-radius: 10px; background: var(--panel); cursor: grab; }
+  .card.late { background: var(--late-tint); }
+  .card div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .money { display: flex; align-items: center; justify-content: space-between; font: 500 19px/26px var(--mono); letter-spacing: -0.02em; }
+  .card .deal { margin-top: 4px; font-weight: 600; }
+  .card .who { color: var(--muted); font-size: 13px; line-height: 18px; }
+  .card .meta { display: flex; justify-content: space-between; margin-top: 6px; color: var(--muted); font: 400 12px/18px var(--mono); }
+</style>
+</head>
+<body data-name="Mockup 4: Chosen design">
+<div class="app">
+  <header class="top">
+    <div class="brand">Accountable</div>
+    <nav id="nav" aria-label="Sections"></nav>
+    <span class="today num" id="today"></span>
+  </header>
+
+  <section data-screen="dashboard">
+    <div class="title"><h1>Dashboard</h1><p class="summary" id="summary"></p></div>
+    <div class="desk">
+      <div class="left">
+        <div class="panel hero">
+          <div class="hero-chart" id="line"></div>
+          <div class="hero-text" id="hero"></div>
+        </div>
+        <div class="panel strip" id="strip"></div>
+        <div class="pair">
+          <div class="panel won">
+            <div class="won-head" id="wonhead"></div>
+            <div class="chart" id="bars"></div>
+          </div>
+          <div class="panel funnel-panel">
+            <div class="funnel-head"><h2>Sales funnel</h2><span>Value reaching each stage, and the share carried forward</span></div>
+            <div class="funnel" id="funnel"></div>
+          </div>
+        </div>
+      </div>
+      <div class="rail">
+        <div class="panel list-panel"><div class="list-head"><h2>Follow-ups</h2><span id="fucount"></span></div><div class="scroll"><ul id="followups"></ul></div></div>
+        <div class="panel list-panel"><h2>Recent activity</h2><div class="scroll"><ul id="recent"></ul></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen="pipeline" hidden>
+    <div class="title">
+      <h1>Pipeline</h1>
+      <div class="board-totals" id="totals"></div>
+    </div>
+    <div class="board" id="board"></div>
+  </section>
+</div>
+<script src="shared.js"></script>
+<script>
+  const M = MOCK;
+  const $ = (id) => document.getElementById(id);
+
+  $("nav").innerHTML = M.navLinks();
+  $("today").textContent = M.today;
+  $("summary").textContent = M.summary;
+  $("fucount").textContent = M.followUpCount;
+
+  $("hero").innerHTML =
+    `<div class="label">Revenue won in October</div>
+     <div class="value">${M.money(M.thisMonth.revenue)}</div>
+     <div class="context">September ${M.money(M.lastMonth.revenue)}</div>`;
+
+  $("strip").innerHTML =
+    `<a class="stat" href="#pipeline"><span class="label">Open pipeline</span><span class="value">${M.money(M.openValue)}</span><span class="context">${M.openCount} open deals</span></a>
+     <a class="stat" href="#pipeline"><span class="label">Expected revenue</span><span class="value">${M.money(M.openExpected)}</span><span class="context">${M.openShare}% of open pipeline</span></a>
+     <a class="band" href="#pipeline" aria-label="Open the pipeline">${M.openBoard.map((s) =>
+       `<div class="block" style="flex:${s.value} 1 0;background:${s.fill};color:${s.ink}">
+          <span class="name">${s.name}</span><span class="value">${M.money(s.value)}</span><span class="count">${s.count} deals</span>
+        </div>`).join("")}</a>`;
+
+  $("wonhead").innerHTML =
+    `<h2>Deals won in October</h2><span class="value">${M.thisMonth.deals}</span><span class="context">September ${M.lastMonth.deals}</span>`;
+
+  /* A top-down funnel: the top edge of each stage is as wide as the value that reached it.
+     The percentages sit on the joins, because each one describes a step between two stages. */
+  function drawFunnel(w, h) {
+    const side = 196;
+    const fw = w - side;
+    const cx = fw / 2;
+    const n = M.funnel.length;
+    const round = 6;
+    const pad = round / 2;
+    const gap = 2;
+    const row = (h - round + gap) / n;
+    const body = row - round - gap;
+    const widest = M.funnel[0].value;
+    const widths = M.funnel.map((f) => (f.value / widest) * (fw - round));
+    widths.push(widths[n - 1] * 0.68);
+    let out = `<svg width="${w}" height="${h}" role="img" aria-label="Sales funnel: value reaching each stage">`;
+    M.funnel.forEach((f, i) => {
+      const top = pad + i * row;
+      const bottom = top + body;
+      const a = widths[i] / 2;
+      const b = a + (widths[i + 1] / 2 - a) * (body / row);
+      const mid = (top + bottom) / 2;
+      const edge = cx + (a + b) / 2 + pad;
+      out += `<path d="M${cx - a} ${top} L${cx + a} ${top} L${cx + b} ${bottom} L${cx - b} ${bottom} Z" fill="${f.fill}" stroke="${f.fill}" stroke-width="${round}" stroke-linejoin="round"><title>${f.name}: ${M.money(f.value)}</title></path>`;
+      out += `<text x="${cx}" y="${mid + 5}" text-anchor="middle" style="fill:${f.ink};font:600 14px var(--sans)">${f.name}</text>`;
+      out += `<line x1="${edge + 4}" x2="${fw + 10}" y1="${mid}" y2="${mid}" stroke="#CDD8DB" stroke-dasharray="2 4"/>`;
+      out += `<text class="strong" x="${fw + 16}" y="${mid + 5}" style="font-size:14px">${M.money(f.value)}</text>`;
+      if (f.carried) {
+        const join = top - (round + gap) / 2;
+        out += `<rect x="${w - 52}" y="${join - 11}" width="52" height="22" rx="11" fill="#F0F4F5"><title>${f.carried}% of the value that reached ${M.funnel[i - 1].name} also reached ${f.name}</title></rect>`;
+        out += `<text class="strong" x="${w - 26}" y="${join + 4}" text-anchor="middle">${f.carried}%</text>`;
+      }
+    });
+    return out + "</svg>";
+  }
+
+  $("followups").innerHTML = M.followUps.map((f) =>
+    `<li class="row">
+      <input class="tick" type="checkbox" aria-label="Mark ${f.text} done">
+      <div class="main"><div class="line">${f.text}</div><div class="sub"><a class="link" href="#">${f.about}</a></div></div>
+      ${f.overdue ? '<span class="chip chip-alert">Overdue</span>' : ""}
+      <span class="when num">${f.date}</span>
+    </li>`).join("");
+
+  $("recent").innerHTML = M.recent.map((r) =>
+    `<li class="row">
+      <span class="dot dot-${r.type}">${M.icon(r.type)}</span>
+      <div class="main"><div>${r.text}</div><div class="sub split"><a class="link" href="#">${r.about}</a><span class="when num">${r.when}</span></div></div>
+    </li>`).join("");
+
+  $("totals").innerHTML =
+    `<div><b>Open pipeline</b><span class="num">${M.money(M.openValue)}</span></div>
+     <div><b>Expected revenue</b><span class="num">${M.money(M.openExpected)}</span></div>`;
+
+  $("board").innerHTML = M.board.map((s) => {
+    const closed = s.name === "Won" || s.name === "Lost";
+    return `<div class="col">
+      <div class="col-head" style="background:${s.fill};color:${s.ink}">
+        <div class="col-title"><span>${s.name}</span><span class="num">${s.count}</span></div>
+        <div class="col-value">${M.money(s.value)}</div>
+        <div class="col-exp">${closed ? "" : `Expected ${M.money(s.expected)}`}</div>
+        <button class="add" type="button">${M.icon("plus")}Add deal</button>
+      </div>
+      <div class="cards">${s.deals.map((d) =>
+        `<a class="card${d.late ? " late" : ""}" href="#pipeline" title="${d.name}, ${d.org}">
+          <div class="money"><span>${M.money(d.value)}</span>${d.late ? '<span class="chip chip-alert">Late</span>' : ""}</div>
+          <div class="deal">${d.name}</div>
+          <div class="who">${d.org}</div>
+          <div class="who">${d.contact}</div>
+          <div class="meta"><span>${d.probability}%</span><span>${d.close}</span></div>
+        </a>`).join("")}</div>
+    </div>`;
+  }).join("");
+
+  M.screens((name) => {
+    if (name !== "dashboard") return;
+    M.fitChart("line", (w, h) => M.lineChart(w, h, {
+      bleed: true, noLabel: true, axisStrong: true, axisRight: true, fill: "#06D6A0",
+      margin: { top: 30, right: 64, bottom: 28, left: 36 },
+    }));
+    M.fitChart("bars", (w, h) => M.barChart(w, h, { barWidth: 13, soFarOnly: true, margin: { top: 32, bottom: 24 } }));
+    M.fitChart("funnel", drawFunnel);
+  });
+</script>
+</body>
+</html>

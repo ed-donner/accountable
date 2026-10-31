@@ -1,0 +1,199 @@
+/* Shared by all three mockups: the brand's fonts, colors and small parts from docs/spec.md. */
+
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("fonts/instrument-sans-latin-wght-normal.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: block;
+}
+
+:root {
+  --page: #f0f4f5;
+  --panel: #ffffff;
+  --ink: #073b4c;
+  --muted: #4a6b76;
+  --sea-green: #06d6a0;
+  --marigold: #ffc145;
+  --coral: #f78c6b;
+  --cerulean: #118ab2;
+  --raspberry: #ef476f;
+  --sea-mist: #cdd8db;
+  --chip-info: #107fa4;
+  --chip-alert: #d23e62;
+  --late-tint: #fdecf1;
+  --sans: "Instrument Sans", system-ui, sans-serif;
+  --serif: "Instrument Serif", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font: 400 14px/20px var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font: 600 28px/36px var(--sans);
+}
+
+h2 {
+  font: 600 16px/24px var(--sans);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cerulean);
+  outline-offset: 2px;
+}
+
+.summary {
+  font: 400 22px/30px var(--serif);
+}
+
+.num {
+  font-family: var(--mono);
+  font-variant-ligatures: none;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.link {
+  text-decoration: underline;
+  text-decoration-color: var(--sea-mist);
+  text-underline-offset: 3px;
+}
+
+.link:hover {
+  text-decoration-color: var(--ink);
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font: 600 13px/18px var(--sans);
+  white-space: nowrap;
+}
+
+.chip-new { background: var(--sea-green); color: var(--ink); }
+.chip-qualified { background: var(--marigold); color: var(--ink); }
+.chip-proposal { background: var(--coral); color: var(--ink); }
+.chip-negotiation { background: var(--chip-info); color: #fff; }
+.chip-won { background: var(--ink); color: var(--sea-mist); }
+.chip-lost { background: var(--chip-alert); color: #fff; }
+.chip-alert { background: var(--chip-alert); color: #fff; }
+
+.tick {
+  appearance: none;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border-radius: 6px;
+  background: var(--page);
+  box-shadow: inset 0 0 0 1.5px var(--muted);
+  cursor: pointer;
+}
+
+.tick:checked {
+  background: var(--sea-green);
+  box-shadow: none;
+}
+
+.dot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--ink);
+}
+
+.dot .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.dot-call { background: var(--sea-green); }
+.dot-email { background: var(--marigold); }
+.dot-note { background: var(--coral); }
+.dot-stage { background: var(--cerulean); color: #fff; }
+
+svg text {
+  font-family: var(--mono);
+  fill: var(--muted);
+  font-size: 12px;
+}
+
+svg text.strong {
+  fill: var(--ink);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

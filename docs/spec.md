@@ -1,6 +1,6 @@
 # Spec: the Accountable MVP
 
-`docs/intent.md` says what we're building and why. This spec turns it into requirements (Part 1) and a design (Part 2). If the two disagree, the intent wins and this file gets corrected. Once a mockup in `docs/mockups/` is chosen, it takes over from the layouts here. Everything else in this file still applies.
+`docs/intent.md` says what we're building and why. This spec turns it into requirements (Part 1) and a design (Part 2). If the two disagree, the intent wins and this file gets corrected. The chosen design is `docs/mockups/4-chosen-design.html`, described under [Chosen design](#chosen-design). It sets the layout and look, and this file matches it.
 
 ## Concerns
 
@@ -9,7 +9,7 @@ These are the concerns raised when this spec was written, with what the project 
 ### Decided
 
 1. **Six stages, five brand colors: the stages keep the brand's order.** New is Sea Green, Qualified is Marigold, Proposal is Coral and Negotiation is Cerulean. Lost takes the fifth color, Raspberry, and Won is Midnight. The colors can't carry meaning alone: the chart validator puts Marigold and Coral just under its line for telling colors apart (14.5 against 15), and Sea Green, Marigold and Coral are all below 3:1 on white. So every stage color in this spec has the stage's name beside it.
-2. **Small chips use slightly darker Raspberry and Cerulean.** White text on the brand colors is 3.62:1 and 3.96:1, below the usual 4.5:1 minimum for small text. Small chips use `#D23E62` and `#107FA4` instead, which reach 4.5:1 and look almost the same. This is an agreed exception to the brand, for small chips only. See [the color tokens](#color-tokens).
+2. **Small chips use slightly darker Raspberry and Cerulean.** White text on the brand colors is 3.62:1 and 3.96:1, below the usual 4.5:1 minimum for small text. Small chips use `#D23E62` and `#107FA4` instead, which reach 4.5:1 and look almost the same. This is an agreed exception to the brand, for small chips only. See [the color tokens](#color-tokens). The pipeline band, the funnel, the pipeline's column headers and the delete buttons keep the exact brand colors, so small white text on their Cerulean and Raspberry fills stays at 3.96:1 and 3.62:1.
 3. **No undo on the pipeline.** It isn't needed for the MVP. Dropping a card on Won replaces the expected close date and any hand-set probability, and makes the main contact a customer. Dragging it back restores none of these, but a message after the drop says exactly what changed.
 4. **No backups or export in the MVP.** Everything lives in `data/accountable.db`, so a reset, `git clean -x`, deleting the folder or losing the laptop loses it all. The two wipe commands show what will be lost and require typing `yes`, and `docs/STATUS.md` explains that copying the file is the backup.
 5. **Windows and Linux stay untested for now.** The intent requires the same command on Mac, Linux and Windows. The build avoids anything platform-specific, but it will only run on a Mac, so the other two are unproven until someone tries them.
@@ -62,7 +62,7 @@ The "Not in the MVP" list in `docs/intent.md` applies throughout.
 
 ## App shell
 
-- **N1.** A sidebar on every screen links to the five sections: Dashboard, Organizations, Contacts, Deals and Pipeline. The app opens on the Dashboard.
+- **N1.** A top bar on every screen links to the five sections: Dashboard, Organizations, Contacts, Deals and Pipeline. The app opens on the Dashboard.
 - **N2.** Every section and record has its own address, so refresh, back and forward all work.
 - **N3.** The app is designed for light mode at 1280px wide and up. There's no phone layout.
 - **N4.** Opening a record that no longer exists shows "This deal no longer exists" (or the matching word) with a link back to its section.
@@ -162,7 +162,7 @@ The "Not in the MVP" list in `docs/intent.md` applies throughout.
 
 ## Pipeline
 
-- **P1.** One column per stage, in order: New, Qualified, Proposal, Negotiation, Won, Lost.
+- **P1.** One column per stage, in order: New, Qualified, Proposal, Negotiation, Won, Lost. Each column is headed by a solid block in its stage color.
 - **P2.** Dragging a card to another column changes its stage, following S1. Dragging within a column changes its place. A card can be dropped anywhere and stays there after a refresh and a restart.
 - **P3.** The board shows the total value and expected revenue of open deals. Each open column shows its deal count, total value and expected revenue. Won and Lost show their count and total value, because expected revenue means nothing for a closed deal.
 - **P4.** All figures change the moment a card lands, before the server replies. If the save fails, the card returns to where it was and a message says so.
@@ -174,7 +174,7 @@ The "Not in the MVP" list in `docs/intent.md` applies throughout.
 
 ## Dashboard
 
-- **H1.** A one-line summary gives the overdue follow-ups and late deals, such as "3 follow-ups overdue and 4 deals running late."
+- **H1.** A one-line summary gives the overdue follow-ups and late deals, such as "6 follow-ups overdue and 5 deals running late."
 - **H2.** Four headline figures appear, each linking to where the detail lives:
 
 | Figure | Beside it |
@@ -186,8 +186,8 @@ The "Not in the MVP" list in `docs/intent.md` applies throughout.
 
 - **H3.** A **pipeline band** shows the four open stages as blocks sized by value, each with its name, value and deal count. It links to the Pipeline.
 - **H4.** A **line chart** shows revenue won per month, and a **bar chart** shows deals won per month. Both cover the last 12 months including the current one, with months of no wins shown as zero. The current month is marked as "so far".
-- **H5.** A **funnel** shows how much value has reached each stage from New to Won, with the percentage carried forward from the stage before. A deal counts for every stage up to the furthest one it has been in, even if it skipped some, and moving back doesn't remove it. A lost deal counts up to the furthest stage it reached before it was lost, and every deal counts for New. Won is the last step, so Lost isn't on the funnel.
-- **H6.** **Follow-ups** lists every follow-up not yet done, overdue first, then upcoming by date. Each shows what it's about, its date, a link to its contact or deal, and a tick box to mark it done. Overdue ones carry an Overdue chip. The panel scrolls if the list is long.
+- **H5.** A top-down **sales funnel** shows how much value has reached each stage, narrowing from New at the top to Won at the bottom, with the percentage carried forward from the stage before. A deal counts for every stage up to the furthest one it has been in, even if it skipped some, and moving back doesn't remove it. A lost deal counts up to the furthest stage it reached before it was lost, and every deal counts for New. Won is the last step, so Lost isn't on the funnel.
+- **H6.** **Follow-ups** lists every follow-up not yet done, overdue first, then upcoming by date. Each shows what it's about, its date, a link to its contact or deal, and a tick box to mark it done. Overdue ones carry an Overdue chip. The panel's heading shows how many are overdue and upcoming, and the panel scrolls if the list is long.
 - **H7.** **Recent activity** lists the 10 newest activities and stage changes, leaving out anything dated in the future. Each links to its contact or deal.
 - **H8.** Every chart and list has a designed empty state, and nothing divides by zero.
 - **H9.** Each of the five questions from the intent's Problem section can be answered within two clicks of the dashboard.
@@ -412,31 +412,36 @@ A timeline merges activities and stage changes in the backend, removes duplicate
 
 ### Shell
 
-A white rounded panel on the left holds the Accountable wordmark, set in Instrument Sans, and the five sections with icons. The current section is a Sea Green pill with Midnight text. Below 1440px wide, the sidebar shrinks to icons, with the labels in tooltips, so the six pipeline columns always fit. There's no logo yet: `assets/accountable.jpg` is the course illustration.
+A white rounded bar across the top holds the Accountable wordmark, set in Instrument Sans, then the five sections with icons and labels, and today's date at the far right. The current section is a Sea Green pill with Midnight text. The bar floats on the page background with space around it, so there's no line across the top of the page. There's no logo yet: `assets/accountable.jpg` is the course illustration.
 
 ### Dashboard
 
-The pipeline band is the one bold thing on this screen: large solid blocks of brand color right across the page, with each stage's text color from the stage table. It's what someone remembers about the app, so everything around it stays quiet. The headline figures are plain type on white, with no decoration.
+Everything fits on one screen at 1440 by 900 with no page scrolling, so what needs doing next is always in view. The page only scrolls on windows under 760px tall. Follow-ups and Recent activity each scroll by themselves.
+
+The revenue chart is the one bold thing on this screen: a large figure over a solid Sea Green area that runs to the panel's edges. Everything around it stays quiet.
 
 ```
-+-------+----------------------------------------------------------------+
-| Acc.  | Dashboard                                                      |
-|       | 3 follow-ups overdue and 4 deals running late.                 |
-| Dash  |                                                                |
-| Orgs  | Revenue won    Deals won     Open pipeline   Expected revenue  |
-| Conts | $84,500        6             $1,240,000      $369,500          |
-| Deals | Sep $72,000    Sep 5         36 deals        30% of pipeline   |
-| Pipe  |                                                                |
-|       | +--New---------+--Qualified------+--Proposal---+--Negotiation-+|
-|       | | $310,000     | $420,000        | $290,000    | $220,000     ||
-|       | | 11 deals     | 9 deals         | 8 deals     | 8 deals      ||
-|       | +--------------+-----------------+-------------+--------------+|
-|       | Revenue won (line)   Deals won (bars)   Value reaching (funnel)|
-|       | Follow-ups                        Recent activity              |
-+-------+----------------------------------------------------------------+
++-----------------------------------------------------------------------------+
+| Accountable  [Dashboard]  Organizations  Contacts  Deals  Pipeline  Oct 31, 2026 |
++-----------------------------------------------------------------------------+
+Dashboard   6 follow-ups overdue and 5 deals running late.
+
++---------------------------------------------------+ +-----------------------+
+| Revenue won in October                      $100k | | Follow-ups            |
+| $84,500                                           | |   6 overdue, 10 upcoming
+| September $72,000                                 | | [ ] Send revised quote|
+|        solid Sea Green area under the line        | |     Overdue    Oct 12 |
++---------------------------------------------------+ |                       |
+| Open pipeline  Expected revenue  [New|Qual|Pro|Neg] | +-----------------------+
++---------------------------------------------------+ | Recent activity       |
+| Deals won in October 6  | Sales funnel            | | Moved from Proposal   |
+| bars for 12 months      | top-down, with values   | |   to Negotiation      |
++-------------------------+-------------------------+ +-----------------------+
 ```
 
-At 1440 by 900, the figures, band and charts fit above the fold. Follow-ups and recent activity start just below, but the summary line says straight away if anything needs attention.
+The right column is 396px wide and the left takes the rest, with 12px gaps. Under the revenue chart, the strip holds Open pipeline, Expected revenue and the pipeline band. The bottom row gives Deals won about 40% of the width and the funnel about 60%.
+
+In this narrow column, a follow-up shows its action and a link to its contact or deal, with the organization left out. An activity shows the link and the time on its second line.
 
 ### Tables
 
@@ -449,20 +454,26 @@ Two columns of white panels on the page background. The left, narrower one holds
 ### Pipeline
 
 ```
-Pipeline                     Open pipeline $1,240,000   Expected revenue $369,500
+Pipeline                      Open pipeline $1,240,000   Expected revenue $369,500
 
-[New] 11      [Qualified] 9  [Proposal] 8   [Negotiation] 8  [Won] 32    [Lost] 12
-$310,000      $420,000       $290,000       $220,000         $1,910,000  $640,000
-Exp. $15,500  Exp. $84,000   Exp. $116,000  Exp. $154,000
-+ Add deal    + Add deal     + Add deal     + Add deal       + Add deal  + Add deal
-+----------+  +----------+   +----------+   +----------+
-| Deal     |  | Deal  Late|  | Deal     |   | Deal     |
-| Org      |  | Org      |   | Org      |   | Org      |
-| $48,000  |  | $12,000  |   | $90,000  |   | $31,000  |
-+----------+  +----------+   +----------+   +----------+
++-----------+ +-----------+ +-----------+ +-----------+ +-----------+ +-----------+
+| New    11 | | Qualified | | Proposal  | | Negotiat. | | Won    32 | | Lost   12 |
+| $310,000  | | $420,000  | | $290,000  | | $220,000  | | $494,500  | | $186,000  |
+| Expected  | | Expected  | | Expected  | | Expected  | |           | |           |
+| + Add deal| | + Add deal| | + Add deal| | + Add deal| | + Add deal| | + Add deal|
++-----------+ +-----------+ +-----------+ +-----------+ +-----------+ +-----------+
++-----------+ +-----------+
+| $36,000   | | $36,000 Late   (late card: pale Raspberry tint)
+| Deal name | | Deal name |
+| Org       | | Org       |
+| Contact   | | Contact   |
+| 5%   Date | | 20%  Date |
++-----------+ +-----------+
 ```
 
-The columns sit straight on the page background with white cards, and each scrolls by itself. The page header stays put. A dragged card lifts with a soft shadow, the only shadow besides dialogs. Card text is cut off with an ellipsis if it doesn't fit, with the full text in a tooltip.
+Each column is headed by a solid block in its stage color, using the text color from the stage table. The block holds the stage name and deal count, the total value, the expected revenue for open stages, and Add deal. It stays put while the cards below it scroll, and the page header stays put too.
+
+Cards are white on the page background and lead with their value, so the money is the first thing read down a column. A dragged card lifts with a soft shadow, the only shadow besides dialogs. Card text is cut off with an ellipsis if it doesn't fit, with the full text in a tooltip.
 
 ## Visual design
 
@@ -496,7 +507,7 @@ The brand skill is the source for all of this.
 | Won | Midnight `#073B4C` | Sea Mist `#CDD8DB` |
 | Lost | Raspberry `#EF476F` | White |
 
-A stage keeps its color everywhere. Negotiation and Lost chips use the small chip shades above, and larger fills, such as the pipeline band and the charts, use the colors in this table. Other sets of three follow the brand's trio:
+A stage keeps its color everywhere. Negotiation and Lost chips use the small chip shades above, and larger fills, such as the pipeline band, the funnel and the pipeline's column headers, use the colors in this table. Other sets of three follow the brand's trio:
 
 | Set | Sea Green | Marigold | Coral |
 |---|---|---|---|
@@ -516,8 +527,12 @@ The fonts are bundled through Fontsource, as the intent requires.
 | Body, table text | Instrument Sans | 14/20 | 400 |
 | Label, chip | Instrument Sans | 13/18 | 600 |
 | Dashboard summary line | Instrument Serif | 22/30 | 400 |
-| Headline figure | JetBrains Mono | 32/40 | 500 |
-| Money, counts, dates in tables and cards | JetBrains Mono | 13/20 | 400 |
+| Revenue won figure | JetBrains Mono | 52/60 | 500 |
+| Other headline figures, column totals | JetBrains Mono | 24/30 | 500 |
+| Board totals | JetBrains Mono | 20/26 | 500 |
+| Card value | JetBrains Mono | 19/26 | 500 |
+| Money, counts, dates in tables | JetBrains Mono | 13/20 | 400 |
+| Probability and date on cards | JetBrains Mono | 12/18 | 400 |
 | Chart axis | JetBrains Mono | 12/16 | 400 |
 
 Numbers are always in JetBrains Mono, so columns of figures line up. Instrument Serif appears in one place only: the dashboard's summary line.
@@ -528,22 +543,22 @@ Numbers are always in JetBrains Mono, so columns of figures line up. Instrument 
 - Panels are white on the page background, with no outline and no shadow.
 - There are no gradient fills, and no borders on one edge of a panel. There's no line across the top of the page.
 - Late cards are marked by the chip and tint, never a colored edge.
-- Stage columns are marked by a chip, never a colored bar along the top.
+- Pipeline columns are headed by a solid block in the stage color, never a colored bar or edge.
 - Labels are in sentence case, not capitals. No text runs joined with middle dots, and no arrows added to link text.
 
 ### Charts
 
-- **Line chart:** a 2px Midnight line with a flat Sea Green fill under it. Won is Midnight, and the fill brings in the brand's primary color without losing the line.
-- **Bar chart:** thin Midnight bars with 4px rounded tops. The current month is a lighter tint of the same color, labeled "so far".
+- **Line chart:** a 2px Midnight line over a solid Sea Green area that runs to the panel's left, right and bottom edges. Won is Midnight, and the fill brings in the brand's primary color without losing the line. The money axis sits inside the panel on the right, and the month labels sit on the fill. The revenue figure sits at the top left on a white backing, so grid lines don't run through it.
 - **Line's current month:** the last segment is dashed, so an unfinished month doesn't look like a fall in sales.
-- **Funnel:** rows of bars in stage colors, narrowing down the panel. The stage name, value and percentage carried forward sit beside each bar in ink, so the bars' colors never have to be read alone. The last bar, Won, is Midnight.
-- **Pipeline band:** blocks sized by value with 2px gaps. A small stage keeps a minimum width so its label still fits.
-- **All charts:** one axis per chart, so revenue and deal count are never on the same one. Pale horizontal grid lines only. Direct labels on the highest month and the current month only. Text is in ink, never the series color. Each chart has a hover tooltip.
+- **Bar chart:** thin Midnight bars with 4px rounded tops. The current month is a lighter tint of the same color, labeled "so far".
+- **Sales funnel:** stacked segments narrowing from top to bottom, in stage colors, with 2px gaps and softly rounded corners. The top edge of each segment is as wide as the value that reached it, and the last segment tapers a little further so the shape ends in a neat spout. Each stage name sits inside its segment in the stage's text color. Its full value sits to the right in ink, joined by a dotted leader line. The percentage carried forward sits in a pale pill level with the join between two stages, because it describes the step between them. Build it with Recharts' `FunnelChart` and a custom `shape`.
+- **Pipeline band:** compact blocks, 76px tall, sized by value with 2px gaps. A small stage keeps a minimum width so its label still fits.
+- **All charts:** one axis per chart, so revenue and deal count are never on the same one. Pale horizontal grid lines only. Direct labels on the current month only, which is usually the highest in the sample data. Text is in ink, never the series color. Each chart has a hover tooltip.
 - **Money on axes:** shortened with the currency, such as `$40k` and `$1.2M`.
 
 ### Motion
 
-The pipeline band's blocks grow into place once on load. Cards settle into place when dropped. Dialogs fade in quickly. Nothing else moves, and all of it stops under reduced motion.
+The revenue line and its fill draw in once on load. Cards settle into place when dropped. Dialogs fade in quickly. Nothing else moves, and all of it stops under reduced motion.
 
 ### Words
 
@@ -562,11 +577,17 @@ Plain business English, short labels, no exclamation marks.
 
 Money always carries its currency, as in `$48,000`. Dates read `Oct 31, 2026`, and times read `Oct 31, 3:20 PM`.
 
-## What the mockups should do
+## Chosen design
 
-Each of the three mockups shows the dashboard and the pipeline, with the same figures in each, so the comparison is about the design. Each one uses the fonts, colors and rules above.
+The project owner compared three mockups and chose:
 
-They can differ in the page shell, how the dashboard is arranged, how dense the screens feel, and how the charts and band are treated. A mockup can drop the pipeline band for something bolder, as long as H3 is still met. The chosen one replaces the wireframes here.
+- **Mockup 2, Work desk:** the page shell and the dashboard.
+- **Mockup 3, Deal wall:** the style of the pipeline board.
+- **A new top-down sales funnel** in place of Mockup 2's funnel bars, in the style common in sales CRMs.
+
+`docs/mockups/4-chosen-design.html` brings these together, with `4-chosen-design-dashboard.png` and `4-chosen-design-pipeline.png` beside it. Build to it, and compare the finished app with it in the Test stage. Mockups 1 to 3 stay in the folder as a record of the options, and aren't a reference for the build.
+
+The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M5.
 
 ## Commands and first run
 

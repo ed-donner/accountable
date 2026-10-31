@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 1: Color band</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+
+  .side { margin: 16px 0 16px 16px; padding: 20px 12px; background: var(--panel); border-radius: 16px; }
+  .side-inner { position: sticky; top: 36px; }
+  .brand { padding: 2px 12px 22px; font: 600 20px/28px var(--sans); }
+  .side nav { display: grid; gap: 4px; }
+  .side nav a {
+    display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px;
+    border-radius: 8px; font-weight: 500;
+  }
+  .side nav a:hover { background: var(--page); }
+  .side nav a.on { background: var(--sea-green); font-weight: 600; }
+
+  main { min-width: 0; padding: 20px 24px 28px 20px; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; }
+  .head .num { color: var(--muted); font-size: 13px; }
+  .summary { margin-top: 2px; }
+
+  .panel { background: var(--panel); border-radius: 16px; padding: 18px 20px; }
+
+  .figures {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+    margin-top: 18px; padding: 18px 24px 20px;
+  }
+  .figure { display: block; }
+  .figure span { display: block; }
+  .figure .label { font: 600 13px/18px var(--sans); }
+  .figure .value { margin-top: 4px; font: 500 32px/40px var(--mono); letter-spacing: -0.02em; }
+  .figure .context { margin-top: 2px; color: var(--muted); font-size: 13px; line-height: 18px; }
+
+  .band { display: flex; gap: 2px; height: 136px; margin-top: 16px; }
+  .block { min-width: 118px; padding: 16px 18px; border-radius: 4px; }
+  .block:first-child { border-radius: 16px 4px 4px 16px; }
+  .block:last-child { border-radius: 4px 16px 16px 4px; }
+  .block span { display: block; }
+  .block .name { font: 600 15px/20px var(--sans); }
+  .block .value { margin-top: 16px; font: 500 28px/34px var(--mono); letter-spacing: -0.02em; }
+  .block .count { font-size: 14px; line-height: 20px; font-weight: 500; }
+
+  .charts { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .chart { height: 244px; margin-top: 6px; }
+
+  .funnel { display: grid; gap: 6px; margin-top: 10px; }
+  .step-text { display: flex; justify-content: space-between; font-size: 13px; line-height: 18px; }
+  .step-text b { font-weight: 600; }
+  .step-text .num { font-size: 12px; }
+  .bar { height: 16px; margin: 2px auto 0; border-radius: 4px; }
+
+  .lists { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-top: 16px; }
+  .scroll { height: 330px; margin: 8px -8px 0 0; padding-right: 8px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--sea-mist) transparent; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+  .row .main { min-width: 0; flex: 1; }
+  .row .main div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .sub { color: var(--muted); font-size: 13px; line-height: 18px; }
+  .row .when { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .panel-head span { color: var(--muted); font-size: 13px; }
+
+  @media (max-width: 1439px) {
+    .app { grid-template-columns: 84px minmax(0, 1fr); }
+    .brand { padding: 2px 0 22px; font-size: 13px; text-align: center; }
+    .side { padding: 20px 6px; }
+    .side nav a { justify-content: center; padding: 0; font-size: 0; gap: 0; }
+  }
+
+  [data-screen="pipeline"] { display: flex; flex-direction: column; height: calc(100vh - 48px); }
+  .board-totals { display: flex; gap: 32px; }
+  .board-totals div span { display: block; text-align: right; }
+  .board-totals .label { font: 600 13px/18px var(--sans); }
+  .board-totals .value { font: 500 24px/30px var(--mono); letter-spacing: -0.02em; }
+  .board { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+  .col { display: flex; flex-direction: column; min-height: 0; }
+  .col-head { padding: 0 2px 10px; }
+  .col-title { display: flex; align-items: center; justify-content: space-between; }
+  .col-count { font-size: 13px; color: var(--muted); }
+  .col-value { margin-top: 8px; font: 500 15px/20px var(--mono); }
+  .col-exp { min-height: 18px; color: var(--muted); font: 400 12px/18px var(--mono); }
+  .add {
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 32px;
+    margin-top: 8px; border: 0; border-radius: 8px; background: var(--sea-mist); color: var(--ink);
+    font: 600 13px/18px var(--sans); cursor: pointer;
+  }
+  .add .icon { width: 15px; height: 15px; }
+  .add:hover { background: var(--sea-green); }
+  .cards { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 0 0 8px; overflow-y: auto; scrollbar-width: none; }
+  .card { flex: none; display: block; padding: 11px 12px; border-radius: 10px; background: var(--panel); cursor: grab; }
+  .card.late { background: var(--late-tint); }
+  .card div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .deal { font-weight: 600; }
+  .card .who { color: var(--muted); font-size: 13px; line-height: 18px; }
+  .card .money { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font: 500 14px/22px var(--mono); }
+  .card .meta { display: flex; justify-content: space-between; margin-top: 2px; color: var(--muted); font: 400 12px/18px var(--mono); }
+</style>
+</head>
+<body data-name="Mockup 1: Color band">
+<div class="app">
+  <aside class="side">
+    <div class="side-inner">
+      <div class="brand">Accountable</div>
+      <nav id="nav" aria-label="Sections"></nav>
+    </div>
+  </aside>
+  <main>
+    <section data-screen="dashboard">
+      <div class="head"><h1>Dashboard</h1><span class="num" id="today"></span></div>
+      <p class="summary" id="summary"></p>
+      <div class="panel figures" id="figures"></div>
+      <a class="band" id="band" href="#pipeline" aria-label="Open the pipeline"></a>
+      <div class="charts">
+        <div class="panel"><h2>Revenue won</h2><div class="chart" id="line"></div></div>
+        <div class="panel"><h2>Deals won</h2><div class="chart" id="bars"></div></div>
+        <div class="panel"><h2>Value reaching each stage</h2><div class="funnel" id="funnel"></div></div>
+      </div>
+      <div class="lists">
+        <div class="panel"><div class="panel-head"><h2>Follow-ups</h2><span id="fucount"></span></div><div class="scroll"><ul id="followups"></ul></div></div>
+        <div class="panel"><h2>Recent activity</h2><div class="scroll"><ul id="recent"></ul></div></div>
+      </div>
+    </section>
+
+    <section data-screen="pipeline" hidden>
+      <div class="head">
+        <h1>Pipeline</h1>
+        <div class="board-totals" id="totals"></div>
+      </div>
+      <div class="board" id="board"></div>
+    </section>
+  </main>
+</div>
+<script src="shared.js"></script>
+<script>
+  const M = MOCK;
+  const $ = (id) => document.getElementById(id);
+
+  $("nav").innerHTML = M.navLinks();
+  $("today").textContent = M.today;
+  $("summary").textContent = M.summary;
+  $("fucount").textContent = M.followUpCount;
+
+  $("figures").innerHTML = [
+    ["Revenue won in October", M.money(M.thisMonth.revenue), `September ${M.money(M.lastMonth.revenue)}`],
+    ["Deals won in October", M.thisMonth.deals, `September ${M.lastMonth.deals}`],
+    ["Open pipeline", M.money(M.openValue), `${M.openCount} open deals`],
+    ["Expected revenue", M.money(M.openExpected), `${M.openShare}% of open pipeline`],
+  ].map(([label, value, context]) =>
+    `<a class="figure" href="#pipeline"><span class="label">${label}</span><span class="value">${value}</span><span class="context">${context}</span></a>`).join("");
+
+  $("band").innerHTML = M.openBoard.map((s) =>
+    `<div class="block" style="flex:${s.value} 1 0;background:${s.fill};color:${s.ink}">
+      <span class="name">${s.name}</span><span class="value">${M.money(s.value)}</span><span class="count">${s.count} deals</span>
+    </div>`).join("");
+
+  const widest = M.funnel[0].value;
+  $("funnel").innerHTML = M.funnel.map((f) =>
+    `<div>
+      <div class="step-text"><b>${f.name}</b><span class="num">${M.money(f.value)}${f.carried ? `  ${f.carried}%` : ""}</span></div>
+      <div class="bar" style="width:${(f.value / widest) * 100}%;background:${f.fill}" title="${f.name}: ${M.money(f.value)}"></div>
+    </div>`).join("");
+
+  $("followups").innerHTML = M.followUps.map((f) =>
+    `<li class="row">
+      <input class="tick" type="checkbox" aria-label="Mark ${f.text} done">
+      <div class="main"><div>${f.text}</div><div class="sub"><a class="link" href="#">${f.about}</a>, ${f.org}</div></div>
+      ${f.overdue ? '<span class="chip chip-alert">Overdue</span>' : ""}
+      <span class="when num">${f.date}</span>
+    </li>`).join("");
+
+  $("recent").innerHTML = M.recent.map((r) =>
+    `<li class="row">
+      <span class="dot dot-${r.type}">${M.icon(r.type)}</span>
+      <div class="main"><div>${r.text}</div><div class="sub"><a class="link" href="#">${r.about}</a></div></div>
+      <span class="when num">${r.when}</span>
+    </li>`).join("");
+
+  $("totals").innerHTML =
+    `<div><span class="label">Open pipeline</span><span class="value">${M.money(M.openValue)}</span></div>
+     <div><span class="label">Expected revenue</span><span class="value">${M.money(M.openExpected)}</span></div>`;
+
+  $("board").innerHTML = M.board.map((s) => {
+    const closed = s.name === "Won" || s.name === "Lost";
+    return `<div class="col">
+      <div class="col-head">
+        <div class="col-title"><span class="chip chip-${s.key}">${s.name}</span><span class="col-count num">${s.count}</span></div>
+        <div class="col-value">${M.money(s.value)}</div>
+        <div class="col-exp">${closed ? "" : `Expected ${M.money(s.expected)}`}</div>
+        <button class="add" type="button">${M.icon("plus")}Add deal</button>
+      </div>
+      <div class="cards">${s.deals.map((d) =>
+        `<a class="card${d.late ? " late" : ""}" href="#pipeline" title="${d.name}, ${d.org}">
+          <div class="deal">${d.name}</div>
+          <div class="who">${d.org}</div>
+          <div class="who">${d.contact}</div>
+          <div class="money"><span>${M.money(d.value)}</span>${d.late ? '<span class="chip chip-alert">Late</span>' : ""}</div>
+          <div class="meta"><span>${d.probability}%</span><span>${d.close}</span></div>
+        </a>`).join("")}</div>
+    </div>`;
+  }).join("");
+
+  M.screens((name) => {
+    if (name !== "dashboard") return;
+    M.fitChart("line", (w, h) => M.lineChart(w, h));
+    M.fitChart("bars", (w, h) => M.barChart(w, h, { barWidth: 15 }));
+  });
+</script>
+</body>
+</html>

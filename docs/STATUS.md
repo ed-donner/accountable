@@ -1,1 +1,1 @@
-The MVP is in planning. `docs/intent.md` has been updated from the Plan stage interview. No code has been written yet.
+The MVP is in design. `docs/intent.md` is agreed, `docs/spec.md` has the requirements and the design with its concerns settled, and `docs/TECH_STACK.md` matches the spec. No code has been written yet. Three mockups in `docs/mockups/` come next.

@@ -63,7 +63,7 @@ git checkout --no-track -B main origin/week1day2-end
 
 ## Share your work
 
-I'd love to see what you build! Please share it with a pull request to `community_contributions`. A pull request needs your own fork of the repo: we make one in Week 2, so fork it sooner if you want to share before then. The steps, and how to pull my latest changes, are in [course/for_agents/AGENT_GIT_GUIDE.md](course/for_agents/AGENT_GIT_GUIDE.md), and your coding agent can take you through them.
+I'd love to see what you build! Please share it with a pull request to `community_contributions`. A pull request needs your own fork of the repo. We make one at the start of Week 1 Day 3, and at the end of that day you share the documents you wrote. The steps, and how to pull my latest changes, are in [course/for_agents/AGENT_GIT_GUIDE.md](course/for_agents/AGENT_GIT_GUIDE.md), and your coding agent can take you through them.
 
 ## The journey
 

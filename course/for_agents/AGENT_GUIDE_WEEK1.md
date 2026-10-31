@@ -21,7 +21,7 @@ No repo work. The slides cover the course, how coding agents are changing the jo
 - **Code Mode:** an explanation, nothing to do.
 - **A skill:** move `docs/BRAND.md` into a `brand` skill.
 - **A plugin:** in Claude Code, `frontend-design`.
-- **Check and commit your setup:** check the repo against the tree and checklist in the guide, then commit with `git add .` and `git commit -m "Day 2 setup"`. The prototype is built on Day 3.
+- **Check and commit your setup:** check the repo against the tree and checklist in the guide, then commit with `git add .` and `git commit -m "Day 2 setup"`. The MVP is built on Day 3.
 
 The slides also cover the context window: what fills it, `/context`, and what `/compact` does.
 
@@ -30,3 +30,23 @@ The slides also cover the context window: what fills it, `/context`, and what `/
 - Claude Code ignores the project's settings until the folder has been trusted, and asks the student to approve a new server in `.mcp.json` the first time it starts. Accept both.
 - After the skill step, `docs/BRAND.md` is gone and the brand guidelines live in the skill. Use the skill for any UI work.
 - If the student skipped the setup, `git checkout week1day2-end` gets Ed's setup. Ed's branch has Claude Code's files; a student on another agent redoes the steps in their guide that add files for it, as section 11 of the guide lists. `docs/BRAND.md` is gone on Ed's branch, so for the brand skill copy `.claude/skills/brand/` to `.agents/skills/brand/` (Copilot and OpenCode read `.claude/skills/` as it is).
+
+## Day 3: Anthropic AI-SDLC
+
+The student builds the MVP of Accountable, a sales CRM for one person, from the business-level intent in `docs/intent.md`. First the student forks the repo on GitHub and adds the fork as a second remote, `fork` (step 1 of "Sharing work in a pull request" in `course/for_agents/AGENT_GIT_GUIDE.md`). The MVP then goes through each stage of Anthropic's AI-native SDLC on a branch called `mvp`:
+
+- **Plan:** the agent interviews the student and updates `docs/intent.md` with their answers.
+- **Design:** the agent writes `docs/spec.md` and makes three mockups in `docs/mockups/`, and the student chooses one.
+- **Build:** the agent writes `docs/plan.md` in phases, the student questions it, and a fresh session builds the MVP from it.
+- **Test:** `npm test` runs every unit and end-to-end test, and the agent compares the app with the chosen mockup using Playwright. Then the student runs the checks and uses the app themselves.
+- **Deploy:** the agent writes `REVIEW.md`, a fresh session reviews the branch against it, the agent fixes the Important findings, and the student merges `mvp` into `main`.
+- **Maintain:** the student uses the app and adds ideas to `docs/STATUS.md`.
+- **Share:** the student copies the day's documents into a folder of their own in `community_contributions/` and opens a PR ("The day's documents" in `course/for_agents/AGENT_GIT_GUIDE.md`).
+
+The student commits at the end of each stage with `git add .` and `git commit -m` and the message on the slide, such as `"Design: spec.md"`. At the end of the day, `git log --oneline` shows a commit for each stage.
+
+**Watch out for:**
+
+- **Usage limits:** Day 3 is the heaviest day of the week. On a plan of about $20 a month, use Sonnet or the equivalent, and if a limit stops the build, wait for the reset and carry on in the same session ("Models and usage limits" in `course/for_agents/AGENT_COURSE_GUIDE.md`).
+- **The agent may commit its own work,** for example after each phase when `plan.md` calls each phase a commit point. That's fine. "If the agent has committed" in `course/for_agents/AGENT_GIT_GUIDE.md` explains what to do.
+- **The review can find Important bugs that every test missed.** That's what the stage is for, and it doesn't mean the build failed. The agent fixes them before the merge.

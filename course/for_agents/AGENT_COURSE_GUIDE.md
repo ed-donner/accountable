@@ -16,6 +16,14 @@ What runs through the course, and where to find what each day covers, so you can
 3. A free or cheap plan: OpenCode with OpenCode Zen, or Pi with OpenRouter. Free models are slower and less reliable, so be patient with the student and keep tasks small.
 4. Free, by switching to Ed's branches with git and reading his results.
 
+## Models and usage limits
+
+Ed records with Claude Opus, the largest model, on a larger plan. On a plan of about $20 a month, such as Claude Pro, recommend the agent's medium-size model: Sonnet in Claude Code (choose it with `/model`), or the equivalent in another agent. It handles the course's builds and leaves room in the plan's limits.
+
+The heaviest day of Week 1 is Day 3, when the agent builds the MVP: about four hours of agent time in all, nearly two of them for the build. On Opus, Ed's Day 3 used roughly a third of a Claude Pro plan's weekly allowance. Sonnet uses less of it.
+
+Plans also have a five-hour limit, and a long build can reach it. The agent stops and says when the limit resets. Nothing is lost: after the reset, ask it to carry on in the same session. In Claude Code, `claude --continue` reopens the last session if the terminal was closed, and `/usage` shows how much of the plan's limits is left.
+
 ## The ten days
 
 | Day | Title |
@@ -39,4 +47,4 @@ On each day that the coding agent works on Accountable, Ed's version at the end 
 
 ## Sharing work and pulling updates
 
-To share work with a pull request to `community_contributions/`, or to bring in Ed's latest changes, follow `course/for_agents/AGENT_GIT_GUIDE.md`. A pull request needs the student's own fork: the course makes one in Week 2, and a student who wants to share before then forks the repo first.
+To share work with a pull request to `community_contributions/`, or to bring in Ed's latest changes, follow `course/for_agents/AGENT_GIT_GUIDE.md`. A pull request needs the student's own fork. The course makes one at the start of Week 1 Day 3, and at the end of that day the student shares the documents they wrote in a pull request.

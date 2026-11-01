@@ -9,7 +9,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 
 import { stackFor } from "../scripts/test-plan.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /** This Playwright worker's own servers and database. */
 export const stack = stackFor(Number(process.env.TEST_PARALLEL_INDEX ?? 0), process.env.ACCOUNTABLE_DB!);
@@ -219,6 +219,29 @@ export function dataCommand(database: string, command: "seed" | "empty", extra: 
   } catch (error) {
     return (error as { stdout?: string }).stdout ?? "";
   }
+}
+
+const HOLD_WRITES = `
+import os, sqlite3, sys
+connection = sqlite3.connect(os.environ["ACCOUNTABLE_DB"], isolation_level=None)
+connection.execute("BEGIN IMMEDIATE")
+print("locked", flush=True)
+sys.stdin.read()
+connection.execute("COMMIT")
+`;
+
+/**
+ * Makes saves really slow, the way a running npm run seed does, with nothing faked
+ * in the browser. Saves wait until the function this returns is called.
+ */
+export async function holdDatabaseWrites() {
+  const child = spawn("uv", ["run", "--no-sync", "python", "-c", HOLD_WRITES], {
+    cwd: ROOT,
+    env: stackEnv,
+    stdio: ["pipe", "pipe", "inherit"],
+  });
+  await new Promise<void>((resolve) => child.stdout!.once("data", () => resolve()));
+  return () => child.stdin!.end();
 }
 
 export function fillToLimits() {

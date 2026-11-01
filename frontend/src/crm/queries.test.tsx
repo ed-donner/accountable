@@ -1,0 +1,408 @@
+import { QueryClient, QueryClientProvider, type InfiniteData } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { toast } from "sonner";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { queryDefaults } from "../App";
+import { META, mockApi, type Call } from "../test-utils";
+import { useDashboard, useMoveDeal, useTickFollowUp, type Dashboard, type Deal, type Stage, type Timeline } from "./queries";
+
+function deal(id: number, stage: Stage = "new"): Deal {
+  return {
+    id,
+    name: `Deal ${id}`,
+    organization_id: 1,
+    organization_name: "Harbor & Pine",
+    main_contact_id: 11,
+    main_contact_name: "Sam Carter",
+    stage,
+    value: 1000,
+    probability: 5,
+    expected_revenue: 50,
+    close_date: "2026-12-18",
+    position: id,
+  };
+}
+
+function moved(id: number, stage: Stage) {
+  return { deal: deal(id, stage), changes: { close_date: "2026-11-01", new_customer: null } };
+}
+
+const FAILED = () => ({ status: 500, body: { detail: "Something went wrong." } });
+
+function setup() {
+  const client = new QueryClient({ defaultOptions: queryDefaults });
+  client.setQueryData(["meta"], META);
+  client.setQueryData(["deals"], [deal(1), deal(2)]);
+  const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return { client, wrapper };
+}
+
+function stages(client: QueryClient) {
+  return Object.fromEntries(client.getQueryData<Deal[]>(["deals"])!.map((item) => [item.id, item.stage]));
+}
+
+const toWon = { dealId: 1, stage: "won" as Stage, beforeDealId: null };
+const toLost = { dealId: 2, stage: "lost" as Stage, beforeDealId: null };
+
+describe("moves that overlap", () => {
+  it("each shows its own message", async () => {
+    const success = vi.spyOn(toast, "success");
+    mockApi({ "GET /meta": META, "POST /deals/1/move": moved(1, "won"), "POST /deals/2/move": moved(2, "lost") });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => {
+      result.current.mutate(toWon);
+      result.current.mutate(toLost);
+    });
+
+    await waitFor(() => expect(success).toHaveBeenCalledTimes(2));
+    expect(success.mock.calls.map(([message]) => message)).toEqual([
+      "Marked as Won. Close date set to today.",
+      "Marked as Lost. Close date set to today.",
+    ]);
+  });
+
+  it("say so when the first fails, and the second still goes through", async () => {
+    const success = vi.spyOn(toast, "success");
+    const failure = vi.spyOn(toast, "error");
+    const calls = mockApi({ "GET /meta": META, "POST /deals/1/move": FAILED, "POST /deals/2/move": moved(2, "lost") });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => {
+      result.current.mutate(toWon);
+      result.current.mutate(toLost);
+    });
+
+    await waitFor(() => expect(failure).toHaveBeenCalledOnce());
+    expect(failure).toHaveBeenCalledWith("Couldn't move that deal, so it's back where it was.");
+    await waitFor(() => expect(success).toHaveBeenCalledOnce());
+    expect(calls.filter((call) => call.method === "POST")).toHaveLength(2);
+  });
+
+  it("say so when the second fails too", async () => {
+    const failure = vi.spyOn(toast, "error");
+    mockApi({ "GET /meta": META, "POST /deals/1/move": FAILED, "POST /deals/2/move": FAILED });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => {
+      result.current.mutate(toWon);
+      result.current.mutate(toLost);
+    });
+
+    await waitFor(() => expect(failure).toHaveBeenCalledTimes(2));
+  });
+
+  it("all go back when they all fail, even if nothing can be read again", async () => {
+    const failure = vi.spyOn(toast, "error");
+    mockApi({ "GET /meta": META, "POST /deals/1/move": FAILED, "POST /deals/2/move": FAILED });
+    const { client, wrapper } = setup();
+    const { result } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => {
+      result.current.mutate(toWon);
+      result.current.mutate(toLost);
+    });
+
+    await waitFor(() => expect(failure).toHaveBeenCalledTimes(2));
+    expect(stages(client)).toEqual({ 1: "new", 2: "new" });
+  });
+
+  it("put the same card back when each of its moves fails", async () => {
+    const failure = vi.spyOn(toast, "error");
+    mockApi({ "GET /meta": META, "POST /deals/1/move": FAILED });
+    const { client, wrapper } = setup();
+    const { result } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => {
+      result.current.mutate(toWon);
+      result.current.mutate({ dealId: 1, stage: "lost", beforeDealId: null });
+    });
+
+    await waitFor(() => expect(failure).toHaveBeenCalledTimes(2));
+    expect(stages(client)).toEqual({ 1: "new", 2: "new" });
+  });
+
+  it("leave a card that's still saving where it was dropped when an earlier move fails", async () => {
+    const shown: Record<number, Stage>[] = [];
+    mockApi({ "GET /meta": META, "POST /deals/1/move": FAILED, "POST /deals/2/move": moved(2, "lost") });
+    const { client, wrapper } = setup();
+    vi.spyOn(toast, "error").mockImplementation(() => {
+      shown.push(stages(client));
+      return 1;
+    });
+    const { result } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => {
+      result.current.mutate(toWon);
+      result.current.mutate(toLost);
+    });
+
+    await waitFor(() => expect(shown).toHaveLength(1));
+    expect(shown[0]).toEqual({ 1: "new", 2: "lost" });
+  });
+
+  it("show the newest drop when an older move's reply arrives", async () => {
+    const shown: Record<number, Stage>[] = [];
+    let replies = 0;
+    mockApi({
+      "GET /meta": META,
+      "POST /deals/1/move": () => {
+        replies += 1;
+        return { body: moved(1, replies === 1 ? "won" : "lost") };
+      },
+    });
+    const { client, wrapper } = setup();
+    vi.spyOn(toast, "success").mockImplementation(() => {
+      shown.push(stages(client));
+      return 1;
+    });
+    const { result } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => {
+      result.current.mutate(toWon);
+      result.current.mutate({ dealId: 1, stage: "lost", beforeDealId: null });
+    });
+
+    await waitFor(() => expect(shown).toHaveLength(2));
+    expect(shown[0][1]).toBe("lost");
+    expect(shown[1][1]).toBe("lost");
+  });
+
+  it("go out one at a time, in order", async () => {
+    const calls = mockApi({ "GET /meta": META, "POST /deals/1/move": moved(1, "won"), "POST /deals/2/move": moved(2, "lost") });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => {
+      result.current.mutate(toWon);
+      result.current.mutate(toLost);
+    });
+
+    await waitFor(() => expect(calls.filter((call) => call.method === "POST")).toHaveLength(2));
+    expect(calls.filter((call) => call.method === "POST").map((call) => call.path)).toEqual([
+      "/deals/1/move",
+      "/deals/2/move",
+    ]);
+  });
+});
+
+describe("a move still finishing after the board has gone", () => {
+  it("shows its message", async () => {
+    const success = vi.spyOn(toast, "success");
+    mockApi({ "GET /meta": META, "POST /deals/1/move": moved(1, "won") });
+    const { wrapper } = setup();
+    const { result, unmount } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => result.current.mutate(toWon));
+    unmount();
+
+    await waitFor(() => expect(success).toHaveBeenCalledOnce());
+  });
+
+  it("says so and puts the card back if it fails", async () => {
+    const failure = vi.spyOn(toast, "error");
+    mockApi({ "GET /meta": META, "POST /deals/1/move": FAILED });
+    const { client, wrapper } = setup();
+    const { result, unmount } = renderHook(() => useMoveDeal(), { wrapper });
+
+    act(() => result.current.mutate(toWon));
+    unmount();
+
+    await waitFor(() => expect(failure).toHaveBeenCalledOnce());
+    expect(client.getQueryData<Deal[]>(["deals"])?.find((item) => item.id === 1)?.stage).toBe("new");
+  });
+});
+
+describe("ticks", () => {
+  function pages(done = false): InfiniteData<Timeline> {
+    const entry = (id: number) => ({
+      kind: "activity" as const,
+      id,
+      at: "2026-10-30T15:20:00Z",
+      type: "call" as const,
+      description: `Activity ${id}`,
+      follow_up_date: "2999-01-02",
+      follow_up_done: done,
+      about: { kind: "deal" as const, id: 7, name: "Annual support" },
+    });
+    return {
+      pages: [
+        { entries: [entry(1)], total: 2 },
+        { entries: [entry(2)], total: 2 },
+      ],
+      pageParams: [0, 50],
+    };
+  }
+
+  function followUp(id: number) {
+    return { id, description: `Activity ${id}`, follow_up_date: "2999-01-02", overdue: false, about: { kind: "deal" as const, id: 7, name: "x" } };
+  }
+
+  function board(): Dashboard {
+    return {
+      overdue_follow_ups: 0,
+      follow_ups: { overdue: 0, upcoming: 2, items: [followUp(1), followUp(2)] },
+    } as Dashboard;
+  }
+
+  it("reach an entry on any page of a timeline", async () => {
+    mockApi({ "PATCH /activities/2": { id: 2 } });
+    const { client, wrapper } = setup();
+    client.setQueryData(["deals", 7, "timeline"], pages());
+    const { result } = renderHook(() => useTickFollowUp(), { wrapper });
+
+    act(() => result.current.mutate({ id: 2, done: true }));
+
+    await waitFor(() => {
+      const data = client.getQueryData<InfiniteData<Timeline>>(["deals", 7, "timeline"]);
+      expect(data?.pages[1].entries[0].follow_up_done).toBe(true);
+    });
+    const data = client.getQueryData<InfiniteData<Timeline>>(["deals", 7, "timeline"]);
+    expect(data?.pages[0].entries[0].follow_up_done).toBe(false);
+  });
+
+  it("put every copy back if the save fails, and say so", async () => {
+    const failure = vi.spyOn(toast, "error");
+    mockApi({ "PATCH /activities/1": FAILED });
+    const { client, wrapper } = setup();
+    client.setQueryData(["deals", 7, "timeline"], pages());
+    client.setQueryData(["dashboard"], board());
+    const { result } = renderHook(() => useTickFollowUp(), { wrapper });
+
+    act(() => result.current.mutate({ id: 1, done: true }));
+
+    await waitFor(() => expect(failure).toHaveBeenCalledOnce());
+    expect(client.getQueryData<InfiniteData<Timeline>>(["deals", 7, "timeline"])?.pages[0].entries[0].follow_up_done).toBe(false);
+    expect(client.getQueryData<Dashboard>(["dashboard"])?.follow_ups.items).toHaveLength(2);
+  });
+
+  it("each say so when two overlap and both fail", async () => {
+    const failure = vi.spyOn(toast, "error");
+    mockApi({ "PATCH /activities/1": FAILED, "PATCH /activities/2": FAILED });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useTickFollowUp(), { wrapper });
+
+    act(() => {
+      result.current.mutate({ id: 1, done: true });
+      result.current.mutate({ id: 2, done: true });
+    });
+
+    await waitFor(() => expect(failure).toHaveBeenCalledTimes(2));
+  });
+
+  it("put each one back when two overlap and both fail, even if nothing can be read again", async () => {
+    const failure = vi.spyOn(toast, "error");
+    mockApi({ "PATCH /activities/1": FAILED, "PATCH /activities/2": FAILED });
+    const { client, wrapper } = setup();
+    client.setQueryData(["deals", 7, "timeline"], pages());
+    client.setQueryData(["dashboard"], board());
+    const { result } = renderHook(() => useTickFollowUp(), { wrapper });
+
+    act(() => {
+      result.current.mutate({ id: 1, done: true });
+      result.current.mutate({ id: 2, done: true });
+    });
+
+    await waitFor(() => expect(failure).toHaveBeenCalledTimes(2));
+    const dashboard = client.getQueryData<Dashboard>(["dashboard"]);
+    expect(dashboard?.follow_ups.items.map((item) => item.id)).toEqual([1, 2]);
+    expect(dashboard?.follow_ups.upcoming).toBe(2);
+    const timeline = client.getQueryData<InfiniteData<Timeline>>(["deals", 7, "timeline"]);
+    expect(timeline?.pages.flatMap((page) => page.entries).map((entry) => entry.follow_up_done)).toEqual([false, false]);
+  });
+
+  it("read everything again once, after the last of them", async () => {
+    mockApi({ "PATCH /activities/1": { id: 1 }, "PATCH /activities/2": { id: 2 } });
+    const { client, wrapper } = setup();
+    const refresh = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useTickFollowUp(), { wrapper });
+
+    act(() => {
+      result.current.mutate({ id: 1, done: true });
+      result.current.mutate({ id: 2, done: true });
+    });
+
+    await waitFor(() => expect(client.isMutating()).toBe(0));
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("finish after the page has gone", async () => {
+    const calls = mockApi({ "PATCH /activities/1": { id: 1 } });
+    const { wrapper } = setup();
+    const { result, unmount } = renderHook(() => useTickFollowUp(), { wrapper });
+
+    act(() => result.current.mutate({ id: 1, done: true }));
+    unmount();
+
+    await waitFor(() => expect(calls.some((call) => call.method === "PATCH")).toBe(true));
+  });
+});
+
+describe("the dashboard at the end of a day", () => {
+  const BEFORE_MIDNIGHT = new Date(2026, 9, 31, 23, 59);
+  const AFTER_MIDNIGHT = new Date(2026, 10, 1, 0, 1);
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function reads(calls: Call[]) {
+    return calls.filter((call) => call.path === "/dashboard").length;
+  }
+
+  function dayEnds() {
+    vi.setSystemTime(AFTER_MIDNIGHT);
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+  }
+
+  it("reads its figures again, because they were worked out for the old day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: BEFORE_MIDNIGHT });
+    let serverDay = "2026-10-31";
+    const calls = mockApi({ "GET /dashboard": () => ({ body: { today: serverDay } }) });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useDashboard(), { wrapper });
+    await waitFor(() => expect(result.current.data?.today).toBe("2026-10-31"));
+
+    serverDay = "2026-11-01";
+    dayEnds();
+
+    await waitFor(() => expect(result.current.data?.today).toBe("2026-11-01"));
+    expect(reads(calls)).toBe(2);
+  });
+
+  it("asks once if the reply is still for the old day, rather than asking for ever", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: BEFORE_MIDNIGHT });
+    const calls = mockApi({ "GET /dashboard": { today: "2026-10-31" } });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useDashboard(), { wrapper });
+    await waitFor(() => expect(result.current.data).toBeDefined());
+
+    dayEnds();
+
+    await waitFor(() => expect(reads(calls)).toBe(2));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 30)));
+    expect(reads(calls)).toBe(2);
+  });
+
+  it("doesn't read them again during the day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: BEFORE_MIDNIGHT });
+    const calls = mockApi({ "GET /dashboard": { today: "2026-10-31" } });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useDashboard(), { wrapper });
+    await waitFor(() => expect(result.current.data).toBeDefined());
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 30)));
+
+    expect(reads(calls)).toBe(1);
+  });
+});

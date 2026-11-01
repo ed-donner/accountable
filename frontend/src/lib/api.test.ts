@@ -2,7 +2,7 @@ import { QueryClient, onlineManager } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { queryDefaults } from "../App";
-import { ApiError, CONNECTION_MESSAGE, api, isConnectionLost } from "./api";
+import { ApiError, CONNECTION_MESSAGE, api, isConnectionLost, onReconnect } from "./api";
 
 function reply(status: number, body?: unknown, contentType = "application/json") {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -84,6 +84,22 @@ describe("api", () => {
     vi.stubGlobal("fetch", async () => reply(200, {}));
     await api("/meta");
     expect(isConnectionLost()).toBe(false);
+  });
+
+  it("says once when the connection comes back, whichever reply shows it", async () => {
+    const back = vi.fn();
+    const stop = onReconnect(back);
+    vi.stubGlobal("fetch", async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await failure();
+    expect(back).not.toHaveBeenCalled();
+
+    vi.stubGlobal("fetch", async () => reply(200, {}));
+    await api("/deals");
+    await api("/contacts");
+    expect(back).toHaveBeenCalledOnce();
+    stop();
   });
 });
 

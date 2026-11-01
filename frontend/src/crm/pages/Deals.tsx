@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { X } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router";
 
 import { Chip } from "../../components/Chip";
 import { DataTable, type TableColumn } from "../../components/DataTable";
 import { PageHeader } from "../../components/PageHeader";
-import { formatDate, todayIso } from "../../lib/dates";
+import { formatDate } from "../../lib/dates";
 import { money } from "../../lib/money";
+import type { AddressChange } from "../../lib/useAddress";
+import { useToday } from "../../lib/useToday";
 import { STAGES, STAGE_NAMES, isLate } from "../deals";
 import { DealForm } from "../forms/DealForm";
 import { DeleteDeal } from "../forms/DeleteDialogs";
@@ -15,9 +19,18 @@ const none = <span className="text-muted">None</span>;
 
 export function Deals() {
   const deals = useDeals();
+  const [params] = useSearchParams();
   const [editing, setEditing] = useState<Deal | "new" | null>(null);
   const [deleting, setDeleting] = useState<Deal | null>(null);
-  const today = todayIso();
+  const today = useToday();
+
+  // Only the dashboard's won links set this, so it only shows after following one.
+  const stage = STAGES.find((item) => item === params.get("stage")) ?? null;
+
+  const rows = useMemo(
+    () => (stage ? deals.data?.filter((row) => row.stage === stage) : deals.data),
+    [deals.data, stage],
+  );
 
   const columns = useMemo<TableColumn<Deal>[]>(
     () => [
@@ -86,6 +99,24 @@ export function Deals() {
     [today],
   );
 
+  const filters = (update: (change: AddressChange) => void): ReactNode =>
+    stage && (
+      <button
+        type="button"
+        className="btn btn-secondary bg-panel"
+        aria-label="Show every stage"
+        onClick={() =>
+          update((address) => {
+            address.delete("stage");
+            address.delete("page");
+          })
+        }
+      >
+        {STAGE_NAMES[stage]} deals only
+        <X size={14} aria-hidden="true" />
+      </button>
+    );
+
   return (
     <>
       <PageHeader title="Deals">
@@ -95,7 +126,9 @@ export function Deals() {
       </PageHeader>
       <DataTable
         noun="deal"
-        rows={deals.data}
+        rows={rows}
+        error={deals.error}
+        onRetry={() => deals.refetch()}
         columns={columns}
         defaultSort={{ id: "close_date", desc: false }}
         rowId={(row) => row.id}
@@ -104,6 +137,9 @@ export function Deals() {
         onAdd={() => setEditing("new")}
         onEdit={setEditing}
         onDelete={setDeleting}
+        filters={filters}
+        filtered={stage !== null}
+        clearParams={["stage"]}
       />
       {editing && <DealForm record={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />}
       {deleting && <DeleteDeal id={deleting.id} name={deleting.name} onClose={() => setDeleting(null)} />}

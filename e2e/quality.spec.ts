@@ -176,3 +176,86 @@ test("the run uses the installed Chrome", async ({ page, browser, browserName })
   expect(brands).toContain("Google Chrome");
   expect(browser.version()).toMatch(/^\d+\./);
 });
+
+test.describe("a tab left open past midnight", () => {
+  const PAST_MIDNIGHT = "03:00";
+
+  function shownDate(offsetDays: number) {
+    const day = new Date();
+    day.setDate(day.getDate() + offsetDays);
+    return day.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  /** Only the browser's clock moves, so the backend stays on today, as it does before midnight. */
+  async function openBeforeMidnight(page: Page, path: string) {
+    const tonight = new Date();
+    tonight.setHours(23, 58, 0, 0);
+    await page.clock.install({ time: tonight });
+    await page.goto(path);
+    await expect(page.getByRole("banner")).toContainText(shownDate(0));
+  }
+
+  test("the top bar and a pipeline card move on by themselves", async ({ page, request }) => {
+    await addLinkedDeal(request, "Due on the board", { close_date: isoDay() });
+    await openBeforeMidnight(page, "/pipeline");
+    await expect(card(page, "Due on the board")).toBeVisible();
+    await expect(card(page, "Due on the board").getByText("Late")).toHaveCount(0);
+
+    await page.clock.fastForward(PAST_MIDNIGHT);
+
+    await expect(page.getByRole("banner")).toContainText(shownDate(1));
+    await expect(card(page, "Due on the board").getByText("Late")).toBeVisible();
+  });
+
+  test("the deals table moves on by itself", async ({ page, request }) => {
+    await addLinkedDeal(request, "Due in the table", { close_date: isoDay() });
+    await openBeforeMidnight(page, "/deals?q=Due%20in%20the%20table");
+    const row = page.getByRole("row", { name: /Due in the table/ });
+    await expect(row).toBeVisible();
+    await expect(row.getByText("Late")).toHaveCount(0);
+
+    await page.clock.fastForward(PAST_MIDNIGHT);
+
+    await expect(row.getByText("Late")).toBeVisible();
+  });
+
+  test("a deal's page and its timeline move on by themselves", async ({ page, request }) => {
+    const { deal } = await addLinkedDeal(request, "Due on its page", { close_date: isoDay() });
+    await addActivity(request, { deal_id: deal.id, description: "Ring them back", follow_up_date: isoDay() });
+    await openBeforeMidnight(page, `/deals/${deal.id}`);
+    await expect(page.getByText("Ring them back")).toBeVisible();
+    await expect(page.getByText("Late", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Overdue", { exact: true })).toHaveCount(0);
+
+    await page.clock.fastForward(PAST_MIDNIGHT);
+
+    await expect(page.getByText("Late", { exact: true })).toBeVisible();
+    await expect(page.getByText("Overdue", { exact: true })).toBeVisible();
+  });
+
+  test("the dashboard reads its figures again", async ({ page }) => {
+    await openBeforeMidnight(page, "/");
+    await expect(page.getByTestId("summary")).toBeVisible();
+
+    const reading = page.waitForRequest((sent) => new URL(sent.url()).pathname === "/api/dashboard");
+    await page.clock.fastForward(PAST_MIDNIGHT);
+
+    await reading;
+  });
+
+  test("a laptop waking the next morning catches up when its window is used", async ({ page, request }) => {
+    await addLinkedDeal(request, "Due before the laptop slept", { close_date: isoDay() });
+    await openBeforeMidnight(page, "/pipeline");
+    await expect(card(page, "Due before the laptop slept")).toBeVisible();
+
+    // The clock jumps and no timer runs, which is what sleeping looks like to the page.
+    const morning = new Date();
+    morning.setDate(morning.getDate() + 1);
+    morning.setHours(8, 0, 0, 0);
+    await page.clock.setSystemTime(morning);
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+    await expect(page.getByRole("banner")).toContainText(shownDate(1));
+    await expect(card(page, "Due before the laptop slept").getByText("Late")).toBeVisible();
+  });
+});

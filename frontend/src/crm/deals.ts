@@ -1,4 +1,4 @@
-import type { Deal, Meta, Stage } from "./queries";
+import type { Deal, Meta, MoveResult, Stage } from "./queries";
 
 export const STAGES: Stage[] = ["new", "qualified", "proposal", "negotiation", "won", "lost"];
 export const OPEN_STAGES: Stage[] = ["new", "qualified", "proposal", "negotiation"];
@@ -67,6 +67,14 @@ export function slideSteps(index: number, draggedIndex: number, place: number | 
 }
 
 export type Move = { dealId: number; stage: Stage; beforeDealId: number | null };
+
+/** What else a move changed, for a drop on Won or Lost. Null for any other move. */
+export function moveMessage({ deal, changes }: MoveResult): string | null {
+  if (changes.close_date === null) return null;
+  const parts = [`Marked as ${STAGE_NAMES[deal.stage]}.`, "Close date set to today."];
+  if (changes.new_customer) parts.push(`${changes.new_customer} is now a customer.`);
+  return parts.join(" ");
+}
 
 /**
  * The board's best guess at what a move will do, so it can show straight away.

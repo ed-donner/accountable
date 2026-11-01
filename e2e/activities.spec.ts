@@ -132,6 +132,99 @@ test("show more loads entries after the first 50", async ({ page, request }) => 
   await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
 });
 
+test("a timeline longer than one reply can hold can be read to the end, on all three record pages", async ({ page, request }) => {
+  test.slow();
+  const { deal, contact, organization } = await addLinkedDeal(request, "Very busy");
+  const numbers = Array.from({ length: 520 }, (_, number) => number);
+  while (numbers.length > 0) {
+    await Promise.all(numbers.splice(0, 25).map((number) => addActivity(request, { deal_id: deal.id, description: `Entry ${number}` })));
+  }
+
+  for (const path of [`/deals/${deal.id}`, `/contacts/${contact.id}`, `/organizations/${organization.id}`]) {
+    await page.goto(path);
+    await expect(entries(page)).toHaveCount(50);
+    for (let shown = 100; shown <= 500; shown += 50) {
+      await page.getByRole("button", { name: "Show more" }).click();
+      await expect(entries(page)).toHaveCount(shown);
+    }
+    await page.getByRole("button", { name: "Show more" }).click();
+    await expect(entries(page)).toHaveCount(520);
+    await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
+  }
+});
+
+test.describe("a long timeline with more showing", () => {
+  async function longTimeline(page: Page, request: Parameters<typeof addLinkedDeal>[0]) {
+    const { deal } = await addLinkedDeal(request, "Long one");
+    await addActivity(request, { deal_id: deal.id, description: "Oldest entry", occurred_at: "2020-01-01T09:00:00Z", follow_up_date: isoDay(30) });
+    for (let number = 0; number < 54; number += 1) {
+      await addActivity(request, { deal_id: deal.id, description: `Entry ${number}` });
+    }
+    await page.goto(`/deals/${deal.id}`);
+    await expect(entries(page)).toHaveCount(50);
+    await page.getByRole("button", { name: "Show more" }).click();
+    await expect(entries(page)).toHaveCount(55);
+    return deal;
+  }
+
+  test("logging an activity keeps everything showing, each entry once", async ({ page, request }) => {
+    await longTimeline(page, request);
+    await logActivity(page, "Brand new entry");
+    await expect(entries(page)).toHaveCount(56);
+    await expect(entries(page).first()).toContainText("Brand new entry");
+    await expect(entries(page).filter({ hasText: "Brand new entry" })).toHaveCount(1);
+  });
+
+  test("deleting an entry keeps everything showing", async ({ page, request }) => {
+    await longTimeline(page, request);
+    await page.getByRole("button", { name: "Delete Entry 3", exact: true }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete activity" }).click();
+    await expect(entries(page)).toHaveCount(54);
+    await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
+  });
+
+  test("a follow-up on a later page can be ticked", async ({ page, request }) => {
+    await longTimeline(page, request);
+    const entry = entries(page).filter({ hasText: "Oldest entry" });
+    await entry.getByRole("checkbox").click();
+    await expect(entry).toContainText("Done");
+    await expect(entries(page)).toHaveCount(55);
+  });
+
+  test("showing more doesn't change what's already showing", async ({ page, request }) => {
+    const { deal } = await addLinkedDeal(request, "Stable order");
+    for (let number = 0; number < 60; number += 1) {
+      await addActivity(request, { deal_id: deal.id, description: `Entry ${number}`, occurred_at: "2026-01-01T09:00:00Z" });
+    }
+    await page.goto(`/deals/${deal.id}`);
+    await expect(entries(page)).toHaveCount(50);
+    const before = await entries(page).allTextContents();
+    await page.getByRole("button", { name: "Show more" }).click();
+    await expect(entries(page)).toHaveCount(60);
+    const after = await entries(page).allTextContents();
+    expect(after.slice(0, 50)).toEqual(before);
+    expect(new Set(after).size).toBe(60);
+  });
+});
+
+test("the delete dialog names the activity, and copes with a long one", async ({ page, request }) => {
+  const { deal } = await addLinkedDeal(request, "Named");
+  const words = "A very long note about what was said on the call ".repeat(12).trim();
+  await addActivity(request, { deal_id: deal.id, description: "Short note" });
+  await addActivity(request, { deal_id: deal.id, description: words });
+
+  await page.goto(`/deals/${deal.id}`);
+  await page.getByRole("button", { name: "Delete Short note" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText('Delete "Short note"?');
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+
+  await page.getByRole("button", { name: `Delete ${words}` }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog.getByRole("button", { name: "Delete activity" })).toBeVisible();
+  const box = (await dialog.boundingBox())!;
+  expect(box.height).toBeLessThan(300);
+});
+
 test("a follow-up can be ticked done on the dashboard, leaving it but not the timeline", async ({ page, request }) => {
   const { deal } = await addLinkedDeal(request, "Tick on dashboard");
   await addActivity(request, { deal_id: deal.id, description: "Ring them back", follow_up_date: isoDay(-40) });
@@ -171,4 +264,37 @@ test("a follow-up can be ticked and unticked on a timeline", async ({ page, requ
 
   await page.goto("/");
   await expect(page.getByTestId("follow-up").filter({ hasText: "Send the deck" })).toHaveCount(1);
+});
+
+test("two quick ticks each stay gone from the dashboard", async ({ page, request }) => {
+  const { deal } = await addLinkedDeal(request, "Two ticks");
+  await addActivity(request, { deal_id: deal.id, description: "Quick tick one", follow_up_date: isoDay(2) });
+  await addActivity(request, { deal_id: deal.id, description: "Quick tick two", follow_up_date: isoDay(2) });
+  await page.route(
+    (url) => /\/api\/activities\/\d+$/.test(url.pathname),
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await route.continue();
+    },
+  );
+
+  await page.goto("/");
+  const row = (text: string) => page.getByTestId("follow-up").filter({ hasText: text });
+  await expect(row("Quick tick two")).toBeVisible();
+  await page.evaluate(() => {
+    const seen: number[] = [];
+    (window as unknown as { rowsSeen: number[] }).rowsSeen = seen;
+    setInterval(() => {
+      const rows = [...document.querySelectorAll('[data-testid="follow-up"]')];
+      const now = rows.filter((item) => item.textContent?.includes("Quick tick")).length;
+      if (seen.at(-1) !== now) seen.push(now);
+    }, 5);
+  });
+
+  await row("Quick tick one").getByRole("checkbox").click();
+  await row("Quick tick two").getByRole("checkbox").click();
+  await expect(page.getByTestId("follow-up").filter({ hasText: "Quick tick" })).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+
+  expect(await page.evaluate(() => (window as unknown as { rowsSeen: number[] }).rowsSeen)).toEqual([2, 1, 0]);
 });

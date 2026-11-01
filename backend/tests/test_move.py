@@ -108,6 +108,16 @@ def test_dropping_a_card_on_itself_leaves_it_there(api, make):
     assert column("proposal") == ["A", "B", "C"]
 
 
+def test_a_card_moved_across_columns_above_itself_goes_to_the_end(api, make):
+    make_column(make, "qualified", ["A", "B"])
+    moved = make.deal("Moved", stage="new")
+
+    assert move(api, moved, "qualified", moved).status_code == 200
+
+    assert column("qualified") == ["A", "B", "Moved"]
+    assert positions("qualified") == [0, 1, 2]
+
+
 def test_renumbering_leaves_a_clean_column(api, make):
     deals_in_column = make_column(make, "proposal", ["A", "B", "C"])
     move(api, deals_in_column["C"], "proposal", deals_in_column["A"])

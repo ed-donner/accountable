@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
+import { LoadFailed } from "../../components/LoadFailed";
 import { MissingRecord } from "../../components/MissingRecord";
 import { ApiError } from "../../lib/api";
 import { money } from "../../lib/money";
+import { recordId } from "../../lib/validate";
 import { ContactForm } from "../forms/ContactForm";
 import { DealForm } from "../forms/DealForm";
 import { DeleteContact } from "../forms/DeleteDialogs";
@@ -13,7 +15,12 @@ import { Timeline } from "../Timeline";
 import { Detail, LinkedList, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
 
 export function Contact() {
-  const id = Number(useParams().id);
+  const id = recordId(useParams().id);
+  if (id === null) return <MissingRecord word="contact" to="/contacts" section="Contacts" />;
+  return <ContactRecord id={id} />;
+}
+
+function ContactRecord({ id }: { id: number }) {
   const navigate = useNavigate();
   const contact = useContact(id);
   const [dialog, setDialog] = useState<"edit" | "delete" | "deal" | null>(null);
@@ -22,7 +29,7 @@ export function Contact() {
   if (contact.error instanceof ApiError && contact.error.kind === "missing") {
     return <MissingRecord word="contact" to="/contacts" section="Contacts" />;
   }
-  if (!contact.data) return null;
+  if (!contact.data) return <LoadFailed onPage error={contact.error} onRetry={() => contact.refetch()} />;
   const record = contact.data;
 
   return (
@@ -33,6 +40,7 @@ export function Contact() {
         onEdit={() => setDialog("edit")}
         onDelete={() => setDialog("delete")}
       />
+      <LoadFailed onPage keeping error={contact.error} onRetry={() => contact.refetch()} />
       <RecordColumns
         side={
           <>

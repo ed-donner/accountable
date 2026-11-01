@@ -4,15 +4,21 @@ import { defineConfig } from "vitest/config";
 
 const webPort = Number(process.env.ACCOUNTABLE_WEB_PORT ?? 5173);
 const apiPort = Number(process.env.ACCOUNTABLE_API_PORT ?? 8765);
+// The tests set their own cache so they can't disturb a running copy.
+const cacheDir = process.env.ACCOUNTABLE_VITE_CACHE ?? "node_modules/.vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // The tests set their own cache so they can't disturb a running copy.
-  cacheDir: process.env.ACCOUNTABLE_VITE_CACHE ?? "node_modules/.vite",
+  cacheDir,
   server: {
     host: "127.0.0.1",
     port: webPort,
     strictPort: true,
+    // This is the address the browser uses, so it guards the customer data. By
+    // default, pages on other local ports can call /api through it, and it serves
+    // the whole repo, database included.
+    cors: false,
+    fs: { allow: [".", "../node_modules", cacheDir] },
     proxy: { "/api": `http://127.0.0.1:${apiPort}` },
   },
   // Listed up front, or Vite finds them during a first visit and reloads the page.

@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 import { Chip } from "../../components/Chip";
+import { LoadFailed } from "../../components/LoadFailed";
 import { MissingRecord } from "../../components/MissingRecord";
 import { ApiError } from "../../lib/api";
-import { formatDate, todayIso } from "../../lib/dates";
+import { formatDate } from "../../lib/dates";
 import { money } from "../../lib/money";
+import { useToday } from "../../lib/useToday";
+import { recordId } from "../../lib/validate";
 import { isLate, isOpen } from "../deals";
 import { DealForm } from "../forms/DealForm";
 import { DeleteDeal } from "../forms/DeleteDialogs";
@@ -15,18 +18,24 @@ import { Timeline } from "../Timeline";
 import { Detail, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
 
 export function Deal() {
-  const id = Number(useParams().id);
+  const id = recordId(useParams().id);
+  if (id === null) return <MissingRecord word="deal" to="/deals" section="Deals" />;
+  return <DealRecord id={id} />;
+}
+
+function DealRecord({ id }: { id: number }) {
   const navigate = useNavigate();
   const deal = useDeal(id);
+  const today = useToday();
   const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
   const close = () => setDialog(null);
 
   if (deal.error instanceof ApiError && deal.error.kind === "missing") {
     return <MissingRecord word="deal" to="/deals" section="Deals" />;
   }
-  if (!deal.data) return null;
+  if (!deal.data) return <LoadFailed onPage error={deal.error} onRetry={() => deal.refetch()} />;
   const record = deal.data;
-  const late = isLate(record, todayIso());
+  const late = isLate(record, today);
 
   return (
     <>
@@ -41,6 +50,7 @@ export function Deal() {
         onEdit={() => setDialog("edit")}
         onDelete={() => setDialog("delete")}
       />
+      <LoadFailed onPage keeping error={deal.error} onRetry={() => deal.refetch()} />
       <RecordColumns
         side={
           <SidePanel title="Details">

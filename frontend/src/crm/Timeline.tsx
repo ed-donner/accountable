@@ -5,10 +5,12 @@ import { Link } from "react-router";
 import { Chip } from "../components/Chip";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
-import { formatDate, formatDateTime, todayIso } from "../lib/dates";
+import { LoadFailed } from "../components/LoadFailed";
+import { formatDate, formatDateTime } from "../lib/dates";
+import { useToday } from "../lib/useToday";
 import { DeleteActivity } from "./forms/DeleteDialogs";
 import { EditActivity, LogActivity } from "./forms/ActivityForm";
-import { TIMELINE_PAGE, useTickFollowUp, useTimeline, type About, type RecordKind, type TimelineEntry } from "./queries";
+import { useTickFollowUp, useTimeline, type About, type RecordKind, type TimelineEntry } from "./queries";
 
 const TYPE_STYLES = {
   call: { label: "Call", fill: "bg-sea-green text-ink" },
@@ -30,10 +32,10 @@ export function aboutPath(about: About) {
   return about.kind === "deal" ? `/deals/${about.id}` : `/contacts/${about.id}`;
 }
 
-function FollowUp({ entry }: { entry: TimelineEntry }) {
+function FollowUp({ entry, today }: { entry: TimelineEntry; today: string }) {
   const tick = useTickFollowUp();
   if (!entry.follow_up_date) return null;
-  const overdue = !entry.follow_up_done && entry.follow_up_date < todayIso();
+  const overdue = !entry.follow_up_done && entry.follow_up_date < today;
   return (
     <label className="mt-1 flex w-fit items-center gap-2 text-[13px] leading-[18px]">
       <input
@@ -51,7 +53,9 @@ function FollowUp({ entry }: { entry: TimelineEntry }) {
   );
 }
 
-function Entry({ entry, onEdit, onDelete }: { entry: TimelineEntry; onEdit: () => void; onDelete: () => void }) {
+type EntryProps = { entry: TimelineEntry; today: string; onEdit: () => void; onDelete: () => void };
+
+function Entry({ entry, today, onEdit, onDelete }: EntryProps) {
   const style = TYPE_STYLES[entry.type ?? "stage"];
   return (
     <li className="flex gap-3 py-2.5" data-testid="timeline-entry">
@@ -65,7 +69,7 @@ function Entry({ entry, onEdit, onDelete }: { entry: TimelineEntry; onEdit: () =
             {entry.about.name}
           </Link>
         </p>
-        <FollowUp entry={entry} />
+        <FollowUp entry={entry} today={today} />
       </div>
       {entry.kind === "activity" && (
         <div className="flex-none whitespace-nowrap">
@@ -90,14 +94,15 @@ type Props = {
 };
 
 export function Timeline({ kind, id, logTo, empty }: Props) {
-  const [limit, setLimit] = useState(TIMELINE_PAGE);
-  const timeline = useTimeline(kind, id, limit);
+  const timeline = useTimeline(kind, id);
+  const today = useToday();
   const [logging, setLogging] = useState(false);
   const [editing, setEditing] = useState<TimelineEntry | null>(null);
   const [deleting, setDeleting] = useState<TimelineEntry | null>(null);
 
-  const entries = timeline.data?.entries ?? [];
-  const total = timeline.data?.total ?? 0;
+  // A page can repeat an entry for a moment if the list shifted before it was read.
+  const all = timeline.data?.pages.flatMap((page) => page.entries) ?? [];
+  const entries = [...new Map(all.map((entry) => [`${entry.kind}-${entry.id}`, entry])).values()];
 
   return (
     <section aria-label="Timeline" className="panel px-[18px] py-4">
@@ -111,21 +116,37 @@ export function Timeline({ kind, id, logTo, empty }: Props) {
       </div>
 
       {timeline.data && entries.length === 0 && <EmptyState message={empty} />}
+      <LoadFailed
+        keeping={timeline.data !== undefined}
+        error={timeline.isFetchNextPageError ? null : timeline.error}
+        onRetry={() => timeline.refetch()}
+      />
 
       <ul className="mt-1">
         {entries.map((entry) => (
           <Entry
             key={`${entry.kind}-${entry.id}`}
             entry={entry}
+            today={today}
             onEdit={() => setEditing(entry)}
             onDelete={() => setDeleting(entry)}
           />
         ))}
       </ul>
 
-      {entries.length < total && (
-        <div className="mt-2 flex justify-center">
-          <button type="button" className="btn btn-secondary" onClick={() => setLimit(limit + TIMELINE_PAGE)}>
+      {timeline.hasNextPage && (
+        <div className="mt-2 flex flex-col items-center gap-1.5">
+          {timeline.isFetchNextPageError && (
+            <p role="alert" className="text-[13px] leading-[18px] text-muted">
+              Couldn't load more.
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={timeline.isFetchingNextPage}
+            onClick={() => timeline.fetchNextPage()}
+          >
             Show more
           </button>
         </div>
@@ -133,7 +154,7 @@ export function Timeline({ kind, id, logTo, empty }: Props) {
 
       {logging && logTo && <LogActivity link={logTo} onClose={() => setLogging(false)} />}
       {editing && <EditActivity entry={editing} onClose={() => setEditing(null)} />}
-      {deleting && <DeleteActivity id={deleting.id} onClose={() => setDeleting(null)} />}
+      {deleting && <DeleteActivity id={deleting.id} description={deleting.description} onClose={() => setDeleting(null)} />}
     </section>
   );
 }

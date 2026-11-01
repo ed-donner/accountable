@@ -12,6 +12,7 @@ import {
   dropAbove,
   dropAtEnd,
   emptyDatabase,
+  holdDatabaseWrites,
   holdOver,
   isoDay,
   pressKeys,
@@ -328,6 +329,152 @@ test("a failed save returns the card and says so", async ({ page, request, expec
   await expect(page.getByText("Couldn't move that deal, so it's back where it was.")).toBeVisible();
   await expect(column(page, "new").locator('[data-deal="Stuck"]')).toBeVisible();
   await expect(column(page, "proposal").locator("[data-deal]")).toHaveCount(0);
+});
+
+/** Holds every move back until told to go, so a second drop lands while the first is still saving. */
+async function holdMoves(page: Page, answer: (call: number) => "save" | "fail" = () => "save") {
+  let release = () => undefined as void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let calls = 0;
+  await page.route("**/api/deals/*/move", async (route) => {
+    calls += 1;
+    const outcome = answer(calls);
+    await held;
+    // Not route.continue(): if the page has moved on, it can lose the request.
+    if (outcome === "save") await route.fulfill({ response: await route.fetch() });
+    else await route.fulfill({ status: 500, contentType: "application/json", body: '{"detail":"Something went wrong."}' });
+  });
+  return release;
+}
+
+/**
+ * After a drop, dnd-kit swallows clicks for 50ms so the drop can't count as one. A
+ * click on a link in that window never reaches React, so the browser loads the page
+ * afresh, which no person's hand is quick enough to do.
+ */
+async function leaveTheBoardFor(page: Page, section: string) {
+  await page.waitForTimeout(150);
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: section }).click();
+  await expect(page.getByRole("heading", { level: 1, name: section })).toBeVisible();
+}
+
+test.describe("moves that overlap", () => {
+  test("two drops in a row each show their message", async ({ page, request }) => {
+    await addLinkedDeal(request, "First win");
+    await addLinkedDeal(request, "First loss");
+    const release = await holdMoves(page);
+    await page.goto("/pipeline");
+
+    await dropAtEnd(page, "First win", "won");
+    await dropAtEnd(page, "First loss", "lost");
+    release();
+
+    await expect(page.getByText(/^Marked as Lost\./)).toBeVisible();
+    await expect(page.getByText(/^Marked as Won\./)).toBeVisible();
+    await expect(column(page, "won").locator('[data-deal="First win"]')).toBeVisible();
+    await expect(column(page, "lost").locator('[data-deal="First loss"]')).toBeVisible();
+  });
+
+  test("if the first of two moves fails it says so, and the second still lands", async ({ page, request, expectConsoleError }) => {
+    expectConsoleError(/status of 500.*\/api\/deals\/\d+\/move/);
+    await addLinkedDeal(request, "Bounced");
+    await addLinkedDeal(request, "Landed");
+    const release = await holdMoves(page, (call) => (call === 1 ? "fail" : "save"));
+    await page.goto("/pipeline");
+
+    await dropAtEnd(page, "Bounced", "proposal");
+    await dropAtEnd(page, "Landed", "lost");
+    release();
+
+    await expect(page.getByText("Couldn't move that deal, so it's back where it was.")).toBeVisible();
+    await expect(column(page, "new").locator('[data-deal="Bounced"]')).toBeVisible();
+    await expect(column(page, "lost").locator('[data-deal="Landed"]')).toBeVisible();
+    await expect(page.getByText(/^Marked as Lost\./)).toBeVisible();
+  });
+
+  test("if the second of two moves fails it says so, and the first stays", async ({ page, request, expectConsoleError }) => {
+    expectConsoleError(/status of 500.*\/api\/deals\/\d+\/move/);
+    await addLinkedDeal(request, "Stayed");
+    await addLinkedDeal(request, "Bounced late");
+    const release = await holdMoves(page, (call) => (call === 2 ? "fail" : "save"));
+    await page.goto("/pipeline");
+
+    await dropAtEnd(page, "Stayed", "negotiation");
+    await dropAtEnd(page, "Bounced late", "qualified");
+    release();
+
+    await expect(page.getByText("Couldn't move that deal, so it's back where it was.")).toBeVisible();
+    await expect(column(page, "negotiation").locator('[data-deal="Stayed"]')).toBeVisible();
+    await expect(column(page, "new").locator('[data-deal="Bounced late"]')).toBeVisible();
+  });
+
+  test("if both of two moves fail and nothing can be read, both cards go back", async ({ page, request, expectConsoleError }) => {
+    expectConsoleError(/status of 500.*\/api\/deals\/\d+\/move|Failed to load resource/);
+    await addLinkedDeal(request, "Back first");
+    await addLinkedDeal(request, "Back second");
+    const release = await holdMoves(page, () => "fail");
+    await page.goto("/pipeline");
+    const total = await page.getByTestId("board-value").innerText();
+
+    await dropAtEnd(page, "Back first", "won");
+    await dropAtEnd(page, "Back second", "lost");
+    await page.route(
+      (url) => url.pathname === "/api/deals",
+      (route) => route.abort(),
+    );
+    release();
+
+    await expect(page.getByText("Couldn't move that deal, so it's back where it was.")).toHaveCount(2);
+    await expect(column(page, "new").locator('[data-deal="Back first"]')).toBeVisible();
+    await expect(column(page, "new").locator('[data-deal="Back second"]')).toBeVisible();
+    await expect(page.getByTestId("board-value")).toHaveText(total);
+  });
+
+  test("leaving the board before the reply still shows the message", async ({ page, request }) => {
+    await addLinkedDeal(request, "Left behind");
+    const release = await holdMoves(page);
+    await page.goto("/pipeline");
+
+    await dropAtEnd(page, "Left behind", "won");
+    await leaveTheBoardFor(page, "Deals");
+    release();
+
+    await expect(page.getByText(/^Marked as Won\./)).toBeVisible();
+  });
+
+  test("a save held up by a busy database still lands after leaving the board", async ({ page, request }) => {
+    const { deal } = await addLinkedDeal(request, "Slow save");
+    await page.goto("/pipeline");
+    await expect(card(page, "Slow save")).toBeVisible();
+
+    const release = await holdDatabaseWrites();
+    try {
+      await dropAtEnd(page, "Slow save", "won");
+      await leaveTheBoardFor(page, "Deals");
+      expect((await (await request.get(`/api/deals/${deal.id}`)).json()).stage).toBe("new");
+    } finally {
+      // Left locked, every test after this one on the same worker would stall.
+      release();
+    }
+
+    await expect(page.getByText(/^Marked as Won\./)).toBeVisible();
+    await expect(page.getByRole("row", { name: /Slow save/ })).toContainText("Won");
+  });
+
+  test("leaving the board before a failed reply still says so", async ({ page, request, expectConsoleError }) => {
+    expectConsoleError(/status of 500.*\/api\/deals\/\d+\/move/);
+    await addLinkedDeal(request, "Left and failed");
+    const release = await holdMoves(page, () => "fail");
+    await page.goto("/pipeline");
+
+    await dropAtEnd(page, "Left and failed", "proposal");
+    await leaveTheBoardFor(page, "Contacts");
+    release();
+
+    await expect(page.getByText("Couldn't move that deal, so it's back where it was.")).toBeVisible();
+  });
 });
 
 test("a card shows all its fields, a click opens the deal, and a short drag doesn't", async ({ page, request }) => {

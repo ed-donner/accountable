@@ -25,6 +25,10 @@ metadata = MetaData(
     }
 )
 
+# Every table gets these. SQLite would otherwise give the newest record's id to
+# the next one after a delete, so an old address could open a different record.
+TABLE_OPTIONS = {"sqlite_autoincrement": True}
+
 # FastAPI runs requests on separate threads, and renumbering a column reads it
 # before writing it, so all writes go one at a time.
 _write_lock = threading.Lock()
@@ -44,12 +48,12 @@ def database_path() -> Path:
     return Path(os.environ.get("ACCOUNTABLE_DB") or DEFAULT_PATH).resolve()
 
 
-def _make_engine(path: Path) -> Engine:
-    made = create_engine(URL.create("sqlite", database=str(path)), connect_args={"timeout": 30})
+def _make_engine(path: Path, *, foreign_keys: bool = True, **connect_args: object) -> Engine:
+    made = create_engine(URL.create("sqlite", database=str(path)), connect_args={"timeout": 30, **connect_args})
 
     @event.listens_for(made, "connect")
-    def turn_on_foreign_keys(connection: sqlite3.Connection, _record: object) -> None:
-        connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_FKEY, True)
+    def set_foreign_keys(connection: sqlite3.Connection, _record: object) -> None:
+        connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_FKEY, foreign_keys)
 
     return made
 
@@ -82,12 +86,23 @@ def writing() -> Iterator[Connection]:
         yield connection
 
 
-def _upgrade(target: Engine) -> None:
+def _upgrade(path: Path, revision: str = "head") -> None:
+    """Runs the migrations in one transaction, so one that stops partway changes nothing.
+
+    SQLite makes most table changes by rebuilding the table. Foreign keys stay off
+    meanwhile, because dropping the old table with them on would run its delete
+    rules, blanking links and deleting activities. Autocommit off is what puts
+    those table changes inside the transaction.
+    """
     config = Config()
     config.set_main_option("script_location", str(MIGRATIONS).replace("%", "%%"))
-    with target.begin() as connection:
-        config.attributes["connection"] = connection
-        command.upgrade(config, "head")
+    migrating = _make_engine(path, foreign_keys=False, autocommit=False)
+    try:
+        with migrating.begin() as connection:
+            config.attributes["connection"] = connection
+            command.upgrade(config, revision)
+    finally:
+        migrating.dispose()
 
 
 def prepare_database(fill_new: Callable[[Connection], None]) -> bool:
@@ -103,7 +118,7 @@ def prepare_database(fill_new: Callable[[Connection], None]) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     if path.exists():
-        _upgrade(engine())
+        _upgrade(path)
         return False
 
     building = path.with_name(f"{path.stem}.building{path.suffix}")
@@ -112,7 +127,7 @@ def prepare_database(fill_new: Callable[[Connection], None]) -> bool:
 
     target = _make_engine(building)
     try:
-        _upgrade(target)
+        _upgrade(building)
         with target.begin() as connection:
             fill_new(connection)
     except BaseException:

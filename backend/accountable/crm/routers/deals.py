@@ -74,14 +74,14 @@ def add_deal(
 
 
 @router.get("/{deal_id}")
-def get_deal(deal_id: int) -> schemas.Deal:
+def get_deal(deal_id: schemas.PathId) -> schemas.Deal:
     with db.reading() as conn:
         return _reply(_get(conn, deal_id))
 
 
 @router.patch("/{deal_id}")
 def edit_deal(
-    deal_id: int,
+    deal_id: schemas.PathId,
     body: schemas.DealUpdate,
     today: date = Depends(db.local_today),
     now: datetime = Depends(db.utc_now),
@@ -109,7 +109,7 @@ def edit_deal(
 
 @router.post("/{deal_id}/move")
 def move_deal(
-    deal_id: int,
+    deal_id: schemas.PathId,
     body: schemas.DealMove,
     today: date = Depends(db.local_today),
     now: datetime = Depends(db.utc_now),
@@ -117,7 +117,8 @@ def move_deal(
     with db.writing() as conn:
         _get(conn, deal_id)
         result = rules.change_stage(conn, deal_id, body.stage, today=today, now=now, to_top=False)
-        if body.before_deal_id != deal_id:
+        # A card dropped on itself stays put, unless it's changed column and isn't there yet.
+        if result.changed or body.before_deal_id != deal_id:
             rules.place_deal(conn, deal_id, body.stage, body.before_deal_id)
         return {
             "deal": _reply(_get(conn, deal_id)),
@@ -126,14 +127,14 @@ def move_deal(
 
 
 @router.delete("/{deal_id}", status_code=204)
-def delete_deal(deal_id: int) -> None:
+def delete_deal(deal_id: schemas.PathId) -> None:
     with db.writing() as conn:
         _get(conn, deal_id)
         conn.execute(delete(deals).where(deals.c.id == deal_id))
 
 
 @router.get("/{deal_id}/delete-impact")
-def deal_impact(deal_id: int) -> schemas.DealImpact:
+def deal_impact(deal_id: schemas.PathId) -> schemas.DealImpact:
     with db.reading() as conn:
         row = _get(conn, deal_id)
         return {
@@ -150,9 +151,9 @@ def deal_impact(deal_id: int) -> schemas.DealImpact:
 
 @router.get("/{deal_id}/timeline")
 def deal_timeline(
-    deal_id: int,
+    deal_id: schemas.PathId,
     limit: int = Query(timeline.DEFAULT_LIMIT, ge=1, le=500),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=schemas.MAX_ID),
 ) -> schemas.Timeline:
     with db.reading() as conn:
         _get(conn, deal_id)

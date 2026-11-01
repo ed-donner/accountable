@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, useLocation } from "react-router";
 
+import { ApiError } from "../lib/api";
 import { user } from "../test-utils";
 import { DataTable, type TableColumn } from "./DataTable";
 
@@ -194,6 +195,131 @@ describe("paging", () => {
     show(many(120), "/?page=3");
     expect(names()).toHaveLength(20);
     expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe("an address past the end", () => {
+  function table(rows: Row[] | undefined, start: string) {
+    const element = (current: Row[] | undefined) => (
+      <MemoryRouter initialEntries={[start]}>
+        <DataTable
+          noun="thing"
+          rows={current}
+          columns={COLUMNS}
+          defaultSort={{ id: "name", desc: false }}
+          rowId={(row) => row.id}
+          rowName={(row) => row.name}
+          rowHref={(row) => `/things/${row.id}`}
+          onAdd={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+        <Address />
+      </MemoryRouter>
+    );
+    const view = render(element(rows));
+    return { update: (next: Row[] | undefined) => view.rerender(element(next)) };
+  }
+
+  it("goes back a page when the only row on the last page is deleted", async () => {
+    const { update } = table(many(51), "/?page=2");
+    expect(names()).toEqual(["Row 051"]);
+    update(many(50));
+    await waitFor(() => expect(names()).toHaveLength(50));
+    expect(address()).toBe("");
+  });
+
+  it("goes to the new last page when more than one page remains", async () => {
+    const { update } = table(many(101), "/?page=3");
+    update(many(100));
+    await waitFor(() => expect(names()[0]).toBe("Row 051"));
+    expect(address()).toBe("?page=2");
+    expect(screen.getByText("51-100 of 100")).toBeTruthy();
+  });
+
+  it("goes to the last page for an old link", async () => {
+    show(many(75), "/?page=9");
+    await waitFor(() => expect(names()[0]).toBe("Row 051"));
+    expect(address()).toBe("?page=2");
+  });
+
+  it("counts only the rows a search leaves", async () => {
+    show(many(120), "/?q=quito&page=3");
+    await waitFor(() => expect(names()).toEqual(["Row 075"]));
+    expect(address()).toBe("?q=quito");
+  });
+
+  it("keeps other settings when it moves", async () => {
+    show(many(75), "/?page=9&status=lead&sort=amount&dir=desc");
+    await waitFor(() => expect(address()).toBe("?page=2&status=lead&sort=amount&dir=desc"));
+  });
+
+  it("invites the first record once every row is gone", async () => {
+    const { update } = table(many(51), "/?page=2");
+    update([]);
+    expect(await screen.findByText("No things yet. Add the first one.")).toBeTruthy();
+    await waitFor(() => expect(address()).toBe(""));
+  });
+
+  it("keeps the page while the rows are still loading, so coming back still works", async () => {
+    const { update } = table(undefined, "/?page=2");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(address()).toBe("?page=2");
+    update(many(75));
+    await waitFor(() => expect(names()[0]).toBe("Row 051"));
+    expect(address()).toBe("?page=2");
+  });
+});
+
+describe("an address that makes no sense", () => {
+  it.each(["abc", "0", "-1", ""])("reads page %j as the first page", (page) => {
+    show(many(75), `/?page=${page}`);
+    expect(names()[0]).toBe("Row 001");
+  });
+
+  it("ignores a sort on a column that doesn't exist", () => {
+    show(ROWS, "/?sort=nothing&dir=desc");
+    expect(names()).toEqual(["alpha", "Bravo", "Charlie"]);
+  });
+
+  it("reads an unknown direction as ascending", () => {
+    show(ROWS, "/?sort=name&dir=sideways");
+    expect(names()).toEqual(["alpha", "Bravo", "Charlie"]);
+  });
+});
+
+describe("a failed read", () => {
+  it("says so and offers to try again", async () => {
+    const onRetry = vi.fn();
+    show(undefined, "/", { error: new ApiError("server", "Something went wrong."), onRetry });
+    expect(screen.getByRole("alert").textContent).toContain("Couldn't load this.");
+    await user().click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it("doesn't invite a first record, as if the table were empty", () => {
+    show(undefined, "/", { error: new ApiError("server", "Something went wrong.") });
+    expect(screen.queryByText("No things yet. Add the first one.")).toBeNull();
+  });
+
+  it("leaves a lost connection to the message across the top", () => {
+    show(undefined, "/", { error: new ApiError("connection", "Can't reach Accountable.") });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps the rows it has when a later read fails, and says so", async () => {
+    const onRetry = vi.fn();
+    show(ROWS, "/", { error: new ApiError("server", "Something went wrong."), onRetry });
+    expect(names()).toHaveLength(3);
+    expect(screen.getByRole("alert").textContent).toContain("Couldn't refresh this, so it may be out of date.");
+    await user().click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it("leaves a lost connection to the message across the top when it has rows too", () => {
+    show(ROWS, "/", { error: new ApiError("connection", "Can't reach Accountable.") });
+    expect(names()).toHaveLength(3);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 

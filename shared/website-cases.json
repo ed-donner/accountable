@@ -1,0 +1,27 @@
+{
+  "accepted": [
+    "example.com",
+    "www.example.com/about",
+    "example.com:8080",
+    "http://example.com",
+    "https://example.com",
+    "HTTPS://example.com",
+    "https://example.com:65535"
+  ],
+  "refused": [
+    "ftp://example.com",
+    "mailto:sam@example.com",
+    "javascript:alert(1)",
+    "https://",
+    "two words",
+    "exam\tple.com",
+    "http:example.com",
+    "https:example.com",
+    "http:/example.com",
+    "http:///example.com",
+    "//example.com",
+    "https://example.com:99999",
+    "https://example.com:port",
+    "https://[example.com"
+  ]
+}

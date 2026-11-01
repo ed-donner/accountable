@@ -52,13 +52,13 @@ def add_contact(body: schemas.ContactCreate) -> schemas.ContactDetail:
 
 
 @router.get("/{contact_id}")
-def get_contact(contact_id: int) -> schemas.ContactDetail:
+def get_contact(contact_id: schemas.PathId) -> schemas.ContactDetail:
     with db.reading() as conn:
         return _detail(conn, contact_id)
 
 
 @router.patch("/{contact_id}")
-def edit_contact(contact_id: int, body: schemas.ContactUpdate) -> schemas.ContactDetail:
+def edit_contact(contact_id: schemas.PathId, body: schemas.ContactUpdate) -> schemas.ContactDetail:
     fields = body.model_dump(exclude_unset=True)
     with db.writing() as conn:
         current = _get(conn, contact_id)
@@ -74,14 +74,14 @@ def edit_contact(contact_id: int, body: schemas.ContactUpdate) -> schemas.Contac
 
 
 @router.delete("/{contact_id}", status_code=204)
-def delete_contact(contact_id: int) -> None:
+def delete_contact(contact_id: schemas.PathId) -> None:
     with db.writing() as conn:
         _get(conn, contact_id)
         conn.execute(delete(contacts).where(contacts.c.id == contact_id))
 
 
 @router.get("/{contact_id}/delete-impact")
-def contact_impact(contact_id: int) -> schemas.ContactImpact:
+def contact_impact(contact_id: schemas.PathId) -> schemas.ContactImpact:
     with db.reading() as conn:
         _get(conn, contact_id)
         return {
@@ -94,9 +94,9 @@ def contact_impact(contact_id: int) -> schemas.ContactImpact:
 
 @router.get("/{contact_id}/timeline")
 def contact_timeline(
-    contact_id: int,
+    contact_id: schemas.PathId,
     limit: int = Query(timeline.DEFAULT_LIMIT, ge=1, le=500),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=schemas.MAX_ID),
 ) -> schemas.Timeline:
     with db.reading() as conn:
         _get(conn, contact_id)

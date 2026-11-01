@@ -67,6 +67,8 @@ export function Organizations() {
       <DataTable
         noun="organization"
         rows={organizations.data}
+        error={organizations.error}
+        onRetry={() => organizations.refetch()}
         columns={columns}
         defaultSort={{ id: "name", desc: false }}
         rowId={(row) => row.id}

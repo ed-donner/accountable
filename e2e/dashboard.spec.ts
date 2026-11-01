@@ -1,7 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { addActivity, addContact, addDeal, addOrganization, emptyDatabase, isoDay, resetToSampleData } from "./helpers";
+import { addActivity, addContact, addDeal, addLinkedDeal, addOrganization, emptyDatabase, isoDay, resetToSampleData } from "./helpers";
 
 const API = "/api";
 
@@ -65,12 +65,12 @@ test.describe("with a small known dataset", () => {
     await expect(pipeline).toContainText("37% of open pipeline");
 
     await section(page, "Revenue won").getByRole("link", { name: /Revenue won in/ }).click();
-    await expect(page).toHaveURL(/\/deals\?q=won/);
+    await expect(page).toHaveURL(/\/deals\?stage=won/);
     await expect(page.locator("tbody tr")).toHaveCount(3);
 
     await page.goto("/");
     await page.getByRole("link", { name: `Deals won in ${MONTH}` }).click();
-    await expect(page).toHaveURL(/\/deals\?q=won/);
+    await expect(page).toHaveURL(/\/deals\?stage=won/);
 
     await page.goto("/");
     await pipeline.getByRole("link", { name: /Open pipeline/ }).click();
@@ -79,6 +79,35 @@ test.describe("with a small known dataset", () => {
     await page.goto("/");
     await pipeline.getByRole("link", { name: /Expected revenue/ }).click();
     await expect(page).toHaveURL(/\/pipeline$/);
+  });
+
+  test("the won links show won deals only, whatever anything else is called", async ({ page, request }) => {
+    await knownData(request);
+    // Each of these would have matched a text search for "won".
+    const { organization, contact } = await addLinkedDeal(request, "Wonderland rollout");
+    await addDeal(request, "Renewal", { organization_id: organization.id, main_contact_id: contact.id });
+    const other = await addOrganization(request, "Swonky Holdings");
+    const person = await addContact(request, "Won Lee", other.id);
+    await addDeal(request, "Open deal", { organization_id: other.id, main_contact_id: person.id });
+
+    await page.goto("/");
+    await section(page, "Revenue won").getByRole("link", { name: /Revenue won in/ }).click();
+    await expect(page.locator("tbody tr")).toHaveCount(3);
+    await expect(page.getByRole("row", { name: /Wonderland rollout/ })).toHaveCount(0);
+    await expect(page.getByRole("row", { name: /Swonky Holdings/ })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Show every stage" }).click();
+    await expect(page).not.toHaveURL(/stage=won/);
+    await expect(page.getByRole("link", { name: "Wonderland rollout", exact: true })).toHaveCount(1);
+  });
+
+  test("the won list works with search, and clearing a search with no matches shows every stage", async ({ page, request }) => {
+    await knownData(request);
+    await page.goto("/deals?stage=won&q=nothing-like-this");
+    await expect(page.getByText("No deals match.")).toBeVisible();
+    await page.getByRole("button", { name: "Clear search" }).click();
+    await expect(page).toHaveURL(/\/deals(\?sort=.*)?$/);
+    await expect(page.locator("tbody tr").first()).toBeVisible();
   });
 
   test("the pipeline band shows each open stage's value and count, and links to the Pipeline", async ({ page, request }) => {

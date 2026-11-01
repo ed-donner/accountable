@@ -91,7 +91,7 @@ export function Contacts() {
             className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-semibold ${on ? "bg-sea-green" : "hover:bg-page"}`}
           >
             {option ? capitalize(option) : "All"}
-            <span className="num font-normal">{count(option)}</span>
+            {contacts.data && <span className="num font-normal">{count(option)}</span>}
           </button>
         );
       })}
@@ -108,6 +108,8 @@ export function Contacts() {
       <DataTable
         noun="contact"
         rows={rows}
+        error={contacts.error}
+        onRetry={() => contacts.refetch()}
         columns={columns}
         defaultSort={{ id: "name", desc: false }}
         rowId={(row) => row.id}

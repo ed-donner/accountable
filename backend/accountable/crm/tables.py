@@ -1,6 +1,6 @@
-from sqlalchemy import Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Index, Integer, Table, Text
+from sqlalchemy import Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Index, Integer, Table, Text, column
 
-from accountable.db import metadata, utc_now
+from accountable.db import TABLE_OPTIONS, metadata, utc_now
 
 
 def _times() -> list[Column]:
@@ -19,6 +19,7 @@ organizations = Table(
     Column("industry", Text),
     Column("notes", Text),
     *_times(),
+    **TABLE_OPTIONS,
 )
 
 # Required links are enforced by the API, not here, because deletes have to be
@@ -34,6 +35,7 @@ contacts = Table(
     Column("organization_id", ForeignKey("organizations.id", ondelete="SET NULL"), index=True),
     Column("status", Text, nullable=False, default="lead"),
     *_times(),
+    **TABLE_OPTIONS,
 )
 
 deals = Table(
@@ -50,6 +52,7 @@ deals = Table(
     Column("position", Integer, nullable=False),
     *_times(),
     Index("ix_deals_stage_position", "stage", "position"),
+    **TABLE_OPTIONS,
 )
 
 activities = Table(
@@ -64,7 +67,8 @@ activities = Table(
     Column("follow_up_date", Date, index=True),
     Column("follow_up_done", Boolean, nullable=False, default=False),
     *_times(),
-    CheckConstraint("(contact_id IS NULL) != (deal_id IS NULL)", name="one_parent"),
+    CheckConstraint(column("contact_id").is_(None) != column("deal_id").is_(None), name="one_parent"),
+    **TABLE_OPTIONS,
 )
 
 stage_changes = Table(
@@ -76,4 +80,5 @@ stage_changes = Table(
     Column("to_stage", Text, nullable=False),
     Column("changed_at", DateTime, nullable=False, index=True),
     Column("created_at", DateTime, nullable=False, default=utc_now),
+    **TABLE_OPTIONS,
 )

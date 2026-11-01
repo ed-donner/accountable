@@ -45,6 +45,9 @@ Say if you want any of these changed.
 - Sample Won and Lost columns start newest first.
 - `npm test` runs the end-to-end tests on several workers, in place of the plan's one, chosen from the machine's cores and memory. This one is the project owner's own call, so the suite can be run often.
 - At 500 deals, a task of up to about 250ms while dragging counts as smooth, in place of the plan's 100ms, so that cards can slide apart during a drag. This one is the project owner's own call.
+- The dashboard's won figures link to Deals showing Won deals only. Deals has no stage filter of its own, so this one only shows after following those links, with a button to show every stage.
+- Moving between open stages in the deal form leaves the close date alone, including one that's just been typed. A trip through Won or Lost and back restores it.
+- Leaving the When box untouched keeps an activity's exact time. The box only holds minutes.
 
 ---
 
@@ -71,8 +74,9 @@ The "Not in the MVP" list in `docs/intent.md` applies throughout.
 - **N1.** A top bar on every screen links to the five sections: Dashboard, Organizations, Contacts, Deals and Pipeline. The app opens on the Dashboard.
 - **N2.** Every section and record has its own address, so refresh, back and forward all work.
 - **N3.** The app is designed for light mode at 1280px wide and up. There's no phone layout.
-- **N4.** Opening a record that no longer exists shows "This deal no longer exists" (or the matching word) with a link back to its section.
+- **N4.** Opening a record that no longer exists shows "This deal no longer exists" (or the matching word) with a link back to its section. So does an address that couldn't be a record, such as `/deals/abc`. An unknown address shows "This page no longer exists" with a link to the Dashboard, and keeps the top bar.
 - **N5.** If the backend can't be reached, the app says so and says to check that Accountable is still running. It never shows a blank screen.
+- **N6.** If a screen's data can't be read for any other reason, the screen says so and offers Try again. What's already showing stays, and a failed read never shows figures or an empty list as if they were real.
 
 ## Tables
 
@@ -112,10 +116,12 @@ The "Not in the MVP" list in `docs/intent.md` applies throughout.
 - **F7.** The close date of a won or lost deal can't be in the future. An open deal's close date can be any date.
 - **F8.** Changing the stage in the deal form shows the new probability, and the new close date for Won or Lost, straight away. Both can be overtyped before saving, and what's shown is what's saved.
 - **F9.** Two records can share a name.
+- **F10.** A save or delete happens once, however quickly its button is pressed. If it fails, the dialog stays open with what was typed, and says so.
+- **F11.** A form that can't read the lists it needs closes and says so, rather than opening with an empty picker.
 
 ## Deleting
 
-- **D1.** Delete always asks first, in a dialog that names the record, gives the real counts and says it can't be undone.
+- **D1.** Delete always asks first, in a dialog that names the record, gives the real counts and says it can't be undone. An activity is named by its description. If the counts can't be read, the dialog says so and won't delete.
 
 | Deleting | What the dialog says happens |
 |---|---|
@@ -150,7 +156,7 @@ The "Not in the MVP" list in `docs/intent.md` applies throughout.
 - **A2.** Activities can be edited and deleted from any timeline they appear on.
 - **A3.** A follow-up can be ticked done on a timeline or on the dashboard, and unticked on a timeline. Once done, it leaves the dashboard but stays on its timeline, marked done.
 - **A4.** Timelines show the newest first. Each entry shows its type, when it happened, its description, any follow-up, and a link to the contact or deal it belongs to.
-- **A5.** Timelines show 50 entries at first, with a Show more button.
+- **A5.** Timelines show 50 entries at first, with a Show more button that reaches the end, however long the timeline is. If it fails, what's showing stays.
 
 | Timeline on | Shows |
 |---|---|
@@ -171,7 +177,7 @@ The "Not in the MVP" list in `docs/intent.md` applies throughout.
 - **P1.** One column per stage, in order: New, Qualified, Proposal, Negotiation, Won, Lost. Each column is headed by a solid block in its stage color.
 - **P2.** Dragging a card to another column changes its stage, following S1. Dragging within a column changes its place. A card can be dropped anywhere and stays there after a refresh and a restart.
 - **P3.** The board shows the total value and expected revenue of open deals. Each open column shows its deal count, total value and expected revenue. Won and Lost show their count and total value, because expected revenue means nothing for a closed deal.
-- **P4.** All figures change the moment a card lands, before the server replies. If the save fails, the card returns to where it was and a message says so.
+- **P4.** All figures change the moment a card lands, before the server replies. If the save fails, the card returns to where it was and a message says so. Every move gets its own message, even if another move has started or the board has been left.
 - **P5.** A card shows the deal's name, organization, main contact, value, probability and close date. Clicking it opens the deal.
 - **P6.** A late card stands out through a Late chip and a pale Raspberry tint across the whole card.
 - **P7.** Each column has an Add deal button that opens the form at that stage.
@@ -255,13 +261,16 @@ The browser only ever talks to one address, so the backend needs no cross-origin
 package.json, package-lock.json   root scripts, npm workspace for frontend/
 pyproject.toml, uv.lock           backend/accountable/ as an installable package
 playwright.config.ts
-shared/                           expected-revenue-cases.json, read by both unit test suites
+shared/                           expected-revenue-cases.json and website-cases.json, read by both unit test suites
 scripts/
-  setup.mjs                       shared setup, used by the other three, Node built-ins only
+  setup.mjs                       shared setup, used by the scripts below that start things, Node built-ins only
   dev.mjs                         npm run dev
   test.mjs                        npm test
   data.mjs                        npm run seed and npm run empty
-  setup.test.mjs
+  test-plan.mjs                   how npm test shares out the machine, and where each worker's servers are
+  test-servers.mjs                starts one backend and one Vite server for each Playwright worker
+  test-report.mjs                 turns what each test runner wrote into the summary that ends npm test
+  setup.test.mjs, test-plan.test.mjs, test-report.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, JSON-only check, startup, routers
   db.py                           engine, metadata, foreign keys, write lock, migrations on start
@@ -278,7 +287,7 @@ backend/tests/
 frontend/src/
   main.tsx, App.tsx, styles.css
   lib/                            fetch client, money and date formatting
-  components/                     Shell, DataTable, RecordPicker, ConfirmDelete, Chip and others
+  components/                     Shell, DataTable, RecordPicker, ConfirmDelete, LoadFailed, Chip and others
   crm/
     queries.ts, deals.ts, Timeline.tsx
     forms/                        organization, contact, deal and activity forms
@@ -379,7 +388,9 @@ Notes for the build:
 
 - **Links:** required links are enforced by the API, not the database, because deletes have to be able to blank them. The database columns allow blank.
 - **New database:** a first start builds the database under a temporary name and renames it once the migrations and sample data are done, so an interrupted first start can't leave an empty database behind.
+- **Ids:** never used twice, so an old address can't open a different record. SQLite would otherwise give the newest record's id to the next one after a delete. Every table gets `TABLE_OPTIONS` from `db.py`.
 - **Foreign keys:** SQLite turns these off by default. Turn them on for each connection with `connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_FKEY, True)` in a SQLAlchemy connect event. This keeps to the "no raw SQL" rule, and it has been checked on Python 3.12.
+- **Migrations:** these run with foreign keys off, all in one transaction. SQLite makes most table changes by rebuilding the table, and dropping the old table with foreign keys on would run its delete rules, blanking links and deleting activities.
 - **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)` and `stage_changes (changed_at)`.
 - **Dates:** close dates and follow-up dates are plain dates. In the frontend, always read them with date-fns `parseISO`. `new Date("2026-10-31")` reads as UTC and shows the day before in US time zones.
 - **Probabilities:** the six usual probabilities live in one place in the backend. The frontend reads them from `GET /api/meta`.
@@ -402,7 +413,7 @@ Reset and empty delete rows inside a transaction and leave the file and tables i
 
 ## API
 
-All routes are under `/api` and use JSON. Validation errors return 422 with a message per field, and a missing record returns 404.
+All routes are under `/api` and use JSON. Validation errors return 422 with a message per field, and a missing record returns 404. An id that couldn't be a record, such as one too large for SQLite, is a validation error, and so is text with no valid encoding.
 
 | Method and path | Purpose |
 |---|---|
@@ -429,6 +440,7 @@ A timeline merges activities and stage changes in the backend, removes duplicate
 ## Frontend
 
 - **Data:** TanStack Query holds all server data, and it refetches when the window regains focus. After any write, invalidate everything. With one user and this little data, that's simple and hard to get wrong.
+- **Today:** the page can stay open for days, so anything on screen that depends on the date uses `useToday`, which checks the clock every minute and whenever the window is used again. The dashboard reads its figures again when the day changes.
 - **Instant updates:** only the pipeline move and the follow-up tick update the screen before the server replies, and both roll back on failure.
 - **Board figures:** worked out in the browser from the deals list, so they change as a card lands. They use the same formula as the backend, with a unit test on each side using the same cases.
 - **Dragging:** a 6px move starts a drag, so a click still opens the deal. Keyboard dragging comes from dnd-kit's keyboard sensor. Cards are memoized to stay smooth at 500 deals. Columns aren't virtualized, because that conflicts with dropping a card anywhere. Each column is a droppable, and the board has one draggable that's pointed at a card as it's picked up. While a card is dragged, the others slide apart around a pale slot showing where it will land, and the gap closes behind it. `@dnd-kit/sortable` was dropped: its per-card hooks re-render every card each time a drag crosses a card, which took 241ms at 500 deals. The longest task on this board is about 70ms to 180ms, slowest on the first drags after loading.
@@ -598,6 +610,8 @@ Plain business English, short labels, no exclamation marks.
 | Empty funnel | Deals will show here once you've added some. |
 | Empty follow-ups | No follow-ups due. |
 | Connection lost | Can't reach Accountable. Check that it's still running. |
+| Failed read | Couldn't load this. |
+| Failed read, with something already showing | Couldn't refresh this, so it may be out of date. |
 | Delete dialog | Delete Harbor & Pine? Its 4 contacts and 3 deals will stay, with no organization. This can't be undone. |
 
 Money always carries its currency, as in `$48,000`. Dates read `Oct 31, 2026`, and times read `Oct 31, 3:20 PM`.
@@ -646,6 +660,7 @@ There's no sign-in, so the app relies on being reachable only from this computer
 
 - The backend and Vite listen on the local machine only.
 - No cross-origin access is allowed, and the backend's trusted host check accepts only `localhost` and `127.0.0.1`. This stops other websites in the same browser from reading or changing customer data.
+- The same goes for Vite, because it's the address the browser uses and it sits in front of the backend. Its CORS support is off, since by default it trusts pages on other local ports, and it serves only `frontend/` and the packages, since by default it serves the whole repo, database included.
 - The API accepts only JSON request bodies.
 - Website links must be `http` or `https`, so a saved value can't run a script when clicked.
 - The database file stays out of git, which `.gitignore` already handles.
@@ -689,5 +704,8 @@ There's no sign-in, so the app relies on being reachable only from this computer
 | 9. Real use | Everything | By hand, below |
 | Layout, console, keyboard, Chrome | N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
 | Speed at the limits | Q1 | `e2e/stress.spec.ts` |
+| Keeping data on this computer | Security | `e2e/security.spec.ts`, `backend/tests/test_every_route.py`, `backend/tests/test_security.py` |
+| When things go wrong | N4, N6, F10, F11, D1, P4 | `e2e/failures.spec.ts`, `frontend/src/crm/forms/forms.test.tsx`, `frontend/src/crm/queries.test.tsx` |
+| Layout rules | Layout rules | `backend/tests/test_layout.py`, `frontend/src/layout.test.ts` |
 
 **By hand (criterion 9):** the agent uses every section and action in a real browser at 1440 by 900 and 1280 by 720, the way a salesperson would. That includes an emptied database, a restart, and starting the app with the network off. It looks at each screen, compares it with the chosen mockup and fixes what it finds. Then you use it yourself and have the final say. Passing tests is necessary, but it isn't enough.

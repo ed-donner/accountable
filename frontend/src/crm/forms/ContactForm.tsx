@@ -13,6 +13,7 @@ import { useOrganizations, useSaveContact, type Contact, type ContactDetail, typ
 import { link } from "./links";
 import { OrganizationForm } from "./OrganizationForm";
 import { showSaveError } from "./server-errors";
+import { useCloseIfUnreadable } from "./useCloseIfUnreadable";
 
 const STATUSES: Status[] = ["lead", "qualified", "customer"];
 
@@ -42,6 +43,7 @@ type Props = {
 
 export function ContactForm({ record, defaultName, defaultOrganizationId, onClose, onSaved }: Props) {
   const organizations = useOrganizations();
+  useCloseIfUnreadable([organizations], onClose);
   const save = useSaveContact(record?.id);
   const [addingOrganization, setAddingOrganization] = useState<string | null>(null);
 
@@ -50,6 +52,7 @@ export function ContactForm({ record, defaultName, defaultOrganizationId, onClos
     handleSubmit,
     control,
     setError,
+    getValues,
     setValue,
     clearErrors,
     formState: { errors },
@@ -66,26 +69,27 @@ export function ContactForm({ record, defaultName, defaultOrganizationId, onClos
   });
 
   const organizationBlankAllowed = record !== undefined && record.organization_id === null;
+  const organizationOptions = organizations.data;
 
-  function submit(values: Values) {
-    save.mutate(
-      {
+  // Until the list arrives, its picker would look like an empty list.
+  if (!organizationOptions) return null;
+
+  async function submit(values: Values) {
+    try {
+      const saved = await save.mutateAsync({
         name: values.name,
         organization_id: values.organization_id,
         email: values.email || null,
         phone: values.phone || null,
         job_title: values.job_title || null,
         status: values.status,
-      },
-      {
-        onSuccess: (saved) => {
-          toast.success("Contact saved.");
-          onSaved?.(saved);
-          onClose();
-        },
-        onError: (error) => showSaveError(error, setError),
-      },
-    );
+      });
+      toast.success("Contact saved.");
+      onSaved?.(saved);
+      onClose();
+    } catch (error) {
+      showSaveError(error, { setError, getValues });
+    }
   }
 
   return (
@@ -109,7 +113,7 @@ export function ContactForm({ record, defaultName, defaultOrganizationId, onClos
               label="Organization"
               noun="organization"
               value={field.value}
-              options={organizations.data ?? []}
+              options={organizationOptions}
               placeholder={organizationBlankAllowed ? "None" : "Choose an organization"}
               invalid={!!errors.organization_id}
               onChange={(id) => {

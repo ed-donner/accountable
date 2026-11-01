@@ -73,7 +73,7 @@ def upgrade() -> None:
     sa.Column('follow_up_done', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.CheckConstraint('(contact_id IS NULL) != (deal_id IS NULL)', name=op.f('ck_activities_one_parent')),
+    sa.CheckConstraint(sa.column('contact_id').is_(None) != sa.column('deal_id').is_(None), name=op.f('ck_activities_one_parent')),
     sa.ForeignKeyConstraint(['contact_id'], ['contacts.id'], name=op.f('fk_activities_contact_id_contacts'), ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['deal_id'], ['deals.id'], name=op.f('fk_activities_deal_id_deals'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_activities'))

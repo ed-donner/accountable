@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from accountable.main import app
@@ -37,3 +38,27 @@ def test_a_javascript_website_is_refused(api):
     reply = api.post("/api/organizations", json={"name": "Acme", "website": "javascript:alert(1)"})
     assert reply.status_code == 422
     assert reply.json()["fields"]["website"]
+
+
+@pytest.mark.parametrize(
+    "website",
+    [
+        "javascript:alert(1)",
+        "JaVaScRiPt:alert(1)",
+        "  javascript:alert(1)",
+        "vbscript:msgbox(1)",
+        "data:text/html,<script>alert(1)</script>",
+        "file:///etc/passwd",
+        "mailto:sam@example.com",
+    ],
+)
+def test_a_website_that_could_run_something_is_refused_when_adding_and_editing(api, make, website):
+    assert api.post("/api/organizations", json={"name": "Acme", "website": website}).status_code == 422
+    reply = api.patch(f"/api/organizations/{make.organization()}", json={"website": website})
+    assert reply.status_code == 422
+
+
+@pytest.mark.parametrize("website", ["java\tscript:alert(1)", "java\nscript:alert(1)", "//evil.example", "\x01javascript:alert(1)"])
+def test_a_website_with_hidden_characters_can_only_end_up_as_a_web_address(api, website):
+    reply = api.post("/api/organizations", json={"name": "Acme", "website": website})
+    assert reply.status_code == 422 or reply.json()["website"].startswith(("http://", "https://"))

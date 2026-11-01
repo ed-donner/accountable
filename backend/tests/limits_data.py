@@ -37,8 +37,8 @@ def fill(conn: Connection, today: date) -> None:
         for number in range(ORGANIZATIONS)
     ]
 
-    conn.execute(
-        insert(contacts),
+    contact_ids = conn.scalars(
+        insert(contacts).returning(contacts.c.id, sort_by_parameter_order=True),
         [
             {
                 "name": f"Contact {number:04d}",
@@ -50,7 +50,7 @@ def fill(conn: Connection, today: date) -> None:
             }
             for number in range(CONTACTS)
         ],
-    )
+    ).all()
 
     deal_ids = []
     for number in range(DEALS):
@@ -62,7 +62,7 @@ def fill(conn: Connection, today: date) -> None:
             {
                 "name": f"Deal {number:03d} for a long stretch of work",
                 "organization_id": organization_ids[number % ORGANIZATIONS],
-                "main_contact_id": number % CONTACTS + 1,
+                "main_contact_id": contact_ids[number % CONTACTS],
                 "stage": "new",
                 "value": 5000 + number * 137 % 90000,
                 "close_date": close,
@@ -83,7 +83,7 @@ def fill(conn: Connection, today: date) -> None:
             {
                 "type": ("note", "call", "email")[number % 3],
                 "deal_id": deal_ids[number % DEALS] if on_deal else None,
-                "contact_id": None if on_deal else number % CONTACTS + 1,
+                "contact_id": None if on_deal else contact_ids[number % CONTACTS],
                 "description": f"Activity number {number}",
                 "occurred_at": now - timedelta(minutes=number * 37),
                 "follow_up_date": today + timedelta(days=number % 40 - 20) if waiting else None,

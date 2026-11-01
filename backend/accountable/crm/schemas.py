@@ -5,13 +5,17 @@ from datetime import UTC, date, datetime
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer, StrictBool, StrictInt
+from fastapi import Path
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer, StrictBool, StrictInt, field_validator
 
 Stage = Literal["new", "qualified", "proposal", "negotiation", "won", "lost"]
 Status = Literal["lead", "qualified", "customer"]
 ActivityType = Literal["note", "call", "email"]
 
 MAX_VALUE = 1_000_000_000_000
+# The largest whole number SQLite can hold. A query given a bigger one crashes
+# instead of finding nothing.
+MAX_ID = 2**63 - 1
 
 FIELD_MESSAGES = {
     "name": "Enter a name",
@@ -89,8 +93,12 @@ def _website(value: str | None) -> str | None:
         return None
     if not HAS_SCHEME.match(value):
         value = f"https://{value}"
-    parts = urlsplit(value)
-    if parts.scheme.lower() not in ("http", "https") or not parts.hostname or " " in value:
+    try:
+        parts = urlsplit(value)
+        port_is_fine = parts.port is None or parts.port >= 0  # Reading it is what checks it.
+    except ValueError as error:
+        raise ValueError(WEBSITE_MESSAGE) from error
+    if parts.scheme.lower() not in ("http", "https") or not parts.hostname or not port_is_fine or re.search(r"\s", value):
         raise ValueError(WEBSITE_MESSAGE)
     return value
 
@@ -99,7 +107,10 @@ def _to_utc(value: datetime) -> datetime:
     """Stored in UTC with no zone. A time sent with no zone is read as UTC."""
     if value.tzinfo is None:
         return value
-    return value.astimezone(UTC).replace(tzinfo=None)
+    try:
+        return value.astimezone(UTC).replace(tzinfo=None)
+    except OverflowError as error:  # The very first or last day there is, moved past the calendar's end.
+        raise ValueError(FIELD_MESSAGES["occurred_at"]) from error
 
 
 def _with_z(value: datetime) -> str:
@@ -112,6 +123,8 @@ Description = Annotated[str, AfterValidator(_description)]
 OptionalText = Annotated[str | None, AfterValidator(_blank_to_none)]
 Email = Annotated[str | None, AfterValidator(_email)]
 Website = Annotated[str | None, AfterValidator(_website)]
+Id = Annotated[int, Field(ge=1, le=MAX_ID)]
+PathId = Annotated[int, Path(ge=1, le=MAX_ID)]
 Dollars = Annotated[StrictInt, Field(ge=0, le=MAX_VALUE)]
 Probability = Annotated[StrictInt, Field(ge=0, le=100)]
 IncomingTime = Annotated[datetime, AfterValidator(_to_utc)]
@@ -120,6 +133,17 @@ UtcTime = Annotated[datetime, PlainSerializer(_with_z, return_type=str)]
 
 class Request(BaseModel):
     model_config = ConfigDict(extra="ignore")
+
+    @field_validator("*")
+    @classmethod
+    def _storable(cls, value: Any) -> Any:
+        """JSON can carry text with no valid encoding, which would crash the save."""
+        if isinstance(value, str) and not value.isascii():
+            try:
+                value.encode()
+            except UnicodeEncodeError as error:
+                raise ValueError("Use plain text here") from error
+        return value
 
 
 # Organizations
@@ -184,7 +208,7 @@ class OrganizationImpact(BaseModel):
 
 class ContactCreate(Request):
     name: Name
-    organization_id: int
+    organization_id: Id
     email: Email = None
     phone: OptionalText = None
     job_title: OptionalText = None
@@ -193,7 +217,7 @@ class ContactCreate(Request):
 
 class ContactUpdate(Request):
     name: Name = None
-    organization_id: int | None = None
+    organization_id: Id | None = None
     email: Email = None
     phone: OptionalText = None
     job_title: OptionalText = None
@@ -229,8 +253,8 @@ class ContactImpact(BaseModel):
 
 class DealCreate(Request):
     name: Name
-    organization_id: int
-    main_contact_id: int
+    organization_id: Id
+    main_contact_id: Id
     stage: Stage = "new"
     value: Dollars
     probability: Probability | None = None
@@ -239,8 +263,8 @@ class DealCreate(Request):
 
 class DealUpdate(Request):
     name: Name = None
-    organization_id: int | None = None
-    main_contact_id: int | None = None
+    organization_id: Id | None = None
+    main_contact_id: Id | None = None
     stage: Stage = None
     value: Dollars = None
     probability: Probability = None
@@ -249,7 +273,7 @@ class DealUpdate(Request):
 
 class DealMove(Request):
     stage: Stage
-    before_deal_id: int | None = None
+    before_deal_id: Id | None = None
 
 
 class Deal(BaseModel):
@@ -289,8 +313,8 @@ class DealImpact(BaseModel):
 
 class ActivityCreate(Request):
     type: ActivityType = "note"
-    contact_id: int | None = None
-    deal_id: int | None = None
+    contact_id: Id | None = None
+    deal_id: Id | None = None
     description: Description
     occurred_at: IncomingTime | None = None
     follow_up_date: date | None = None

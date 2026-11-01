@@ -18,11 +18,21 @@ export const CONNECTION_MESSAGE = "Can't reach Accountable. Check that it's stil
 
 let connectionLost = false;
 const listeners = new Set<() => void>();
+const reconnectListeners = new Set<() => void>();
 
 function setConnectionLost(lost: boolean) {
   if (lost === connectionLost) return;
   connectionLost = lost;
   listeners.forEach((listener) => listener());
+  if (!lost) reconnectListeners.forEach((listener) => listener());
+}
+
+/** Runs each time the connection comes back, whichever reply showed it. */
+export function onReconnect(listener: () => void) {
+  reconnectListeners.add(listener);
+  return () => {
+    reconnectListeners.delete(listener);
+  };
 }
 
 export function isConnectionLost() {

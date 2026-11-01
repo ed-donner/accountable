@@ -1,8 +1,8 @@
 import { NavLink, Outlet } from "react-router";
 import { Toaster } from "sonner";
 
-import { useMeta } from "../crm/queries";
-import { formatDay } from "../lib/dates";
+import { formatDate } from "../lib/dates";
+import { useToday } from "../lib/useToday";
 import { ConnectionMessage } from "./ConnectionMessage";
 import { Icon, type IconName } from "./Icon";
 
@@ -15,8 +15,7 @@ const SECTIONS: { to: string; label: string; icon: IconName }[] = [
 ];
 
 export function Shell() {
-  useMeta(); // Fetched early, because it never changes and forms need it straight away.
-
+  const today = useToday();
   return (
     <div className="flex min-h-screen flex-col">
       <header className="mx-5 mt-3 flex h-14 flex-none items-center gap-7 rounded-panel bg-panel pr-[18px] pl-5">
@@ -38,7 +37,7 @@ export function Shell() {
             </NavLink>
           ))}
         </nav>
-        <span className="num ml-auto text-[13px] text-muted">{formatDay(new Date())}</span>
+        <span className="num ml-auto text-[13px] text-muted">{formatDate(today)}</span>
       </header>
       <ConnectionMessage />
       <main className="flex min-h-0 flex-1 flex-col">

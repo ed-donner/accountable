@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -42,27 +43,39 @@ type FieldsProps = {
 };
 
 function ActivityFields({ entry, save, pending, onClose }: FieldsProps) {
+  const [start] = useState(() => initialValues(entry));
   const {
     register,
     handleSubmit,
     setError,
+    getValues,
     watch,
     formState: { errors },
-  } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: initialValues(entry) });
+  } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: start });
+
+  /**
+   * The box only holds minutes, so reading an untouched one back would drop the
+   * seconds. An activity logged just now would then sort below something that
+   * happened moments earlier, and any edit would quietly move it.
+   */
+  function when(shown: string) {
+    if (shown !== start.occurred_at) return new Date(shown).toISOString();
+    return entry ? entry.at : new Date().toISOString();
+  }
 
   async function submit(values: Values) {
     try {
       await save({
         type: values.type,
         description: values.description,
-        occurred_at: new Date(values.occurred_at).toISOString(),
+        occurred_at: when(values.occurred_at),
         follow_up_date: values.follow_up_date || null,
         follow_up_done: values.follow_up_date ? values.follow_up_done : false,
       });
       toast.success("Activity saved.");
       onClose();
     } catch (error) {
-      showSaveError(error, setError);
+      showSaveError(error, { setError, getValues });
     }
   }
 

@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
 import { todayIso } from "../../lib/dates";
@@ -220,6 +221,31 @@ describe("linked pickers", () => {
   });
 });
 
+describe("a contact added from the picker", () => {
+  it("clears the organization's error when it fills the organization in", async () => {
+    api({
+      "POST /contacts": { id: 14, name: "Brand new", organization_id: 2, organization_name: "Lantern Hotels", status: "lead", deals: [] },
+    });
+    renderApp(<DealForm onClose={vi.fn()} />);
+    await ready();
+    await user().click(screen.getByRole("button", { name: "Save deal" }));
+    await screen.findByText("Choose a main contact", { selector: "p" });
+    expect(screen.getByText("Choose an organization", { selector: "p" })).toBeTruthy();
+
+    await user().click(picker("Main contact"));
+    await user().type(await screen.findByPlaceholderText("Search contacts"), "Brand new");
+    await user().click(await screen.findByRole("option", { name: /Add "Brand new"/ }));
+    const form = await screen.findByRole("dialog", { name: "Add contact" });
+    await user().click(within(form).getByRole("combobox", { name: "Organization" }));
+    await user().click(await screen.findByRole("option", { name: "Lantern Hotels" }));
+    await user().click(within(form).getByRole("button", { name: "Save contact" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add contact" })).toBeNull());
+    expect(picker("Organization").textContent).toContain("Lantern Hotels");
+    expect(screen.queryByText("Choose an organization", { selector: "p" })).toBeNull();
+  });
+});
+
 describe("changing the stage", () => {
   it("shows the new probability", async () => {
     api();
@@ -267,6 +293,190 @@ describe("changing the stage", () => {
     expect(saved.stage).toBe("won");
     expect(saved.probability).toBe(90);
     expect(saved.close_date).toBe("2026-10-20");
+  });
+});
+
+describe("a close date that's been typed", () => {
+  const WON: Deal = { ...DEAL, stage: "won", probability: 100, close_date: "2026-10-01" };
+
+  async function typeDate(date: string) {
+    await user().clear(field("Close date"));
+    await user().type(field("Close date"), date);
+  }
+
+  async function stage(name: string) {
+    await user().selectOptions(screen.getByLabelText("Stage"), name);
+  }
+
+  it("stays when adding a deal, moving between open stages", async () => {
+    api();
+    renderApp(<DealForm onClose={vi.fn()} />);
+    await ready();
+    await typeDate("2027-03-15");
+    await stage("qualified");
+    await stage("negotiation");
+    expect(field("Close date").value).toBe("2027-03-15");
+  });
+
+  it("stays when editing a deal, moving between open stages", async () => {
+    api();
+    renderApp(<DealForm record={DEAL} onClose={vi.fn()} />);
+    await ready();
+    await typeDate("2027-03-15");
+    await stage("negotiation");
+    expect(field("Close date").value).toBe("2027-03-15");
+  });
+
+  it("is what gets saved after a move between open stages", async () => {
+    const calls = api({ "PATCH /deals/5": DEAL });
+    renderApp(<DealForm record={DEAL} onClose={vi.fn()} />);
+    await ready();
+    await typeDate("2027-03-15");
+    await stage("negotiation");
+    await user().click(screen.getByRole("button", { name: "Save deal" }));
+    await waitFor(() => expect(calls.some((call) => call.method === "PATCH")).toBe(true));
+    expect(calls.find((call) => call.method === "PATCH")?.body).toMatchObject({ close_date: "2027-03-15", stage: "negotiation" });
+  });
+
+  it("comes back after a trip through Won", async () => {
+    api();
+    renderApp(<DealForm record={DEAL} onClose={vi.fn()} />);
+    await ready();
+    await typeDate("2027-03-15");
+    await stage("won");
+    expect(field("Close date").value).toBe(todayIso());
+    await stage("proposal");
+    expect(field("Close date").value).toBe("2027-03-15");
+  });
+
+  it("comes back after a trip through Lost when adding a deal", async () => {
+    api();
+    renderApp(<DealForm onClose={vi.fn()} />);
+    await ready();
+    await typeDate("2027-03-15");
+    await stage("lost");
+    await stage("qualified");
+    expect(field("Close date").value).toBe("2027-03-15");
+  });
+
+  it("isn't invented for a new deal that leaves Won", async () => {
+    api();
+    renderApp(<DealForm defaultStage="won" onClose={vi.fn()} />);
+    await ready();
+    await stage("new");
+    expect(field("Close date").value).toBe("");
+  });
+
+  it("stays the saved one when a closed deal is reopened in the form", async () => {
+    api();
+    renderApp(<DealForm record={WON} onClose={vi.fn()} />);
+    await ready();
+    await stage("proposal");
+    expect(field("Close date").value).toBe("2026-10-01");
+  });
+
+  it("becomes today going from Won to Lost, and comes back with Won", async () => {
+    api();
+    renderApp(<DealForm record={WON} onClose={vi.fn()} />);
+    await ready();
+    await stage("lost");
+    expect(field("Close date").value).toBe(todayIso());
+    await stage("won");
+    expect(field("Close date").value).toBe("2026-10-01");
+  });
+
+  it("clears a close date error only when the date changes", async () => {
+    api();
+    renderApp(<DealForm onClose={vi.fn()} />);
+    await ready();
+    await user().click(screen.getByRole("button", { name: "Save deal" }));
+    expect(await screen.findByText("Choose a close date")).toBeTruthy();
+    await stage("qualified");
+    expect(screen.getByText("Choose a close date")).toBeTruthy();
+    await stage("won");
+    await waitFor(() => expect(screen.queryByText("Choose a close date")).toBeNull());
+  });
+});
+
+describe("what else has been typed", () => {
+  async function typeTheBasics() {
+    await user().type(field("Name"), "Typed name");
+    await user().type(field("Value"), "1234");
+  }
+
+  it("stays when the stage changes", async () => {
+    api();
+    renderApp(<DealForm onClose={vi.fn()} />);
+    await ready();
+    await typeTheBasics();
+    await user().selectOptions(screen.getByLabelText("Stage"), "won");
+    expect(field("Name").value).toBe("Typed name");
+    expect(field("Value").value).toBe("1234");
+  });
+
+  it("stays when an organization is chosen", async () => {
+    api();
+    renderApp(<DealForm onClose={vi.fn()} />);
+    await ready();
+    await typeTheBasics();
+    await user().type(field("Close date"), "2027-03-15");
+    await choose("Organization", /Harbor/);
+    expect(field("Name").value).toBe("Typed name");
+    expect(field("Value").value).toBe("1234");
+    expect(field("Close date").value).toBe("2027-03-15");
+  });
+
+  it("keeps the chosen contact when the organization changes", async () => {
+    api();
+    renderApp(<DealForm record={DEAL} onClose={vi.fn()} />);
+    await ready();
+    await choose("Organization", /Lantern/);
+    expect(picker("Main contact").textContent).toContain("Sam Carter");
+  });
+
+  it("stays when a new organization is added from the picker", async () => {
+    api({ "POST /organizations": { id: 3, name: "Brand new", website: null, industry: null, notes: null, contacts: [], deals: [] } });
+    renderApp(<DealForm onClose={vi.fn()} />);
+    await ready();
+    await typeTheBasics();
+    await user().click(picker("Organization"));
+    await user().type(await screen.findByPlaceholderText("Search organizations"), "Brand new");
+    await user().click(await screen.findByRole("option", { name: /Add "Brand new"/ }));
+    await user().click(await screen.findByRole("button", { name: "Save organization" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Save organization" })).toBeNull());
+    expect(field("Name").value).toBe("Typed name");
+    expect(field("Value").value).toBe("1234");
+  });
+
+  it("replaces a hand-set probability when the stage changes, as the rules say", async () => {
+    api();
+    renderApp(<DealForm record={DEAL} onClose={vi.fn()} />);
+    await ready();
+    await user().clear(field("Probability"));
+    await user().type(field("Probability"), "55");
+    await user().selectOptions(screen.getByLabelText("Stage"), "qualified");
+    expect(field("Probability").value).toBe("20");
+  });
+});
+
+describe("when something goes wrong", () => {
+  it("closes and says so if its lists can't be read", async () => {
+    const failure = vi.spyOn(toast, "error");
+    const onClose = vi.fn();
+    api({ "GET /contacts": () => ({ status: 500, body: { detail: "Something went wrong." } }) });
+    renderApp(<DealForm onClose={onClose} />);
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(failure).toHaveBeenCalledWith("Couldn't open the form. Try again.", expect.anything());
+  });
+
+  it("does the same for the organizations list and the stages", async () => {
+    for (const route of ["GET /organizations", "GET /meta"]) {
+      const onClose = vi.fn();
+      api({ [route]: () => ({ status: 500, body: { detail: "Something went wrong." } }) });
+      const view = renderApp(<DealForm onClose={onClose} />);
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      view.unmount();
+    }
   });
 });
 

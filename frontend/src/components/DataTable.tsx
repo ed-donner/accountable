@@ -18,6 +18,7 @@ import { Link, useNavigate } from "react-router";
 
 import { useAddress, type AddressChange } from "../lib/useAddress";
 import { EmptyState } from "./EmptyState";
+import { LoadFailed } from "./LoadFailed";
 
 export const PAGE_SIZE = 50;
 
@@ -51,6 +52,9 @@ type Props<T extends RowData> = {
   /** Singular and plural words for the messages, such as "organization". */
   noun: string;
   rows: T[] | undefined;
+  /** Why rows is undefined, if reading them failed. */
+  error?: unknown;
+  onRetry?: () => void;
   columns: TableColumn<T>[];
   defaultSort: { id: string; desc: boolean };
   rowId: (row: T) => number;
@@ -79,6 +83,8 @@ function blankToUndefined<V>(value: V | null | undefined | ""): V | undefined {
 export function DataTable<T extends RowData>({
   noun,
   rows,
+  error,
+  onRetry = () => undefined,
   columns,
   defaultSort,
   rowId,
@@ -198,6 +204,16 @@ export function DataTable<T extends RowData>({
   const visible = table.getRowModel().rows;
   const first = (page - 1) * PAGE_SIZE + 1;
 
+  // Deleting the last row on the last page, or an old link, can leave the address
+  // past the end, where there'd be no rows and no paging to get back with.
+  useEffect(() => {
+    if (rows === undefined || page <= lastPage) return;
+    update((address) => {
+      if (lastPage > 1) address.set("page", String(lastPage));
+      else address.delete("page");
+    });
+  });
+
   const cells = new Map(columns.map((column) => [column.id, column]));
 
   return (
@@ -218,6 +234,8 @@ export function DataTable<T extends RowData>({
       </div>
 
       <div className="panel p-2">
+        <LoadFailed keeping={rows !== undefined} error={error} onRetry={onRetry} />
+
         {rows !== undefined && rows.length === 0 && !search && !filtered && (
           <EmptyState message={`No ${noun}s yet. Add the first one.`}>
             <button type="button" className="btn btn-primary" onClick={onAdd}>
@@ -234,7 +252,7 @@ export function DataTable<T extends RowData>({
           </EmptyState>
         )}
 
-        {rows === undefined && <div className="h-40" aria-busy="true" />}
+        {rows === undefined && !error && <div className="h-40" aria-busy="true" />}
 
         {matching > 0 && (
           <table className="w-full table-fixed border-separate border-spacing-0">

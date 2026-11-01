@@ -40,6 +40,7 @@ export function mockApi(routes: Record<string, unknown | Handler>): Call[] {
       });
     }
     const answer = typeof route === "function" ? (route as Handler)(body) : { body: route };
+    if (answer.status === 204) return new Response(null, { status: 204 });
     return new Response(JSON.stringify(answer.body), {
       status: answer.status ?? 200,
       headers: { "content-type": "application/json" },

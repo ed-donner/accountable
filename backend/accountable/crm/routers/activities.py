@@ -33,7 +33,7 @@ def add_activity(body: schemas.ActivityCreate, now: datetime = Depends(db.utc_no
 
 
 @router.patch("/{activity_id}")
-def edit_activity(activity_id: int, body: schemas.ActivityUpdate) -> schemas.Activity:
+def edit_activity(activity_id: schemas.PathId, body: schemas.ActivityUpdate) -> schemas.Activity:
     fields = body.model_dump(exclude_unset=True)
     with db.writing() as conn:
         _get(conn, activity_id)
@@ -43,7 +43,7 @@ def edit_activity(activity_id: int, body: schemas.ActivityUpdate) -> schemas.Act
 
 
 @router.delete("/{activity_id}", status_code=204)
-def delete_activity(activity_id: int) -> None:
+def delete_activity(activity_id: schemas.PathId) -> None:
     with db.writing() as conn:
         _get(conn, activity_id)
         conn.execute(delete(activities).where(activities.c.id == activity_id))

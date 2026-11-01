@@ -20,15 +20,16 @@ function useRemove(kind: "organizations" | "contacts" | "deals", word: string, {
   const remove = useDeleteRecord(kind, id);
   return {
     pending: remove.isPending,
-    confirm: () =>
-      remove.mutate(undefined, {
-        onSuccess: () => {
-          toast.success(`${word} deleted.`);
-          onClose();
-          onDeleted?.();
-        },
-        onError: (error) => toast.error(error.message),
-      }),
+    confirm: async () => {
+      try {
+        await remove.mutateAsync();
+        toast.success(`${word} deleted.`);
+        onClose();
+        onDeleted?.();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Something went wrong.");
+      }
+    },
   };
 }
 
@@ -42,6 +43,7 @@ export function DeleteOrganization(props: Props) {
     <ConfirmDelete
       title={`Delete ${props.name}?`}
       message={message ?? null}
+      checkFailed={impact.isError}
       confirmLabel="Delete organization"
       pending={pending}
       onConfirm={confirm}
@@ -60,6 +62,7 @@ export function DeleteContact(props: Props) {
     <ConfirmDelete
       title={`Delete ${props.name}?`}
       message={message ?? null}
+      checkFailed={impact.isError}
       confirmLabel="Delete contact"
       pending={pending}
       onConfirm={confirm}
@@ -79,6 +82,7 @@ export function DeleteDeal(props: Props) {
     <ConfirmDelete
       title={`Delete ${props.name}?`}
       message={message ?? null}
+      checkFailed={impact.isError}
       confirmLabel="Delete deal"
       pending={pending}
       onConfirm={confirm}
@@ -87,23 +91,23 @@ export function DeleteDeal(props: Props) {
   );
 }
 
-export function DeleteActivity({ id, onClose }: { id: number; onClose: () => void }) {
+export function DeleteActivity({ id, description, onClose }: { id: number; description: string; onClose: () => void }) {
   const remove = useDeleteActivity();
   return (
     <ConfirmDelete
-      title="Delete this activity?"
+      title={`Delete "${description}"?`}
       message={`It will be removed from every timeline and from the dashboard. ${FINAL}`}
       confirmLabel="Delete activity"
       pending={remove.isPending}
-      onConfirm={() =>
-        remove.mutate(id, {
-          onSuccess: () => {
-            toast.success("Activity deleted.");
-            onClose();
-          },
-          onError: (error) => toast.error(error.message),
-        })
-      }
+      onConfirm={async () => {
+        try {
+          await remove.mutateAsync(id);
+          toast.success("Activity deleted.");
+          onClose();
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "Something went wrong.");
+        }
+      }}
       onClose={onClose}
     />
   );

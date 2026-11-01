@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import cases from "../../../shared/expected-revenue-cases.json";
-import { applyMove, boardTotals, columns, expectedRevenue, figures, isLate, slideSteps } from "./deals";
-import type { Deal, Meta, Stage } from "./queries";
+import { applyMove, boardTotals, columns, expectedRevenue, figures, isLate, moveMessage, slideSteps } from "./deals";
+import type { Deal, Meta, MoveResult, Stage } from "./queries";
 
 const TODAY = "2026-10-31";
 
@@ -184,5 +184,29 @@ describe("applyMove", () => {
 
   it("leaves the list as it was for a deal it can't find", () => {
     expect(applyMove(base, { dealId: 99, stage: "won", beforeDealId: null }, USUAL, TODAY)).toBe(base);
+  });
+});
+
+describe("moveMessage", () => {
+  function result(stage: Stage, close_date: string | null, new_customer: string | null): MoveResult {
+    return { deal: { stage } as Deal, changes: { close_date, new_customer } };
+  }
+
+  it("says what a win changed", () => {
+    expect(moveMessage(result("won", TODAY, "Sam Carter"))).toBe(
+      "Marked as Won. Close date set to today. Sam Carter is now a customer.",
+    );
+  });
+
+  it("names no contact when none became a customer", () => {
+    expect(moveMessage(result("won", TODAY, null))).toBe("Marked as Won. Close date set to today.");
+  });
+
+  it("says what a loss changed", () => {
+    expect(moveMessage(result("lost", TODAY, null))).toBe("Marked as Lost. Close date set to today.");
+  });
+
+  it("has nothing to say about any other move", () => {
+    expect(moveMessage(result("proposal", null, null))).toBeNull();
   });
 });

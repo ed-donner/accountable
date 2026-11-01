@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 from conftest import TODAY
 
@@ -5,6 +8,8 @@ ORGS = "/api/organizations"
 CONTACTS = "/api/contacts"
 DEALS = "/api/deals"
 ACTIVITIES = "/api/activities"
+
+WEBSITES = json.loads((Path(__file__).resolve().parents[2] / "shared" / "website-cases.json").read_text())
 
 
 def error_fields(reply) -> dict[str, str]:
@@ -154,6 +159,17 @@ def test_websites_gain_https_if_left_off(api, given, stored):
 @pytest.mark.parametrize("website", ["ftp://example.com", "mailto:sam@example.com", "javascript:alert(1)", "https://", "two words"])
 def test_other_website_schemes_are_refused(api, website):
     assert "website" in error_fields(api.post(ORGS, json={"name": "Acme", "website": website}))
+
+
+@pytest.mark.parametrize("website", WEBSITES["accepted"])
+def test_a_website_the_browser_accepts_is_accepted_here_too(api, website):
+    assert api.post(ORGS, json={"name": "Acme", "website": website}).status_code == 201
+
+
+@pytest.mark.parametrize("website", WEBSITES["refused"])
+def test_a_website_the_browser_refuses_is_refused_here_too(api, website):
+    fields = error_fields(api.post(ORGS, json={"name": "Acme", "website": website}))
+    assert fields["website"] == "Enter a website address, such as https://example.com"
 
 
 def test_a_blank_website_is_fine(api):
@@ -453,3 +469,136 @@ def test_meta_lists_stages_statuses_and_types(api):
     assert [stage["probability"] for stage in body["stages"]] == [5, 20, 40, 70, 100, 0]
     assert body["statuses"] == ["lead", "qualified", "customer"]
     assert body["activity_types"] == ["note", "call", "email"]
+
+
+# Input the database or the calendar can't hold
+
+
+@pytest.mark.parametrize(
+    "path, field",
+    [
+        (CONTACTS, "organization_id"),
+        (DEALS, "organization_id"),
+        (DEALS, "main_contact_id"),
+        (ACTIVITIES, "contact_id"),
+        (ACTIVITIES, "deal_id"),
+    ],
+)
+@pytest.mark.parametrize("value", [2**63, -(2**63) - 1, 10**30])
+def test_a_link_too_big_for_the_database_is_refused(api, path, field, value):
+    assert field in error_fields(api.post(path, json={"name": "x", "description": "x", field: value}))
+
+
+@pytest.mark.parametrize("path, field", [(CONTACTS, "organization_id"), (DEALS, "organization_id"), (DEALS, "main_contact_id")])
+def test_an_edit_with_a_link_too_big_for_the_database_is_refused(api, make, path, field):
+    record = make.contact() if path == CONTACTS else make.deal()
+    assert field in error_fields(api.patch(f"{path}/{record}", json={field: 2**63}))
+
+
+def test_a_move_before_an_impossible_deal_is_refused(api, make):
+    deal = make.deal()
+    assert "before_deal_id" in error_fields(api.post(f"{DEALS}/{deal}/move", json={"stage": "new", "before_deal_id": 2**63}))
+
+
+@pytest.mark.parametrize(
+    "stamp",
+    ["0001-01-01T00:00:00+14:00", "9999-12-31T23:59:59-14:00"],
+)
+def test_an_activity_time_past_the_calendars_end_is_refused(api, make, stamp):
+    deal = make.deal()
+    fields = error_fields(api.post(ACTIVITIES, json={"description": "Called", "deal_id": deal, "occurred_at": stamp}))
+    assert fields == {"occurred_at": "Choose when it happened"}
+
+    activity = api.post(ACTIVITIES, json={"description": "Called", "deal_id": deal}).json()["id"]
+    assert "occurred_at" in error_fields(api.patch(f"{ACTIVITIES}/{activity}", json={"occurred_at": stamp}))
+
+
+@pytest.mark.parametrize("close_date", ["0001-01-01", "9999-12-31"])
+def test_a_deal_on_the_calendars_last_days_doesnt_upset_the_dashboard(api, linked, close_date):
+    organization, contact = linked
+    assert api.post(DEALS, json=new_deal(organization, contact, close_date=close_date)).status_code == 201
+    assert api.get("/api/dashboard").status_code == 200
+    assert api.get(DEALS).status_code == 200
+
+
+def test_the_largest_value_is_allowed_and_one_more_is_not(api, linked):
+    organization, contact = linked
+    limit = 1_000_000_000_000
+    deal = api.post(DEALS, json=new_deal(organization, contact, value=limit, probability=99))
+    assert deal.json()["expected_revenue"] == 990_000_000_000
+    assert "value" in error_fields(api.post(DEALS, json=new_deal(organization, contact, value=limit + 1)))
+    assert api.get("/api/dashboard").json()["open_pipeline"] == limit
+
+
+@pytest.mark.parametrize(
+    "path, field",
+    [
+        (ORGS, "name"),
+        (ORGS, "website"),
+        (ORGS, "industry"),
+        (ORGS, "notes"),
+        (CONTACTS, "name"),
+        (CONTACTS, "email"),
+        (CONTACTS, "phone"),
+        (CONTACTS, "job_title"),
+        (DEALS, "name"),
+        (ACTIVITIES, "description"),
+    ],
+)
+def test_text_the_database_cant_store_is_refused(api, linked, make, path, field):
+    """JSON can carry half of a two-part character, which has no valid encoding."""
+    organization, contact = linked
+    good = {
+        ORGS: {"name": "Acme"},
+        CONTACTS: {"name": "Sam", "organization_id": organization},
+        DEALS: new_deal(organization, contact),
+        ACTIVITIES: {"description": "Called", "deal_id": make.deal()},
+    }[path]
+    body = json.dumps({**good, field: "\ud800"})
+    reply = api.post(path, content=body, headers={"content-type": "application/json"})
+    assert field in error_fields(reply)
+
+
+def test_ordinary_accents_and_emoji_are_kept(api):
+    name = "Caf\u00e9 \u6771\u4eac \U0001f600"
+    assert api.post(ORGS, json={"name": name}).json()["name"] == name
+
+
+@pytest.mark.parametrize(
+    "path, field",
+    [
+        (ORGS, "name"),
+        (CONTACTS, "name"),
+        (CONTACTS, "status"),
+        (DEALS, "name"),
+        (DEALS, "stage"),
+        (DEALS, "value"),
+        (DEALS, "probability"),
+        (DEALS, "close_date"),
+    ],
+)
+def test_a_required_field_cant_be_blanked_by_an_edit(api, linked, make, path, field):
+    organization, contact = linked
+    record = {ORGS: organization, CONTACTS: contact}.get(path) or make.deal()
+    assert field in error_fields(api.patch(f"{path}/{record}", json={field: None}))
+
+
+@pytest.mark.parametrize("field", ["type", "description", "occurred_at", "follow_up_done"])
+def test_a_required_activity_field_cant_be_blanked_by_an_edit(api, make, field):
+    activity = api.post(ACTIVITIES, json={"description": "Called", "deal_id": make.deal()}).json()["id"]
+    assert field in error_fields(api.patch(f"{ACTIVITIES}/{activity}", json={field: None}))
+
+
+def test_a_deleted_records_id_is_never_used_again(api, make):
+    organization = make.organization()
+    contact = api.post(CONTACTS, json={"name": "Sam Carter", "organization_id": organization}).json()["id"]
+    records = [
+        (ORGS, {"name": "Acme"}),
+        (CONTACTS, {"name": "Alex Reed", "organization_id": organization}),
+        (DEALS, new_deal(organization, contact)),
+        (ACTIVITIES, {"contact_id": contact, "description": "Called them"}),
+    ]
+    for route, body in records:
+        first = api.post(route, json=body).json()["id"]
+        assert api.delete(f"{route}/{first}").status_code == 204
+        assert api.post(route, json=body).json()["id"] > first, route

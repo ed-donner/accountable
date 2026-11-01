@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -24,6 +24,7 @@ import { ContactForm } from "./ContactForm";
 import { OrganizationForm } from "./OrganizationForm";
 import { link } from "./links";
 import { showSaveError } from "./server-errors";
+import { useCloseIfUnreadable } from "./useCloseIfUnreadable";
 
 const VALUE_MESSAGE = "Enter a whole number of dollars, zero or more";
 const PROBABILITY_MESSAGE = "Enter a whole number from 0 to 100";
@@ -74,6 +75,8 @@ export function DealForm(props: Props) {
   const meta = useMeta();
   const contacts = useContacts();
   const organizations = useOrganizations();
+  useCloseIfUnreadable([meta, contacts, organizations], props.onClose);
+
   if (!meta.data || !contacts.data || !organizations.data) return null;
   return <LoadedDealForm {...props} meta={meta.data} contacts={contacts.data} organizations={organizations.data} />;
 }
@@ -95,6 +98,8 @@ function LoadedDealForm({
   const usualProbability = (stage: Stage) => meta.stages.find((item) => item.key === stage)?.probability;
 
   const startStage = record?.stage ?? defaultStage ?? "new";
+  const lastStage = useRef<Stage>(startStage);
+  const lastOpenDate = useRef(record?.close_date ?? "");
   const startOrganization =
     record?.organization_id ??
     defaultOrganizationId ??
@@ -106,6 +111,7 @@ function LoadedDealForm({
     handleSubmit,
     control,
     setError,
+    getValues,
     setValue,
     watch,
     clearErrors,
@@ -141,8 +147,15 @@ function LoadedDealForm({
     const backToStart = record?.stage === stage;
     const probability = backToStart ? record.probability : usualProbability(stage);
     if (probability !== undefined) setValue("probability", String(probability), { shouldValidate: true });
-    const startingDate = record?.close_date ?? "";
-    setValue("close_date", isOpen(stage) || backToStart ? startingDate : todayIso());
+
+    // The date only changes on the way into or out of Won and Lost. Moving between
+    // open stages leaves it alone, along with anything typed into it.
+    const leaving = lastStage.current;
+    lastStage.current = stage;
+    if (isOpen(leaving) && isOpen(stage)) return;
+    if (isOpen(leaving)) lastOpenDate.current = getValues("close_date");
+    const closed = backToStart ? record.close_date : todayIso();
+    setValue("close_date", isOpen(stage) ? lastOpenDate.current : closed);
     clearErrors("close_date");
   }
 
@@ -156,15 +169,15 @@ function LoadedDealForm({
     }
   }
 
-  function submit(values: Output) {
-    save.mutate(values, {
-      onSuccess: (saved) => {
-        toast.success("Deal saved.");
-        onSaved?.(saved);
-        onClose();
-      },
-      onError: (error) => showSaveError(error, setError),
-    });
+  async function submit(values: Output) {
+    try {
+      const saved = await save.mutateAsync(values);
+      toast.success("Deal saved.");
+      onSaved?.(saved);
+      onClose();
+    } catch (error) {
+      showSaveError(error, { setError, getValues });
+    }
   }
 
   const organizationPlaceholder = record && record.organization_id === null ? "None" : "Choose an organization";
@@ -276,7 +289,10 @@ function LoadedDealForm({
           onSaved={(saved) => {
             setValue("main_contact_id", saved.id);
             clearErrors("main_contact_id");
-            if (organizationId === null && saved.organization_id) setValue("organization_id", saved.organization_id);
+            if (organizationId === null && saved.organization_id) {
+              setValue("organization_id", saved.organization_id);
+              clearErrors("organization_id");
+            }
           }}
         />
       )}

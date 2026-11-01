@@ -1,6 +1,11 @@
 from datetime import date, datetime, timedelta
 
+import pytest
 from conftest import NOW
+from sqlalchemy import insert
+
+from accountable import db
+from accountable.crm.tables import activities
 
 
 def entries(api, path: str) -> list[dict]:
@@ -167,3 +172,28 @@ def test_all_times_carry_a_z(api, make):
     for entry in entries(api, f"/api/deals/{deal}"):
         assert entry["at"].endswith("Z")
         assert datetime.fromisoformat(entry["at"].replace("Z", "+00:00")).utcoffset() == timedelta(0)
+
+
+@pytest.mark.parametrize("kind", ["deals", "contacts", "organizations"])
+def test_a_timeline_can_be_read_to_the_end_however_long_it_is(api, make, kind):
+    """Longer than the most one reply can hold, with every entry at the same moment."""
+    organization = make.organization()
+    contact = make.contact(organization_id=organization)
+    deal = make.deal(organization_id=organization, main_contact_id=contact)
+    rows = [
+        {"type": "note", "deal_id": deal, "contact_id": None, "description": f"Entry {number}", "occurred_at": NOW}
+        for number in range(620)
+    ]
+    with db.writing() as conn:
+        conn.execute(insert(activities), rows)
+
+    record = {"deals": deal, "contacts": contact, "organizations": organization}[kind]
+    seen: list[int] = []
+    while True:
+        reply = api.get(f"/api/{kind}/{record}/timeline", params={"limit": 50, "offset": len(seen)}).json()
+        if not reply["entries"]:
+            break
+        seen.extend(entry["id"] for entry in reply["entries"])
+    assert reply["total"] == 620
+    assert len(seen) == 620
+    assert len(set(seen)) == 620

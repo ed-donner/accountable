@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Chip } from "../../components/Chip";
+import { LoadFailed } from "../../components/LoadFailed";
 import { PageHeader } from "../../components/PageHeader";
 import { formatDateTime, formatShortDate } from "../../lib/dates";
 import { money } from "../../lib/money";
@@ -14,7 +15,7 @@ import { SalesFunnel } from "../charts/SalesFunnel";
 import { useDashboard, useTickFollowUp, type Dashboard as Figures, type FollowUp } from "../queries";
 import { EntryIcon, aboutPath } from "../Timeline";
 
-const WON_DEALS = "/deals?q=won&sort=close_date&dir=desc";
+const WON_DEALS = "/deals?stage=won&sort=close_date&dir=desc";
 
 function summaryLine({ overdue_follow_ups, late_deals }: Figures) {
   const followUps = overdue_follow_ups === 0 ? "No follow-ups" : plural(overdue_follow_ups, "follow-up");
@@ -211,6 +212,7 @@ export function Dashboard() {
           </p>
         )}
       </PageHeader>
+      <LoadFailed onPage keeping={data !== undefined} error={dashboard.error} onRetry={() => dashboard.refetch()} />
       {data && (
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_396px] gap-3 px-5 pb-4">
           <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1.12fr)_auto_minmax(0,1fr)] gap-3">

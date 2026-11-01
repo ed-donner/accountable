@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { isEmail, isWebsite } from "./validate";
+import cases from "../../../shared/website-cases.json";
+import { isEmail, isWebsite, recordId } from "./validate";
 
 describe("isEmail", () => {
   it.each(["sam@example.com", "sam.carter+crm@mail.example.co"])("accepts %s", (value) => {
@@ -13,17 +14,25 @@ describe("isEmail", () => {
 });
 
 describe("isWebsite", () => {
-  it.each(["example.com", "www.example.com/about", "http://example.com", "HTTPS://example.com", "example.com:8080"])(
-    "accepts %s",
-    (value) => {
-      expect(isWebsite(value)).toBe(true);
-    },
-  );
+  // The backend's tests read the same file, so the two can't drift apart.
+  it.each(cases.accepted)("accepts %j", (value) => {
+    expect(isWebsite(value)).toBe(true);
+  });
 
-  it.each(["ftp://example.com", "mailto:sam@example.com", "javascript:alert(1)", "https://", "two words"])(
-    "refuses %s",
-    (value) => {
-      expect(isWebsite(value)).toBe(false);
+  it.each(cases.refused)("refuses %j", (value) => {
+    expect(isWebsite(value)).toBe(false);
+  });
+});
+
+describe("recordId", () => {
+  it.each([["1", 1], ["42", 42], ["9007199254740991", 9007199254740991]])("reads %s", (text, id) => {
+    expect(recordId(text)).toBe(id);
+  });
+
+  it.each([undefined, "", "abc", "0", "-1", "1.5", "1e3", "0x10", " 1", "1 ", "01", "99999999999999999999", "Infinity", "NaN"])(
+    "refuses %j",
+    (text) => {
+      expect(recordId(text)).toBeNull();
     },
   );
 });

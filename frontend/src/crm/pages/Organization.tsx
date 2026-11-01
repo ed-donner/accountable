@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
+import { LoadFailed } from "../../components/LoadFailed";
 import { MissingRecord } from "../../components/MissingRecord";
 import { ApiError } from "../../lib/api";
 import { money } from "../../lib/money";
+import { recordId } from "../../lib/validate";
 import { ContactForm } from "../forms/ContactForm";
 import { DealForm } from "../forms/DealForm";
 import { DeleteOrganization } from "../forms/DeleteDialogs";
@@ -14,7 +16,12 @@ import { Timeline } from "../Timeline";
 import { Detail, LinkedList, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
 
 export function Organization() {
-  const id = Number(useParams().id);
+  const id = recordId(useParams().id);
+  if (id === null) return <MissingRecord word="organization" to="/organizations" section="Organizations" />;
+  return <OrganizationRecord id={id} />;
+}
+
+function OrganizationRecord({ id }: { id: number }) {
   const navigate = useNavigate();
   const organization = useOrganization(id);
   const [dialog, setDialog] = useState<"edit" | "delete" | "contact" | "deal" | null>(null);
@@ -23,12 +30,13 @@ export function Organization() {
   if (organization.error instanceof ApiError && organization.error.kind === "missing") {
     return <MissingRecord word="organization" to="/organizations" section="Organizations" />;
   }
-  if (!organization.data) return null;
+  if (!organization.data) return <LoadFailed onPage error={organization.error} onRetry={() => organization.refetch()} />;
   const record = organization.data;
 
   return (
     <>
       <RecordHeader title={record.name} onEdit={() => setDialog("edit")} onDelete={() => setDialog("delete")} />
+      <LoadFailed onPage keeping error={organization.error} onRetry={() => organization.refetch()} />
       <RecordColumns
         side={
           <>

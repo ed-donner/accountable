@@ -77,13 +77,21 @@ describe("RecordPicker", () => {
   });
 });
 
+describe("a long list", () => {
+  it("still names a chosen record that's past the first 50", () => {
+    const options = Array.from({ length: 120 }, (_, index) => ({ id: index + 1, name: `Company ${index + 1}` }));
+    render(<RecordPicker label="Organization" noun="organization" value={120} options={options} onChange={vi.fn()} />);
+    expect(screen.getByRole("combobox", { name: "Organization" }).textContent).toContain("Company 120");
+  });
+});
+
 describe("adding from a picker inside a form", () => {
   function DealLikeForm({ onOuterSubmit }: { onOuterSubmit: () => void }) {
     const [value, setValue] = useState<number | null>(null);
     const [adding, setAdding] = useState<string | null>(null);
     const [options, setOptions] = useState(OPTIONS);
     return (
-      <FormDialog title="Add deal" submitLabel="Save deal" onClose={vi.fn()} onSubmit={(event) => { event.preventDefault(); onOuterSubmit(); }}>
+      <FormDialog title="Add deal" submitLabel="Save deal" onClose={vi.fn()} onSubmit={async () => onOuterSubmit()}>
         <RecordPicker label="Organization" noun="organization" value={value} options={options} onChange={setValue} onAdd={setAdding} />
         {adding !== null && (
           <OrganizationForm

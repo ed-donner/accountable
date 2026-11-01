@@ -555,3 +555,73 @@ test.describe("empty tables", () => {
     }
   });
 });
+
+test.describe("the edges of a table", () => {
+  test.beforeEach(emptyDatabase);
+
+  test("deleting the only row on the last page goes back a page", async ({ page, request }) => {
+    for (let number = 0; number < 51; number += 1) await addOrganization(request, `Company ${String(number).padStart(2, "0")}`);
+
+    await page.goto("/organizations?page=2");
+    await expect(bodyRows(page)).toHaveCount(1);
+    await bodyRows(page).first().getByRole("button", { name: /^Delete / }).click();
+    await page.getByRole("button", { name: "Delete organization" }).click();
+
+    await expect(bodyRows(page)).toHaveCount(50);
+    await expect(page).toHaveURL(/\/organizations$/);
+    await page.reload();
+    await expect(bodyRows(page)).toHaveCount(50);
+  });
+
+  test("deleting the last row of all invites the first record", async ({ page, request }) => {
+    await addOrganization(request, "The only one");
+    await page.goto("/organizations");
+    await bodyRows(page).first().getByRole("button", { name: /^Delete / }).click();
+    await page.getByRole("button", { name: "Delete organization" }).click();
+    await expect(page.getByText("No organizations yet. Add the first one.")).toBeVisible();
+  });
+
+  test("an old link past the last page goes to the last page, keeping the rest of the address", async ({ page, request }) => {
+    const organization = await addOrganization(request, "Staffed");
+    await addContact(request, "Lee Lead", organization.id);
+
+    await page.goto("/contacts?status=lead&sort=name&dir=desc&page=9");
+    await expect(bodyRows(page)).toHaveCount(1);
+    await expect(page).not.toHaveURL(/page=/);
+    await expect(page).toHaveURL(/status=lead/);
+    await expect(page).toHaveURL(/dir=desc/);
+  });
+
+  test("coming back to a later page from a record stays on that page", async ({ page, request }) => {
+    for (let number = 0; number < 55; number += 1) await addOrganization(request, `Company ${String(number).padStart(2, "0")}`);
+
+    await page.goto("/organizations?page=2");
+    await bodyRows(page).first().getByRole("link").first().click();
+    await expect(page).toHaveURL(/\/organizations\/\d+$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/page=2/);
+    await expect(bodyRows(page)).toHaveCount(5);
+  });
+
+  test("settings in the address that make no sense are ignored", async ({ page, request }) => {
+    const { deal } = await addLinkedDeal(request, "Still here");
+
+    for (const address of ["/deals?stage=nothing", "/deals?sort=nothing&dir=sideways", "/deals?page=abc", "/contacts?status=nothing"]) {
+      await page.goto(address);
+      await expect(bodyRows(page)).toHaveCount(1);
+    }
+    expect(deal.id).toBeGreaterThan(0);
+  });
+
+  test("the status filter goes by a contact's status, not by words in their details", async ({ page, request }) => {
+    const organization = await addOrganization(request, "Lead Generation Ltd");
+    await addContact(request, "Lead Singer", organization.id, { status: "customer", job_title: "Qualified electrician" });
+
+    await page.goto("/contacts?status=lead");
+    await expect(page.getByText("No contacts match.")).toBeVisible();
+    await page.goto("/contacts?status=qualified");
+    await expect(page.getByText("No contacts match.")).toBeVisible();
+    await page.goto("/contacts?status=customer");
+    await expect(bodyRows(page)).toHaveCount(1);
+  });
+});

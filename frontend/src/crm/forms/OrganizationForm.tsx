@@ -34,6 +34,7 @@ export function OrganizationForm({ record, defaultName, onClose, onSaved }: Prop
     register,
     handleSubmit,
     setError,
+    getValues,
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -45,23 +46,20 @@ export function OrganizationForm({ record, defaultName, onClose, onSaved }: Prop
     },
   });
 
-  function submit(values: Values) {
-    save.mutate(
-      {
+  async function submit(values: Values) {
+    try {
+      const saved = await save.mutateAsync({
         name: values.name,
         website: values.website || null,
         industry: values.industry || null,
         notes: values.notes || null,
-      },
-      {
-        onSuccess: (saved) => {
-          toast.success("Organization saved.");
-          onSaved?.(saved);
-          onClose();
-        },
-        onError: (error) => showSaveError(error, setError),
-      },
-    );
+      });
+      toast.success("Organization saved.");
+      onSaved?.(saved);
+      onClose();
+    } catch (error) {
+      showSaveError(error, { setError, getValues });
+    }
   }
 
   return (

@@ -80,13 +80,13 @@ def add_organization(body: schemas.OrganizationCreate) -> schemas.OrganizationDe
 
 
 @router.get("/{organization_id}")
-def get_organization(organization_id: int) -> schemas.OrganizationDetail:
+def get_organization(organization_id: schemas.PathId) -> schemas.OrganizationDetail:
     with db.reading() as conn:
         return _detail(conn, organization_id)
 
 
 @router.patch("/{organization_id}")
-def edit_organization(organization_id: int, body: schemas.OrganizationUpdate) -> schemas.OrganizationDetail:
+def edit_organization(organization_id: schemas.PathId, body: schemas.OrganizationUpdate) -> schemas.OrganizationDetail:
     fields = body.model_dump(exclude_unset=True)
     with db.writing() as conn:
         _get(conn, organization_id)
@@ -96,14 +96,14 @@ def edit_organization(organization_id: int, body: schemas.OrganizationUpdate) ->
 
 
 @router.delete("/{organization_id}", status_code=204)
-def delete_organization(organization_id: int) -> None:
+def delete_organization(organization_id: schemas.PathId) -> None:
     with db.writing() as conn:
         _get(conn, organization_id)
         conn.execute(delete(organizations).where(organizations.c.id == organization_id))
 
 
 @router.get("/{organization_id}/delete-impact")
-def organization_impact(organization_id: int) -> schemas.OrganizationImpact:
+def organization_impact(organization_id: schemas.PathId) -> schemas.OrganizationImpact:
     with db.reading() as conn:
         _get(conn, organization_id)
         return {
@@ -118,9 +118,9 @@ def organization_impact(organization_id: int) -> schemas.OrganizationImpact:
 
 @router.get("/{organization_id}/timeline")
 def organization_timeline(
-    organization_id: int,
+    organization_id: schemas.PathId,
     limit: int = Query(timeline.DEFAULT_LIMIT, ge=1, le=500),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=schemas.MAX_ID),
 ) -> schemas.Timeline:
     with db.reading() as conn:
         _get(conn, organization_id)

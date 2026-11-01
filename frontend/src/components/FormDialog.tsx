@@ -1,21 +1,33 @@
 import { Dialog } from "radix-ui";
-import type { FormEvent, ReactNode } from "react";
+import { useRef, type FormEvent, type ReactNode } from "react";
 
 type Props = {
   title: string;
   submitLabel: string;
   pending?: boolean;
   onClose: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  /** Resolves when the save has finished, so a second press can't start another. */
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   children: ReactNode;
 };
 
 export function FormDialog({ title, submitLabel, pending, onClose, onSubmit, children }: Props) {
-  function submit(event: FormEvent<HTMLFormElement>) {
+  const saving = useRef(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
     // React passes events up through portals, so without this, saving a dialog
     // opened from inside another form would submit that form too.
     event.stopPropagation();
-    onSubmit(event);
+    event.preventDefault();
+    // The button only disables once the page redraws, which a quick second press
+    // can beat. That would add the record twice.
+    if (saving.current) return;
+    saving.current = true;
+    try {
+      await onSubmit(event);
+    } finally {
+      saving.current = false;
+    }
   }
 
   return (

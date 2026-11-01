@@ -1,4 +1,4 @@
-The MVP is built and its automated tests pass. `docs/intent.md` says what it is, `docs/spec.md` has the requirements and design, `docs/TECH_STACK.md` has the stack, and `docs/plan.md` is the build plan that was followed. The next stage is the Test stage: the checks by hand listed under Proof in the plan, which tests can't settle, and then the project owner's own use.
+The MVP is built and its automated tests pass. `docs/intent.md` says what it is, `docs/spec.md` has the requirements and design, `docs/TECH_STACK.md` has the stack, and `docs/plan.md` is the build plan that was followed. Stage 6 is complete.
 
 ## Build progress
 

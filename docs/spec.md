@@ -39,6 +39,11 @@ Say if you want any of these changed.
 - Moving a deal to Qualified doesn't change the contact's Qualified status. They share a word and nothing else. Only Won changes a contact's status.
 - The dashboard covers the last 12 months with no date filter, and the funnel covers every deal there has ever been.
 - This month's figures sit beside last month's instead of showing a percentage change. Early in a month, any percentage would look like a collapse.
+- The Stage column sorts in pipeline order, and the Status column sorts Lead, Qualified, Customer.
+- Overdue follow-ups list oldest first.
+- An activity's contact or deal can't be changed once it's logged, so the activity form needs no contact-or-deal picker.
+- Sample Won and Lost columns start newest first.
+- At 500 deals, a task of up to about 250ms while dragging counts as smooth, in place of the plan's 100ms, so that cards can slide apart during a drag. This one is the project owner's own call.
 
 ---
 
@@ -54,7 +59,7 @@ The "Not in the MVP" list in `docs/intent.md` applies throughout.
 | Open deal | Stage is New, Qualified, Proposal or Negotiation |
 | Closed deal | Stage is Won or Lost |
 | Late deal | An open deal whose close date is before today. A deal due today isn't late. |
-| Expected revenue | Value times probability, rounded to the nearest dollar for each deal, then added up. Open deals only. |
+| Expected revenue | Value times probability, rounded to the nearest dollar for each deal, then added up. Halves round up, on both the backend and the frontend, using whole-number arithmetic. Open deals only. |
 | Month won | The calendar month of a Won deal's close date |
 | Overdue follow-up | Not done, with a follow-up date before today |
 | Upcoming follow-up | Not done, with a follow-up date of today or later |
@@ -246,29 +251,44 @@ Browser                       http://localhost:5173
 The browser only ever talks to one address, so the backend needs no cross-origin setup.
 
 ```
-package.json            root scripts, npm workspace for frontend/
-pyproject.toml, uv.lock
-scripts/dev.mjs         first-run setup and start, Node built-ins only
-scripts/setup.mjs       shared setup, used by dev and test
-frontend/src/
-  api/                  fetch client and TanStack Query hooks
-  components/           DataTable, RecordPicker, Timeline, forms, chips
-  pages/                one file per screen
-  lib/                  money and date formatting, expected revenue
-backend/app/
-  main.py               app, routers, startup
-  db.py                 engine, foreign keys, migrations on start
-  tables.py             SQLAlchemy Core tables
-  rules.py              stage-change rules, in one place
-  routers/              organizations, contacts, deals, activities, dashboard
-  dashboard.py          dashboard figures
-  sample_data.py        sample records
-  cli.py                seed and empty commands
-backend/alembic/        migrations
+package.json, package-lock.json   root scripts, npm workspace for frontend/
+pyproject.toml, uv.lock           backend/accountable/ as an installable package
+playwright.config.ts
+shared/                           expected-revenue-cases.json, read by both unit test suites
+scripts/
+  setup.mjs                       shared setup, used by the other three, Node built-ins only
+  dev.mjs                         npm run dev
+  test.mjs                        npm test
+  data.mjs                        npm run seed and npm run empty
+  setup.test.mjs
+backend/accountable/
+  main.py                         app, trusted hosts, JSON-only check, startup, routers
+  db.py                           engine, metadata, foreign keys, write lock, migrations on start
+  cli.py                          seed and empty commands
+  migrations/                     Alembic, with batch mode on
+  crm/
+    tables.py                     SQLAlchemy Core tables
+    schemas.py                    Pydantic request and reply models
+    rules.py                      stage-change rules, usual probabilities, expected revenue
+    timeline.py                   merged timelines and last-activity queries
+    sample_data.py                sample records, dated from a given day
+    routers/                      meta, organizations, contacts, deals, activities, dashboard
 backend/tests/
+frontend/src/
+  main.tsx, App.tsx, styles.css
+  lib/                            fetch client, money and date formatting
+  components/                     Shell, DataTable, RecordPicker, ConfirmDelete, Chip and others
+  crm/
+    queries.ts, deals.ts, Timeline.tsx
+    forms/                        organization, contact, deal and activity forms
+    board/                        Board, Column, DealCard
+    charts/                       RevenueChart, DealsWonChart, SalesFunnel, PipelineBand
+    pages/                        one file per screen
 e2e/
-data/                   created on first run, the *.db file is git-ignored
+data/                             created on first run, the *.db file is git-ignored
 ```
+
+`crm/` holds everything specific to the sales CRM, on both sides, so a later business area gets a folder beside it. `crm/` can import `db.py`, but `db.py` never imports `crm/`. Only `main.py`, `cli.py` and the migrations name `crm/`. The dashboard's figures and funnel live in its router.
 
 ## Libraries
 
@@ -281,16 +301,19 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 | Server data | TanStack Query 5 |
 | Tables | TanStack Table 9 |
 | Charts | Recharts 3 |
-| Drag and drop | `@dnd-kit/core` 6, `@dnd-kit/sortable` 10 |
-| Dialogs, pickers, tooltips | Radix UI |
+| Drag and drop | `@dnd-kit/core` 6 |
+| Dialogs | Radix UI |
+| Searchable pickers | `cmdk` with Radix Popover, because Radix has no combobox |
 | Styling | Tailwind CSS 4, with the brand as theme tokens |
-| Forms | React Hook Form 7, Zod 4 |
+| Forms | React Hook Form 7, Zod 4, `@hookform/resolvers` to connect them |
 | Dates | date-fns |
 | Messages | Sonner 2 |
 | Icons | lucide-react |
 | Fonts | `@fontsource-variable/instrument-sans`, `@fontsource/instrument-serif`, `@fontsource-variable/jetbrains-mono` (OFL-1.1, the font files ship in the packages) |
 | Running both servers | concurrently |
 | Backend | FastAPI, Uvicorn, SQLAlchemy Core, Alembic, Pydantic |
+| Frontend tools | `typescript`, `@vitejs/plugin-react`, `@tailwindcss/vite` |
+| Test tools | Vitest, `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom`, `pytest`, `httpx`, `@playwright/test` |
 
 Alembic is here because people will have real data in the database from day one, and later features will change the tables. Without migrations, the only way to pick up a new column would be a reset that wipes that data. Migrations run by themselves when the backend starts.
 
@@ -354,6 +377,7 @@ Stage changes get their own table because they aren't activities: they have no t
 Notes for the build:
 
 - **Links:** required links are enforced by the API, not the database, because deletes have to be able to blank them. The database columns allow blank.
+- **New database:** a first start builds the database under a temporary name and renames it once the migrations and sample data are done, so an interrupted first start can't leave an empty database behind.
 - **Foreign keys:** SQLite turns these off by default. Turn them on for each connection with `connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_FKEY, True)` in a SQLAlchemy connect event. This keeps to the "no raw SQL" rule, and it has been checked on Python 3.12.
 - **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)` and `stage_changes (changed_at)`.
 - **Dates:** close dates and follow-up dates are plain dates. In the frontend, always read them with date-fns `parseISO`. `new Date("2026-10-31")` reads as UTC and shows the day before in US time zones.
@@ -406,7 +430,7 @@ A timeline merges activities and stage changes in the backend, removes duplicate
 - **Data:** TanStack Query holds all server data, and it refetches when the window regains focus. After any write, invalidate everything. With one user and this little data, that's simple and hard to get wrong.
 - **Instant updates:** only the pipeline move and the follow-up tick update the screen before the server replies, and both roll back on failure.
 - **Board figures:** worked out in the browser from the deals list, so they change as a card lands. They use the same formula as the backend, with a unit test on each side using the same cases.
-- **Dragging:** a 6px move starts a drag, so a click still opens the deal. Keyboard dragging comes from dnd-kit's keyboard sensor. Cards are memoized to stay smooth at 500 deals. Columns aren't virtualized, because that conflicts with dropping a card anywhere.
+- **Dragging:** a 6px move starts a drag, so a click still opens the deal. Keyboard dragging comes from dnd-kit's keyboard sensor. Cards are memoized to stay smooth at 500 deals. Columns aren't virtualized, because that conflicts with dropping a card anywhere. Each column is a droppable, and the board has one draggable that's pointed at a card as it's picked up. While a card is dragged, the others slide apart around a pale slot showing where it will land, and the gap closes behind it. `@dnd-kit/sortable` was dropped: its per-card hooks re-render every card each time a drag crosses a card, which took 241ms at 500 deals. The longest task on this board is about 70ms to 180ms, slowest on the first drags after loading.
 
 ## Screens
 
@@ -473,7 +497,7 @@ Pipeline                      Open pipeline $1,240,000   Expected revenue $369,5
 
 Each column is headed by a solid block in its stage color, using the text color from the stage table. The block holds the stage name and deal count, the total value, the expected revenue for open stages, and Add deal. It stays put while the cards below it scroll, and the page header stays put too.
 
-Cards are white on the page background and lead with their value, so the money is the first thing read down a column. A dragged card lifts with a soft shadow, the only shadow besides dialogs. Card text is cut off with an ellipsis if it doesn't fit, with the full text in a tooltip.
+Cards are white on the page background and lead with their value, so the money is the first thing read down a column. A dragged card lifts with a soft shadow, the only shadow besides dialogs. Card text is cut off with an ellipsis if it doesn't fit, with the full text in the browser's own tooltip, because a component on each of 500 cards would slow dragging.
 
 ## Visual design
 
@@ -558,7 +582,7 @@ Numbers are always in JetBrains Mono, so columns of figures line up. Instrument 
 
 ### Motion
 
-The revenue line and its fill draw in once on load. Cards settle into place when dropped. Dialogs fade in quickly. Nothing else moves, and all of it stops under reduced motion.
+The revenue line and its fill draw in once on load. Cards slide apart while one is dragged, and settle into place when dropped. Dialogs fade in quickly. Nothing else moves, and all of it stops under reduced motion.
 
 ### Words
 
@@ -594,22 +618,22 @@ The figures in the mockups come from `docs/mockups/shared.js` and are examples. 
 | Command | What it does |
 |---|---|
 | `npm run dev` | Sets up if needed, starts the app, prints its address |
-| `npm test` | Sets up if needed, runs all tests, fails if any fail |
+| `npm test` | Sets up if needed, runs the type check and all tests, fails if any fail |
 | `npm run seed` | Resets to the sample data, after asking |
 | `npm run empty` | Empties the database, after asking |
 
 `npm run dev` can't depend on any npm package, because on the first run none are installed. So `scripts/dev.mjs` uses only what comes with Node:
 
 1. Check that Node is version 24 or later and that uv is installed. If not, say which is missing and how to get it, then stop.
-2. Run `npm install` if `node_modules` is missing, or if `node_modules/.package-lock.json` is older than `package-lock.json`. Compare that file and not the folder, because the folder's date doesn't reliably change and a needless install would break offline starts.
-3. Run `uv sync --frozen` if `.venv` is missing or older than `uv.lock`. uv fetches Python 3.12 if needed.
+2. Run `npm install` if `node_modules` is missing, or if `package-lock.json` is more than 2 seconds newer than `node_modules/.package-lock.json`. Compare that file and not the folder, because the folder's date doesn't reliably change and a needless install would break offline starts. npm writes the two files less than a millisecond apart, hence the margin. If an install fails with `node_modules` already there, warn and carry on.
+3. Run `uv sync --frozen` on every start, with no date check. With nothing to do it takes about a millisecond and reaches no network. uv fetches Python 3.12 if needed.
 4. Start the backend and frontend with concurrently, using `uv run --no-sync`, so nothing reaches for the network after the first run.
 5. When both answer, print `Accountable is running at http://localhost:5173` and to keep the window open while using it.
 6. Ctrl+C stops both servers on every platform.
 
 If a port is taken, stop and say "Port 5173 is in use. Is Accountable already running?". Scripts run through Node, with no shell-specific syntax, so they behave the same on all three platforms.
 
-`npm run seed` and `npm run empty` accept `--yes` for tests. Without it, they ask, and if there's no one at the keyboard to answer, they stop without wiping anything.
+`npm run seed` and `npm run empty` run the same setup first, so they work before the first `npm run dev`. They accept `--yes` for tests. Without it, they ask, and if there's no one at the keyboard to answer, they stop without wiping anything.
 
 `data/accountable.db` is the default database path, and the `ACCOUNTABLE_DB` setting overrides it for tests.
 
@@ -627,7 +651,7 @@ There's no sign-in, so the app relies on being reachable only from this computer
 
 ## Testing
 
-`npm test` runs all three layers and uses a database of its own.
+`npm test` runs a TypeScript type check, because Vite doesn't check types, then all three layers, and uses a database of its own.
 
 **Backend (pytest)**, on a fresh temporary database each test:
 
@@ -661,5 +685,7 @@ There's no sign-in, so the app relies on being reachable only from this computer
 | 7. Look and brand | Visual design | Checked by eye against the chosen mockup |
 | 8. Five answers, two clicks | H9 | `e2e/problem.spec.ts`, then see concern 7 |
 | 9. Real use | Everything | By hand, below |
+| Layout, console, keyboard, Chrome | N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
+| Speed at the limits | Q1 | `e2e/stress.spec.ts` |
 
 **By hand (criterion 9):** the agent uses every section and action in a real browser at 1440 by 900 and 1280 by 720, the way a salesperson would. That includes an emptied database, a restart, and starting the app with the network off. It looks at each screen, compares it with the chosen mockup and fixes what it finds. Then you use it yourself and have the final say. Passing tests is necessary, but it isn't enough.

@@ -1,0 +1,233 @@
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import net from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import type { APIRequestContext, Page } from "@playwright/test";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+export const API = "http://localhost:5199/api";
+
+function database(command: "seed" | "empty") {
+  execFileSync("uv", ["run", "--no-sync", "python", "-m", "accountable.cli", command, "--yes"], {
+    cwd: ROOT,
+    env: process.env,
+    stdio: "pipe",
+  });
+}
+
+/** Puts the test database back to the sample data. */
+export function resetToSampleData() {
+  database("seed");
+}
+
+export function emptyDatabase() {
+  database("empty");
+}
+
+export function isoDay(offsetDays = 0) {
+  const day = new Date();
+  day.setDate(day.getDate() + offsetDays);
+  const month = String(day.getMonth() + 1).padStart(2, "0");
+  const date = String(day.getDate()).padStart(2, "0");
+  return `${day.getFullYear()}-${month}-${date}`;
+}
+
+async function post<T>(request: APIRequestContext, route: string, data: unknown): Promise<T> {
+  const reply = await request.post(`${API}${route}`, { data });
+  if (!reply.ok()) throw new Error(`POST ${route} failed: ${reply.status()} ${await reply.text()}`);
+  return reply.json();
+}
+
+export function addOrganization(request: APIRequestContext, name: string, values: object = {}) {
+  return post<{ id: number; name: string }>(request, "/organizations", { name, ...values });
+}
+
+export function addContact(request: APIRequestContext, name: string, organization_id: number, values: object = {}) {
+  return post<{ id: number; name: string }>(request, "/contacts", { name, organization_id, ...values });
+}
+
+type DealFields = { organization_id: number; main_contact_id: number; stage?: string; value?: number; close_date?: string };
+
+export function addDeal(request: APIRequestContext, name: string, fields: DealFields) {
+  return post<{ id: number; name: string }>(request, "/deals", {
+    name,
+    value: 10000,
+    stage: "new",
+    close_date: isoDay(30),
+    ...fields,
+  });
+}
+
+export function addActivity(request: APIRequestContext, values: object) {
+  return post<{ id: number }>(request, "/activities", values);
+}
+
+/** An organization, a contact and a deal, for tests that need one of each. */
+export async function addLinkedDeal(request: APIRequestContext, name: string, deal: Partial<DealFields> = {}) {
+  const organization = await addOrganization(request, `${name} Ltd`);
+  const contact = await addContact(request, `${name} Contact`, organization.id);
+  const added = await addDeal(request, name, {
+    organization_id: organization.id,
+    main_contact_id: contact.id,
+    ...deal,
+  });
+  return { organization, contact, deal: added };
+}
+
+export async function chooseInPicker(page: Page, label: string, name: string) {
+  await page.getByRole("combobox", { name: label }).click();
+  await page.getByRole("dialog").last().getByPlaceholder(/^Search /).fill(name);
+  await page.getByRole("option", { name }).first().click();
+}
+
+export function column(page: Page, stage: string) {
+  return page.getByTestId(`column-${stage}`);
+}
+
+export function card(page: Page, name: string) {
+  return page.locator(`[data-deal="${name}"]`);
+}
+
+export async function cardOrder(page: Page, stage: string) {
+  return column(page, stage).locator("[data-deal]").evaluateAll((cards) => cards.map((item) => item.getAttribute("data-deal")));
+}
+
+type Spot = { x: number; y: number };
+
+/** Drags with several small moves, because dnd-kit needs to see the pointer travel. */
+export async function dragTo(page: Page, name: string, spot: Spot) {
+  const box = (await card(page, name).boundingBox())!;
+  const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 8, start.y + 8, { steps: 3 });
+  await page.mouse.move(spot.x, spot.y, { steps: 12 });
+  await page.mouse.move(spot.x, spot.y + 1);
+  await page.mouse.up();
+}
+
+/** Drops just above the named card. */
+export async function dropAbove(page: Page, name: string, target: string) {
+  const box = (await card(page, target).boundingBox())!;
+  await dragTo(page, name, { x: box.x + box.width / 2, y: box.y + 4 });
+}
+
+/** Drops at the end of a column, scrolling it there first if it's long. */
+export async function dropAtEnd(page: Page, name: string, stage: string) {
+  await page.getByTestId(`cards-${stage}`).evaluate((list) => {
+    list.scrollTop = list.scrollHeight;
+  });
+  const box = (await column(page, stage).boundingBox())!;
+  await dragTo(page, name, { x: box.x + box.width / 2, y: box.y + box.height - 20 });
+}
+
+/** Presses keys at a person's pace, so the board has drawn each step before the next. */
+export async function pressKeys(page: Page, ...keys: string[]) {
+  for (const key of keys) {
+    await page.keyboard.press(key);
+    await page.waitForTimeout(80);
+  }
+}
+
+export const COPY_URL = "http://localhost:5198";
+const COPY_WEB_PORT = 5198;
+const COPY_API_PORT = 8798;
+
+/** A separate copy of the app, for tests that stop and restart it. */
+export type AppCopy = {
+  output: () => string;
+  stop: (signal?: NodeJS.Signals) => Promise<number | null>;
+};
+
+export function makeCopyFolder() {
+  const folder = mkdtempSync(path.join(tmpdir(), "accountable-copy-"));
+  return { folder, database: path.join(folder, "copy.db"), remove: () => rmSync(folder, { recursive: true, force: true }) };
+}
+
+export function copyEnv(database: string, extra: Record<string, string> = {}) {
+  return {
+    ...process.env,
+    ACCOUNTABLE_DB: database,
+    ACCOUNTABLE_WEB_PORT: String(COPY_WEB_PORT),
+    ACCOUNTABLE_API_PORT: String(COPY_API_PORT),
+    ACCOUNTABLE_VITE_CACHE: `${database}.vite`,
+    ...extra,
+  };
+}
+
+function trackedProcess(child: ChildProcess) {
+  let output = "";
+  child.stdout?.on("data", (chunk) => (output += chunk));
+  child.stderr?.on("data", (chunk) => (output += chunk));
+  const exited = new Promise<number | null>((resolve) => child.on("exit", (code) => resolve(code)));
+  return { output: () => output, exited };
+}
+
+export function runDevScript(env: NodeJS.ProcessEnv) {
+  const child = spawn(process.execPath, ["scripts/dev.mjs"], { cwd: ROOT, env, stdio: ["ignore", "pipe", "pipe"] });
+  return { child, ...trackedProcess(child) };
+}
+
+export async function startCopy(database: string, extra: Record<string, string> = {}): Promise<AppCopy> {
+  const { child, output, exited } = runDevScript(copyEnv(database, extra));
+  const deadline = Date.now() + 60_000;
+  while (!output().includes("Accountable is running at")) {
+    if (Date.now() > deadline || child.exitCode !== null) throw new Error(`The copy didn't start:\n${output()}`);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return {
+    output,
+    stop: (signal = "SIGINT") => {
+      child.kill(signal);
+      return exited;
+    },
+  };
+}
+
+export function portIsOpen(port: number) {
+  return new Promise<boolean>((resolve) => {
+    const socket = net.connect(port, "127.0.0.1");
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("error", () => resolve(false));
+  });
+}
+
+export function dataCommand(database: string, command: "seed" | "empty", extra: string[] = [], input?: string) {
+  try {
+    return execFileSync("npm", ["run", "--silent", command, "--", ...extra], {
+      cwd: ROOT,
+      env: copyEnv(database),
+      input: input ?? "",
+      stdio: ["pipe", "pipe", "pipe"],
+      encoding: "utf8",
+    });
+  } catch (error) {
+    return (error as { stdout?: string }).stdout ?? "";
+  }
+}
+
+export function fillToLimits() {
+  execFileSync("uv", ["run", "--no-sync", "python", "backend/tests/limits_data.py"], {
+    cwd: ROOT,
+    env: process.env,
+    stdio: "pipe",
+  });
+}
+
+/** Picks up a card and holds it over a spot, leaving the mouse button down. */
+export async function holdOver(page: Page, name: string, spot: Spot) {
+  const box = (await card(page, name).boundingBox())!;
+  const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 8, start.y + 8, { steps: 3 });
+  await page.mouse.move(spot.x, spot.y, { steps: 12 });
+  await page.mouse.move(spot.x, spot.y + 1);
+}

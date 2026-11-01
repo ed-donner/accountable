@@ -1,0 +1,16 @@
+[
+  { "value": 0, "probability": 50, "expected": 0, "why": "no value" },
+  { "value": 48000, "probability": 0, "expected": 0, "why": "no chance" },
+  { "value": 48000, "probability": 100, "expected": 48000, "why": "certain" },
+  { "value": 36000, "probability": 5, "expected": 1800, "why": "whole answer" },
+  { "value": 1010, "probability": 5, "expected": 51, "why": "a half rounds up, where Python's round() gives 50" },
+  { "value": 1030, "probability": 5, "expected": 52, "why": "a half rounds up from an odd dollar" },
+  { "value": 50, "probability": 1, "expected": 1, "why": "the smallest half" },
+  { "value": 49, "probability": 1, "expected": 0, "why": "just under a half rounds down" },
+  { "value": 51, "probability": 1, "expected": 1, "why": "just over a half rounds up" },
+  { "value": 333, "probability": 33, "expected": 110, "why": "109.89 rounds up" },
+  { "value": 1999, "probability": 70, "expected": 1399, "why": "1399.3 rounds down" },
+  { "value": 12500000, "probability": 40, "expected": 5000000, "why": "a large deal" },
+  { "value": 900000000000, "probability": 99, "expected": 891000000000, "why": "large enough to expose floating point" },
+  { "value": 900000000050, "probability": 1, "expected": 9000000001, "why": "a half at a size floats can't hold exactly" }
+]

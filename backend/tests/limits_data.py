@@ -1,0 +1,112 @@
+"""Fills a database to the Q1 limits: 1,000 contacts, 500 deals, 5,000 activities.
+
+Run on its own, it replaces everything in the ACCOUNTABLE_DB database, for the
+end-to-end stress tests. It refuses to touch the real data folder.
+"""
+
+import os
+import sys
+from datetime import date, timedelta
+from pathlib import Path
+
+from sqlalchemy import Connection, insert
+
+ORGANIZATIONS = 120
+CONTACTS = 1000
+DEALS = 500
+ACTIVITIES = 5000
+
+# Won and Lost get long columns, the worst case for dragging.
+STAGE_SHARE = ["new"] * 60 + ["qualified"] * 60 + ["proposal"] * 50 + ["negotiation"] * 30 + ["won"] * 240 + ["lost"] * 60
+
+
+def fill(conn: Connection, today: date) -> None:
+    from accountable.crm import rules, sample_data
+    from accountable.crm.tables import activities, contacts, organizations
+
+    now = sample_data.moment(today - timedelta(days=1), 3)
+
+    organization_ids = [
+        conn.execute(
+            insert(organizations).values(
+                name=f"Organization {number:03d} and Partners Holdings",
+                website=f"https://org{number}.example",
+                industry=f"Industry {number % 12}",
+            )
+        ).inserted_primary_key[0]
+        for number in range(ORGANIZATIONS)
+    ]
+
+    conn.execute(
+        insert(contacts),
+        [
+            {
+                "name": f"Contact {number:04d}",
+                "email": f"contact{number}@limits.example",
+                "phone": f"555-{number:04d}",
+                "job_title": f"Job title {number % 20}",
+                "organization_id": organization_ids[number % ORGANIZATIONS],
+                "status": ("lead", "qualified", "customer")[number % 3],
+            }
+            for number in range(CONTACTS)
+        ],
+    )
+
+    deal_ids = []
+    for number in range(DEALS):
+        stage = STAGE_SHARE[number]
+        steps = [*rules.OPEN_STAGES[: 1 + number % 4]]
+        close = today - timedelta(days=number % 330) if stage in rules.CLOSED_STAGES else today + timedelta(days=number % 90 - 10)
+        deal_id = rules.add_deal(
+            conn,
+            {
+                "name": f"Deal {number:03d} for a long stretch of work",
+                "organization_id": organization_ids[number % ORGANIZATIONS],
+                "main_contact_id": number % CONTACTS + 1,
+                "stage": "new",
+                "value": 5000 + number * 137 % 90000,
+                "close_date": close,
+            },
+            today=today,
+            now=now,
+        )
+        path = [step for step in steps[1:] if stage not in rules.OPEN_STAGES or rules.OPEN_STAGES.index(step) <= rules.OPEN_STAGES.index(stage)]
+        for step in [*path, stage]:
+            rules.change_stage(conn, deal_id, step, today=close if step == stage else today, now=now)
+        deal_ids.append(deal_id)
+
+    rows = []
+    for number in range(ACTIVITIES):
+        on_deal = number % 2 == 0
+        waiting = number % 25 == 0
+        rows.append(
+            {
+                "type": ("note", "call", "email")[number % 3],
+                "deal_id": deal_ids[number % DEALS] if on_deal else None,
+                "contact_id": None if on_deal else number % CONTACTS + 1,
+                "description": f"Activity number {number}",
+                "occurred_at": now - timedelta(minutes=number * 37),
+                "follow_up_date": today + timedelta(days=number % 40 - 20) if waiting else None,
+                "follow_up_done": False,
+            }
+        )
+    conn.execute(insert(activities), rows)
+
+
+def main() -> int:
+    from accountable import cli, db
+
+    path = db.database_path()
+    if "ACCOUNTABLE_DB" not in os.environ or path.is_relative_to((db.ROOT / "data").resolve()):
+        print(f"Refusing to fill {path}.", file=sys.stderr)
+        return 2
+    db.prepare_database(lambda _conn: None)
+    with db.writing() as conn:
+        cli._wipe(conn)
+        fill(conn, date.today())
+    print(f"Filled {Path(path).name} to the limits.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

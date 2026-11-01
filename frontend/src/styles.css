@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+/* Values from docs/mockups/shared.css and the spec's color tokens. */
+@theme {
+  --color-page: #f0f4f5;
+  --color-panel: #ffffff;
+  --color-ink: #073b4c;
+  --color-muted: #4a6b76;
+  --color-sea-green: #06d6a0;
+  --color-sea-green-text: #047a5b;
+  --color-marigold: #ffc145;
+  --color-marigold-text: #866522;
+  --color-coral: #f78c6b;
+  --color-cerulean: #118ab2;
+  --color-raspberry: #ef476f;
+  --color-sea-mist: #cdd8db;
+  --color-chip-info: #107fa4;
+  --color-chip-alert: #d23e62;
+  --color-late-tint: #fdecf1;
+  --color-grid: #e4ecee;
+  --color-bar-soft: #839da5;
+
+  --font-sans: "Instrument Sans Variable", system-ui, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --radius-panel: 16px;
+  --radius-card: 10px;
+  --radius-control: 8px;
+
+  --animate-fade-in: fade-in 120ms ease-out;
+  --animate-settle: settle 220ms ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes settle {
+    from {
+      transform: scale(1.02);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+}
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+    font: 400 14px/20px var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1 {
+    font: 600 28px/36px var(--font-sans);
+  }
+
+  h2 {
+    font: 600 16px/24px var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-cerulean);
+    outline-offset: 2px;
+  }
+}
+
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+}
+
+@utility link {
+  text-decoration: underline;
+  text-decoration-color: var(--color-sea-mist);
+  text-underline-offset: 3px;
+
+  &:hover {
+    text-decoration-color: var(--color-ink);
+  }
+}
+
+@utility tick {
+  appearance: none;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border-radius: 6px;
+  background: var(--color-page);
+  box-shadow: inset 0 0 0 1.5px var(--color-muted);
+  cursor: pointer;
+
+  &:checked {
+    background: var(--color-sea-green);
+    box-shadow: none;
+  }
+}
+
+/* Charts can be focused so the keyboard can step through them. A click shouldn't box them. */
+.recharts-surface:focus:not(:focus-visible),
+.recharts-wrapper:focus:not(:focus-visible),
+.recharts-layer:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: var(--radius-control);
+    font: 600 14px/20px var(--font-sans);
+    white-space: nowrap;
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .btn-primary {
+    background: var(--color-sea-green);
+    color: var(--color-ink);
+  }
+
+  .btn-secondary {
+    background: var(--color-page);
+    color: var(--color-ink);
+  }
+
+  .btn-danger {
+    background: var(--color-raspberry);
+    color: #fff;
+  }
+
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-control);
+    color: var(--color-muted);
+  }
+
+  .icon-btn:hover {
+    background: var(--color-panel);
+    color: var(--color-ink);
+  }
+
+  .input {
+    display: block;
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: var(--color-page);
+    color: var(--color-ink);
+    font: 400 14px/20px var(--font-sans);
+  }
+
+  textarea.input {
+    height: auto;
+    padding: 9px 12px;
+    resize: vertical;
+  }
+
+  .input::placeholder {
+    color: var(--color-muted);
+  }
+
+  .input[aria-invalid="true"] {
+    box-shadow: inset 0 0 0 1.5px var(--color-chip-alert);
+  }
+
+  /* Only during a drag: on landing, cards take their new places without sliding. */
+  [data-dragging="true"] [data-deal-id] {
+    transition: transform 150ms ease;
+  }
+
+  .panel {
+    border-radius: var(--radius-panel);
+    background: var(--color-panel);
+  }
+}

@@ -1,0 +1,31 @@
+[project]
+name = "accountable"
+version = "0.1.0"
+description = "A sales CRM that runs on your own computer"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic>=1.20.1",
+    "fastapi>=0.162.0",
+    "pydantic>=2.14.2",
+    "sqlalchemy>=2.1.6",
+    "uvicorn>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "backend"
+module-name = "accountable"
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+# Starlette's test client now prefers httpx2. The plan's stack uses httpx, which still works.
+filterwarnings = ["ignore:Using `httpx` with"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.2.0",
+]

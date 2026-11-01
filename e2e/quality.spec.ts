@@ -12,7 +12,7 @@ const SIZES = [
 ];
 
 async function recordPaths(page: Page) {
-  const get = async (route: string) => (await (await page.request.get(`http://localhost:5199/api${route}`)).json())[0].id;
+  const get = async (route: string) => (await (await page.request.get(`/api${route}`)).json())[0].id;
   return [
     `/organizations/${await get("/organizations")}`,
     `/contacts/${await get("/contacts")}`,
@@ -154,14 +154,14 @@ test("after the browser reports offline, a drag and a follow-up tick still save"
   await dropAtEnd(page, "Offline drag", "qualified");
   await expect(column(page, "qualified").locator('[data-deal="Offline drag"]')).toBeVisible();
   await expect
-    .poll(async () => (await (await request.get(`http://localhost:5199/api/deals/${deal.id}`)).json()).stage)
+    .poll(async () => (await (await request.get(`/api/deals/${deal.id}`)).json()).stage)
     .toBe("qualified");
 
   await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Dashboard" }).click();
   await page.getByTestId("follow-up").filter({ hasText: "Offline tick" }).getByRole("checkbox").click();
   await expect
     .poll(async () => {
-      const timeline = await (await request.get(`http://localhost:5199/api/deals/${deal.id}/timeline`)).json();
+      const timeline = await (await request.get(`/api/deals/${deal.id}/timeline`)).json();
       return timeline.entries.find((entry: { description: string }) => entry.description === "Offline tick").follow_up_done;
     })
     .toBe(true);

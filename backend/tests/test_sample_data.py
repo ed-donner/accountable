@@ -15,25 +15,39 @@ def rows_of(conn, table):
     return conn.execute(select(table)).all()
 
 
+@pytest.fixture(scope="module")
+def rows_by_day() -> dict:
+    return {}
+
+
 @pytest.fixture(params=DAYS, ids=str)
-def seeded(request, database):
+def seeded(request, rows_by_day, database):
+    """The rows for one seeding day. The tests only read them, so each day is seeded once."""
     today = request.param
-    with db.writing() as conn:
-        sample_data.fill(conn, today)
-    with db.reading() as conn:
-        yield {
-            "today": today,
-            "organizations": rows_of(conn, organizations),
-            "contacts": rows_of(conn, contacts),
-            "deals": rows_of(conn, deals),
-            "activities": rows_of(conn, activities),
-            "stage_changes": rows_of(conn, stage_changes),
-        }
+    if today not in rows_by_day:
+        with db.writing() as conn:
+            sample_data.fill(conn, today)
+        with db.reading() as conn:
+            rows_by_day[today] = {
+                "today": today,
+                "organizations": rows_of(conn, organizations),
+                "contacts": rows_of(conn, contacts),
+                "deals": rows_of(conn, deals),
+                "activities": rows_of(conn, activities),
+                "stage_changes": rows_of(conn, stage_changes),
+            }
+    return rows_by_day[today]
 
 
 def months_back(today: date, count: int) -> list[tuple[int, int]]:
     index = today.year * 12 + today.month - 1
     return [((index - back) // 12, (index - back) % 12 + 1) for back in range(count)]
+
+
+def test_activity_types_are_spread_through_the_working_day(seeded):
+    for kind in ("call", "email", "note"):
+        hours = {row.occurred_at.hour for row in seeded["activities"] if row.type == kind}
+        assert len(hours) >= 6
 
 
 def test_the_amounts(seeded):

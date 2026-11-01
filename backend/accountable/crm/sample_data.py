@@ -247,8 +247,12 @@ def add_months(day: date, months: int, day_of_month: int | None = None) -> date:
 
 
 def moment(day: date, number: int) -> datetime:
-    """A working-hours time on a local day, in UTC with no zone, varied by number."""
-    local = datetime.combine(day, time(9 + number * 3 % 9, number * 17 % 60))
+    """A working-hours time on a local day, in UTC with no zone, varied by number.
+
+    The hour repeats every 8 numbers. The activity types repeat every 3, so a repeat
+    of 3 or 9 here would put every note at the same time of day.
+    """
+    local = datetime.combine(day, time(9 + number * 5 % 8, number * 17 % 60))
     return local.astimezone(UTC).replace(tzinfo=None)
 
 

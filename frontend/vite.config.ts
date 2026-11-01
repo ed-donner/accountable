@@ -42,5 +42,7 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}", "../scripts/*.test.mjs"],
     setupFiles: ["src/test-setup.ts"],
     restoreMocks: true,
+    // A leftover .only would skip the rest of its file and still pass.
+    allowOnly: false,
   },
 });

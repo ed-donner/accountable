@@ -1,15 +1,11 @@
-import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recharts";
 
 import { money, shortMoney } from "../../lib/money";
 import type { Dashboard } from "../queries";
 import { ChartTooltip } from "./ChartTooltip";
+import { REVENUE_MARGIN, revenueEdges, useSize } from "./geometry";
 import { MonthsTable } from "./MonthsTable";
 
-// The fill runs to the panel's edges, past the first and last months.
-const LEFT_EDGE = -0.45;
-const RIGHT_EDGE = 11.8;
-// The fill also runs below zero, to the panel's bottom edge, under the month labels.
-const BELOW_ZERO = 0.1;
 const AXIS_TEXT = { fill: "var(--color-ink)", fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 500 };
 
 function niceTop(value: number) {
@@ -55,11 +51,14 @@ function EndDot({ cx, cy, payload }: DotProps) {
 }
 
 export function RevenueChart({ months }: { months: Dashboard["months"] }) {
+  const { ref, size } = useSize();
   const top = niceTop(Math.max(...months.map((month) => month.revenue)));
   const last = months.length - 1;
+  const shown = size.width > REVENUE_MARGIN.left + REVENUE_MARGIN.right && size.height > REVENUE_MARGIN.top + REVENUE_MARGIN.bottom;
+  const edges = revenueEdges(size.width, size.height, months.length, top);
 
   const rows: Row[] = [
-    { x: LEFT_EDGE, fill: months[0].revenue },
+    { x: edges.left, fill: months[0].revenue },
     ...months.map((month, index) => ({
       x: index,
       fill: month.revenue,
@@ -70,19 +69,27 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
       revenue: month.revenue,
       current: index === last,
     })),
-    { x: RIGHT_EDGE, fill: months[last].revenue },
+    { x: edges.right, fill: months[last].revenue },
   ];
 
   return (
     <>
       <div
+        ref={ref}
         role="img"
         aria-label={`Revenue won per month for the last 12 months, ending at ${money(months[last].revenue)} so far this month`}
         className="absolute inset-0"
       >
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={rows} margin={{ top: 30, right: 0, bottom: 0, left: 0 }}>
+        {shown && (
+          <ComposedChart
+            width={size.width}
+            height={size.height}
+            data={rows}
+            margin={{ top: REVENUE_MARGIN.top, right: 0, bottom: 0, left: 0 }}
+          >
             <CartesianGrid
+              x={REVENUE_MARGIN.left}
+              width={size.width - REVENUE_MARGIN.left}
               vertical={false}
               stroke="var(--color-grid)"
               horizontalValues={[0.25, 0.5, 0.75, 1].map((share) => top * share)}
@@ -90,7 +97,7 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
             <XAxis
               type="number"
               dataKey="x"
-              domain={[LEFT_EDGE, RIGHT_EDGE]}
+              domain={[edges.left, edges.right]}
               ticks={months.map((_month, index) => index)}
               tickFormatter={(index: number) => months[index]?.label ?? ""}
               mirror
@@ -101,7 +108,7 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
             />
             <YAxis
               orientation="right"
-              domain={[-top * BELOW_ZERO, top]}
+              domain={[edges.bottom, top]}
               ticks={[0.25, 0.5, 0.75, 1].map((share) => top * share)}
               mirror
               axisLine={false}
@@ -117,7 +124,7 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
               fill="var(--color-sea-green)"
               fillOpacity={1}
               stroke="none"
-              baseValue={-top * BELOW_ZERO}
+              baseValue={edges.bottom}
               activeDot={false}
             />
             <Line
@@ -140,7 +147,7 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
               connectNulls={false}
             />
           </ComposedChart>
-        </ResponsiveContainer>
+        )}
       </div>
       <MonthsTable months={months} caption="Revenue and deals won per month" />
     </>

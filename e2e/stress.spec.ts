@@ -1,10 +1,9 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { card, column, fillToLimits, resetToSampleData } from "./helpers";
+import { card, column, fillToLimits } from "./helpers";
 
 test.beforeAll(fillToLimits);
-test.afterAll(resetToSampleData);
 
 test.describe.configure({ timeout: 120_000 });
 

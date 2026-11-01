@@ -84,7 +84,7 @@ test("a stage change shows on the deal, contact and organization timelines", asy
 
 test("a stage change shows in recent activity", async ({ page, request }) => {
   const { deal } = await addLinkedDeal(request, "Recently moved");
-  await request.post(`http://localhost:5199/api/deals/${deal.id}/move`, { data: { stage: "negotiation" } });
+  await request.post(`/api/deals/${deal.id}/move`, { data: { stage: "negotiation" } });
 
   await page.goto("/");
   const entry = page.getByTestId("recent-entry").filter({ hasText: "Moved from New to Negotiation" });
@@ -95,7 +95,7 @@ test("a stage change shows in recent activity", async ({ page, request }) => {
 test("activities can be edited and deleted from any timeline they're on, and stage-change entries can't", async ({ page, request }) => {
   const { deal, contact } = await addLinkedDeal(request, "Changing");
   await addActivity(request, { deal_id: deal.id, description: "Original words" });
-  await request.post(`http://localhost:5199/api/deals/${deal.id}/move`, { data: { stage: "qualified" } });
+  await request.post(`/api/deals/${deal.id}/move`, { data: { stage: "qualified" } });
 
   await page.goto(`/contacts/${contact.id}`);
   await page.getByRole("button", { name: "Edit Original words" }).click();

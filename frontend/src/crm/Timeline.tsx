@@ -1,27 +1,27 @@
-import { ArrowRight, FileText, Mail, Pencil, Phone, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
 import { Chip } from "../components/Chip";
 import { EmptyState } from "../components/EmptyState";
+import { Icon } from "../components/Icon";
 import { formatDate, formatDateTime, todayIso } from "../lib/dates";
 import { DeleteActivity } from "./forms/DeleteDialogs";
 import { EditActivity, LogActivity } from "./forms/ActivityForm";
 import { TIMELINE_PAGE, useTickFollowUp, useTimeline, type About, type RecordKind, type TimelineEntry } from "./queries";
 
 const TYPE_STYLES = {
-  call: { label: "Call", icon: Phone, fill: "bg-sea-green text-ink" },
-  email: { label: "Email", icon: Mail, fill: "bg-marigold text-ink" },
-  note: { label: "Note", icon: FileText, fill: "bg-coral text-ink" },
-  stage: { label: "Stage change", icon: ArrowRight, fill: "bg-cerulean text-white" },
+  call: { label: "Call", fill: "bg-sea-green text-ink" },
+  email: { label: "Email", fill: "bg-marigold text-ink" },
+  note: { label: "Note", fill: "bg-coral text-ink" },
+  stage: { label: "Stage change", fill: "bg-cerulean text-white" },
 };
 
 export function EntryIcon({ entry }: { entry: Pick<TimelineEntry, "type"> }) {
-  const style = TYPE_STYLES[entry.type ?? "stage"];
-  const Icon = style.icon;
+  const name = entry.type ?? "stage";
   return (
-    <span className={`inline-flex size-[30px] flex-none items-center justify-center rounded-full ${style.fill}`}>
-      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+    <span className={`inline-flex size-[30px] flex-none items-center justify-center rounded-full ${TYPE_STYLES[name].fill}`}>
+      <Icon name={name} size={16} />
     </span>
   );
 }

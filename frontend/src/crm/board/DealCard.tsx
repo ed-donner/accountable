@@ -27,7 +27,7 @@ function CardContent({ deal, late }: { deal: Deal; late: boolean }) {
       <div className="num flex items-center justify-between text-[19px] leading-[26px] font-medium tracking-[-0.02em]">
         <span>{money(deal.value)}</span>
         {late && (
-          <span className="font-sans tracking-normal">
+          <span className="flex font-sans">
             <Chip tone="alert">Late</Chip>
           </span>
         )}

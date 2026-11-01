@@ -11,6 +11,11 @@ The MVP is built and its automated tests pass. `docs/intent.md` says what it is,
 - **Phase 7, dashboard:** done. It was checked against the mockup at both sizes with sample data, an empty database and data at the limits.
 - **Phase 8, finish the build:** done.
 
+## Compared with the chosen mockup
+
+The app was compared with `docs/mockups/4-chosen-design.html` using Playwright, at 1440 by 900 and 1280 by 720, with the sample data seeded for the mockup's date of Oct 31, 2026. The Pipeline matches the mockup exactly. The Dashboard's layout, figures and charts match to within a pixel, and its Recent activity list holds different entries, because the mockup's are examples. Organizations, Contacts and Deals aren't in the mockup, and use the same shell, colors and type.
+
+
 ## Running Accountable
 
 This runs on your own computer, and nothing you enter leaves it.
@@ -63,4 +68,6 @@ Accountable has only been run on a Mac. It's built to work the same on Windows a
 
 ## Running the tests
 
-`npm test` runs the type check and every test. It uses its own temporary database, so it never touches your data.
+`npm test` runs the type check and every test: backend, frontend and end-to-end. It takes about 75 seconds on a 10-core Mac, and ends with a short summary. It keeps going if one part fails, names what failed at the end, and exits with an error. A leftover `.only` in a test also counts as a failure, because it would quietly skip other tests. It uses its own temporary databases, so it never touches your data.
+
+The end-to-end tests run side by side, using a number of workers chosen from your computer's cores and memory, so a smaller computer runs fewer at once and takes longer. To set the number yourself, for example while the computer is busy, run `ACCOUNTABLE_TEST_WORKERS=2 npm test`. The speed tests always run last and alone, so their timings are fair.

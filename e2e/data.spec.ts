@@ -52,6 +52,8 @@ test("changes survive a restart, including a card's place on the board", async (
 
   await request.post(`${COPY_API}/organizations`, { data: { name: "Survives Restart Ltd" } });
 
+  // Left open, the page's Vite client reloads it as the server returns, cutting off the next goto.
+  await page.goto("about:blank");
   await restart();
 
   await goto(page, "/pipeline");

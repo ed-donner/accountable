@@ -1,5 +1,7 @@
+import shutil
 import statistics
 import time
+from pathlib import Path
 
 import pytest
 from limits_data import fill
@@ -7,16 +9,26 @@ from sqlalchemy import func, select
 
 from accountable import db
 from accountable.crm.tables import activities, contacts, deals
-from conftest import TODAY
+from conftest import TODAY, using_database
 
 DASHBOARD_LIMIT_MS = 200
 LIST_LIMIT_MS = 400
 
 
-@pytest.fixture
-def full(api):
-    with db.writing() as conn:
+@pytest.fixture(scope="module")
+def full_file(migrated_file, tmp_path_factory) -> Path:
+    """Filling a database takes about 400ms, so it's done once and each test copies it."""
+    path = tmp_path_factory.mktemp("full") / "full.db"
+    shutil.copyfile(migrated_file, path)
+    with using_database(path), db.writing() as conn:
         fill(conn, TODAY)
+    return path
+
+
+@pytest.fixture
+def full(api, database, full_file):
+    db.dispose()
+    shutil.copyfile(full_file, database)
     return api
 
 

@@ -19,7 +19,7 @@ import {
 
 test.beforeEach(emptyDatabase);
 
-const API = "http://localhost:5199/api";
+const API = "/api";
 
 async function threeInProposal(request: Parameters<typeof addOrganization>[0]) {
   const organization = await addOrganization(request, "Board Co");

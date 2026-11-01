@@ -1,37 +1,17 @@
-import { useEffect, useRef, useState } from "react";
 import { Funnel, FunnelChart, Tooltip } from "recharts";
 
 import { money } from "../../lib/money";
 import { STAGE_NAMES } from "../deals";
 import type { Dashboard, Stage } from "../queries";
 import { ChartTooltip } from "./ChartTooltip";
+import { FUNNEL_ROUND as ROUND, FUNNEL_SIDE as SIDE, funnelWidths, useSize } from "./geometry";
 import { STAGE_COLORS } from "./stageColors";
 
-const SIDE = 196; // Room to the right for the values and percentages.
-const ROUND = 6; // Rounded corners come from a stroke this wide with rounded joins.
 const GAP = 2;
-const NARROWEST = 100; // Keeps a small stage wide enough for its name.
-const SPOUT = 0.68; // The last stage tapers this much further, to end neatly.
 const PILL = { width: 52, height: 22 };
 
 type FunnelStage = Dashboard["funnel"][number];
 type Row = FunnelStage & { name: string };
-
-function useSize() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    if (!ref.current) return;
-    const observer = new ResizeObserver(([entry]) => {
-      setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-    });
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  return { ref, size };
-}
 
 type SegmentProps = {
   index: number;
@@ -48,10 +28,10 @@ function Segment({ index, stages, width, height }: SegmentProps) {
   const pad = ROUND / 2;
   const row = (height - ROUND + GAP) / count;
   const body = row - ROUND - GAP;
-  const widest = Math.max(stages[0].value, 1);
-
-  const widths = stages.map((stage) => Math.max((stage.value / widest) * (funnelWidth - ROUND), NARROWEST));
-  widths.push(widths[count - 1] * SPOUT);
+  const widths = funnelWidths(
+    stages.map((stage) => stage.value),
+    width,
+  );
 
   const stage = stages[index];
   const top = pad + index * row;

@@ -1,10 +1,12 @@
-import { Bar, BarChart, CartesianGrid, LabelList, Rectangle, ResponsiveContainer, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, Rectangle, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
 
 import { plural } from "../../lib/words";
 import type { Dashboard } from "../queries";
 import { ChartTooltip } from "./ChartTooltip";
+import { useSize } from "./geometry";
 
 const AXIS_TEXT = { fill: "var(--color-muted)", fontSize: 12, fontFamily: "var(--font-mono)" };
+const MARGIN = { top: 32, right: 6, bottom: 24, left: 26 };
 
 type Month = Dashboard["months"][number];
 
@@ -25,18 +27,19 @@ function Tip({ active, payload, months }: TipProps) {
   return <ChartTooltip value={plural(month.deals, "deal")} label={current ? `${month.label} so far` : month.label} />;
 }
 
-type LabelProps = { x?: number | string; y?: number | string; width?: number | string; index?: number };
+type LabelProps = { y?: number | string; index?: number };
 
 export function DealsWonChart({ months }: { months: Dashboard["months"] }) {
+  const { ref, size } = useSize();
   const last = months.length - 1;
   const ticks = steps(Math.max(...months.map((month) => month.deals)));
 
-  function soFar({ x = 0, y = 0, width = 0, index }: LabelProps) {
+  function soFar({ y = 0, index }: LabelProps) {
     if (index !== last) return null;
     return (
       <text
-        x={Number(x) + Number(width)}
-        y={Number(y) - 8}
+        x={size.width - MARGIN.right}
+        y={Number(y) - 10}
         textAnchor="end"
         style={{ ...AXIS_TEXT, fill: "var(--color-ink)", fontWeight: 500 }}
       >
@@ -47,12 +50,19 @@ export function DealsWonChart({ months }: { months: Dashboard["months"] }) {
 
   return (
     <div
+      ref={ref}
       role="img"
       aria-label={`Deals won per month for the last 12 months, with ${months[last].deals} so far this month`}
       className="min-h-0 flex-1"
     >
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={months} margin={{ top: 28, right: 4, bottom: 0, left: 0 }} barCategoryGap="20%">
+      {size.width > 0 && size.height > 0 && (
+        <BarChart
+          width={size.width}
+          height={size.height}
+          data={months}
+          margin={{ top: MARGIN.top, right: MARGIN.right, bottom: 0, left: 0 }}
+          barCategoryGap="20%"
+        >
           <CartesianGrid vertical={false} stroke="var(--color-grid)" horizontalValues={ticks} />
           <XAxis
             dataKey="label"
@@ -61,10 +71,10 @@ export function DealsWonChart({ months }: { months: Dashboard["months"] }) {
             axisLine={false}
             tickLine={false}
             tick={AXIS_TEXT}
-            height={22}
+            height={MARGIN.bottom}
           />
           <YAxis
-            width={22}
+            width={MARGIN.left}
             domain={[0, ticks[ticks.length - 1]]}
             ticks={ticks}
             allowDecimals={false}
@@ -85,7 +95,7 @@ export function DealsWonChart({ months }: { months: Dashboard["months"] }) {
             <LabelList dataKey="deals" content={soFar} />
           </Bar>
         </BarChart>
-      </ResponsiveContainer>
+      )}
     </div>
   );
 }

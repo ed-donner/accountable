@@ -5,6 +5,9 @@ a test can touch real data.
 """
 
 import os
+import shutil
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -35,13 +38,32 @@ from accountable.crm import rules  # noqa: E402
 from accountable.crm.tables import activities, contacts, deals, organizations  # noqa: E402
 
 
+@contextmanager
+def using_database(path: Path) -> Iterator[None]:
+    """Points the app at this file, for fixtures that outlive a single test."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("ACCOUNTABLE_DB", str(path))
+        db.dispose()
+        yield
+        db.dispose()
+
+
+@pytest.fixture(scope="session")
+def migrated_file(tmp_path_factory) -> Path:
+    """One database built from the migrations, which takes about 50ms. Tests copy it."""
+    path = tmp_path_factory.mktemp("migrated") / "migrated.db"
+    with using_database(path):
+        db.prepare_database(lambda _conn: None)
+    return path
+
+
 @pytest.fixture
-def database(tmp_path, monkeypatch) -> Path:
+def database(migrated_file, tmp_path, monkeypatch) -> Path:
     """A fresh, empty database in a folder of its own."""
     path = tmp_path / "test.db"
+    shutil.copyfile(migrated_file, path)
     monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
     db.dispose()
-    db.prepare_database(lambda _conn: None)
     yield path
     db.dispose()
 

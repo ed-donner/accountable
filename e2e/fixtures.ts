@@ -1,5 +1,7 @@
 import { expect, test as base } from "@playwright/test";
 
+import { stack } from "./helpers";
+
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 type Fixtures = {
@@ -11,6 +13,8 @@ type Fixtures = {
 type WatchState = { allowed: RegExp[]; problems: string[] };
 
 export const test = base.extend<Fixtures & { watchState: WatchState }>({
+  baseURL: `http://127.0.0.1:${stack.webPort}`,
+
   watchState: async ({}, use) => {
     await use({ allowed: [], problems: [] });
   },

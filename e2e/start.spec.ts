@@ -2,7 +2,10 @@ import net from "node:net";
 
 import { expect, test } from "./fixtures";
 import {
+  COPY_ADDRESS,
+  COPY_API_PORT,
   COPY_URL,
+  COPY_WEB_PORT,
   addLinkedDeal,
   copyEnv,
   makeCopyFolder,
@@ -56,9 +59,9 @@ test("refresh, back and forward work on sections and records", async ({ page }) 
 test("opening a deleted record says so, with a link back", async ({ page, request, expectConsoleError }) => {
   expectConsoleError(/404 \(Not Found\).*\/api\/(deals|contacts|organizations)\/\d+/);
   const { deal, contact, organization } = await addLinkedDeal(request, "Vanished");
-  await request.delete(`http://localhost:5199/api/deals/${deal.id}`);
-  await request.delete(`http://localhost:5199/api/contacts/${contact.id}`);
-  await request.delete(`http://localhost:5199/api/organizations/${organization.id}`);
+  await request.delete(`/api/deals/${deal.id}`);
+  await request.delete(`/api/contacts/${contact.id}`);
+  await request.delete(`/api/organizations/${organization.id}`);
 
   for (const [path, word, section] of [
     [`/deals/${deal.id}`, "deal", "Deals"],
@@ -77,9 +80,9 @@ test.describe("a copy of the app of its own", () => {
     const folder = makeCopyFolder();
     const copy = await startCopy(folder.database);
     try {
-      expect(copy.output()).toContain(`Accountable is running at ${COPY_URL}`);
+      expect(copy.output()).toContain(`Accountable is running at ${COPY_ADDRESS}`);
 
-      await page.goto(COPY_URL);
+      await page.goto(COPY_ADDRESS);
       await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
       await expect(page.getByTestId("follow-up").first()).toBeVisible();
       await expect(page.getByTestId("recent-entry").first()).toBeVisible();
@@ -137,11 +140,11 @@ test.describe("a copy of the app of its own", () => {
   test("a taken port stops the start with a plain message", async () => {
     const folder = makeCopyFolder();
     const blocker = net.createServer();
-    await new Promise<void>((resolve) => blocker.listen(5198, "127.0.0.1", resolve));
+    await new Promise<void>((resolve) => blocker.listen(COPY_WEB_PORT, "127.0.0.1", resolve));
     try {
       const { exited, output } = runDevScript(copyEnv(folder.database));
       expect(await exited).toBe(1);
-      expect(output()).toContain("Port 5198 is in use. Is Accountable already running?");
+      expect(output()).toContain(`Port ${COPY_WEB_PORT} is in use. Is Accountable already running?`);
     } finally {
       await new Promise((resolve) => blocker.close(resolve));
       folder.remove();
@@ -151,11 +154,11 @@ test.describe("a copy of the app of its own", () => {
   test("a port taken only on the other local address stops the start too", async () => {
     const folder = makeCopyFolder();
     const blocker = net.createServer();
-    await new Promise<void>((resolve) => blocker.listen(5198, "::1", resolve));
+    await new Promise<void>((resolve) => blocker.listen(COPY_WEB_PORT, "::1", resolve));
     try {
       const { exited, output } = runDevScript(copyEnv(folder.database));
       expect(await exited).toBe(1);
-      expect(output()).toContain("Port 5198 is in use.");
+      expect(output()).toContain(`Port ${COPY_WEB_PORT} is in use.`);
     } finally {
       await new Promise((resolve) => blocker.close(resolve));
       folder.remove();
@@ -165,13 +168,13 @@ test.describe("a copy of the app of its own", () => {
   test("Ctrl+C stops both servers", async () => {
     const folder = makeCopyFolder();
     const copy = await startCopy(folder.database);
-    expect(await portIsOpen(5198)).toBe(true);
-    expect(await portIsOpen(8798)).toBe(true);
+    expect(await portIsOpen(COPY_WEB_PORT)).toBe(true);
+    expect(await portIsOpen(COPY_API_PORT)).toBe(true);
 
     await copy.stop("SIGINT");
 
-    await expect.poll(() => portIsOpen(5198)).toBe(false);
-    await expect.poll(() => portIsOpen(8798)).toBe(false);
+    await expect.poll(() => portIsOpen(COPY_WEB_PORT)).toBe(false);
+    await expect.poll(() => portIsOpen(COPY_API_PORT)).toBe(false);
     folder.remove();
   });
 

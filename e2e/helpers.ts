@@ -7,14 +7,20 @@ import { fileURLToPath } from "node:url";
 
 import type { APIRequestContext, Page } from "@playwright/test";
 
+import { stackFor } from "../scripts/test-plan.mjs";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export const API = "http://localhost:5199/api";
+/** This Playwright worker's own servers and database. */
+export const stack = stackFor(Number(process.env.TEST_PARALLEL_INDEX ?? 0), process.env.ACCOUNTABLE_DB!);
+const stackEnv = { ...process.env, ACCOUNTABLE_DB: stack.database };
+
+export const API = "/api";
 
 function database(command: "seed" | "empty") {
   execFileSync("uv", ["run", "--no-sync", "python", "-m", "accountable.cli", command, "--yes"], {
     cwd: ROOT,
-    env: process.env,
+    env: stackEnv,
     stdio: "pipe",
   });
 }
@@ -133,9 +139,11 @@ export async function pressKeys(page: Page, ...keys: string[]) {
   }
 }
 
-export const COPY_URL = "http://localhost:5198";
-const COPY_WEB_PORT = 5198;
-const COPY_API_PORT = 8798;
+export const COPY_WEB_PORT = stack.copyWebPort;
+export const COPY_API_PORT = stack.copyApiPort;
+export const COPY_URL = `http://127.0.0.1:${COPY_WEB_PORT}`;
+/** The address the app prints. Tests use the number, so a slow name lookup can't stall them. */
+export const COPY_ADDRESS = `http://localhost:${COPY_WEB_PORT}`;
 
 /** A separate copy of the app, for tests that stop and restart it. */
 export type AppCopy = {
@@ -216,7 +224,7 @@ export function dataCommand(database: string, command: "seed" | "empty", extra: 
 export function fillToLimits() {
   execFileSync("uv", ["run", "--no-sync", "python", "backend/tests/limits_data.py"], {
     cwd: ROOT,
-    env: process.env,
+    env: stackEnv,
     stdio: "pipe",
   });
 }

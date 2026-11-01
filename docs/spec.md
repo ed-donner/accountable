@@ -43,6 +43,7 @@ Say if you want any of these changed.
 - Overdue follow-ups list oldest first.
 - An activity's contact or deal can't be changed once it's logged, so the activity form needs no contact-or-deal picker.
 - Sample Won and Lost columns start newest first.
+- `npm test` runs the end-to-end tests on several workers, in place of the plan's one, chosen from the machine's cores and memory. This one is the project owner's own call, so the suite can be run often.
 - At 500 deals, a task of up to about 250ms while dragging counts as smooth, in place of the plan's 100ms, so that cards can slide apart during a drag. This one is the project owner's own call.
 
 ---
@@ -308,7 +309,7 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 | Forms | React Hook Form 7, Zod 4, `@hookform/resolvers` to connect them |
 | Dates | date-fns |
 | Messages | Sonner 2 |
-| Icons | lucide-react |
+| Icons | The chosen design's own icons in `components/Icon.tsx`, and lucide-react for any it doesn't show |
 | Fonts | `@fontsource-variable/instrument-sans`, `@fontsource/instrument-serif`, `@fontsource-variable/jetbrains-mono` (OFL-1.1, the font files ship in the packages) |
 | Running both servers | concurrently |
 | Backend | FastAPI, Uvicorn, SQLAlchemy Core, Alembic, Pydantic |
@@ -669,10 +670,11 @@ There's no sign-in, so the app relies on being reachable only from this computer
 
 **End to end (Playwright Test)**, with the installed Chrome:
 
-- Tests run on their own ports, 5199 and 8799, with their own temporary database and `reuseExistingServer` off. If they reused a server, they could attach to a running copy of the app and change real data.
+- Each Playwright worker has its own servers, on ports from 5200 and 8800, and its own temporary database, with `reuseExistingServer` off. If they reused a server, they could attach to a running copy of the app and change real data.
 - Every test fails on any console error, and on any request to an address outside the computer. The second check proves the offline requirement.
 - Drags use `page.mouse` with several small moves, because dnd-kit needs to see the pointer travel.
-- A stress run fills a test database to the limits in Q1 and checks the timings.
+- A stress run fills a test database to the limits in Q1 and checks the timings. It runs last and alone, because timings need a quiet machine.
+- Tests reach the app at 127.0.0.1, so a slow lookup of the name `localhost` can't stall them, and Chrome runs with `--disable-gpu`, because browsers compiling shaders side by side can hang on macOS.
 
 | Criterion | Requirements | End-to-end file |
 |---|---|---|

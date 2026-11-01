@@ -1,7 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
-import { Plus } from "lucide-react";
 import { memo, useMemo } from "react";
 
+import { Icon } from "../../components/Icon";
 import { money } from "../../lib/money";
 import { STAGE_NAMES, figures, isOpen, slideSteps } from "../deals";
 import type { Deal, Stage } from "../queries";
@@ -74,7 +74,7 @@ export const Column = memo(function Column({ stage, deals, today, draggingId, la
           aria-label={`Add deal to ${STAGE_NAMES[stage]}`}
           className="mt-auto flex w-fit items-center gap-1 rounded text-[14px] leading-5 font-semibold underline underline-offset-[3px]"
         >
-          <Plus size={15} aria-hidden="true" />
+          <Icon name="plus" size={15} />
           Add deal
         </button>
       </div>

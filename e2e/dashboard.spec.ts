@@ -3,7 +3,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { addActivity, addContact, addDeal, addOrganization, emptyDatabase, isoDay, resetToSampleData } from "./helpers";
 
-const API = "http://localhost:5199/api";
+const API = "/api";
 
 const MONTH = new Date().toLocaleString("en-US", { month: "long" });
 const LAST_MONTH = (() => {

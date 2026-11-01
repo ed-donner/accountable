@@ -215,10 +215,10 @@ test.describe("tables", () => {
 
   test("the Late chip shows beside a late deal's close date, and Last activity is right", async ({ page, request }) => {
     const { deal, contact } = await addLinkedDeal(request, "Running late", { close_date: isoDay(-3) });
-    await request.post(`http://localhost:5199/api/activities`, {
+    await request.post(`/api/activities`, {
       data: { contact_id: contact.id, description: "Spoke to them", occurred_at: "2026-02-03T12:00:00Z" },
     });
-    await request.post(`http://localhost:5199/api/deals/${deal.id}/move`, { data: { stage: "new" } });
+    await request.post(`/api/deals/${deal.id}/move`, { data: { stage: "new" } });
 
     await page.goto("/deals?q=running+late");
     await expect(row(page, /Running late/).getByText("Late", { exact: true })).toBeVisible();
@@ -322,8 +322,8 @@ test.describe("tables", () => {
 
   test("a blank link shows None and saves blank", async ({ page, request }) => {
     const { organization, contact } = await addLinkedDeal(request, "Blank links");
-    await request.delete(`http://localhost:5199/api/organizations/${organization.id}`);
-    await request.delete(`http://localhost:5199/api/contacts/${contact.id}`);
+    await request.delete(`/api/organizations/${organization.id}`);
+    await request.delete(`/api/contacts/${contact.id}`);
 
     await page.goto("/deals?q=blank+links");
     await expect(row(page, /Blank links/)).toContainText("None");
@@ -380,8 +380,8 @@ test.describe("tables", () => {
     const contactOne = await addContact(request, "Keeper One", organization.id);
     await addContact(request, "Keeper Two", organization.id);
     const deal = await addDeal(request, "Kept deal", { organization_id: organization.id, main_contact_id: contactOne.id });
-    await request.post(`http://localhost:5199/api/activities`, { data: { contact_id: contactOne.id, description: "Hello" } });
-    await request.post(`http://localhost:5199/api/activities`, { data: { deal_id: deal.id, description: "On the deal" } });
+    await request.post(`/api/activities`, { data: { contact_id: contactOne.id, description: "Hello" } });
+    await request.post(`/api/activities`, { data: { deal_id: deal.id, description: "On the deal" } });
 
     await page.goto("/organizations?q=delete+me");
     await page.getByRole("button", { name: "Delete Delete Me Inc" }).click();
@@ -537,7 +537,6 @@ test.describe("record pages", () => {
 
 test.describe("empty tables", () => {
   test.beforeAll(emptyDatabase);
-  test.afterAll(resetToSampleData);
 
   test("an empty table invites the first record, and a search with no matches offers to clear it", async ({ page }) => {
     for (const [path, noun] of [

@@ -38,8 +38,8 @@ The student builds the MVP of Accountable, a sales CRM for one person, from the 
 - **Plan:** the agent interviews the student and updates `docs/intent.md` with their answers.
 - **Design:** the agent writes `docs/spec.md` and makes three mockups in `docs/mockups/`, and the student chooses one.
 - **Build:** the agent writes `docs/plan.md` in phases, the student questions it, and a fresh session builds the MVP from it.
-- **Test:** `npm test` runs every unit and end-to-end test, and the agent compares the app with the chosen mockup using Playwright. Then the student runs the checks and uses the app themselves.
-- **Deploy:** the agent writes `REVIEW.md`, a fresh session reviews the branch against it, the agent fixes the Important findings, and the student merges `mvp` into `main`.
+- **Test:** `npm test` runs every unit and end-to-end test, and the agent compares the app with the chosen mockup using Playwright. Then the student runs the checks and uses the app themselves. Once `npm test` works, Ed suggests an optional step: ask the agent to make it faster by running tests in parallel where possible. If the student wants this, give each end-to-end worker its own servers and database, and choose the number of workers from the machine's cores and memory, as `scripts/test-plan.mjs` and `scripts/test-servers.mjs` do on `week1day3-end`.
+- **Deploy:** the student creates `docs/REVIEW.md` by hand from the policy in `course/instructions/week1day3.md`, a fresh session reviews the branch against it, the agent fixes the Important findings, and the student merges `mvp` into `main`.
 - **Maintain:** the student uses the app and adds ideas to `docs/STATUS.md`.
 - **Share:** the student copies the day's documents into a folder of their own in `community_contributions/` and opens a PR ("The day's documents" in `course/for_agents/AGENT_GIT_GUIDE.md`).
 

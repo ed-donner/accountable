@@ -66,7 +66,7 @@ If the student gets stuck:
 
 The files go in `community_contributions/<folder>/`, where `<folder>` is any name the student likes. Screenshots and code stay in the student's fork, which keeps the course repo small.
 
-- **The day's documents:** at the end of Week 1 Day 3, the student shares what they wrote that day: `docs/intent.md`, `docs/spec.md`, `docs/plan.md` and `REVIEW.md`, with a short `README.md` that says what they built and links to their build in their fork. Push their `main` to the fork first, with `git push -u fork main`, so that the link works: `https://github.com/<username>/accountable`.
+- **The day's documents:** at the end of Week 1 Day 3, the student shares what they wrote that day: `docs/intent.md`, `docs/spec.md`, `docs/plan.md` and `docs/REVIEW.md`, with a short `README.md` that says what they built and links to their build in their fork. Push their `main` to the fork first, with `git push -u fork main`, so that the link works: `https://github.com/<username>/accountable`.
 - **A small, self-contained piece:** a skill, a hook, a subagent, a CI workflow, or a guide for a coding agent the course doesn't cover, such as `community_contributions/<folder>/skills/release-notes/SKILL.md`.
 
 The student's `main` holds their whole build, so the PR comes from a new branch that starts at Ed's latest `main` instead. It carries nothing else from the student's work:

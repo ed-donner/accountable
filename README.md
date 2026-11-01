@@ -13,6 +13,7 @@ _If you're looking at this in VS Code or Cursor, right-click `README.md` in the 
 - `docs/`: the documents for Accountable. `intent.md` says what we build first.
 - `course/`: your guides. [course/SETUP.md](course/SETUP.md) installs the tools, and [course/coding_agents/](course/coding_agents/) has the steps for each coding agent.
 - `course/for_agents/`: guides for your coding agent, so it can help you with the course.
+- `course/instructions/`: extra instructions for some days, such as the review policy for Week 1 Day 3.
 - `AGENTS.md`: the instructions your coding agent reads at the start of each session.
 - `community_contributions/`: work shared by students, added by pull request.
 
@@ -51,6 +52,7 @@ You can follow the whole course with your own build. On each day that we work on
 |---|---|
 | `git checkout main` | Your own build. When you first clone, it's the starting point: the documents in `docs/` and nothing set up yet |
 | `git checkout week1day2-end` | My setup from Week 1 Day 2 in Claude Code: permissions, the Playwright MCP server, the brand skill and the frontend-design plugin |
+| `git checkout week1day3-end` | My build from Week 1 Day 3 in Claude Code: the MVP of the sales CRM, with its documents and tests |
 
 Commit your own changes before you switch branches.
 
@@ -72,3 +74,5 @@ I'd love to see what you build! Please share it with a pull request to `communit
 **Day 1: The AI SDLC.** No code yet: the course, the job market and the lifecycle we follow.
 
 **Day 2: Coding agents crash course.** Install the tools and your coding agent ([course/SETUP.md](course/SETUP.md)), set it up one piece at a time (instructions, settings, permissions, an MCP server, a skill, a plugin), then check your repo and commit it. The steps for your agent are in [course/coding_agents/](course/coding_agents/). My setup: `git checkout week1day2-end`.
+
+**Day 3: Anthropic AI-SDLC.** Build the MVP of Accountable, a sales CRM for one person, and take it through each stage of Anthropic's AI-native SDLC on a branch: Plan, Design, Build, Test, Deploy and Maintain. Fork the repo at the start of the day and share the documents you wrote in a pull request at the end. My build: `git checkout week1day3-end`, then `npm run dev`.

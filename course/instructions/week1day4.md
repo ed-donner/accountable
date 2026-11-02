@@ -1,6 +1,6 @@
 # Week 1 Day 4 instructions
 
-Copy each prompt into your coding agent, in order, and read what it does before you commit. The slides explain why each step matters.
+All the prompts to build your harness and implement today's feature.
 
 ## Part 1: The harness
 

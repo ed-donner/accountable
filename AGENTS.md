@@ -9,6 +9,7 @@ Read `docs/spec.md` first. It describes the whole product as it stands today.
 - `docs/STANDARDS.md`: how code is written in this repo. Follow it in every change
 - `docs/TECH_STACK.md`: the stack
 - `docs/STATUS.md`: what's done so far
+- `docs/IMPROVE.md`: how to improve this harness. Follow it at Deploy, after the review fixes and before the merge
 
 Each change has a folder, `docs/changes/<branch name>/`, holding its `intent.md` and `plan.md`. Read only the folder for the current branch. The others are records of past changes.
 

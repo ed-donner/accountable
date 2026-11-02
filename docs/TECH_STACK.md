@@ -15,6 +15,7 @@ Commands are npm scripts in a `package.json` at the repo root, with `frontend/` 
 - `npm test` runs all the tests and fails if any test fails
 - `npm run check` runs the formatting, lint, complexity, type and secrets checks and all the tests, and fails if any of them fail. `npm run check:quick` leaves out the end-to-end tests
 - `npm run format` fixes the formatting
+- A git pre-commit hook, through lefthook, formats the staged files, then runs the lint, type and secrets checks
 - `npm run seed` resets the database to the sample data, after asking
 - `npm run empty` empties the database, after asking
 

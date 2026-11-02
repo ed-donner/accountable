@@ -23,3 +23,5 @@ It runs Prettier, ESLint, ruff format, ruff check and gitleaks, then everything 
 `npm test` runs the type checks (tsc and ty), the backend unit tests (pytest), the frontend unit tests (Vitest) and the end-to-end tests (Playwright). Unit test coverage under 80% fails it. It takes about two minutes on 10 cores, and uses its own temporary databases. It picks the number of end-to-end workers from the machine's cores and memory. `ACCOUNTABLE_TEST_WORKERS=2 npm test` sets it by hand.
 
 Pytest and Playwright refuse to start on their own, because `npm test` is what sets up those databases.
+
+Hooks run some of this for you. Before each commit, lefthook formats the staged files, then runs the lint, type and secrets checks; don't skip it with `--no-verify`. When you finish a turn, a hook runs `npm run check:quick` and sends any failure back to you, once. Another hook stops any edit to `.env`, including any shell command that names it.

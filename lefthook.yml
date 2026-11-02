@@ -1,0 +1,49 @@
+# Git hooks. npm install sets them up.
+#
+# Before each commit: format the staged files and add the changes to the commit,
+# then lint them, check the types and look for secrets. The tests are left to
+# npm run check, so that committing stays quick.
+
+pre-commit:
+  piped: true
+  jobs:
+    - name: format
+      group:
+        parallel: true
+        jobs:
+          - name: prettier
+            run: npx prettier --write --ignore-unknown {staged_files}
+            stage_fixed: true
+
+          - name: ruff format
+            glob: "*.py"
+            run: >-
+              uv run --frozen ruff check --select I --fix --force-exclude --quiet {staged_files} &&
+              uv run --frozen ruff format --force-exclude {staged_files}
+            stage_fixed: true
+
+    - name: check
+      group:
+        parallel: true
+        jobs:
+          - name: eslint
+            glob: "*.{js,mjs,cjs,jsx,ts,tsx}"
+            run: npx eslint --max-warnings=0 --no-warn-ignored {staged_files}
+
+          - name: ruff check
+            glob: "*.py"
+            run: uv run --frozen ruff check --force-exclude {staged_files}
+
+          # The root holds TypeScript 6 for typescript-eslint, so this asks for the frontend's own.
+          - name: frontend types
+            run: npm exec --workspace frontend -- tsc --noEmit
+
+          - name: backend types
+            run: uv run --frozen ty check
+
+          - name: secrets
+            run: >-
+              if ! command -v gitleaks > /dev/null; then
+              echo "The secrets check needs gitleaks, which isn't installed. Install it from https://github.com/gitleaks/gitleaks#installing and try again.";
+              exit 1; fi;
+              gitleaks git --pre-commit --staged --redact --no-banner --verbose

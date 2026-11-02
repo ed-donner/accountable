@@ -23,6 +23,16 @@ Everything the checks found was fixed in the code, with no rule turned off or lo
 
 `typescript-eslint` can't read TypeScript 7, so the root has TypeScript 6.0 for ESLint alone, and the type check still uses TypeScript 7. `docs/spec.md` has the details.
 
+## Hooks
+
+Three hooks run the checks without anyone having to remember them:
+
+- **Before each commit:** lefthook formats the staged files and adds the changes to the commit, then runs ESLint, ruff check, tsc, ty and gitleaks. It leaves out the tests and takes a few seconds. `npm install` sets it up.
+- **When the coding agent finishes a turn:** a hook runs `npm run check:quick` and sends any failure back to the agent, once a turn, so it can't loop.
+- **Edits to `.env`:** a hook stops the agent's file tools on any file called `.env`, and any shell command that names it.
+
+Testing them showed that gitleaks only said how many secrets it found, not where, in the hook and in `npm run check` alike. Both now name the file and line, with the secret hidden. `npm run check:quick -- --failures-only` is new: it shows only what failed, and the agent's hook sends that.
+
 ## Build progress
 
 - **Phase 1, a shell that runs:** done.

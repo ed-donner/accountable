@@ -1,16 +1,47 @@
 {
+  "enabledPlugins": {
+    "frontend-design@anthropic-plugin-directory": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-env.mjs"
+            ],
+            "command": "node",
+            "onFailure": "block",
+            "type": "command"
+          }
+        ],
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit|Bash|PowerShell"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/scripts/agent-check-on-stop.mjs"
+            ],
+            "command": "node",
+            "statusMessage": "Running npm run check:quick",
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(npm test)"
     ],
-    "deny": [
-      "Read(./.env)"
-    ],
     "ask": [
       "Bash(git push *)"
+    ],
+    "deny": [
+      "Read(./.env)"
     ]
-  },
-  "enabledPlugins": {
-    "frontend-design@anthropic-plugin-directory": true
   }
 }

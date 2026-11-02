@@ -280,6 +280,8 @@ package.json, package-lock.json   root scripts, npm workspace for frontend/
 pyproject.toml, uv.lock           backend/accountable/ as an installable package, and the ruff, ty and coverage settings
 playwright.config.ts
 eslint.config.js, .prettierrc.json, .prettierignore, .gitleaks.toml   settings for npm run check
+lefthook.yml                      the git pre-commit hook
+.claude/settings.json             the coding agent's permissions and hooks
 shared/                           expected-revenue-cases.json and website-cases.json, read by both unit test suites
 scripts/
   setup.mjs                       shared setup, used by the scripts below that start things, Node built-ins only
@@ -291,7 +293,10 @@ scripts/
   test-plan.mjs                   how npm test shares out the machine, and where each worker's servers are
   test-servers.mjs                starts one backend and one Vite server for each Playwright worker
   test-report.mjs                 turns what each test runner wrote into the summary that ends npm test
-  setup.test.mjs, test-plan.test.mjs, test-report.test.mjs
+  agent-check-on-stop.mjs         the coding agent's hook that runs npm run check:quick when it finishes a turn
+  agent-guard-env.mjs             the coding agent's hook that stops any edit to .env
+  agent-hooks.mjs                 what those two hooks decide
+  setup.test.mjs, test-plan.test.mjs, test-report.test.mjs, agent-hooks.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, JSON-only check, startup, routers
   db.py                           engine, metadata, foreign keys, write lock, migrations on start
@@ -356,7 +361,7 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 | Backend | FastAPI, Uvicorn, SQLAlchemy Core, Alembic, Pydantic |
 | Frontend tools | `typescript`, `@vitejs/plugin-react`, `@tailwindcss/vite` |
 | Test tools | Vitest, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom`, `pytest`, `pytest-cov`, `httpx`, `@playwright/test` |
-| Code checks | Prettier, ESLint 9 with `typescript-eslint`, `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y`, ruff, ty, gitleaks |
+| Code checks | Prettier, ESLint 9 with `typescript-eslint`, `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y`, ruff, ty, gitleaks, lefthook for the git hook |
 
 - **Fonts:** the brand skill says Google Fonts. The npm packages hold the same fonts, so they look the same and work offline (C2).
 - **Drag and drop:** `@dnd-kit/core` was last released in December 2024, though it's still by far the most used, at about 40 million downloads a week. Its successor, `@dnd-kit/react`, is active but was still at 0.5.3 when checked. Accountable uses the stable package, whose React range covers React 19.
@@ -744,7 +749,15 @@ There's no sign-in, so the app relies on being reachable only from this computer
 - ESLint on all the JavaScript and TypeScript, with the recommended rules from ESLint, `typescript-eslint`, React Hooks and `jsx-a11y`, the last two on `frontend/src` only.
 - ruff format and ruff check on the backend, with ruff's default rules, 120 characters wide. Ruff also formats Python inside Markdown, so Markdown is left out.
 - A complexity of at most 15 per function, through ESLint's `complexity` rule and ruff's C901.
-- gitleaks on every commit and on the files as they are now, with gitleaks' own rules. `.gitleaks.toml` allows only `.env`, which git ignores. gitleaks is a program of its own, not an npm or Python package, so it has to be installed, and the check says how if it's missing.
+- gitleaks on every commit and on the files as they are now, with gitleaks' own rules. `.gitleaks.toml` allows only `.env`, which git ignores. gitleaks is a program of its own, not an npm or Python package, so it has to be installed, and the check says how if it's missing. It names the file and line of anything it finds, with the secret itself hidden.
+
+`npm run check:quick -- --failures-only` shows only the output of the checks that fail, then the summary.
+
+**Hooks:**
+
+- Before each commit, lefthook formats the staged files with Prettier and ruff and adds the changes to the commit. Then it runs ESLint and ruff check on those files, tsc and ty on the whole project, and gitleaks on what's staged. It leaves out the tests, so a commit takes a few seconds. `npm install` sets it up. If a staged file also has unstaged changes on the lines formatting touches, lefthook stops the commit and leaves both as they were, rather than mix them.
+- When the coding agent finishes a turn, a hook in `.claude/settings.json` runs `npm run check:quick -- --failures-only` and sends what failed back to the agent to fix. It does that once a turn: the next time the agent stops, the hook lets it, so it can't loop. The check takes about 30 seconds, so every turn ends with that wait.
+- Another hook stops the agent's file tools from changing any file called `.env`, and stops any shell command that names `.env`, because a command can change a file in too many ways to tell a read from a write. It guards against mistakes. It isn't a sandbox: a command could still reach the file without naming it. If the hook itself fails, the edit or command is stopped too.
 
 **End to end (Playwright Test)**, with the installed Chrome:
 

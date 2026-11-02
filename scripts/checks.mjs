@@ -40,13 +40,13 @@ const codeChecks = [
   {
     name: "Secrets in git history",
     command: "gitleaks",
-    args: ["git", "--redact", "--no-banner"],
+    args: ["git", "--redact", "--no-banner", "--verbose"],
     missing: GITLEAKS_HELP,
   },
   {
     name: "Secrets in files",
     command: "gitleaks",
-    args: ["dir", "--redact", "--no-banner"],
+    args: ["dir", "--redact", "--no-banner", "--verbose"],
     missing: GITLEAKS_HELP,
   },
 ];
@@ -101,7 +101,7 @@ function browserLayer(name, project, count, report, text) {
   };
 }
 
-function run(layer, env) {
+function run(layer, env, failuresOnly) {
   const began = performance.now();
   return new Promise((resolve) => {
     const child = start(layer.command, layer.args, {
@@ -117,7 +117,7 @@ function run(layer, env) {
     });
     child.once("close", (code) => resolve({ code, output }));
   }).then(({ code, output }) => {
-    if (!layer.live) console.log(`\n${layer.name}\n${output.trimEnd()}`);
+    if (!layer.live && !(failuresOnly && code === 0)) console.log(`\n${layer.name}\n${output.trimEnd()}`);
 
     let results = null;
     try {
@@ -142,8 +142,11 @@ function chooseBrowserWorkers() {
   }
 }
 
-/** Runs the type checks and unit tests, plus the code checks and the browser tests when asked. */
-export async function runChecks({ withCodeChecks, withBrowserTests }) {
+/**
+ * Runs the type checks and unit tests, plus the code checks and the browser tests when asked.
+ * With failuresOnly, a check that passes shows only its line in the summary.
+ */
+export async function runChecks({ withCodeChecks, withBrowserTests, failuresOnly = false }) {
   setup();
   const startedAt = performance.now();
   const workers = withBrowserTests ? chooseBrowserWorkers() : 0;
@@ -160,7 +163,7 @@ export async function runChecks({ withCodeChecks, withBrowserTests }) {
   };
 
   const quickLayers = [...(withCodeChecks ? codeChecks : []), ...unitLayers(report, text)];
-  const finished = await Promise.all(quickLayers.map((layer) => run(layer, env)));
+  const finished = await Promise.all(quickLayers.map((layer) => run(layer, env, failuresOnly)));
 
   if (withBrowserTests) {
     console.log(`\nEnd-to-end tests, on ${workers} ${workers === 1 ? "worker" : "workers"}\n`);

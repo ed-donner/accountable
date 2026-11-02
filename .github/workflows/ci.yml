@@ -1,0 +1,62 @@
+# On every push to any branch: look for secrets first, then run npm run check.
+# It needs no secrets of its own.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Every commit, so gitleaks can read the whole history.
+          fetch-depth: 0
+
+      # Before anything else, so a leaked secret fails the run straight away.
+      - name: Install gitleaks
+        env:
+          VERSION: 8.30.1
+          SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          cd "$RUNNER_TEMP/gitleaks"
+          curl -fsSL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          echo "${SHA256}  gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf gitleaks.tar.gz gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+
+      - name: Look for secrets in every commit
+        run: gitleaks git --redact --no-banner --verbose
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+
+      # With no version given, this installs the latest uv.
+      - uses: astral-sh/setup-uv@v10.3.3
+
+      - name: Install the npm packages
+        run: npm ci
+
+      # The end-to-end tests use the Google Chrome that GitHub's Ubuntu runner already has,
+      # because Chrome is the browser Accountable supports.
+      - name: npm run check
+        id: check
+        run: npm run check
+
+      - name: Upload the Playwright report
+        if: failure() && steps.check.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/

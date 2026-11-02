@@ -16,6 +16,7 @@ Commands are npm scripts in a `package.json` at the repo root, with `frontend/` 
 - `npm run check` runs the formatting, lint, complexity, type and secrets checks and all the tests, and fails if any of them fail. `npm run check:quick` leaves out the end-to-end tests
 - `npm run format` fixes the formatting
 - A git pre-commit hook, through lefthook, formats the staged files, then runs the lint, type and secrets checks
+- GitHub Actions runs gitleaks and then `npm run check` on every push, to any branch
 - `npm run seed` resets the database to the sample data, after asking
 - `npm run empty` empties the database, after asking
 
@@ -25,6 +26,6 @@ Testing will cover:
 
 1. Unit tests for the frontend, using Vitest
 2. Unit tests for the backend, using pytest
-3. End-to-end tests of the whole app in a browser, in `e2e/`, using Playwright Test (`@playwright/test`) with the installed Google Chrome. They start the app themselves, so `npm test` needs nothing else running.
+3. End-to-end tests of the whole app in a browser, in `e2e/`, using Playwright Test (`@playwright/test`) with the installed Google Chrome. In CI they use the Google Chrome on GitHub's runner. They start the app themselves, so `npm test` needs nothing else running.
 
 The tests use a database of their own, so running them never changes your data.

@@ -26,7 +26,12 @@ export default defineConfig({
   forbidOnly: true,
   retries: 0,
   timeout: 30_000,
-  reporter: [["list"], ["json", { outputFile: process.env.ACCOUNTABLE_E2E_REPORT }]],
+  reporter: [
+    ["list"],
+    ["json", { outputFile: process.env.ACCOUNTABLE_E2E_REPORT }],
+    // Kept after the run, with a screenshot of each failure. CI uploads it when a check fails.
+    ["html", { outputFolder: process.env.ACCOUNTABLE_E2E_HTML, open: "never" }],
+  ],
   outputDir: path.join(path.dirname(database), "playwright-results"),
   projects: [
     { name: "main", testIgnore: "stress.spec.ts" },
@@ -34,6 +39,7 @@ export default defineConfig({
     { name: "speed", testMatch: "stress.spec.ts", fullyParallel: false },
   ],
   use: {
+    // The installed Google Chrome. GitHub's Ubuntu runner has one too, so CI tests with it as well.
     channel: "chrome",
     // Each Chrome starts with no shader cache, and browsers compiling shaders side by
     // side can stall on macOS's shared Metal cache. A stalled GPU process stops the

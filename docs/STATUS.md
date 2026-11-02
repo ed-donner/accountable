@@ -33,6 +33,15 @@ Three hooks run the checks without anyone having to remember them:
 
 Testing them showed that gitleaks only said how many secrets it found, not where, in the hook and in `npm run check` alike. Both now name the file and line, with the secret hidden. `npm run check:quick -- --failures-only` is new: it shows only what failed, and the agent's hook sends that.
 
+## CI
+
+`.github/workflows/ci.yml` runs on every push, to any branch, on GitHub's Ubuntu runner. It installs gitleaks and scans every commit first, so a leaked secret fails the run straight away. Then it installs Node 26 and the latest uv, and runs `npm run check` with the Google Chrome the runner already has. If the check fails, the run keeps the Playwright report. It uses no secrets.
+
+Running the checks on Linux for the first time found two things, both now fixed:
+
+- **`npm run dev` could finish before the backend had stopped.** concurrently starts each server through a shell, and on Linux that shell stays in between. A stop ends the shell at once, so the script exited while the backend still held its port, for up to about 100ms. Starting again straight away said the port was in use, and one end-to-end test failed that way. Each server now starts with `exec`, so the shell becomes the server. The Mac wasn't affected.
+- **There was no Playwright report to keep.** Playwright only wrote the results the summary reads, into the temporary folder, and the screenshots of any failures went with that folder at the end of each run. An HTML report with those screenshots is now kept in `playwright-report/main` and `playwright-report/speed`.
+
 ## Build progress
 
 - **Phase 1, a shell that runs:** done.
@@ -178,10 +187,12 @@ Everything lives in one file, `data/accountable.db`. Copy that file somewhere sa
 
 ### Not yet proven
 
-Accountable has only been run on a Mac. It's built to work the same on Windows and Linux, but nobody has tried it there yet. Safari and Firefox may work, but only Chrome is checked.
+Accountable has only been used on a Mac. It's built to work the same on Windows and Linux. All its checks and tests also pass on Ubuntu Linux, which CI uses, but nobody has used it there yet, or tried Windows at all. Safari and Firefox may work, but only Chrome is checked.
 
 ## Running the tests
 
 `npm run check` runs the code checks and then `npm test`. `npm test` runs the type checks and every test: backend, frontend and end-to-end. It takes about two minutes on a 10-core Mac, and ends with a short summary. It keeps going if one part fails, names what failed at the end, and exits with an error. A leftover `.only` in a test also counts as a failure, because it would quietly skip other tests. It uses its own temporary databases, so it never touches your data.
 
 The end-to-end tests run side by side, using a number of workers chosen from your computer's cores and memory, so a smaller computer runs fewer at once and takes longer. To set the number yourself, for example while the computer is busy, run `ACCOUNTABLE_TEST_WORKERS=2 npm test`. The speed tests always run last and alone, so their timings are fair.
+
+Each run leaves a report of the end-to-end tests, with a screenshot of each failure. `npx playwright show-report playwright-report/main` opens it, and `playwright-report/speed` has the speed tests'. When `npm run check` fails in CI, the run on GitHub keeps the same report.

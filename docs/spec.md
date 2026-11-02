@@ -281,6 +281,7 @@ pyproject.toml, uv.lock           backend/accountable/ as an installable package
 playwright.config.ts
 eslint.config.js, .prettierrc.json, .prettierignore, .gitleaks.toml   settings for npm run check
 lefthook.yml                      the git pre-commit hook
+.github/workflows/ci.yml          CI: gitleaks, then npm run check, on every push
 .claude/settings.json             the coding agent's permissions and hooks
 shared/                           expected-revenue-cases.json and website-cases.json, read by both unit test suites
 scripts/
@@ -361,7 +362,7 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 | Backend | FastAPI, Uvicorn, SQLAlchemy Core, Alembic, Pydantic |
 | Frontend tools | `typescript`, `@vitejs/plugin-react`, `@tailwindcss/vite` |
 | Test tools | Vitest, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom`, `pytest`, `pytest-cov`, `httpx`, `@playwright/test` |
-| Code checks | Prettier, ESLint 9 with `typescript-eslint`, `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y`, ruff, ty, gitleaks, lefthook for the git hook |
+| Code checks | Prettier, ESLint 9 with `typescript-eslint`, `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y`, ruff, ty, gitleaks, lefthook for the git hook, GitHub Actions for CI |
 
 - **Fonts:** the brand skill says Google Fonts. The npm packages hold the same fonts, so they look the same and work offline (C2).
 - **Drag and drop:** `@dnd-kit/core` was last released in December 2024, though it's still by far the most used, at about 40 million downloads a week. Its successor, `@dnd-kit/react`, is active but was still at 0.5.3 when checked. Accountable uses the stable package, whose React range covers React 19.
@@ -759,13 +760,16 @@ There's no sign-in, so the app relies on being reachable only from this computer
 - When the coding agent finishes a turn, a hook in `.claude/settings.json` runs `npm run check:quick -- --failures-only` and sends what failed back to the agent to fix. It does that once a turn: the next time the agent stops, the hook lets it, so it can't loop. The check takes about 30 seconds, so every turn ends with that wait.
 - Another hook stops the agent's file tools from changing any file called `.env`, and stops any shell command that names `.env`, because a command can change a file in too many ways to tell a read from a write. It guards against mistakes. It isn't a sandbox: a command could still reach the file without naming it. If the hook itself fails, the edit or command is stopped too.
 
-**End to end (Playwright Test)**, with the installed Chrome:
+**CI:** `.github/workflows/ci.yml` runs on every push, to any branch, on GitHub's Ubuntu runner. It installs gitleaks and runs it on every commit first, so a leaked secret fails the run straight away. Then it installs Node 26 and the latest uv, and runs `npm run check`, with the Google Chrome the runner already has. If that fails, it uploads the Playwright report. It uses no secrets, and its token can only read the repo.
+
+**End to end (Playwright Test)**, with the installed Chrome, in CI too:
 
 - The tests run on several workers, chosen from the machine's cores and memory, and `ACCOUNTABLE_TEST_WORKERS` sets the number by hand. Each worker has its own servers, on ports from 5200 and 8800, and its own temporary database, with `reuseExistingServer` off. If they reused a server, they could attach to a running copy of the app and change real data. Tests that stop and restart the app start their own copy, on ports from 5300 and 8900.
 - Every test fails on any console error it didn't name in advance, and on any request to an address outside the computer. The second check proves the offline requirement. Tests that expect a failed request, such as the 404 behind N4, name the exact message.
 - Drags use `page.mouse` with several small moves, because dnd-kit needs to see the pointer travel.
 - A stress run fills a test database to the limits in Q1 and checks the timings, taking the median of five readings. It runs last and alone, because timings need a quiet machine.
 - Tests reach the app at 127.0.0.1, so a slow lookup of the name `localhost` can't stall them, and Chrome runs with `--disable-gpu`, because browsers compiling shaders side by side can hang on macOS.
+- Each run leaves an HTML report, with a screenshot of each failure, in `playwright-report/main` and `playwright-report/speed`.
 
 | Area | Requirements | Tests |
 |---|---|---|

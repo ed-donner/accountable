@@ -25,3 +25,5 @@ It runs Prettier, ESLint, ruff format, ruff check and gitleaks, then everything 
 Pytest and Playwright refuse to start on their own, because `npm test` is what sets up those databases.
 
 Hooks run some of this for you. Before each commit, lefthook formats the staged files, then runs the lint, type and secrets checks; don't skip it with `--no-verify`. When you finish a turn, a hook runs `npm run check:quick` and sends any failure back to you, once. Another hook stops any edit to `.env`, including any shell command that names it.
+
+On every push, GitHub Actions runs gitleaks and then `npm run check`, from `.github/workflows/ci.yml`. The end-to-end tests leave a report, with a screenshot of each failure, in `playwright-report/`, and CI keeps it when the check fails.

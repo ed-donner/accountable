@@ -96,7 +96,12 @@ function browserLayer(name, project, count, report, text) {
     command: node,
     args: [playwright, "test", `--project=${project}`],
     live: true,
-    env: { ACCOUNTABLE_TEST_WORKERS: String(count), ACCOUNTABLE_E2E_REPORT: report(file) },
+    env: {
+      ACCOUNTABLE_TEST_WORKERS: String(count),
+      ACCOUNTABLE_E2E_REPORT: report(file),
+      // Outside the temporary folder, which goes at the end, so it's still there to read.
+      ACCOUNTABLE_E2E_HTML: path.join(ROOT, "playwright-report", project),
+    },
     read: () => readPlaywright(text(file)),
   };
 }

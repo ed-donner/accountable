@@ -56,14 +56,19 @@ const concurrently = path.join(ROOT, "node_modules", "concurrently", "dist", "bi
 const vite = JSON.stringify(path.join(ROOT, "node_modules", "vite", "bin", "vite.js"));
 const frontend = JSON.stringify(path.join(ROOT, "frontend"));
 
+// concurrently runs each server through a shell. On Linux that shell stays in between,
+// and a stop ends it at once, so this script would exit while a server still held its port.
+// exec makes the shell become the server. Windows's cmd.exe has no exec.
+const exec = process.platform === "win32" ? "" : "exec ";
+
 const servers = start(
   process.execPath,
   [
     concurrently,
     "--raw",
     "--kill-others",
-    `uv run --no-sync uvicorn accountable.main:app --host 127.0.0.1 --port ${apiPort} --log-level warning`,
-    `${node} ${vite} ${frontend} --logLevel warn`,
+    `${exec}uv run --no-sync uvicorn accountable.main:app --host 127.0.0.1 --port ${apiPort} --log-level warning`,
+    `${exec}${node} ${vite} ${frontend} --logLevel warn`,
   ],
   { env: { ...process.env, ACCOUNTABLE_WEB_PORT: String(webPort), ACCOUNTABLE_API_PORT: String(apiPort) } },
 );

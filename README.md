@@ -13,7 +13,7 @@ _If you're looking at this in VS Code or Cursor, right-click `README.md` in the 
 - `docs/`: the documents for Accountable. `intent.md` says what we build first.
 - `course/`: your guides. [course/SETUP.md](course/SETUP.md) installs the tools, and [course/coding_agents/](course/coding_agents/) has the steps for each coding agent.
 - `course/for_agents/`: guides for your coding agent, so it can help you with the course.
-- `course/instructions/`: extra instructions for some days, such as the review policy for Week 1 Day 3.
+- `course/instructions/`: extra instructions for some days, such as the review policy for Week 1 Day 3 and every prompt for Week 1 Day 4.
 - `AGENTS.md`: the instructions your coding agent reads at the start of each session.
 - `community_contributions/`: work shared by students, added by pull request.
 

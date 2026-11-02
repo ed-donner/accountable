@@ -61,12 +61,15 @@ If the student gets stuck:
 - **The username:** ask the student for their GitHub username. It's in their fork's address, `https://github.com/<username>/accountable`.
 - **A typo in the remote:** `git remote set-url fork https://github.com/<username>/accountable.git` replaces it.
 - **Signing in on the first push:** git asks the student to sign in to GitHub, and their GitHub password won't work. In VS Code's terminal, VS Code offers to sign in through the browser, and Git for Windows does the same. Otherwise the student makes a personal access token on GitHub (Settings, Developer settings, Personal access tokens) with access to their fork, and pastes it themselves when git asks for a password. It never goes in a file or the chat.
+- **`RPC failed; HTTP 400` on a big push:** git's upload buffer is too small for the push. Run `git config http.postBuffer 157286400` and push again. The setting applies to this repo only.
+- **GitHub refuses a push that adds a workflow file:** the student's sign-in doesn't have the `workflow` scope. A personal access token needs that scope added. With the GitHub CLI, `gh auth refresh -s workflow` adds it.
 
 ### 2. Put the files in a folder of the student's own
 
 The files go in `community_contributions/<folder>/`, where `<folder>` is any name the student likes. Screenshots and code stay in the student's fork, which keeps the course repo small.
 
 - **The day's documents:** at the end of Week 1 Day 3, the student shares what they wrote that day: `docs/intent.md`, `docs/spec.md`, `docs/plan.md` and `docs/REVIEW.md`, with a short `README.md` that says what they built and links to their build in their fork. Push their `main` to the fork first, with `git push -u fork main`, so that the link works: `https://github.com/<username>/accountable`.
+- **The day's standards:** at the end of Week 1 Day 4, the student shares `docs/STANDARDS.md` and `docs/IMPROVE.md`, with no README.
 - **A small, self-contained piece:** a skill, a hook, a subagent, a CI workflow, or a guide for a coding agent the course doesn't cover, such as `community_contributions/<folder>/skills/release-notes/SKILL.md`.
 
 The student's `main` holds their whole build, so the PR comes from a new branch that starts at Ed's latest `main` instead. It carries nothing else from the student's work:
@@ -117,6 +120,10 @@ The student's own build of Accountable is too big to merge, so they share a writ
 A fix to Ed's code or a guide is welcome as a PR outside `community_contributions/`. Unless the fix is obvious, the student checks with Ed first, in the course's Q&A on Udemy or by email to ed@edwarddonner.com.
 
 Branch from the branch with the bug: `origin/main` for a guide or a document in `docs/`, or the day branch for a bug in Ed's build. Make the smallest change that fixes it, and open the PR against that branch, saying what was wrong.
+
+## Pushing a branch to run CI
+
+On Week 1 Day 4 the student pushes each of the day's two branches to their fork so that GitHub Actions runs on each: `git push fork harness`, then `git push fork dark-mode`. Merges still happen on the student's machine. Workflows don't run on a fork until the student opens its **Actions** tab and enables them.
 
 ## Pulling Ed's latest changes
 

@@ -125,7 +125,7 @@ const OUTSIDE_FRONTEND = [
   ["uv.lock", "requires-python"],
   ["backend/accountable/db.py", "SQLITE_DBCONFIG_ENABLE_FKEY"],
   ["AGENTS.md", "Pytest and Playwright refuse"],
-  ["docs/spec.md", "Spec: the Accountable MVP"],
+  ["docs/spec.md", "Spec: Accountable"],
   ["e2e/security.spec.ts", "A word from each file"],
 ] as const;
 

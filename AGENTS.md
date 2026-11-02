@@ -13,7 +13,9 @@ Read `docs/spec.md` first. It describes the whole product as it stands today.
 
 Each change has a folder, `docs/changes/<branch name>/`, holding its `intent.md` and `plan.md`. Read only the folder for the current branch. The others are records of past changes.
 
-Update `docs/STATUS.md` when you finish a piece of work
+Update `docs/STATUS.md` when you finish a piece of work. If the work adds or changes behavior, a file or a test, update `docs/spec.md` to match in the same change, so the spec still describes the whole product. A note in STATUS.md doesn't count.
+
+The project owner makes the commits. Don't commit unless asked, and don't put commits in a plan.
 
 ## Checks and tests
 

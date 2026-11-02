@@ -6,6 +6,8 @@ import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
 
 import { queryDefaults } from "./App";
+import { STAGES } from "./crm/deals";
+import type { Stage } from "./crm/queries";
 
 export const META = {
   stages: [
@@ -22,7 +24,7 @@ export const META = {
 
 export type Call = { method: string; path: string; body: unknown };
 
-type Handler = (body: any) => { status?: number; body: unknown };
+type Handler = (body: unknown) => { status?: number; body: unknown };
 
 /** Stands in for the backend. Keys are "METHOD /path". Returns the calls made. */
 export function mockApi(routes: Record<string, unknown | Handler>): Call[] {
@@ -62,4 +64,54 @@ export function renderApp(ui: ReactNode) {
 export function user() {
   // Radix sets pointer-events on the body while a dialog is open.
   return userEvent.setup({ pointerEventsCheck: 0 });
+}
+
+// The board's layout. jsdom lays nothing out, so dnd-kit would find every card and
+// column at 0,0. This gives the board a plain layout: six columns side by side,
+// each with its cards stacked under a header.
+export const COLUMN_WIDTH = 200;
+const CARD_WIDTH = 190;
+const HEADER_HEIGHT = 150;
+const LIST_HEIGHT = 700;
+const LIST_PADDING = 8;
+const CARD_HEIGHT = 100;
+const CARD_STEP = 108;
+
+function offsetInList(card: HTMLElement): number {
+  const cards = [...card.parentElement!.querySelectorAll("[data-deal-id]")];
+  return LIST_PADDING + cards.indexOf(card) * CARD_STEP;
+}
+
+function layOut(element: HTMLElement): DOMRect {
+  // The card that follows the pointer, which dnd-kit places with inline styles.
+  const lifted = element.closest<HTMLElement>('[style*="position: fixed"]');
+  if (lifted) {
+    const { left, top, width, height } = lifted.style;
+    return new DOMRect(parseFloat(left), parseFloat(top), parseFloat(width), parseFloat(height));
+  }
+  const column = element.closest<HTMLElement>('section[data-testid^="column-"]');
+  if (!column) return new DOMRect();
+  const left = STAGES.indexOf(column.dataset.testid!.replace("column-", "") as Stage) * COLUMN_WIDTH;
+  const card = element.closest<HTMLElement>("[data-deal-id]");
+  if (card) return new DOMRect(left, HEADER_HEIGHT + offsetInList(card), CARD_WIDTH, CARD_HEIGHT);
+  return new DOMRect(left, HEADER_HEIGHT, CARD_WIDTH, LIST_HEIGHT);
+}
+
+/** Lays the board out until the test ends, when vitest's restoreMocks undoes it. */
+export function layOutBoard() {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    return layOut(this);
+  });
+  vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (this: HTMLElement) {
+    return this.dataset.dealId ? offsetInList(this) : 0;
+  });
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+    return this.dataset.dealId ? CARD_HEIGHT : 0;
+  });
+}
+
+/** The middle of an element, where a pointer would press it. */
+export function middleOf(element: HTMLElement) {
+  const { left, top, width, height } = layOut(element);
+  return { clientX: left + width / 2, clientY: top + height / 2 };
 }

@@ -1,7 +1,16 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { addActivity, addContact, addDeal, addLinkedDeal, addOrganization, emptyDatabase, isoDay, resetToSampleData } from "./helpers";
+import {
+  addActivity,
+  addContact,
+  addDeal,
+  addLinkedDeal,
+  addOrganization,
+  emptyDatabase,
+  isoDay,
+  resetToSampleData,
+} from "./helpers";
 
 const API = "/api";
 
@@ -64,7 +73,9 @@ test.describe("with a small known dataset", () => {
     await expect(pipeline).toContainText("$3,650");
     await expect(pipeline).toContainText("37% of open pipeline");
 
-    await section(page, "Revenue won").getByRole("link", { name: /Revenue won in/ }).click();
+    await section(page, "Revenue won")
+      .getByRole("link", { name: /Revenue won in/ })
+      .click();
     await expect(page).toHaveURL(/\/deals\?stage=won/);
     await expect(page.locator("tbody tr")).toHaveCount(3);
 
@@ -91,7 +102,9 @@ test.describe("with a small known dataset", () => {
     await addDeal(request, "Open deal", { organization_id: other.id, main_contact_id: person.id });
 
     await page.goto("/");
-    await section(page, "Revenue won").getByRole("link", { name: /Revenue won in/ }).click();
+    await section(page, "Revenue won")
+      .getByRole("link", { name: /Revenue won in/ })
+      .click();
     await expect(page.locator("tbody tr")).toHaveCount(3);
     await expect(page.getByRole("row", { name: /Wonderland rollout/ })).toHaveCount(0);
     await expect(page.getByRole("row", { name: /Swonky Holdings/ })).toHaveCount(0);
@@ -101,7 +114,10 @@ test.describe("with a small known dataset", () => {
     await expect(page.getByRole("link", { name: "Wonderland rollout", exact: true })).toHaveCount(1);
   });
 
-  test("the won list works with search, and clearing a search with no matches shows every stage", async ({ page, request }) => {
+  test("the won list works with search, and clearing a search with no matches shows every stage", async ({
+    page,
+    request,
+  }) => {
     await knownData(request);
     await page.goto("/deals?stage=won&q=nothing-like-this");
     await expect(page.getByText("No deals match.")).toBeVisible();
@@ -110,7 +126,10 @@ test.describe("with a small known dataset", () => {
     await expect(page.locator("tbody tr").first()).toBeVisible();
   });
 
-  test("the pipeline band shows each open stage's value and count, and links to the Pipeline", async ({ page, request }) => {
+  test("the pipeline band shows each open stage's value and count, and links to the Pipeline", async ({
+    page,
+    request,
+  }) => {
     await knownData(request);
     await page.goto("/");
     await expect(page.getByTestId("band-new")).toContainText("$1,000");
@@ -140,12 +159,19 @@ test.describe("with a small known dataset", () => {
     await expect(funnel.getByText("Lost", { exact: true })).toHaveCount(0);
   });
 
-  test("follow-ups list overdue first, with the Overdue chip, a link, a tick box and the counts in the heading", async ({ page, request }) => {
+  test("follow-ups list overdue first, with the Overdue chip, a link, a tick box and the counts in the heading", async ({
+    page,
+    request,
+  }) => {
     const links = await dealFor(request)();
     const deal = await addDeal(request, "Linked deal", links);
     await addActivity(request, { deal_id: deal.id, description: "Later on", follow_up_date: isoDay(9) });
     await addActivity(request, { deal_id: deal.id, description: "Bit late", follow_up_date: isoDay(-1) });
-    await addActivity(request, { contact_id: links.main_contact_id, description: "Very late", follow_up_date: isoDay(-9) });
+    await addActivity(request, {
+      contact_id: links.main_contact_id,
+      description: "Very late",
+      follow_up_date: isoDay(-9),
+    });
     await addActivity(request, { deal_id: deal.id, description: "Due today", follow_up_date: isoDay(0) });
 
     await page.goto("/");
@@ -170,7 +196,10 @@ test.describe("with a small known dataset", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Linked deal" })).toBeVisible();
   });
 
-  test("recent activity shows the 10 newest, each with a link, and leaves out future ones", async ({ page, request }) => {
+  test("recent activity shows the 10 newest, each with a link, and leaves out future ones", async ({
+    page,
+    request,
+  }) => {
     const links = await dealFor(request)();
     const deal = await addDeal(request, "Busy deal", links);
     const hour = 3_600_000;
@@ -197,7 +226,10 @@ test.describe("with a small known dataset", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Busy deal" })).toBeVisible();
   });
 
-  test("marking a deal won updates this month's revenue and count, and a new follow-up appears", async ({ page, request }) => {
+  test("marking a deal won updates this month's revenue and count, and a new follow-up appears", async ({
+    page,
+    request,
+  }) => {
     const links = await dealFor(request)();
     const deal = await addDeal(request, "About to win", { ...links, value: 2500 });
 
@@ -231,7 +263,9 @@ test.describe("with a small known dataset", () => {
 test.describe("with the sample data", () => {
   test.beforeAll(resetToSampleData);
 
-  test("both charts cover 12 months with the current one marked so far, and each has a hover tooltip", async ({ page }) => {
+  test("both charts cover 12 months with the current one marked so far, and each has a hover tooltip", async ({
+    page,
+  }) => {
     await page.goto("/");
     const months = await (await page.request.get(`${API}/dashboard`)).json();
     const labels: string[] = months.months.map((month: { label: string }) => month.label);

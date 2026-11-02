@@ -41,6 +41,17 @@ type Props = {
   onSaved?: (saved: ContactDetail) => void;
 };
 
+function initialValues(record?: Contact, defaultName?: string, defaultOrganizationId?: number | null): Values {
+  return {
+    name: record?.name ?? defaultName ?? "",
+    organization_id: record ? record.organization_id : (defaultOrganizationId ?? null),
+    email: record?.email ?? "",
+    phone: record?.phone ?? "",
+    job_title: record?.job_title ?? "",
+    status: record?.status ?? "lead",
+  };
+}
+
 export function ContactForm({ record, defaultName, defaultOrganizationId, onClose, onSaved }: Props) {
   const organizations = useOrganizations();
   useCloseIfUnreadable([organizations], onClose);
@@ -58,14 +69,7 @@ export function ContactForm({ record, defaultName, defaultOrganizationId, onClos
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(contactSchema(record)),
-    defaultValues: {
-      name: record?.name ?? defaultName ?? "",
-      organization_id: record ? record.organization_id : (defaultOrganizationId ?? null),
-      email: record?.email ?? "",
-      phone: record?.phone ?? "",
-      job_title: record?.job_title ?? "",
-      status: record?.status ?? "lead",
-    },
+    defaultValues: initialValues(record, defaultName, defaultOrganizationId),
   });
 
   const organizationBlankAllowed = record !== undefined && record.organization_id === null;

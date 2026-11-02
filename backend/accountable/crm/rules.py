@@ -86,7 +86,7 @@ def add_deal(conn: Connection, values: dict[str, Any], *, today: date, now: date
     row["position"] = top_position(conn, stage)
     row["created_at"] = now
     row["updated_at"] = now
-    deal_id = conn.execute(insert(deals).values(**row)).inserted_primary_key[0]
+    deal_id = conn.execute(insert(deals).values(**row).returning(deals.c.id)).scalar_one()
     if stage == "won":
         _make_customer(conn, row.get("main_contact_id"))
     return deal_id

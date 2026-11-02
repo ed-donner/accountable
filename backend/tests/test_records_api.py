@@ -156,7 +156,9 @@ def test_websites_gain_https_if_left_off(api, given, stored):
     assert api.post(ORGS, json={"name": "Acme", "website": given}).json()["website"] == stored
 
 
-@pytest.mark.parametrize("website", ["ftp://example.com", "mailto:sam@example.com", "javascript:alert(1)", "https://", "two words"])
+@pytest.mark.parametrize(
+    "website", ["ftp://example.com", "mailto:sam@example.com", "javascript:alert(1)", "https://", "two words"]
+)
 def test_other_website_schemes_are_refused(api, website):
     assert "website" in error_fields(api.post(ORGS, json={"name": "Acme", "website": website}))
 
@@ -489,7 +491,9 @@ def test_a_link_too_big_for_the_database_is_refused(api, path, field, value):
     assert field in error_fields(api.post(path, json={"name": "x", "description": "x", field: value}))
 
 
-@pytest.mark.parametrize("path, field", [(CONTACTS, "organization_id"), (DEALS, "organization_id"), (DEALS, "main_contact_id")])
+@pytest.mark.parametrize(
+    "path, field", [(CONTACTS, "organization_id"), (DEALS, "organization_id"), (DEALS, "main_contact_id")]
+)
 def test_an_edit_with_a_link_too_big_for_the_database_is_refused(api, make, path, field):
     record = make.contact() if path == CONTACTS else make.deal()
     assert field in error_fields(api.patch(f"{path}/{record}", json={field: 2**63}))
@@ -497,7 +501,9 @@ def test_an_edit_with_a_link_too_big_for_the_database_is_refused(api, make, path
 
 def test_a_move_before_an_impossible_deal_is_refused(api, make):
     deal = make.deal()
-    assert "before_deal_id" in error_fields(api.post(f"{DEALS}/{deal}/move", json={"stage": "new", "before_deal_id": 2**63}))
+    assert "before_deal_id" in error_fields(
+        api.post(f"{DEALS}/{deal}/move", json={"stage": "new", "before_deal_id": 2**63})
+    )
 
 
 @pytest.mark.parametrize(

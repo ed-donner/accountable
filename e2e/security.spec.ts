@@ -18,7 +18,9 @@ function send(port: number, target: string, headers: http.OutgoingHttpHeaders = 
     const request = http.request({ host: "127.0.0.1", port, path: target, method, headers }, (reply) => {
       const chunks: Buffer[] = [];
       reply.on("data", (chunk) => chunks.push(chunk));
-      reply.on("end", () => resolve({ status: reply.statusCode!, headers: reply.headers, body: Buffer.concat(chunks) }));
+      reply.on("end", () =>
+        resolve({ status: reply.statusCode!, headers: reply.headers, body: Buffer.concat(chunks) }),
+      );
     });
     request.on("error", reject);
     request.end();
@@ -63,12 +65,19 @@ for (const origin of OTHER_ORIGINS) {
   });
 }
 
-test("in a real browser, a page from another local address can't reach anything", async ({ page, request, baseURL, expectConsoleError }) => {
+test("in a real browser, a page from another local address can't reach anything", async ({
+  page,
+  request,
+  baseURL,
+  expectConsoleError,
+}) => {
   expectConsoleError(/CORS policy|Failed to load resource/);
   const { contact } = await addLinkedDeal(request, "Guarded");
   const before = (await (await request.get("/api/organizations")).json()).length;
 
-  await page.route("http://localhost:3999/", (route) => route.fulfill({ contentType: "text/html", body: "<h1>Another app</h1>" }));
+  await page.route("http://localhost:3999/", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<h1>Another app</h1>" }),
+  );
   await page.goto("http://localhost:3999/");
 
   const outcomes = await page.evaluate(
@@ -92,8 +101,17 @@ test("in a real browser, a page from another local address can't reach anything"
         file: await attempt(`${base}/@fs${repoFile}`),
         // The kinds a page can send with no permission asked first. It can't read the
         // reply, so what matters is that nothing was saved.
-        blindText: await attempt(`${base}/api/organizations`, { method: "POST", mode: "no-cors", headers: { "content-type": "text/plain" }, body: planted }),
-        blindForm: await attempt(`${base}/api/organizations`, { method: "POST", mode: "no-cors", body: new URLSearchParams({ name: "Planted" }) }),
+        blindText: await attempt(`${base}/api/organizations`, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "content-type": "text/plain" },
+          body: planted,
+        }),
+        blindForm: await attempt(`${base}/api/organizations`, {
+          method: "POST",
+          mode: "no-cors",
+          body: new URLSearchParams({ name: "Planted" }),
+        }),
       };
     },
     { base: baseURL!, contactId: contact.id, repoFile: path.join(ROOT, "package.json") },
@@ -130,7 +148,18 @@ const OUTSIDE_FRONTEND = [
 ] as const;
 
 // Ways around Vite's file rules that have worked in the past.
-const SUFFIXES = ["", "?raw", "?url", "?inline", "?import", "?import&raw", "?raw??", "?import&raw??", "?.svg?.wasm?init", "#"];
+const SUFFIXES = [
+  "",
+  "?raw",
+  "?url",
+  "?inline",
+  "?import",
+  "?import&raw",
+  "?raw??",
+  "?import&raw??",
+  "?.svg?.wasm?init",
+  "#",
+];
 
 test("files outside the frontend aren't served, however the address is written", async () => {
   for (const [file, word] of OUTSIDE_FRONTEND) {
@@ -155,7 +184,12 @@ test("files outside the frontend aren't served, however the address is written",
 });
 
 test("a database file is never served, here or in the real data folder", async () => {
-  const databases = [`/@fs${stack.database}`, `/@fs${path.join(ROOT, "data", "accountable.db")}`, "/data/accountable.db", "/../data/accountable.db"];
+  const databases = [
+    `/@fs${stack.database}`,
+    `/@fs${path.join(ROOT, "data", "accountable.db")}`,
+    "/data/accountable.db",
+    "/../data/accountable.db",
+  ];
   for (const target of databases) {
     for (const suffix of SUFFIXES) {
       const reply = await send(stack.webPort, `${target}${suffix}`);

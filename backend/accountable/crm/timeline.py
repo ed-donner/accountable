@@ -1,10 +1,11 @@
 """Merged timelines and the last-activity queries."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, Connection, Select, func, literal, or_, select, union_all
+from sqlalchemy import ColumnElement, CompoundSelect, Connection, func, literal, or_, select, union_all
 
+from accountable.crm import schemas
 from accountable.crm.rules import STAGE_NAMES
 from accountable.crm.tables import activities, contacts, deals, stage_changes
 
@@ -17,7 +18,7 @@ activities_with_names = activities.outerjoin(contacts, activities.c.contact_id =
 )
 
 
-def _merged(activity_scope: ColumnElement[bool], change_scope: ColumnElement[bool]) -> Select:
+def _merged(activity_scope: ColumnElement[bool], change_scope: ColumnElement[bool]) -> CompoundSelect:
     from_activities = (
         select(
             literal("activity").label("kind"),
@@ -59,25 +60,25 @@ def _merged(activity_scope: ColumnElement[bool], change_scope: ColumnElement[boo
     return union_all(from_activities, from_changes)
 
 
-def _entry(row: Any) -> dict[str, Any]:
+def _entry(row: Any) -> schemas.TimelineEntry:
     if row.kind == "stage_change":
         description = f"Moved from {STAGE_NAMES[row.from_stage]} to {STAGE_NAMES[row.to_stage]}"
     else:
         description = row.description
     if row.deal_id is not None:
-        about = {"kind": "deal", "id": row.deal_id, "name": row.deal_name}
+        about = schemas.About(kind="deal", id=row.deal_id, name=row.deal_name)
     else:
-        about = {"kind": "contact", "id": row.contact_id, "name": row.contact_name}
-    return {
-        "kind": row.kind,
-        "id": row.id,
-        "at": _as_time(row.at),
-        "type": row.type,
-        "description": description,
-        "follow_up_date": _as_date(row.follow_up_date),
-        "follow_up_done": bool(row.follow_up_done),
-        "about": about,
-    }
+        about = schemas.About(kind="contact", id=row.contact_id, name=row.contact_name)
+    return schemas.TimelineEntry(
+        kind=row.kind,
+        id=row.id,
+        at=_as_time(row.at),
+        type=row.type,
+        description=description,
+        follow_up_date=_as_date(row.follow_up_date),
+        follow_up_done=bool(row.follow_up_done),
+        about=about,
+    )
 
 
 # Columns that come through a union lose their types, so SQLite hands back text.
@@ -85,13 +86,13 @@ def _as_time(value: datetime | str) -> datetime:
     return datetime.fromisoformat(value) if isinstance(value, str) else value
 
 
-def _as_date(value: Any) -> Any:
-    return value[:10] if isinstance(value, str) else value
+def _as_date(value: date | str | None) -> date | None:
+    return date.fromisoformat(value[:10]) if isinstance(value, str) else value
 
 
-def _page(conn: Connection, merged: Select, limit: int, offset: int) -> dict[str, Any]:
+def _page(conn: Connection, merged: CompoundSelect, limit: int, offset: int) -> schemas.Timeline:
     everything = merged.subquery()
-    total = conn.scalar(select(func.count()).select_from(everything))
+    total = conn.execute(select(func.count()).select_from(everything)).scalar_one()
     # The kind and id keep the order stable when entries share a time, so a page
     # never repeats or skips one.
     rows = conn.execute(
@@ -100,15 +101,15 @@ def _page(conn: Connection, merged: Select, limit: int, offset: int) -> dict[str
         .limit(limit)
         .offset(offset)
     ).all()
-    return {"entries": [_entry(row) for row in rows], "total": total}
+    return schemas.Timeline(entries=[_entry(row) for row in rows], total=total)
 
 
-def for_deal(conn: Connection, deal_id: int, limit: int, offset: int) -> dict[str, Any]:
+def for_deal(conn: Connection, deal_id: int, limit: int, offset: int) -> schemas.Timeline:
     merged = _merged(activities.c.deal_id == deal_id, stage_changes.c.deal_id == deal_id)
     return _page(conn, merged, limit, offset)
 
 
-def for_contact(conn: Connection, contact_id: int, limit: int, offset: int) -> dict[str, Any]:
+def for_contact(conn: Connection, contact_id: int, limit: int, offset: int) -> schemas.Timeline:
     their_deals = select(deals.c.id).where(deals.c.main_contact_id == contact_id)
     merged = _merged(
         or_(activities.c.contact_id == contact_id, activities.c.deal_id.in_(their_deals)),
@@ -117,7 +118,7 @@ def for_contact(conn: Connection, contact_id: int, limit: int, offset: int) -> d
     return _page(conn, merged, limit, offset)
 
 
-def for_organization(conn: Connection, organization_id: int, limit: int, offset: int) -> dict[str, Any]:
+def for_organization(conn: Connection, organization_id: int, limit: int, offset: int) -> schemas.Timeline:
     its_contacts = select(contacts.c.id).where(contacts.c.organization_id == organization_id)
     its_deals = select(deals.c.id).where(
         or_(deals.c.organization_id == organization_id, deals.c.main_contact_id.in_(its_contacts))
@@ -129,9 +130,9 @@ def for_organization(conn: Connection, organization_id: int, limit: int, offset:
     return _page(conn, merged, limit, offset)
 
 
-def recent(conn: Connection, now: datetime, limit: int) -> list[dict[str, Any]]:
+def recent(conn: Connection, now: datetime, limit: int) -> list[schemas.TimelineEntry]:
     merged = _merged(activities.c.occurred_at <= now, stage_changes.c.changed_at <= now)
-    return _page(conn, merged, limit, 0)["entries"]
+    return _page(conn, merged, limit, 0).entries
 
 
 def _newest(*groups: dict[int, datetime]) -> dict[int, datetime]:
@@ -190,5 +191,3 @@ def last_by_organization(conn: Connection) -> dict[int, datetime]:
     for deal_id, organization_id in conn.execute(select(deals.c.id, deals.c.organization_id)):
         note(organization_id, deal_last.get(deal_id))
     return newest
-
-

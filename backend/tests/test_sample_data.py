@@ -1,12 +1,12 @@
 from collections import Counter
 from datetime import date, datetime, timedelta
+from itertools import pairwise
 
 import pytest
-from sqlalchemy import select
-
 from accountable import db
 from accountable.crm import rules, sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
+from sqlalchemy import select
 
 DAYS = [date(2027, 1, 1), date(2027, 3, 1), date(2028, 2, 29), date(2027, 1, 31), date(2026, 10, 31), date(2026, 7, 14)]
 
@@ -167,7 +167,7 @@ def test_every_deal_has_a_full_stage_history(seeded):
         assert steps, deal.name
         assert steps[0].from_stage == "new"
         assert steps[-1].to_stage == deal.stage
-        for before, after in zip(steps, steps[1:]):
+        for before, after in pairwise(steps):
             assert before.to_stage == after.from_stage
             assert before.changed_at < after.changed_at
 
@@ -182,7 +182,10 @@ def test_only_example_addresses(seeded):
 def test_the_same_content_each_time(database):
     def snapshot(conn):
         return (
-            [tuple(row) for row in conn.execute(select(deals.c.name, deals.c.stage, deals.c.value, deals.c.close_date))],
+            [
+                tuple(row)
+                for row in conn.execute(select(deals.c.name, deals.c.stage, deals.c.value, deals.c.close_date))
+            ],
             [tuple(row) for row in conn.execute(select(contacts.c.name, contacts.c.email))],
             [tuple(row) for row in conn.execute(select(activities.c.type, activities.c.description))],
         )

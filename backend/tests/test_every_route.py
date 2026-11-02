@@ -3,12 +3,11 @@ added later is held to them without anyone remembering to add it here.
 """
 
 import pytest
-from fastapi.testclient import TestClient
-
 from accountable import db
 from accountable.crm import schemas
 from accountable.crm.routers import dashboard
 from accountable.main import app
+from fastapi.testclient import TestClient
 
 LOCAL = "http://localhost"
 TOO_BIG = schemas.MAX_ID + 1
@@ -16,11 +15,7 @@ TOO_BIG = schemas.MAX_ID + 1
 SIMPLE_TYPES = ["text/plain", "application/x-www-form-urlencoded", "multipart/form-data"]
 OPEN_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "https://evil.example", "null"]
 
-ROUTES = sorted(
-    (method.upper(), path)
-    for path, operations in app.openapi()["paths"].items()
-    for method in operations
-)
+ROUTES = sorted((method.upper(), path) for path, operations in app.openapi()["paths"].items() for method in operations)
 WRITES = [(method, path) for method, path in ROUTES if method in ("POST", "PATCH")]
 RECORD_ROUTES = [(method, path) for method, path in ROUTES if "{" in path]
 READS = [path for method, path in ROUTES if method == "GET" and "{" not in path]
@@ -29,7 +24,7 @@ TIMELINES = [path for method, path in ROUTES if path.endswith("/timeline")]
 
 def with_id(path: str, value: object) -> str:
     start, end = path.index("{"), path.index("}")
-    return f"{path[:start]}{value}{path[end + 1:]}"
+    return f"{path[:start]}{value}{path[end + 1 :]}"
 
 
 @pytest.fixture
@@ -98,7 +93,16 @@ def test_a_wrong_host_is_refused_everywhere(api, method, path):
 @pytest.mark.parametrize("path", TIMELINES)
 @pytest.mark.parametrize(
     "query",
-    ["limit=0", "limit=-1", "limit=501", "limit=abc", "offset=-1", "offset=abc", f"offset={TOO_BIG}", f"limit={TOO_BIG}"],
+    [
+        "limit=0",
+        "limit=-1",
+        "limit=501",
+        "limit=abc",
+        "offset=-1",
+        "offset=abc",
+        f"offset={TOO_BIG}",
+        f"limit={TOO_BIG}",
+    ],
 )
 def test_a_bad_timeline_page_is_refused(client, make, path, query):
     make.organization()
@@ -146,5 +150,3 @@ def test_a_write_still_works_after_one_has_failed(client, make, monkeypatch):
         patch.setattr("accountable.crm.rules._make_customer", fail)
         assert client.post(f"/api/deals/{deal}/move", json={"stage": "won"}).status_code == 500
     assert client.post(f"/api/deals/{deal}/move", json={"stage": "won"}).status_code == 200
-
-

@@ -1,7 +1,16 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { addContact, addDeal, addLinkedDeal, addOrganization, chooseInPicker, emptyDatabase, isoDay, resetToSampleData } from "./helpers";
+import {
+  addContact,
+  addDeal,
+  addLinkedDeal,
+  addOrganization,
+  chooseInPicker,
+  emptyDatabase,
+  isoDay,
+  resetToSampleData,
+} from "./helpers";
 
 function heading(page: Page, name: string) {
   return page.getByRole("heading", { level: 1, name });
@@ -22,7 +31,9 @@ function dialog(page: Page) {
 test.describe("tables", () => {
   test.beforeAll(resetToSampleData);
 
-  test("organizations can be added, found, sorted, edited and deleted, and each change survives a refresh", async ({ page }) => {
+  test("organizations can be added, found, sorted, edited and deleted, and each change survives a refresh", async ({
+    page,
+  }) => {
     await page.goto("/organizations");
 
     await page.getByRole("button", { name: "Add organization" }).click();
@@ -56,7 +67,9 @@ test.describe("tables", () => {
     await expect(page.getByText("No organizations match.")).toBeVisible();
   });
 
-  test("contacts can be added, found, sorted, edited and deleted, and each change survives a refresh", async ({ page }) => {
+  test("contacts can be added, found, sorted, edited and deleted, and each change survives a refresh", async ({
+    page,
+  }) => {
     await page.goto("/contacts");
 
     await page.getByRole("button", { name: "Add contact" }).click();
@@ -89,7 +102,9 @@ test.describe("tables", () => {
     await expect(page.getByText("No contacts match.")).toBeVisible();
   });
 
-  test("deals can be added, found, sorted, edited and deleted, and each change survives a refresh", async ({ page }) => {
+  test("deals can be added, found, sorted, edited and deleted, and each change survives a refresh", async ({
+    page,
+  }) => {
     await page.goto("/deals");
 
     await page.getByRole("button", { name: "Add deal" }).click();
@@ -163,7 +178,9 @@ test.describe("tables", () => {
     await expect(page.getByRole("searchbox")).toHaveValue("");
   });
 
-  test("search, sort and page stay in the address, and coming back from a record returns to the same view", async ({ page }) => {
+  test("search, sort and page stay in the address, and coming back from a record returns to the same view", async ({
+    page,
+  }) => {
     await page.goto("/contacts");
     await page.getByRole("button", { name: "Job title" }).click();
     await page.getByRole("button", { name: "Job title" }).click();
@@ -267,10 +284,14 @@ test.describe("tables", () => {
     await page.getByRole("button", { name: "Edit Future win" }).click();
     await dialog(page).getByLabel("Close date").fill(isoDay(10));
     await dialog(page).getByRole("button", { name: "Save deal" }).click();
-    await expect(dialog(page).getByRole("alert")).toHaveText("A won or lost deal can't have a close date in the future");
+    await expect(dialog(page).getByRole("alert")).toHaveText(
+      "A won or lost deal can't have a close date in the future",
+    );
   });
 
-  test("a missing organization can be added from the picker and is then selected, with the deal form still open", async ({ page }) => {
+  test("a missing organization can be added from the picker and is then selected, with the deal form still open", async ({
+    page,
+  }) => {
     await page.goto("/deals");
     await page.getByRole("button", { name: "Add deal" }).click();
     await dialog(page).getByLabel("Name", { exact: true }).fill("From the picker");
@@ -337,7 +358,10 @@ test.describe("tables", () => {
     await expect(row(page, /Blank links/)).toContainText("None");
   });
 
-  test("changing stage in the form shows the new probability and close date, and what's shown is what's saved", async ({ page, request }) => {
+  test("changing stage in the form shows the new probability and close date, and what's shown is what's saved", async ({
+    page,
+    request,
+  }) => {
     await addLinkedDeal(request, "Stage in form");
     await page.goto("/deals?q=stage+in+form");
     await page.getByRole("button", { name: "Edit Stage in form" }).click();
@@ -375,11 +399,17 @@ test.describe("tables", () => {
     await expect(row(page, /Status Person/)).toContainText("Lead");
   });
 
-  test("each delete dialog names the record and gives real counts, and the linked records end up as it said", async ({ page, request }) => {
+  test("each delete dialog names the record and gives real counts, and the linked records end up as it said", async ({
+    page,
+    request,
+  }) => {
     const organization = await addOrganization(request, "Delete Me Inc");
     const contactOne = await addContact(request, "Keeper One", organization.id);
     await addContact(request, "Keeper Two", organization.id);
-    const deal = await addDeal(request, "Kept deal", { organization_id: organization.id, main_contact_id: contactOne.id });
+    const deal = await addDeal(request, "Kept deal", {
+      organization_id: organization.id,
+      main_contact_id: contactOne.id,
+    });
     await request.post(`/api/activities`, { data: { contact_id: contactOne.id, description: "Hello" } });
     await request.post(`/api/activities`, { data: { deal_id: deal.id, description: "On the deal" } });
 
@@ -387,7 +417,9 @@ test.describe("tables", () => {
     await page.getByRole("button", { name: "Delete Delete Me Inc" }).click();
     const alert = page.getByRole("alertdialog");
     await expect(alert).toContainText("Delete Delete Me Inc?");
-    await expect(alert).toContainText("Its 2 contacts and 1 deal will stay, with no organization. This can't be undone.");
+    await expect(alert).toContainText(
+      "Its 2 contacts and 1 deal will stay, with no organization. This can't be undone.",
+    );
     await alert.getByRole("button", { name: "Delete organization" }).click();
     await expect(page.getByText("Organization deleted.")).toBeVisible();
 
@@ -464,7 +496,9 @@ test.describe("record pages", () => {
     await expect(details.getByRole("link", { name: "Harbor & Pine" })).toBeVisible();
     await expect(details).toContainText("Owner");
     await expect(details.getByRole("link", { name: /sam\.carter@/ })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Deals" }).getByRole("link", { name: "Annual support plan" })).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Deals" }).getByRole("link", { name: "Annual support plan" }),
+    ).toBeVisible();
     await expect(page.getByTestId("timeline-entry").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Log activity" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add deal" })).toBeVisible();
@@ -560,11 +594,15 @@ test.describe("the edges of a table", () => {
   test.beforeEach(emptyDatabase);
 
   test("deleting the only row on the last page goes back a page", async ({ page, request }) => {
-    for (let number = 0; number < 51; number += 1) await addOrganization(request, `Company ${String(number).padStart(2, "0")}`);
+    for (let number = 0; number < 51; number += 1)
+      await addOrganization(request, `Company ${String(number).padStart(2, "0")}`);
 
     await page.goto("/organizations?page=2");
     await expect(bodyRows(page)).toHaveCount(1);
-    await bodyRows(page).first().getByRole("button", { name: /^Delete / }).click();
+    await bodyRows(page)
+      .first()
+      .getByRole("button", { name: /^Delete / })
+      .click();
     await page.getByRole("button", { name: "Delete organization" }).click();
 
     await expect(bodyRows(page)).toHaveCount(50);
@@ -576,12 +614,18 @@ test.describe("the edges of a table", () => {
   test("deleting the last row of all invites the first record", async ({ page, request }) => {
     await addOrganization(request, "The only one");
     await page.goto("/organizations");
-    await bodyRows(page).first().getByRole("button", { name: /^Delete / }).click();
+    await bodyRows(page)
+      .first()
+      .getByRole("button", { name: /^Delete / })
+      .click();
     await page.getByRole("button", { name: "Delete organization" }).click();
     await expect(page.getByText("No organizations yet. Add the first one.")).toBeVisible();
   });
 
-  test("an old link past the last page goes to the last page, keeping the rest of the address", async ({ page, request }) => {
+  test("an old link past the last page goes to the last page, keeping the rest of the address", async ({
+    page,
+    request,
+  }) => {
     const organization = await addOrganization(request, "Staffed");
     await addContact(request, "Lee Lead", organization.id);
 
@@ -593,7 +637,8 @@ test.describe("the edges of a table", () => {
   });
 
   test("coming back to a later page from a record stays on that page", async ({ page, request }) => {
-    for (let number = 0; number < 55; number += 1) await addOrganization(request, `Company ${String(number).padStart(2, "0")}`);
+    for (let number = 0; number < 55; number += 1)
+      await addOrganization(request, `Company ${String(number).padStart(2, "0")}`);
 
     await page.goto("/organizations?page=2");
     await bodyRows(page).first().getByRole("link").first().click();
@@ -606,7 +651,12 @@ test.describe("the edges of a table", () => {
   test("settings in the address that make no sense are ignored", async ({ page, request }) => {
     const { deal } = await addLinkedDeal(request, "Still here");
 
-    for (const address of ["/deals?stage=nothing", "/deals?sort=nothing&dir=sideways", "/deals?page=abc", "/contacts?status=nothing"]) {
+    for (const address of [
+      "/deals?stage=nothing",
+      "/deals?sort=nothing&dir=sideways",
+      "/deals?page=abc",
+      "/contacts?status=nothing",
+    ]) {
       await page.goto(address);
       await expect(bodyRows(page)).toHaveCount(1);
     }
@@ -615,7 +665,10 @@ test.describe("the edges of a table", () => {
 
   test("the status filter goes by a contact's status, not by words in their details", async ({ page, request }) => {
     const organization = await addOrganization(request, "Lead Generation Ltd");
-    await addContact(request, "Lead Singer", organization.id, { status: "customer", job_title: "Qualified electrician" });
+    await addContact(request, "Lead Singer", organization.id, {
+      status: "customer",
+      job_title: "Qualified electrician",
+    });
 
     await page.goto("/contacts?status=lead");
     await expect(page.getByText("No contacts match.")).toBeVisible();

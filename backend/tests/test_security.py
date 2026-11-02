@@ -1,7 +1,6 @@
 import pytest
-from fastapi.testclient import TestClient
-
 from accountable.main import app
+from fastapi.testclient import TestClient
 
 LOCAL = "http://localhost"
 
@@ -58,7 +57,9 @@ def test_a_website_that_could_run_something_is_refused_when_adding_and_editing(a
     assert reply.status_code == 422
 
 
-@pytest.mark.parametrize("website", ["java\tscript:alert(1)", "java\nscript:alert(1)", "//evil.example", "\x01javascript:alert(1)"])
+@pytest.mark.parametrize(
+    "website", ["java\tscript:alert(1)", "java\nscript:alert(1)", "//evil.example", "\x01javascript:alert(1)"]
+)
 def test_a_website_with_hidden_characters_can_only_end_up_as_a_web_address(api, website):
     reply = api.post("/api/organizations", json={"name": "Acme", "website": website})
     assert reply.status_code == 422 or reply.json()["website"].startswith(("http://", "https://"))

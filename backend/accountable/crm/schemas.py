@@ -1,12 +1,25 @@
-"""Pydantic request and reply models, and the plain-English messages for bad input."""
+"""Pydantic request and reply models, the request parameters the routes share, and the plain-English messages for bad input."""
 
 import re
+from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
-from fastapi import Path
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer, StrictBool, StrictInt, field_validator
+from fastapi import Depends, Path, Query
+from pydantic import (
+    MISSING,
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    StrictBool,
+    StrictInt,
+    field_validator,
+)
+
+from accountable import db
 
 Stage = Literal["new", "qualified", "proposal", "negotiation", "won", "lost"]
 Status = Literal["lead", "qualified", "customer"]
@@ -41,7 +54,7 @@ class FieldError(Exception):
         self.fields = fields
 
 
-def field_messages(errors: list[dict[str, Any]]) -> dict[str, str]:
+def field_messages(errors: Iterable[Mapping[str, Any]]) -> dict[str, str]:
     fields: dict[str, str] = {}
     for error in errors:
         location = error["loc"]
@@ -98,7 +111,12 @@ def _website(value: str | None) -> str | None:
         port_is_fine = parts.port is None or parts.port >= 0  # Reading it is what checks it.
     except ValueError as error:
         raise ValueError(WEBSITE_MESSAGE) from error
-    if parts.scheme.lower() not in ("http", "https") or not parts.hostname or not port_is_fine or re.search(r"\s", value):
+    if (
+        parts.scheme.lower() not in ("http", "https")
+        or not parts.hostname
+        or not port_is_fine
+        or re.search(r"\s", value)
+    ):
         raise ValueError(WEBSITE_MESSAGE)
     return value
 
@@ -125,6 +143,11 @@ Email = Annotated[str | None, AfterValidator(_email)]
 Website = Annotated[str | None, AfterValidator(_website)]
 Id = Annotated[int, Field(ge=1, le=MAX_ID)]
 PathId = Annotated[int, Path(ge=1, le=MAX_ID)]
+PageLimit = Annotated[int, Query(ge=1, le=500)]
+PageOffset = Annotated[int, Query(ge=0, le=MAX_ID)]
+# Asked for per request, so tests can fix them.
+Today = Annotated[date, Depends(db.local_today)]
+Now = Annotated[datetime, Depends(db.utc_now)]
 Dollars = Annotated[StrictInt, Field(ge=0, le=MAX_VALUE)]
 Probability = Annotated[StrictInt, Field(ge=0, le=100)]
 IncomingTime = Annotated[datetime, AfterValidator(_to_utc)]
@@ -132,6 +155,8 @@ UtcTime = Annotated[datetime, PlainSerializer(_with_z, return_type=str)]
 
 
 class Request(BaseModel):
+    """What a form sends. In an update, MISSING marks a field that wasn't sent, which keeps its value."""
+
     model_config = ConfigDict(extra="ignore")
 
     @field_validator("*")
@@ -157,7 +182,7 @@ class OrganizationCreate(Request):
 
 
 class OrganizationUpdate(Request):
-    name: Name = None
+    name: Name | MISSING = MISSING
     website: Website = None
     industry: OptionalText = None
     notes: OptionalText = None
@@ -216,12 +241,12 @@ class ContactCreate(Request):
 
 
 class ContactUpdate(Request):
-    name: Name = None
+    name: Name | MISSING = MISSING
     organization_id: Id | None = None
     email: Email = None
     phone: OptionalText = None
     job_title: OptionalText = None
-    status: Status = None
+    status: Status | MISSING = MISSING
 
 
 class Contact(BaseModel):
@@ -262,13 +287,13 @@ class DealCreate(Request):
 
 
 class DealUpdate(Request):
-    name: Name = None
+    name: Name | MISSING = MISSING
     organization_id: Id | None = None
     main_contact_id: Id | None = None
-    stage: Stage = None
-    value: Dollars = None
-    probability: Probability = None
-    close_date: date = None
+    stage: Stage | MISSING = MISSING
+    value: Dollars | MISSING = MISSING
+    probability: Probability | MISSING = MISSING
+    close_date: date | MISSING = MISSING
 
 
 class DealMove(Request):
@@ -322,11 +347,11 @@ class ActivityCreate(Request):
 
 
 class ActivityUpdate(Request):
-    type: ActivityType = None
-    description: Description = None
-    occurred_at: IncomingTime = None
+    type: ActivityType | MISSING = MISSING
+    description: Description | MISSING = MISSING
+    occurred_at: IncomingTime | MISSING = MISSING
     follow_up_date: date | None = None
-    follow_up_done: StrictBool = None
+    follow_up_done: StrictBool | MISSING = MISSING
 
 
 class Activity(BaseModel):

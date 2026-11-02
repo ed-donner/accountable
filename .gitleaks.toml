@@ -1,0 +1,8 @@
+# gitleaks' own rules, plus the one place a key is allowed: .env is gitignored,
+# and it's where this computer's own keys belong.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The local .env file, which git ignores"
+paths = ['''(^|/)\.env$''']

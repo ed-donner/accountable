@@ -19,7 +19,10 @@ async function logActivity(page: Page, description: string, type = "note", follo
   await expect(page.getByRole("dialog")).toHaveCount(0);
 }
 
-test("a note, call and email can be logged from a contact and a deal, with a follow-up, and show newest first", async ({ page, request }) => {
+test("a note, call and email can be logged from a contact and a deal, with a follow-up, and show newest first", async ({
+  page,
+  request,
+}) => {
   const { deal, contact } = await addLinkedDeal(request, "Logged");
 
   await page.goto(`/contacts/${contact.id}`);
@@ -55,7 +58,10 @@ test("an activity logged with a back date lands in the right place", async ({ pa
   await expect(entries(page).nth(1)).toContainText("Last week");
 });
 
-test("an activity on a deal shows on its main contact's and organization's timelines, once each", async ({ page, request }) => {
+test("an activity on a deal shows on its main contact's and organization's timelines, once each", async ({
+  page,
+  request,
+}) => {
   const { deal, contact, organization } = await addLinkedDeal(request, "Spread");
   await addActivity(request, { deal_id: deal.id, description: "Reached everywhere" });
 
@@ -92,7 +98,10 @@ test("a stage change shows in recent activity", async ({ page, request }) => {
   await expect(entry.getByRole("link", { name: "Recently moved" })).toBeVisible();
 });
 
-test("activities can be edited and deleted from any timeline they're on, and stage-change entries can't", async ({ page, request }) => {
+test("activities can be edited and deleted from any timeline they're on, and stage-change entries can't", async ({
+  page,
+  request,
+}) => {
   const { deal, contact } = await addLinkedDeal(request, "Changing");
   await addActivity(request, { deal_id: deal.id, description: "Original words" });
   await request.post(`/api/deals/${deal.id}/move`, { data: { stage: "qualified" } });
@@ -111,7 +120,9 @@ test("activities can be edited and deleted from any timeline they're on, and sta
 
   await page.goto(`/deals/${deal.id}`);
   await page.getByRole("button", { name: "Delete Better words" }).click();
-  await expect(page.getByRole("alertdialog")).toContainText("It will be removed from every timeline and from the dashboard.");
+  await expect(page.getByRole("alertdialog")).toContainText(
+    "It will be removed from every timeline and from the dashboard.",
+  );
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete activity" }).click();
   await expect(entries(page).filter({ hasText: "Better words" })).toHaveCount(0);
 
@@ -132,12 +143,17 @@ test("show more loads entries after the first 50", async ({ page, request }) => 
   await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
 });
 
-test("a timeline longer than one reply can hold can be read to the end, on all three record pages", async ({ page, request }) => {
+test("a timeline longer than one reply can hold can be read to the end, on all three record pages", async ({
+  page,
+  request,
+}) => {
   test.slow();
   const { deal, contact, organization } = await addLinkedDeal(request, "Very busy");
   const numbers = Array.from({ length: 520 }, (_, number) => number);
   while (numbers.length > 0) {
-    await Promise.all(numbers.splice(0, 25).map((number) => addActivity(request, { deal_id: deal.id, description: `Entry ${number}` })));
+    await Promise.all(
+      numbers.splice(0, 25).map((number) => addActivity(request, { deal_id: deal.id, description: `Entry ${number}` })),
+    );
   }
 
   for (const path of [`/deals/${deal.id}`, `/contacts/${contact.id}`, `/organizations/${organization.id}`]) {
@@ -156,7 +172,12 @@ test("a timeline longer than one reply can hold can be read to the end, on all t
 test.describe("a long timeline with more showing", () => {
   async function longTimeline(page: Page, request: Parameters<typeof addLinkedDeal>[0]) {
     const { deal } = await addLinkedDeal(request, "Long one");
-    await addActivity(request, { deal_id: deal.id, description: "Oldest entry", occurred_at: "2020-01-01T09:00:00Z", follow_up_date: isoDay(30) });
+    await addActivity(request, {
+      deal_id: deal.id,
+      description: "Oldest entry",
+      occurred_at: "2020-01-01T09:00:00Z",
+      follow_up_date: isoDay(30),
+    });
     for (let number = 0; number < 54; number += 1) {
       await addActivity(request, { deal_id: deal.id, description: `Entry ${number}` });
     }
@@ -194,7 +215,11 @@ test.describe("a long timeline with more showing", () => {
   test("showing more doesn't change what's already showing", async ({ page, request }) => {
     const { deal } = await addLinkedDeal(request, "Stable order");
     for (let number = 0; number < 60; number += 1) {
-      await addActivity(request, { deal_id: deal.id, description: `Entry ${number}`, occurred_at: "2026-01-01T09:00:00Z" });
+      await addActivity(request, {
+        deal_id: deal.id,
+        description: `Entry ${number}`,
+        occurred_at: "2026-01-01T09:00:00Z",
+      });
     }
     await page.goto(`/deals/${deal.id}`);
     await expect(entries(page)).toHaveCount(50);

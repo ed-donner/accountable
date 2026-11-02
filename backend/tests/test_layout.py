@@ -15,7 +15,8 @@ def test_only_main_cli_and_the_migrations_name_crm():
     found = {
         path.relative_to(PACKAGE).as_posix()
         for path in sources()
-        if "crm" not in path.relative_to(PACKAGE).parts[:1] and re.search(r"accountable\.crm|import crm", path.read_text())
+        if "crm" not in path.relative_to(PACKAGE).parts[:1]
+        and re.search(r"accountable\.crm|import crm", path.read_text())
     }
     assert found <= MAY_NAME_CRM
 

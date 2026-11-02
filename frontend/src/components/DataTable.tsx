@@ -13,7 +13,7 @@ import {
   type RowData,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, Pencil, Search, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { useAddress, type AddressChange } from "../lib/useAddress";
@@ -80,6 +80,98 @@ function blankToUndefined<V>(value: V | null | undefined | ""): V | undefined {
   return value === null || value === "" ? undefined : (value as V | undefined);
 }
 
+type SearchBoxProps = {
+  noun: string;
+  /** The search in the address. */
+  search: string;
+  /** The newest address asked for, which may not have landed yet. */
+  latest: RefObject<URLSearchParams>;
+  onChange: (text: string) => void;
+};
+
+function SearchBox({ noun, search, latest, onChange }: SearchBoxProps) {
+  // The box keeps its own text, because the address updates a moment later and a
+  // box fed from it would drop whatever was typed in between. It follows the
+  // address only when something else changed it: Clear search, back or forward.
+  const box = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const input = box.current;
+    if (input && input.value !== search && search === (latest.current.get("q") ?? "")) input.value = search;
+  }, [search, latest]);
+
+  return (
+    <div className="relative w-[320px]">
+      <Search size={16} aria-hidden="true" className="absolute top-[11px] left-3 text-muted" />
+      <input
+        ref={box}
+        type="search"
+        defaultValue={search}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={`Search ${noun === "activity" ? "activities" : `${noun}s`}`}
+        aria-label={`Search ${noun}s`}
+        className="input bg-panel pl-9"
+      />
+    </div>
+  );
+}
+
+type NoRowsProps = {
+  noun: string;
+  rows: unknown[] | undefined;
+  error: unknown;
+  matching: number;
+  /** True when a search or filter is narrowing the rows. */
+  narrowed: boolean;
+  onAdd: () => void;
+  onClear: () => void;
+};
+
+/** What shows in place of rows: a space while loading, an invitation, or that nothing matches. */
+function NoRows({ noun, rows, error, matching, narrowed, onAdd, onClear }: NoRowsProps) {
+  if (rows === undefined) return error ? null : <div className="h-40" aria-busy="true" />;
+  if (narrowed) {
+    return matching === 0 ? (
+      <EmptyState message={`No ${noun}s match.`}>
+        <button type="button" className="btn btn-secondary" onClick={onClear}>
+          Clear search
+        </button>
+      </EmptyState>
+    ) : null;
+  }
+  return rows.length === 0 ? (
+    <EmptyState message={`No ${noun}s yet. Add the first one.`}>
+      <button type="button" className="btn btn-primary" onClick={onAdd}>
+        Add {noun}
+      </button>
+    </EmptyState>
+  ) : null;
+}
+
+type PagerProps = {
+  page: number;
+  lastPage: number;
+  matching: number;
+  onPrevious: () => void;
+  onNext: () => void;
+};
+
+function Pager({ page, lastPage, matching, onPrevious, onNext }: PagerProps) {
+  const first = (page - 1) * PAGE_SIZE + 1;
+  return (
+    <div className="flex items-center justify-end gap-3 px-2.5 pt-2.5 pb-1">
+      <span className="num text-[13px] text-muted">
+        {first}-{Math.min(first + PAGE_SIZE - 1, matching)} of {matching}
+      </span>
+      <button type="button" className="btn btn-secondary" disabled={page <= 1} onClick={onPrevious}>
+        Previous
+      </button>
+      <button type="button" className="btn btn-secondary" disabled={page >= lastPage} onClick={onNext}>
+        Next
+      </button>
+    </div>
+  );
+}
+
 export function DataTable<T extends RowData>({
   noun,
   rows,
@@ -102,9 +194,7 @@ export function DataTable<T extends RowData>({
 
   function readSort(address: URLSearchParams) {
     const id = address.get("sort");
-    return id && columns.some((column) => column.id === id)
-      ? { id, desc: address.get("dir") === "desc" }
-      : defaultSort;
+    return id && columns.some((column) => column.id === id) ? { id, desc: address.get("dir") === "desc" } : defaultSort;
   }
 
   function readPage(address: URLSearchParams) {
@@ -114,14 +204,6 @@ export function DataTable<T extends RowData>({
   const search = params.get("q") ?? "";
   const sort = readSort(params);
   const page = readPage(params);
-
-  // The box keeps its own text, because the address updates a moment later and a
-  // box fed from it would drop whatever was typed in between. It follows the
-  // address only when something else changed it: Clear search, back or forward.
-  const [searchText, setSearchText] = useState(search);
-  useEffect(() => {
-    if (search === (latest.current.get("q") ?? "")) setSearchText(search);
-  }, [search, latest]);
 
   /** Ascending, then descending. A further click never clears the sort. */
   function toggleSort(id: string) {
@@ -135,7 +217,6 @@ export function DataTable<T extends RowData>({
   }
 
   function setSearch(value: string) {
-    setSearchText(value);
     update((next) => {
       if (value) next.set("q", value);
       else next.delete("q");
@@ -202,7 +283,6 @@ export function DataTable<T extends RowData>({
   const matching = table.getFilteredRowModel().rows.length;
   const lastPage = Math.max(1, Math.ceil(matching / PAGE_SIZE));
   const visible = table.getRowModel().rows;
-  const first = (page - 1) * PAGE_SIZE + 1;
 
   // Deleting the last row on the last page, or an old link, can leave the address
   // past the end, where there'd be no rows and no paging to get back with.
@@ -219,40 +299,21 @@ export function DataTable<T extends RowData>({
   return (
     <div className="flex flex-col gap-2.5 px-5 pb-4">
       <div className="flex items-center gap-3">
-        <div className="relative w-[320px]">
-          <Search size={16} aria-hidden="true" className="absolute top-[11px] left-3 text-muted" />
-          <input
-            type="search"
-            value={searchText}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={`Search ${noun === "activity" ? "activities" : `${noun}s`}`}
-            aria-label={`Search ${noun}s`}
-            className="input bg-panel pl-9"
-          />
-        </div>
+        <SearchBox noun={noun} search={search} latest={latest} onChange={setSearch} />
         {filters?.(update)}
       </div>
 
       <div className="panel p-2">
         <LoadFailed keeping={rows !== undefined} error={error} onRetry={onRetry} />
-
-        {rows !== undefined && rows.length === 0 && !search && !filtered && (
-          <EmptyState message={`No ${noun}s yet. Add the first one.`}>
-            <button type="button" className="btn btn-primary" onClick={onAdd}>
-              Add {noun}
-            </button>
-          </EmptyState>
-        )}
-
-        {rows !== undefined && matching === 0 && (search !== "" || filtered) && (
-          <EmptyState message={`No ${noun}s match.`}>
-            <button type="button" className="btn btn-secondary" onClick={clearSearch}>
-              Clear search
-            </button>
-          </EmptyState>
-        )}
-
-        {rows === undefined && !error && <div className="h-40" aria-busy="true" />}
+        <NoRows
+          noun={noun}
+          rows={rows}
+          error={error}
+          matching={matching}
+          narrowed={search !== "" || filtered}
+          onAdd={onAdd}
+          onClear={clearSearch}
+        />
 
         {matching > 0 && (
           <table className="w-full table-fixed border-separate border-spacing-0">
@@ -345,27 +406,13 @@ export function DataTable<T extends RowData>({
         )}
 
         {matching > PAGE_SIZE && (
-          <div className="flex items-center justify-end gap-3 px-2.5 pt-2.5 pb-1">
-            <span className="num text-[13px] text-muted">
-              {first}-{Math.min(first + PAGE_SIZE - 1, matching)} of {matching}
-            </span>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={page <= 1}
-              onClick={() => table.previousPage()}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={page >= lastPage}
-              onClick={() => table.nextPage()}
-            >
-              Next
-            </button>
-          </div>
+          <Pager
+            page={page}
+            lastPage={lastPage}
+            matching={matching}
+            onPrevious={() => table.previousPage()}
+            onNext={() => table.nextPage()}
+          />
         )}
       </div>
     </div>

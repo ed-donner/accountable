@@ -34,7 +34,7 @@ describe("api", () => {
   });
 
   it("sends bodies as JSON", async () => {
-    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => reply(200, {}));
+    const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () => reply(200, {}));
     vi.stubGlobal("fetch", fetchMock);
     await api("/organizations", { method: "POST", body: { name: "Acme" } });
     const init = fetchMock.mock.calls[0][1];

@@ -28,6 +28,15 @@ type Props = {
   onSaved?: (saved: OrganizationDetail) => void;
 };
 
+function initialValues(record?: Organization, defaultName?: string): Values {
+  return {
+    name: record?.name ?? defaultName ?? "",
+    website: record?.website ?? "",
+    industry: record?.industry ?? "",
+    notes: record?.notes ?? "",
+  };
+}
+
 export function OrganizationForm({ record, defaultName, onClose, onSaved }: Props) {
   const save = useSaveOrganization(record?.id);
   const {
@@ -36,15 +45,7 @@ export function OrganizationForm({ record, defaultName, onClose, onSaved }: Prop
     setError,
     getValues,
     formState: { errors },
-  } = useForm<Values>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      name: record?.name ?? defaultName ?? "",
-      website: record?.website ?? "",
-      industry: record?.industry ?? "",
-      notes: record?.notes ?? "",
-    },
-  });
+  } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: initialValues(record, defaultName) });
 
   async function submit(values: Values) {
     try {

@@ -28,4 +28,24 @@ filterwarnings = ["ignore:Using `httpx` with"]
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.3",
+    "ty>=0.0.95",
 ]
+
+[tool.ruff]
+line-length = 120
+# Python in the docs and the course is there to be read, not run.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+extend-select = ["C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.coverage.run]
+source = ["accountable"]
+
+[tool.coverage.report]
+fail_under = 80

@@ -9,7 +9,12 @@ import { STAGE_COLORS } from "./stageColors";
 export function PipelineBand({ stages }: { stages: Dashboard["band"] }) {
   const anyValue = stages.some((stage) => stage.value > 0);
   return (
-    <Link to="/pipeline" aria-label="Open the pipeline" className="flex h-[76px] min-w-0 gap-0.5" data-testid="pipeline-band">
+    <Link
+      to="/pipeline"
+      aria-label="Open the pipeline"
+      className="flex h-[76px] min-w-0 gap-0.5"
+      data-testid="pipeline-band"
+    >
       {stages.map((stage) => {
         const { fill, ink } = STAGE_COLORS[stage.stage];
         return (

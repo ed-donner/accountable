@@ -55,18 +55,17 @@ type Options = {
   signal?: AbortSignal;
 };
 
-async function readJson(reply: Response): Promise<any> {
-  try {
-    return await reply.json();
-  } catch {
-    return null;
-  }
+/** What the backend says about an error, as far as the reply can be read. */
+type ErrorReply = { detail?: string; fields?: Record<string, string> };
+
+function loseConnection(): never {
+  setConnectionLost(true);
+  throw new ApiError("connection", CONNECTION_MESSAGE);
 }
 
-export async function api<T>(path: string, { method = "GET", body, signal }: Options = {}): Promise<T> {
-  let reply: Response;
+async function send(path: string, { method = "GET", body, signal }: Options): Promise<Response> {
   try {
-    reply = await fetch(`/api${path}`, {
+    return await fetch(`/api${path}`, {
       method,
       signal,
       headers: body === undefined ? undefined : { "Content-Type": "application/json" },
@@ -74,27 +73,44 @@ export async function api<T>(path: string, { method = "GET", body, signal }: Opt
     });
   } catch (error) {
     if (signal?.aborted) throw error;
-    setConnectionLost(true);
-    throw new ApiError("connection", CONNECTION_MESSAGE);
+    loseConnection();
   }
+}
 
-  // The backend answers every error in JSON. A non-JSON 5xx comes from the dev
-  // server, which is still up but can't reach the backend behind it.
+// The backend answers every error in JSON. A non-JSON 5xx comes from the dev
+// server, which is still up but can't reach the backend behind it.
+function isFromDevServer(reply: Response) {
   const isJson = reply.headers.get("content-type")?.includes("application/json") ?? false;
-  if (reply.status >= 500 && !isJson) {
-    setConnectionLost(true);
-    throw new ApiError("connection", CONNECTION_MESSAGE);
-  }
+  return reply.status >= 500 && !isJson;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function fieldMessages(value: unknown): Record<string, string> | undefined {
+  if (!isObject(value)) return undefined;
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  );
+}
+
+async function readErrorReply(reply: Response): Promise<ErrorReply> {
+  const data: unknown = await reply.json().catch(() => null);
+  if (!isObject(data)) return {};
+  return { detail: typeof data.detail === "string" ? data.detail : undefined, fields: fieldMessages(data.fields) };
+}
+
+function errorFor(status: number, { detail, fields }: ErrorReply) {
+  if (status === 404) return new ApiError("missing", detail ?? "That record no longer exists.");
+  if (status === 422) return new ApiError("fields", detail ?? "Check the form.", fields ?? {});
+  return new ApiError("server", detail ?? "Something went wrong.");
+}
+
+export async function api<T>(path: string, options: Options = {}): Promise<T> {
+  const reply = await send(path, options);
+  if (isFromDevServer(reply)) loseConnection();
   setConnectionLost(false);
-
-  if (reply.ok) {
-    return (reply.status === 204 ? undefined : await reply.json()) as T;
-  }
-
-  const data = await readJson(reply);
-  if (reply.status === 404) throw new ApiError("missing", data?.detail ?? "That record no longer exists.");
-  if (reply.status === 422) {
-    throw new ApiError("fields", data?.detail ?? "Check the form.", data?.fields ?? {});
-  }
-  throw new ApiError("server", data?.detail ?? "Something went wrong.");
+  if (!reply.ok) throw errorFor(reply.status, await readErrorReply(reply));
+  return (reply.status === 204 ? undefined : await reply.json()) as T;
 }

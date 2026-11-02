@@ -47,7 +47,9 @@ test("changes survive a restart, including a card's place on the board", async (
   const [first, second, third] = order as string[];
 
   await dropAbove(page, third, first);
-  await expect.poll(() => cardOrder(page, "negotiation")).toEqual([third, first, second, ...(order.slice(3) as string[])]);
+  await expect
+    .poll(() => cardOrder(page, "negotiation"))
+    .toEqual([third, first, second, ...(order.slice(3) as string[])]);
   await page.waitForLoadState("networkidle");
 
   await request.post(`${COPY_API}/organizations`, { data: { name: "Survives Restart Ltd" } });
@@ -91,7 +93,9 @@ test("npm run seed with the app running brings back the sample data, and a refre
   await expect(page.locator("tbody tr")).toHaveCount(24);
 });
 
-test("npm run empty with the app running leaves every screen working and inviting the first record", async ({ page }) => {
+test("npm run empty with the app running leaves every screen working and inviting the first record", async ({
+  page,
+}) => {
   await goto(page, "/deals");
   await expect(page.locator("tbody tr").first()).toBeVisible();
 

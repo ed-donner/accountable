@@ -50,5 +50,13 @@ export default defineConfig({
     restoreMocks: true,
     // A leftover .only would skip the rest of its file and still pass.
     allowOnly: false,
+    // On when npm test asks for it, so a run while working stays quick.
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.test.{ts,tsx}", "src/test-setup.ts", "src/test-utils.tsx"],
+      reporter: ["text-summary"],
+      thresholds: { lines: 80, statements: 80, functions: 80, branches: 80 },
+    },
   },
 });

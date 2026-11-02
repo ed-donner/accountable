@@ -49,7 +49,8 @@ describe("stackFor", () => {
   });
 
   it("never lets one range of ports reach another, even at the most workers", () => {
-    const ports = (index) => Object.values(stackFor(index, "/tmp/run/test.db")).filter((value) => typeof value === "number");
+    const ports = (index) =>
+      Object.values(stackFor(index, "/tmp/run/test.db")).filter((value) => typeof value === "number");
     const all = Array.from({ length: MAX_WORKERS }, (_, index) => ports(index)).flat();
     expect(new Set(all).size).toBe(all.length);
     expect(all).not.toContain(5173);

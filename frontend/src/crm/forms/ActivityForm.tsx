@@ -1,14 +1,20 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { Field } from "../../components/Field";
 import { FormDialog } from "../../components/FormDialog";
 import { capitalize } from "../../lib/words";
-import { useAddActivity, useEditActivity, type ActivityType, type ActivityValues, type TimelineEntry } from "../queries";
+import {
+  useAddActivity,
+  useEditActivity,
+  type ActivityType,
+  type ActivityValues,
+  type TimelineEntry,
+} from "../queries";
 import { showSaveError } from "./server-errors";
 
 const TYPES: ActivityType[] = ["note", "call", "email"];
@@ -47,11 +53,12 @@ function ActivityFields({ entry, save, pending, onClose }: FieldsProps) {
   const {
     register,
     handleSubmit,
+    control,
     setError,
     getValues,
-    watch,
     formState: { errors },
   } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: start });
+  const followUpDate = useWatch({ control, name: "follow_up_date" });
 
   /**
    * The box only holds minutes, so reading an untouched one back would drop the
@@ -120,7 +127,7 @@ function ActivityFields({ entry, save, pending, onClose }: FieldsProps) {
         <Field label="Follow-up date" htmlFor="activity-follow-up" error={errors.follow_up_date?.message}>
           <input id="activity-follow-up" type="date" className="input num" {...register("follow_up_date")} />
         </Field>
-        {watch("follow_up_date") && (
+        {followUpDate && (
           <label className="flex h-[38px] items-center gap-2 font-medium">
             <input type="checkbox" className="tick" {...register("follow_up_done")} />
             Done
@@ -131,7 +138,13 @@ function ActivityFields({ entry, save, pending, onClose }: FieldsProps) {
   );
 }
 
-export function LogActivity({ link, onClose }: { link: { contact_id: number } | { deal_id: number }; onClose: () => void }) {
+export function LogActivity({
+  link,
+  onClose,
+}: {
+  link: { contact_id: number } | { deal_id: number };
+  onClose: () => void;
+}) {
   const add = useAddActivity(link);
   return <ActivityFields save={add.mutateAsync} pending={add.isPending} onClose={onClose} />;
 }

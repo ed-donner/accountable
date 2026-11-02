@@ -1,4 +1,4 @@
-import { expect, test as base } from "@playwright/test";
+import { expect, test as base, type Page } from "@playwright/test";
 
 import { stack } from "./helpers";
 
@@ -12,19 +12,28 @@ type Fixtures = {
 
 type WatchState = { allowed: RegExp[]; problems: string[] };
 
-export const test = base.extend<Fixtures & { watchState: WatchState }>({
+// Each test gets a new page, so keeping the state with the page keeps it to one test.
+const watchStates = new WeakMap<Page, WatchState>();
+
+function watchStateOf(page: Page): WatchState {
+  let watchState = watchStates.get(page);
+  if (!watchState) {
+    watchState = { allowed: [], problems: [] };
+    watchStates.set(page, watchState);
+  }
+  return watchState;
+}
+
+export const test = base.extend<Fixtures>({
   baseURL: `http://127.0.0.1:${stack.webPort}`,
 
-  watchState: async ({}, use) => {
-    await use({ allowed: [], problems: [] });
-  },
-
-  expectConsoleError: async ({ watchState }, use) => {
-    await use((pattern) => watchState.allowed.push(pattern));
+  expectConsoleError: async ({ page }, use) => {
+    await use((pattern) => watchStateOf(page).allowed.push(pattern));
   },
 
   appChecks: [
-    async ({ page, watchState }, use) => {
+    async ({ page }, use) => {
+      const watchState = watchStateOf(page);
       const isAllowed = (text: string) => watchState.allowed.some((pattern) => pattern.test(text));
 
       page.on("console", (message) => {

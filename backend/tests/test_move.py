@@ -1,10 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor
 
-from conftest import TODAY
-from sqlalchemy import select
-
 from accountable import db
 from accountable.crm.tables import deals, stage_changes
+from conftest import TODAY
+from sqlalchemy import select
 
 
 def column(stage: str) -> list[str]:

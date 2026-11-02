@@ -50,7 +50,10 @@ test("six columns in order, each headed by its stage color", async ({ page }) =>
   }
 });
 
-test("dragging to another column changes the stage and probability, and the Deals table shows both", async ({ page, request }) => {
+test("dragging to another column changes the stage and probability, and the Deals table shows both", async ({
+  page,
+  request,
+}) => {
   await addLinkedDeal(request, "Moving deal");
   await page.goto("/pipeline");
   await expect(card(page, "Moving deal")).toContainText("5%");
@@ -66,7 +69,10 @@ test("dragging to another column changes the stage and probability, and the Deal
   await expect(row).toContainText("70%");
 });
 
-test("a card dropped at the top, middle or bottom of a column stays there after a refresh", async ({ page, request }) => {
+test("a card dropped at the top, middle or bottom of a column stays there after a refresh", async ({
+  page,
+  request,
+}) => {
   const links = await threeInProposal(request);
   await addDeal(request, "Top", links);
   await addDeal(request, "Middle", links);
@@ -141,7 +147,10 @@ test.describe("cards slide apart while one is dragged", () => {
   const settled = (page: Page, name: string) =>
     expect.poll(() => card(page, name).evaluate((element) => getComputedStyle(element).transform));
 
-  test("over another column, the cards below make room, and on landing they take their new places", async ({ page, request }) => {
+  test("over another column, the cards below make room, and on landing they take their new places", async ({
+    page,
+    request,
+  }) => {
     const links = await threeInProposal(request);
     await addDeal(request, "Mover", links);
     await page.goto("/pipeline");
@@ -203,7 +212,10 @@ test.describe("cards slide apart while one is dragged", () => {
     await page.mouse.up();
   });
 
-  test("a dropped card goes straight to its new place, with no frame back in its old one", async ({ page, request }) => {
+  test("a dropped card goes straight to its new place, with no frame back in its old one", async ({
+    page,
+    request,
+  }) => {
     const links = await threeInProposal(request);
     await addDeal(request, "Lander", links);
     await page.goto("/pipeline");
@@ -344,7 +356,8 @@ async function holdMoves(page: Page, answer: (call: number) => "save" | "fail" =
     await held;
     // Not route.continue(): if the page has moved on, it can lose the request.
     if (outcome === "save") await route.fulfill({ response: await route.fetch() });
-    else await route.fulfill({ status: 500, contentType: "application/json", body: '{"detail":"Something went wrong."}' });
+    else
+      await route.fulfill({ status: 500, contentType: "application/json", body: '{"detail":"Something went wrong."}' });
   });
   return release;
 }
@@ -377,7 +390,11 @@ test.describe("moves that overlap", () => {
     await expect(column(page, "lost").locator('[data-deal="First loss"]')).toBeVisible();
   });
 
-  test("if the first of two moves fails it says so, and the second still lands", async ({ page, request, expectConsoleError }) => {
+  test("if the first of two moves fails it says so, and the second still lands", async ({
+    page,
+    request,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/status of 500.*\/api\/deals\/\d+\/move/);
     await addLinkedDeal(request, "Bounced");
     await addLinkedDeal(request, "Landed");
@@ -394,7 +411,11 @@ test.describe("moves that overlap", () => {
     await expect(page.getByText(/^Marked as Lost\./)).toBeVisible();
   });
 
-  test("if the second of two moves fails it says so, and the first stays", async ({ page, request, expectConsoleError }) => {
+  test("if the second of two moves fails it says so, and the first stays", async ({
+    page,
+    request,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/status of 500.*\/api\/deals\/\d+\/move/);
     await addLinkedDeal(request, "Stayed");
     await addLinkedDeal(request, "Bounced late");
@@ -410,7 +431,11 @@ test.describe("moves that overlap", () => {
     await expect(column(page, "new").locator('[data-deal="Bounced late"]')).toBeVisible();
   });
 
-  test("if both of two moves fail and nothing can be read, both cards go back", async ({ page, request, expectConsoleError }) => {
+  test("if both of two moves fail and nothing can be read, both cards go back", async ({
+    page,
+    request,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/status of 500.*\/api\/deals\/\d+\/move|Failed to load resource/);
     await addLinkedDeal(request, "Back first");
     await addLinkedDeal(request, "Back second");
@@ -544,13 +569,18 @@ test("Add deal on Won starts with today's close date", async ({ page }) => {
   await expect(form.getByLabel("Probability")).toHaveValue("100");
 });
 
-test("a drop on Won shows the message, sets the close date, adds the entry and makes the contact a customer", async ({ page, request }) => {
+test("a drop on Won shows the message, sets the close date, adds the entry and makes the contact a customer", async ({
+  page,
+  request,
+}) => {
   const { deal, contact } = await addLinkedDeal(request, "Winner", { close_date: isoDay(30) });
   await page.goto("/pipeline");
 
   await dropAtEnd(page, "Winner", "won");
 
-  await expect(page.getByText("Marked as Won. Close date set to today. Winner Contact is now a customer.")).toBeVisible();
+  await expect(
+    page.getByText("Marked as Won. Close date set to today. Winner Contact is now a customer."),
+  ).toBeVisible();
 
   const saved = await (await request.get(`${API}/deals/${deal.id}`)).json();
   expect(saved.close_date).toBe(isoDay(0));
@@ -618,7 +648,10 @@ test("a deal with no main contact can be won, and the message names no contact",
   await expect(column(page, "won").locator('[data-deal="No contact"]')).toBeVisible();
 });
 
-test("with the keyboard, Space picks up, arrows move within and across columns, and Space drops", async ({ page, request }) => {
+test("with the keyboard, Space picks up, arrows move within and across columns, and Space drops", async ({
+  page,
+  request,
+}) => {
   const links = await threeInProposal(request);
   await addDeal(request, "Keyed", { ...links, stage: "qualified" });
   await page.goto("/pipeline");
@@ -673,9 +706,9 @@ test("the keyboard can reach the bottom of a long column", async ({ page, reques
   await card(page, "Row 0").focus();
   await pressKeys(page, "Space", ...Array<string>(9).fill("ArrowDown"), "Space");
 
-  await expect.poll(() => cardOrder(page, "proposal")).toEqual([
-    "Row 1", "Row 2", "Row 3", "Row 4", "Row 5", "Row 6", "Row 7", "Row 8", "Row 9", "Row 0",
-  ]);
+  await expect
+    .poll(() => cardOrder(page, "proposal"))
+    .toEqual(["Row 1", "Row 2", "Row 3", "Row 4", "Row 5", "Row 6", "Row 7", "Row 8", "Row 9", "Row 0"]);
   expect(await list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 });
 

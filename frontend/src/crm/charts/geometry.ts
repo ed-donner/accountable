@@ -27,7 +27,9 @@ export function funnelWidths(values: number[], width: number) {
   const room = width - FUNNEL_SIDE - FUNNEL_ROUND;
   const widest = Math.max(values[0], 1);
   const last = values.length - 1;
-  const widths = values.map((value, index) => Math.max((value / widest) * room, index === last ? NARROWEST_LAST : NARROWEST));
+  const widths = values.map((value, index) =>
+    Math.max((value / widest) * room, index === last ? NARROWEST_LAST : NARROWEST),
+  );
   widths.push(widths[last] * SPOUT);
   return widths;
 }

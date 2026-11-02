@@ -25,7 +25,11 @@ test("what's in the pipeline is one click away", async ({ page }) => {
 
 test("what happened last with a customer is two clicks away", async ({ page }) => {
   await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Contacts" }).click();
-  const customer = page.locator("tbody tr").filter({ hasText: "Customer" }).filter({ hasText: /\d{4}$/ }).first();
+  const customer = page
+    .locator("tbody tr")
+    .filter({ hasText: "Customer" })
+    .filter({ hasText: /\d{4}$/ })
+    .first();
   await customer.getByRole("link").click();
   await expect(page).toHaveURL(/\/contacts\/\d+$/);
   await expect(page.getByTestId("timeline-entry").first()).toBeVisible();

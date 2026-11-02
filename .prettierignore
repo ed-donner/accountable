@@ -1,0 +1,7 @@
+# Prose belongs to its authors, and these files to the tools that write them.
+*.md
+docs/
+course/
+package-lock.json
+.claude/
+.mcp.json

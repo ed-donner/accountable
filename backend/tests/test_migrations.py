@@ -1,13 +1,13 @@
 from datetime import date, datetime
 
 import pytest
+from accountable import db
+from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from alembic import op
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from conftest import insert_row
 from sqlalchemy import column, delete, insert, inspect, select, table
-
-from accountable import db
-from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 
 
 def live() -> dict:
@@ -17,9 +17,7 @@ def live() -> dict:
             "columns": {
                 column["name"]: (str(column["type"]), column["nullable"]) for column in inspector.get_columns(name)
             },
-            "indexes": {
-                index["name"]: tuple(index["column_names"]) for index in inspector.get_indexes(name)
-            },
+            "indexes": {index["name"]: tuple(index["column_names"]) for index in inspector.get_indexes(name)},
             "checks": {check["name"]: check["sqltext"] for check in inspector.get_check_constraints(name)},
             "foreign_keys": {
                 (tuple(key["constrained_columns"]), key["referred_table"], key["options"].get("ondelete"))
@@ -33,18 +31,18 @@ def live() -> dict:
 
 def declared() -> dict:
     result = {}
-    for name, table in db.metadata.tables.items():
+    for name, declared_table in db.metadata.tables.items():
         result[name] = {
-            "columns": {column.name: (str(column.type), column.nullable) for column in table.columns},
-            "indexes": {index.name: tuple(column.name for column in index.columns) for index in table.indexes},
+            "columns": {column.name: (str(column.type), column.nullable) for column in declared_table.columns},
+            "indexes": {index.name: tuple(column.name for column in index.columns) for index in declared_table.indexes},
             "checks": {
                 constraint.name: str(constraint.sqltext)
-                for constraint in table.constraints
+                for constraint in declared_table.constraints
                 if constraint.__class__.__name__ == "CheckConstraint"
             },
             "foreign_keys": {
                 (tuple(key.constraint.column_keys), key.column.table.name, key.ondelete)
-                for key in table.foreign_keys
+                for key in declared_table.foreign_keys
             },
         }
     return result
@@ -115,7 +113,10 @@ WHEN = datetime(2026, 10, 31, 12, 0)
 
 def everything() -> dict[str, list[tuple]]:
     with db.reading() as conn:
-        return {record.name: [tuple(row) for row in conn.execute(select(record).order_by(record.c.id))] for record in RECORDS}
+        return {
+            record.name: [tuple(row) for row in conn.execute(select(record).order_by(record.c.id))]
+            for record in RECORDS
+        }
 
 
 def nothing(_conn) -> None:
@@ -130,28 +131,38 @@ def older_database(tmp_path, monkeypatch):
     db.dispose()
     db._upgrade(path, "0001")
     with db.writing() as conn:
-        organization = conn.execute(insert(organizations).values(name="Harbor & Pine")).inserted_primary_key[0]
-        contact = conn.execute(
-            insert(contacts).values(name="Sam Carter", status="lead", organization_id=organization)
-        ).inserted_primary_key[0]
-        deal = conn.execute(
-            insert(deals).values(
-                name="Annual support",
-                organization_id=organization,
-                main_contact_id=contact,
-                stage="proposal",
-                value=36000,
-                probability=40,
-                close_date=date(2026, 12, 18),
-                position=0,
-            )
-        ).inserted_primary_key[0]
+        organization = insert_row(conn, organizations, name="Harbor & Pine")
+        contact = insert_row(conn, contacts, name="Sam Carter", status="lead", organization_id=organization)
+        deal = insert_row(
+            conn,
+            deals,
+            name="Annual support",
+            organization_id=organization,
+            main_contact_id=contact,
+            stage="proposal",
+            value=36000,
+            probability=40,
+            close_date=date(2026, 12, 18),
+            position=0,
+        )
         conn.execute(insert(stage_changes).values(deal_id=deal, from_stage="new", to_stage="proposal", changed_at=WHEN))
         conn.execute(
             insert(activities),
             [
-                {"type": "call", "contact_id": contact, "deal_id": None, "description": "On the contact", "occurred_at": WHEN},
-                {"type": "note", "contact_id": None, "deal_id": deal, "description": "On the deal", "occurred_at": WHEN},
+                {
+                    "type": "call",
+                    "contact_id": contact,
+                    "deal_id": None,
+                    "description": "On the contact",
+                    "occurred_at": WHEN,
+                },
+                {
+                    "type": "note",
+                    "contact_id": None,
+                    "deal_id": deal,
+                    "description": "On the deal",
+                    "occurred_at": WHEN,
+                },
             ],
         )
     db.dispose()
@@ -177,11 +188,11 @@ def test_an_upgraded_database_never_reuses_an_id(older_database):
     assert all("AUTOINCREMENT" in built[record.name] for record in RECORDS)
 
     with db.writing() as conn:
-        newest = conn.scalar(select(deals.c.id))
+        newest = conn.execute(select(deals.c.id)).scalar_one()
         conn.execute(delete(deals))
-        added = conn.execute(
-            insert(deals).values(name="Next", stage="new", value=1, probability=5, close_date=date(2026, 12, 18), position=0)
-        ).inserted_primary_key[0]
+        added = insert_row(
+            conn, deals, name="Next", stage="new", value=1, probability=5, close_date=date(2026, 12, 18), position=0
+        )
     assert added > newest
 
 

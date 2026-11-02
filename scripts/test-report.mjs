@@ -3,7 +3,12 @@
 const MOST_NAMES_SHOWN = 15;
 
 function unescapeXml(text) {
-  return text.replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", '"').replaceAll("&apos;", "'").replaceAll("&amp;", "&");
+  return text
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&apos;", "'")
+    .replaceAll("&amp;", "&");
 }
 
 export function readPytest(xml) {
@@ -116,6 +121,8 @@ export function summarize(layers, elapsedMs) {
     if (names.length > MOST_NAMES_SHOWN) lines.push(`  and ${names.length - MOST_NAMES_SHOWN} more`);
     lines.push("");
   }
-  lines.push(`Failed: ${failing.map((row) => row.name).join(", ")}. ${count("failed")} failed, ${count("passed")} passed in ${duration(elapsedMs)}.`);
+  lines.push(
+    `Failed: ${failing.map((row) => row.name).join(", ")}. ${count("failed")} failed, ${count("passed")} passed in ${duration(elapsedMs)}.`,
+  );
   return { passed: false, text: lines.join("\n") };
 }

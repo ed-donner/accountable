@@ -143,16 +143,21 @@ describe("the timeline", () => {
     const total = 525;
     const routes: Record<string, TimelineReply> = {};
     for (let offset = 0; offset < total; offset += 50) {
-      routes[`GET /deals/7/timeline?limit=50&offset=${offset}`] = reply(entriesFrom(offset + 1, Math.min(50, total - offset)), total);
+      routes[`GET /deals/7/timeline?limit=50&offset=${offset}`] = reply(
+        entriesFrom(offset + 1, Math.min(50, total - offset)),
+        total,
+      );
     }
     show(routes);
     await entryNamed("Activity 50");
-    while (screen.queryByRole("button", { name: "Show more" })) {
-      const before = screen.getAllByTestId("timeline-entry").length;
-      await user().click(screen.getByRole("button", { name: "Show more" }));
-      await waitFor(() => expect(screen.getAllByTestId("timeline-entry").length).toBeGreaterThan(before));
+    // Found once, because finding it by role among hundreds of entries takes a tenth of a second each time.
+    const showMore = screen.getByRole("button", { name: "Show more" });
+    for (let shown = 50; shown < total; shown += 50) {
+      await user().click(showMore);
+      await waitFor(() => expect(screen.getAllByTestId("timeline-entry").length).toBeGreaterThan(shown));
     }
     expect(screen.getAllByTestId("timeline-entry")).toHaveLength(total);
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
   });
 
   it("keeps what's showing if Show more fails, and can try again", async () => {
@@ -192,7 +197,8 @@ describe("the timeline", () => {
   it("keeps what's showing if a later read fails, says so, and can try again", async () => {
     let broken = false;
     mockApi({
-      [FIRST_PAGE]: () => (broken ? { status: 500, body: { detail: "Something went wrong." } } : { body: reply([activity(1)]) }),
+      [FIRST_PAGE]: () =>
+        broken ? { status: 500, body: { detail: "Something went wrong." } } : { body: reply([activity(1)]) },
     });
     const { client } = renderApp(<Timeline kind="deals" id={7} logTo={{ deal_id: 7 }} empty="Nothing logged yet." />);
     await screen.findByText("Activity 1");

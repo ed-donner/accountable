@@ -54,7 +54,13 @@ export function Detail({ label, children }: { label: string; children: ReactNode
   );
 }
 
-export function LinkedList({ items, empty }: { items: { key: number; to: string; name: string; hint?: ReactNode; end?: ReactNode }[]; empty: string }) {
+export function LinkedList({
+  items,
+  empty,
+}: {
+  items: { key: number; to: string; name: string; hint?: ReactNode; end?: ReactNode }[];
+  empty: string;
+}) {
   if (items.length === 0) return <p className="py-1 text-muted">{empty}</p>;
   return (
     <ul>

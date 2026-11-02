@@ -28,7 +28,9 @@ describe("when the connection comes back", () => {
     vi.stubGlobal("fetch", async (url: string) => {
       if (url !== "/api/read") return reply(200, {});
       reads += 1;
-      return reads === 1 ? new Response("", { status: 500, headers: { "content-type": "text/plain" } }) : reply(200, "Read again");
+      return reads === 1
+        ? new Response("", { status: 500, headers: { "content-type": "text/plain" } })
+        : reply(200, "Read again");
     });
 
     render(

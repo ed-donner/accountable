@@ -1,15 +1,14 @@
 from datetime import date
 
-from conftest import NOW, TODAY
-from sqlalchemy import func, select
-
 from accountable import db
 from accountable.crm.tables import activities, stage_changes
+from conftest import NOW, TODAY
+from sqlalchemy import func, select
 
 
 def count(table, *where) -> int:
     with db.reading() as conn:
-        return conn.scalar(select(func.count()).select_from(table).where(*where))
+        return conn.execute(select(func.count()).select_from(table).where(*where)).scalar_one()
 
 
 def test_deleting_an_organization_keeps_its_contacts_and_deals(api, make, deal_row, contact_row):

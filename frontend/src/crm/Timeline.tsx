@@ -22,7 +22,9 @@ const TYPE_STYLES = {
 export function EntryIcon({ entry }: { entry: Pick<TimelineEntry, "type"> }) {
   const name = entry.type ?? "stage";
   return (
-    <span className={`inline-flex size-[30px] flex-none items-center justify-center rounded-full ${TYPE_STYLES[name].fill}`}>
+    <span
+      className={`inline-flex size-[30px] flex-none items-center justify-center rounded-full ${TYPE_STYLES[name].fill}`}
+    >
       <Icon name={name} size={16} />
     </span>
   );
@@ -154,7 +156,9 @@ export function Timeline({ kind, id, logTo, empty }: Props) {
 
       {logging && logTo && <LogActivity link={logTo} onClose={() => setLogging(false)} />}
       {editing && <EditActivity entry={editing} onClose={() => setEditing(null)} />}
-      {deleting && <DeleteActivity id={deleting.id} description={deleting.description} onClose={() => setDeleting(null)} />}
+      {deleting && (
+        <DeleteActivity id={deleting.id} description={deleting.description} onClose={() => setDeleting(null)} />
+      )}
     </section>
   );
 }

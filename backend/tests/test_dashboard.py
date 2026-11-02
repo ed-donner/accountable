@@ -95,8 +95,9 @@ def test_the_twelve_month_series_covers_the_current_month_with_gaps_as_zero(api,
 
     body = dashboard(api)
 
-    assert [item["month"] for item in body["months"]][0] == "2025-11"
-    assert [item["month"] for item in body["months"]][-1] == "2026-10"
+    month_keys = [item["month"] for item in body["months"]]
+    assert month_keys[0] == "2025-11"
+    assert month_keys[-1] == "2026-10"
     assert [item["label"] for item in body["months"]][:3] == ["Nov", "Dec", "Jan"]
     assert month(body, "2026-10")["revenue"] == 10
     assert month(body, "2025-11")["revenue"] == 20

@@ -131,7 +131,9 @@ describe("applyMove", () => {
     ["proposal", 40],
     ["negotiation", 70],
   ] as const)("to %s takes the usual probability and leaves the close date", (stage, probability) => {
-    const moved = applyMove(base, { dealId: 1, stage, beforeDealId: null }, USUAL, TODAY).find((item) => item.id === 1)!;
+    const moved = applyMove(base, { dealId: 1, stage, beforeDealId: null }, USUAL, TODAY).find(
+      (item) => item.id === 1,
+    )!;
     expect(moved.stage).toBe(stage);
     expect(moved.probability).toBe(probability);
     expect(moved.close_date).toBe("2026-12-01");
@@ -139,13 +141,17 @@ describe("applyMove", () => {
   });
 
   it("to Won is 100% and today", () => {
-    const moved = applyMove(base, { dealId: 1, stage: "won", beforeDealId: null }, USUAL, TODAY).find((item) => item.id === 1)!;
+    const moved = applyMove(base, { dealId: 1, stage: "won", beforeDealId: null }, USUAL, TODAY).find(
+      (item) => item.id === 1,
+    )!;
     expect(moved.probability).toBe(100);
     expect(moved.close_date).toBe(TODAY);
   });
 
   it("to Lost is 0% and today", () => {
-    const moved = applyMove(base, { dealId: 1, stage: "lost", beforeDealId: null }, USUAL, TODAY).find((item) => item.id === 1)!;
+    const moved = applyMove(base, { dealId: 1, stage: "lost", beforeDealId: null }, USUAL, TODAY).find(
+      (item) => item.id === 1,
+    )!;
     expect(moved.probability).toBe(0);
     expect(moved.close_date).toBe(TODAY);
   });

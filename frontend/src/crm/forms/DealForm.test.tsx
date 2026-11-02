@@ -206,7 +206,9 @@ describe("linked pickers", () => {
 
   it("leaves the chosen organization alone when a contact from elsewhere is kept", async () => {
     api();
-    renderApp(<DealForm record={{ ...DEAL, main_contact_id: 12, main_contact_name: "Elena Petrova" }} onClose={vi.fn()} />);
+    renderApp(
+      <DealForm record={{ ...DEAL, main_contact_id: 12, main_contact_name: "Elena Petrova" }} onClose={vi.fn()} />,
+    );
     await ready();
     expect(picker("Organization").textContent).toContain("Harbor & Pine");
     await waitFor(() => expect(picker("Main contact").textContent).toContain("Elena Petrova"));
@@ -224,7 +226,14 @@ describe("linked pickers", () => {
 describe("a contact added from the picker", () => {
   it("clears the organization's error when it fills the organization in", async () => {
     api({
-      "POST /contacts": { id: 14, name: "Brand new", organization_id: 2, organization_name: "Lantern Hotels", status: "lead", deals: [] },
+      "POST /contacts": {
+        id: 14,
+        name: "Brand new",
+        organization_id: 2,
+        organization_name: "Lantern Hotels",
+        status: "lead",
+        deals: [],
+      },
     });
     renderApp(<DealForm onClose={vi.fn()} />);
     await ready();
@@ -335,7 +344,10 @@ describe("a close date that's been typed", () => {
     await stage("negotiation");
     await user().click(screen.getByRole("button", { name: "Save deal" }));
     await waitFor(() => expect(calls.some((call) => call.method === "PATCH")).toBe(true));
-    expect(calls.find((call) => call.method === "PATCH")?.body).toMatchObject({ close_date: "2027-03-15", stage: "negotiation" });
+    expect(calls.find((call) => call.method === "PATCH")?.body).toMatchObject({
+      close_date: "2027-03-15",
+      stage: "negotiation",
+    });
   });
 
   it("comes back after a trip through Won", async () => {
@@ -435,7 +447,17 @@ describe("what else has been typed", () => {
   });
 
   it("stays when a new organization is added from the picker", async () => {
-    api({ "POST /organizations": { id: 3, name: "Brand new", website: null, industry: null, notes: null, contacts: [], deals: [] } });
+    api({
+      "POST /organizations": {
+        id: 3,
+        name: "Brand new",
+        website: null,
+        industry: null,
+        notes: null,
+        contacts: [],
+        deals: [],
+      },
+    });
     renderApp(<DealForm onClose={vi.fn()} />);
     await ready();
     await typeTheBasics();

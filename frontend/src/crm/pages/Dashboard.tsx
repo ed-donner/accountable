@@ -50,7 +50,10 @@ function Hero({ data, month, lastMonth }: { data: Figures; month: string; lastMo
       )}
       <Link to={WON_DEALS} className="absolute top-2 left-3 block rounded-card bg-panel py-2 pr-3 pl-2">
         <span className="block text-[14px] leading-5 font-semibold">Revenue won in {month}</span>
-        <span className="num block text-[52px] leading-[60px] font-medium tracking-[-0.03em]" data-testid="revenue-this-month">
+        <span
+          className="num block text-[52px] leading-[60px] font-medium tracking-[-0.03em]"
+          data-testid="revenue-this-month"
+        >
           {money(data.revenue_this_month)}
         </span>
         <span className="block text-[13px] leading-[18px] text-muted" data-testid="revenue-last-month">
@@ -63,7 +66,10 @@ function Hero({ data, month, lastMonth }: { data: Figures; month: string; lastMo
 
 function Strip({ data }: { data: Figures }) {
   return (
-    <section aria-label="Open pipeline" className="panel grid grid-cols-[182px_170px_minmax(0,1fr)] items-center gap-2 p-3">
+    <section
+      aria-label="Open pipeline"
+      className="panel grid grid-cols-[182px_170px_minmax(0,1fr)] items-center gap-2 p-3"
+    >
       <Stat
         to="/pipeline"
         label="Open pipeline"
@@ -108,7 +114,9 @@ function Funnel({ data }: { data: Figures }) {
     <section aria-label="Sales funnel" className="panel flex min-h-0 flex-col px-[18px] py-4">
       <div className="flex items-baseline justify-between gap-3">
         <h2>Sales funnel</h2>
-        <span className="truncate text-[13px] text-muted">Value reaching each stage, and the share carried forward</span>
+        <span className="truncate text-[13px] text-muted">
+          Value reaching each stage, and the share carried forward
+        </span>
       </div>
       {data.funnel[0].value > 0 ? (
         <SalesFunnel stages={data.funnel} />
@@ -177,7 +185,11 @@ function RecentActivity({ data }: { data: Figures }) {
       ) : (
         <ul className="mt-1.5 -mr-2 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-color:var(--color-sea-mist)_transparent] [scrollbar-width:thin]">
           {data.recent.map((entry) => (
-            <li key={`${entry.kind}-${entry.id}`} className="flex items-center gap-2.5 py-1.5" data-testid="recent-entry">
+            <li
+              key={`${entry.kind}-${entry.id}`}
+              className="flex items-center gap-2.5 py-1.5"
+              data-testid="recent-entry"
+            >
               <EntryIcon entry={entry} />
               <div className="min-w-0 flex-1">
                 <div className="truncate">{entry.description}</div>

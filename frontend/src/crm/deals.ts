@@ -22,7 +22,7 @@ export function isOpen(stage: Stage): boolean {
  */
 export function expectedRevenue(value: number, probability: number): number {
   const scaled = value * probability + 50;
-  return (scaled - scaled % 100) / 100;
+  return (scaled - (scaled % 100)) / 100;
 }
 
 export function isLate(deal: Pick<Deal, "stage" | "close_date">, today: string): boolean {

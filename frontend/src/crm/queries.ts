@@ -329,7 +329,9 @@ export function useMoveDeal() {
       const { deal } = result;
       const confirmed = confirmedDeals.get(client);
       if (confirmed) {
-        const landed = place(confirmed, move).map((item) => (item.id === deal.id ? { ...deal, position: item.position } : item));
+        const landed = place(confirmed, move).map((item) =>
+          item.id === deal.id ? { ...deal, position: item.position } : item,
+        );
         confirmedDeals.set(client, landed);
         show(landed, move);
       }

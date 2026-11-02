@@ -36,7 +36,13 @@ export function Organizations() {
           ),
       },
       { id: "contacts", header: "Contacts", value: (row) => row.contact_count, numeric: true, width: "w-[100px]" },
-      { id: "open_deals", header: "Open deals", value: (row) => row.open_deal_count, numeric: true, width: "w-[110px]" },
+      {
+        id: "open_deals",
+        header: "Open deals",
+        value: (row) => row.open_deal_count,
+        numeric: true,
+        width: "w-[110px]",
+      },
       {
         id: "open_value",
         header: "Open value",

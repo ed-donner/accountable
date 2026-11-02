@@ -65,7 +65,9 @@ function ContactRecord({ id }: { id: number }) {
                     NONE
                   )}
                 </Detail>
-                <Detail label="Phone">{record.phone ? <span className="num text-[13px]">{record.phone}</span> : NONE}</Detail>
+                <Detail label="Phone">
+                  {record.phone ? <span className="num text-[13px]">{record.phone}</span> : NONE}
+                </Detail>
               </dl>
             </SidePanel>
             <SidePanel
@@ -97,11 +99,7 @@ function ContactRecord({ id }: { id: number }) {
         <DeleteContact id={id} name={record.name} onClose={close} onDeleted={() => navigate("/contacts")} />
       )}
       {dialog === "deal" && (
-        <DealForm
-          defaultContactId={id}
-          defaultOrganizationId={record.organization_id ?? undefined}
-          onClose={close}
-        />
+        <DealForm defaultContactId={id} defaultOrganizationId={record.organization_id ?? undefined} onClose={close} />
       )}
     </>
   );

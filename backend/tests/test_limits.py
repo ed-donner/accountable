@@ -4,12 +4,11 @@ import time
 from pathlib import Path
 
 import pytest
-from limits_data import fill
-from sqlalchemy import func, select
-
 from accountable import db
 from accountable.crm.tables import activities, contacts, deals
 from conftest import TODAY, using_database
+from limits_data import fill
+from sqlalchemy import func, select
 
 DASHBOARD_LIMIT_MS = 200
 LIST_LIMIT_MS = 400

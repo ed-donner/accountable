@@ -24,7 +24,9 @@ describe("LoadFailed", () => {
   });
 
   it("leaves a lost connection to the message across the top", () => {
-    const { container } = render(<LoadFailed error={new ApiError("connection", "Can't reach Accountable.")} onRetry={vi.fn()} />);
+    const { container } = render(
+      <LoadFailed error={new ApiError("connection", "Can't reach Accountable.")} onRetry={vi.fn()} />,
+    );
     expect(container.textContent).toBe("");
   });
 
@@ -42,7 +44,9 @@ describe("LoadFailed", () => {
   });
 
   it("leaves a lost connection to the message across the top when it's keeping what's on screen too", () => {
-    const { container } = render(<LoadFailed keeping error={new ApiError("connection", "Can't reach Accountable.")} onRetry={vi.fn()} />);
+    const { container } = render(
+      <LoadFailed keeping error={new ApiError("connection", "Can't reach Accountable.")} onRetry={vi.fn()} />,
+    );
     expect(container.textContent).toBe("");
   });
 });

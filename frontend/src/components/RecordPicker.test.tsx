@@ -16,7 +16,14 @@ const OPTIONS: PickerOption[] = [
 function Picker({ onAdd, start = null }: { onAdd?: (name: string) => void; start?: number | null }) {
   const [value, setValue] = useState<number | null>(start);
   return (
-    <RecordPicker label="Organization" noun="organization" value={value} options={OPTIONS} onChange={setValue} onAdd={onAdd} />
+    <RecordPicker
+      label="Organization"
+      noun="organization"
+      value={value}
+      options={OPTIONS}
+      onChange={setValue}
+      onAdd={onAdd}
+    />
   );
 }
 
@@ -46,7 +53,16 @@ describe("RecordPicker", () => {
   });
 
   it("shows a placeholder when nothing is chosen, and None for a blank link", () => {
-    render(<RecordPicker label="Organization" noun="organization" value={null} options={OPTIONS} placeholder="None" onChange={vi.fn()} />);
+    render(
+      <RecordPicker
+        label="Organization"
+        noun="organization"
+        value={null}
+        options={OPTIONS}
+        placeholder="None"
+        onChange={vi.fn()}
+      />,
+    );
     expect(screen.getByRole("combobox", { name: "Organization" }).textContent).toContain("None");
   });
 
@@ -92,7 +108,14 @@ describe("adding from a picker inside a form", () => {
     const [options, setOptions] = useState(OPTIONS);
     return (
       <FormDialog title="Add deal" submitLabel="Save deal" onClose={vi.fn()} onSubmit={async () => onOuterSubmit()}>
-        <RecordPicker label="Organization" noun="organization" value={value} options={options} onChange={setValue} onAdd={setAdding} />
+        <RecordPicker
+          label="Organization"
+          noun="organization"
+          value={value}
+          options={options}
+          onChange={setValue}
+          onAdd={setAdding}
+        />
         {adding !== null && (
           <OrganizationForm
             defaultName={adding}
@@ -124,9 +147,7 @@ describe("adding from a picker inside a form", () => {
     expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Acme");
     await user().click(screen.getByRole("button", { name: "Save organization" }));
 
-    await waitFor(() =>
-      expect(screen.getByRole("combobox", { name: "Organization" }).textContent).toContain("Acme"),
-    );
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Organization" }).textContent).toContain("Acme"));
     expect(screen.getByRole("heading", { name: "Add deal" })).toBeTruthy();
     expect(onOuterSubmit).not.toHaveBeenCalled();
   });

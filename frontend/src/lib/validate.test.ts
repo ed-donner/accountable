@@ -25,14 +25,30 @@ describe("isWebsite", () => {
 });
 
 describe("recordId", () => {
-  it.each([["1", 1], ["42", 42], ["9007199254740991", 9007199254740991]])("reads %s", (text, id) => {
+  it.each([
+    ["1", 1],
+    ["42", 42],
+    ["9007199254740991", 9007199254740991],
+  ])("reads %s", (text, id) => {
     expect(recordId(text)).toBe(id);
   });
 
-  it.each([undefined, "", "abc", "0", "-1", "1.5", "1e3", "0x10", " 1", "1 ", "01", "99999999999999999999", "Infinity", "NaN"])(
-    "refuses %j",
-    (text) => {
-      expect(recordId(text)).toBeNull();
-    },
-  );
+  it.each([
+    undefined,
+    "",
+    "abc",
+    "0",
+    "-1",
+    "1.5",
+    "1e3",
+    "0x10",
+    " 1",
+    "1 ",
+    "01",
+    "99999999999999999999",
+    "Infinity",
+    "NaN",
+  ])("refuses %j", (text) => {
+    expect(recordId(text)).toBeNull();
+  });
 });

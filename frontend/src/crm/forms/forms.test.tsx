@@ -60,7 +60,14 @@ const ENTRY: TimelineEntry = {
   about: { kind: "deal", id: 5, name: "Annual support" },
 };
 
-type Case = { name: string; form: (onClose: () => void) => ReactElement; field: string; save: string; route: string; reply: unknown };
+type Case = {
+  name: string;
+  form: (onClose: () => void) => ReactElement;
+  field: string;
+  save: string;
+  route: string;
+  reply: unknown;
+};
 
 const FORMS: Case[] = [
   {
@@ -256,7 +263,9 @@ describe("the activity form", () => {
     await retype("Description", "Better words");
     await user().click(screen.getByRole("button", { name: "Save activity" }));
     await waitFor(() => expect(calls.some((call) => call.method === "PATCH")).toBe(true));
-    expect(calls.find((call) => call.method === "PATCH")?.body).toMatchObject({ occurred_at: "2026-10-30T15:20:37.123456Z" });
+    expect(calls.find((call) => call.method === "PATCH")?.body).toMatchObject({
+      occurred_at: "2026-10-30T15:20:37.123456Z",
+    });
   });
 
   it("saves a new time when one is chosen", async () => {
@@ -279,7 +288,9 @@ describe("the activity form", () => {
       await user().type(await screen.findByLabelText("Description"), "Called them");
       await user().click(screen.getByRole("button", { name: "Save activity" }));
       await waitFor(() => expect(calls.some((call) => call.method === "POST")).toBe(true));
-      expect(calls.find((call) => call.method === "POST")?.body).toMatchObject({ occurred_at: "2026-10-30T15:20:37.000Z" });
+      expect(calls.find((call) => call.method === "POST")?.body).toMatchObject({
+        occurred_at: "2026-10-30T15:20:37.000Z",
+      });
     } finally {
       vi.useRealTimers();
     }
@@ -291,7 +302,10 @@ describe("the activity form", () => {
     await user().clear(await screen.findByLabelText("Follow-up date"));
     await user().click(screen.getByRole("button", { name: "Save activity" }));
     await waitFor(() => expect(calls.some((call) => call.method === "PATCH")).toBe(true));
-    expect(calls.find((call) => call.method === "PATCH")?.body).toMatchObject({ follow_up_date: null, follow_up_done: false });
+    expect(calls.find((call) => call.method === "PATCH")?.body).toMatchObject({
+      follow_up_date: null,
+      follow_up_done: false,
+    });
   });
 });
 
@@ -333,7 +347,14 @@ describe("adding a record", () => {
   });
 });
 
-type DeleteCase = { name: string; dialog: (onClose: () => void) => ReactElement; impact?: string; counts?: unknown; confirm: string; route: string };
+type DeleteCase = {
+  name: string;
+  dialog: (onClose: () => void) => ReactElement;
+  impact?: string;
+  counts?: unknown;
+  confirm: string;
+  route: string;
+};
 
 const DELETES: DeleteCase[] = [
   {
@@ -394,7 +415,8 @@ describe.each(DELETES)("the $name delete dialog", ({ dialog, impact, counts, con
     let broken = true;
     const calls = mockApi({
       ...reads,
-      [route]: () => (broken ? { status: 500, body: { detail: "Something went wrong." } } : { status: 204, body: null }),
+      [route]: () =>
+        broken ? { status: 500, body: { detail: "Something went wrong." } } : { status: 204, body: null },
     });
     const onClose = vi.fn();
     renderApp(dialog(onClose));
@@ -409,11 +431,14 @@ describe.each(DELETES)("the $name delete dialog", ({ dialog, impact, counts, con
   });
 });
 
-describe.each(DELETES.filter((item) => item.impact))("the $name delete dialog's counts", ({ dialog, impact, confirm }) => {
-  it("says so if they can't be read, and won't delete without them", async () => {
-    mockApi({ [impact!]: () => ({ status: 500, body: { detail: "Something went wrong." } }) });
-    renderApp(dialog(vi.fn()));
-    expect(await screen.findByText("Couldn't check what's linked, so this can't be deleted right now.")).toBeTruthy();
-    expect((screen.getByRole("button", { name: confirm }) as HTMLButtonElement).disabled).toBe(true);
-  });
-});
+describe.each(DELETES.filter((item) => item.impact))(
+  "the $name delete dialog's counts",
+  ({ dialog, impact, confirm }) => {
+    it("says so if they can't be read, and won't delete without them", async () => {
+      mockApi({ [impact!]: () => ({ status: 500, body: { detail: "Something went wrong." } }) });
+      renderApp(dialog(vi.fn()));
+      expect(await screen.findByText("Couldn't check what's linked, so this can't be deleted right now.")).toBeTruthy();
+      expect((screen.getByRole("button", { name: confirm }) as HTMLButtonElement).disabled).toBe(true);
+    });
+  },
+);

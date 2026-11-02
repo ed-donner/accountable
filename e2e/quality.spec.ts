@@ -85,7 +85,13 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
   await page.goto("/organizations");
   await expect(page.locator("tbody tr").first()).toBeVisible();
   const table = await tabThrough(page, 18);
-  for (const name of ["A Dashboard", "A Deals", "BUTTON Add organization", "INPUT Search organizations", "BUTTON Name"]) {
+  for (const name of [
+    "A Dashboard",
+    "A Deals",
+    "BUTTON Add organization",
+    "INPUT Search organizations",
+    "BUTTON Name",
+  ]) {
     expect([...table], name).toContain(name);
   }
   expect([...table].some((name) => name.startsWith("BUTTON Edit "))).toBe(true);
@@ -137,7 +143,9 @@ test("with reduced motion set, nothing animates", async ({ page }) => {
   await page.goto("/deals");
   await page.getByRole("button", { name: "Add deal" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  const running = await page.evaluate(() => document.getAnimations().filter((item) => item.playState === "running").length);
+  const running = await page.evaluate(
+    () => document.getAnimations().filter((item) => item.playState === "running").length,
+  );
   expect(running).toBe(0);
 });
 
@@ -153,16 +161,15 @@ test("after the browser reports offline, a drag and a follow-up tick still save"
 
   await dropAtEnd(page, "Offline drag", "qualified");
   await expect(column(page, "qualified").locator('[data-deal="Offline drag"]')).toBeVisible();
-  await expect
-    .poll(async () => (await (await request.get(`/api/deals/${deal.id}`)).json()).stage)
-    .toBe("qualified");
+  await expect.poll(async () => (await (await request.get(`/api/deals/${deal.id}`)).json()).stage).toBe("qualified");
 
   await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Dashboard" }).click();
   await page.getByTestId("follow-up").filter({ hasText: "Offline tick" }).getByRole("checkbox").click();
   await expect
     .poll(async () => {
       const timeline = await (await request.get(`/api/deals/${deal.id}/timeline`)).json();
-      return timeline.entries.find((entry: { description: string }) => entry.description === "Offline tick").follow_up_done;
+      return timeline.entries.find((entry: { description: string }) => entry.description === "Offline tick")
+        .follow_up_done;
     })
     .toBe(true);
 });
@@ -171,7 +178,9 @@ test("the run uses the installed Chrome", async ({ page, browser, browserName })
   expect(browserName).toBe("chromium");
   await page.goto("/");
   const brands = await page.evaluate(() =>
-    (navigator as Navigator & { userAgentData: { brands: { brand: string }[] } }).userAgentData.brands.map((item) => item.brand),
+    (navigator as Navigator & { userAgentData: { brands: { brand: string }[] } }).userAgentData.brands.map(
+      (item) => item.brand,
+    ),
   );
   expect(brands).toContain("Google Chrome");
   expect(browser.version()).toMatch(/^\d+\./);

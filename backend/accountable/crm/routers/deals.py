@@ -1,7 +1,7 @@
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, func, select, update
 
 from accountable import db
@@ -19,8 +19,8 @@ _with_names = select(
 FUTURE_CLOSE = "A won or lost deal can't have a close date in the future"
 
 
-def _reply(row: Any) -> dict[str, Any]:
-    return {**row._mapping, "expected_revenue": rules.expected_revenue(row.value, row.probability)}
+def _reply(row: Any) -> schemas.Deal:
+    return schemas.Deal(**row._mapping, expected_revenue=rules.expected_revenue(row.value, row.probability))
 
 
 def _get(conn, deal_id: int):
@@ -59,11 +59,7 @@ def list_deals() -> list[schemas.Deal]:
 
 
 @router.post("", status_code=201)
-def add_deal(
-    body: schemas.DealCreate,
-    today: date = Depends(db.local_today),
-    now: datetime = Depends(db.utc_now),
-) -> schemas.Deal:
+def add_deal(body: schemas.DealCreate, today: schemas.Today, now: schemas.Now) -> schemas.Deal:
     values = body.model_dump()
     if values["close_date"] is None and values["stage"] in rules.OPEN_STAGES:
         raise schemas.FieldError({"close_date": schemas.FIELD_MESSAGES["close_date"]})
@@ -83,8 +79,8 @@ def get_deal(deal_id: schemas.PathId) -> schemas.Deal:
 def edit_deal(
     deal_id: schemas.PathId,
     body: schemas.DealUpdate,
-    today: date = Depends(db.local_today),
-    now: datetime = Depends(db.utc_now),
+    today: schemas.Today,
+    now: schemas.Now,
 ) -> schemas.Deal:
     fields = body.model_dump(exclude_unset=True)
     with db.writing() as conn:
@@ -111,8 +107,8 @@ def edit_deal(
 def move_deal(
     deal_id: schemas.PathId,
     body: schemas.DealMove,
-    today: date = Depends(db.local_today),
-    now: datetime = Depends(db.utc_now),
+    today: schemas.Today,
+    now: schemas.Now,
 ) -> schemas.MoveResult:
     with db.writing() as conn:
         _get(conn, deal_id)
@@ -120,10 +116,10 @@ def move_deal(
         # A card dropped on itself stays put, unless it's changed column and isn't there yet.
         if result.changed or body.before_deal_id != deal_id:
             rules.place_deal(conn, deal_id, body.stage, body.before_deal_id)
-        return {
-            "deal": _reply(_get(conn, deal_id)),
-            "changes": {"close_date": result.close_date, "new_customer": result.new_customer},
-        }
+        return schemas.MoveResult(
+            deal=_reply(_get(conn, deal_id)),
+            changes=schemas.MoveChanges(close_date=result.close_date, new_customer=result.new_customer),
+        )
 
 
 @router.delete("/{deal_id}", status_code=204)
@@ -137,23 +133,23 @@ def delete_deal(deal_id: schemas.PathId) -> None:
 def deal_impact(deal_id: schemas.PathId) -> schemas.DealImpact:
     with db.reading() as conn:
         row = _get(conn, deal_id)
-        return {
-            "activities": conn.scalar(
+        return schemas.DealImpact(
+            activities=conn.execute(
                 select(func.count()).select_from(activities).where(activities.c.deal_id == deal_id)
-            ),
-            "stage_changes": conn.scalar(
+            ).scalar_one(),
+            stage_changes=conn.execute(
                 select(func.count()).select_from(stage_changes).where(stage_changes.c.deal_id == deal_id)
-            ),
-            "won": row.stage == "won",
-            "value": row.value,
-        }
+            ).scalar_one(),
+            won=row.stage == "won",
+            value=row.value,
+        )
 
 
 @router.get("/{deal_id}/timeline")
 def deal_timeline(
     deal_id: schemas.PathId,
-    limit: int = Query(timeline.DEFAULT_LIMIT, ge=1, le=500),
-    offset: int = Query(0, ge=0, le=schemas.MAX_ID),
+    limit: schemas.PageLimit = timeline.DEFAULT_LIMIT,
+    offset: schemas.PageOffset = 0,
 ) -> schemas.Timeline:
     with db.reading() as conn:
         _get(conn, deal_id)

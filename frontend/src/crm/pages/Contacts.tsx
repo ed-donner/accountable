@@ -68,7 +68,9 @@ export function Contacts() {
   );
 
   const count = (wanted: Status | null) =>
-    wanted === null ? (contacts.data?.length ?? 0) : (contacts.data ?? []).filter((row) => row.status === wanted).length;
+    wanted === null
+      ? (contacts.data?.length ?? 0)
+      : (contacts.data ?? []).filter((row) => row.status === wanted).length;
 
   const options: (Status | null)[] = [null, ...STATUS_ORDER];
 

@@ -54,7 +54,8 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
   const { ref, size } = useSize();
   const top = niceTop(Math.max(...months.map((month) => month.revenue)));
   const last = months.length - 1;
-  const shown = size.width > REVENUE_MARGIN.left + REVENUE_MARGIN.right && size.height > REVENUE_MARGIN.top + REVENUE_MARGIN.bottom;
+  const shown =
+    size.width > REVENUE_MARGIN.left + REVENUE_MARGIN.right && size.height > REVENUE_MARGIN.top + REVENUE_MARGIN.bottom;
   const edges = revenueEdges(size.width, size.height, months.length, top);
 
   const rows: Row[] = [

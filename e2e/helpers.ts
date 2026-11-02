@@ -56,7 +56,13 @@ export function addContact(request: APIRequestContext, name: string, organizatio
   return post<{ id: number; name: string }>(request, "/contacts", { name, organization_id, ...values });
 }
 
-type DealFields = { organization_id: number; main_contact_id: number; stage?: string; value?: number; close_date?: string };
+type DealFields = {
+  organization_id: number;
+  main_contact_id: number;
+  stage?: string;
+  value?: number;
+  close_date?: string;
+};
 
 export function addDeal(request: APIRequestContext, name: string, fields: DealFields) {
   return post<{ id: number; name: string }>(request, "/deals", {
@@ -86,7 +92,11 @@ export async function addLinkedDeal(request: APIRequestContext, name: string, de
 
 export async function chooseInPicker(page: Page, label: string, name: string) {
   await page.getByRole("combobox", { name: label }).click();
-  await page.getByRole("dialog").last().getByPlaceholder(/^Search /).fill(name);
+  await page
+    .getByRole("dialog")
+    .last()
+    .getByPlaceholder(/^Search /)
+    .fill(name);
   await page.getByRole("option", { name }).first().click();
 }
 
@@ -99,7 +109,9 @@ export function card(page: Page, name: string) {
 }
 
 export async function cardOrder(page: Page, stage: string) {
-  return column(page, stage).locator("[data-deal]").evaluateAll((cards) => cards.map((item) => item.getAttribute("data-deal")));
+  return column(page, stage)
+    .locator("[data-deal]")
+    .evaluateAll((cards) => cards.map((item) => item.getAttribute("data-deal")));
 }
 
 type Spot = { x: number; y: number };
@@ -153,7 +165,11 @@ export type AppCopy = {
 
 export function makeCopyFolder() {
   const folder = mkdtempSync(path.join(tmpdir(), "accountable-copy-"));
-  return { folder, database: path.join(folder, "copy.db"), remove: () => rmSync(folder, { recursive: true, force: true }) };
+  return {
+    folder,
+    database: path.join(folder, "copy.db"),
+    remove: () => rmSync(folder, { recursive: true, force: true }),
+  };
 }
 
 export function copyEnv(database: string, extra: Record<string, string> = {}) {

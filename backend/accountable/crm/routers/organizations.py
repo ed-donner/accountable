@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, func, insert, select, update
 
 from accountable import db
@@ -15,7 +15,7 @@ def _get(conn, organization_id: int):
     return row
 
 
-def _detail(conn, organization_id: int) -> dict:
+def _detail(conn, organization_id: int) -> schemas.OrganizationDetail:
     row = _get(conn, organization_id)
     linked_contacts = conn.execute(
         select(contacts.c.id, contacts.c.name, contacts.c.job_title, contacts.c.status)
@@ -27,11 +27,11 @@ def _detail(conn, organization_id: int) -> dict:
         .where(deals.c.organization_id == organization_id)
         .order_by(deals.c.close_date.desc())
     ).all()
-    return {
+    return schemas.OrganizationDetail(
         **row._mapping,
-        "contacts": [item._mapping for item in linked_contacts],
-        "deals": [item._mapping for item in linked_deals],
-    }
+        contacts=[schemas.LinkedContact(**item._mapping) for item in linked_contacts],
+        deals=[schemas.LinkedDeal(**item._mapping) for item in linked_deals],
+    )
 
 
 @router.get("")
@@ -39,9 +39,7 @@ def list_organizations() -> list[schemas.OrganizationRow]:
     with db.reading() as conn:
         last = timeline.last_by_organization(conn)
         contact_counts = dict(
-            conn.execute(
-                select(contacts.c.organization_id, func.count()).group_by(contacts.c.organization_id)
-            ).all()
+            conn.execute(select(contacts.c.organization_id, func.count()).group_by(contacts.c.organization_id)).all()
         )
         open_deals = {
             row.organization_id: row
@@ -61,13 +59,13 @@ def list_organizations() -> list[schemas.OrganizationRow]:
     for row in rows:
         open_row = open_deals.get(row.id)
         result.append(
-            {
+            schemas.OrganizationRow(
                 **row._mapping,
-                "contact_count": contact_counts.get(row.id, 0),
-                "open_deal_count": open_row.count if open_row else 0,
-                "open_value": open_row.value if open_row else 0,
-                "last_activity": last.get(row.id),
-            }
+                contact_count=contact_counts.get(row.id, 0),
+                open_deal_count=open_row.count if open_row else 0,
+                open_value=open_row.value if open_row else 0,
+                last_activity=last.get(row.id),
+            )
         )
     return result
 
@@ -75,7 +73,9 @@ def list_organizations() -> list[schemas.OrganizationRow]:
 @router.post("", status_code=201)
 def add_organization(body: schemas.OrganizationCreate) -> schemas.OrganizationDetail:
     with db.writing() as conn:
-        new_id = conn.execute(insert(organizations).values(**body.model_dump())).inserted_primary_key[0]
+        new_id = conn.execute(
+            insert(organizations).values(**body.model_dump()).returning(organizations.c.id)
+        ).scalar_one()
         return _detail(conn, new_id)
 
 
@@ -106,21 +106,21 @@ def delete_organization(organization_id: schemas.PathId) -> None:
 def organization_impact(organization_id: schemas.PathId) -> schemas.OrganizationImpact:
     with db.reading() as conn:
         _get(conn, organization_id)
-        return {
-            "contacts": conn.scalar(
+        return schemas.OrganizationImpact(
+            contacts=conn.execute(
                 select(func.count()).select_from(contacts).where(contacts.c.organization_id == organization_id)
-            ),
-            "deals": conn.scalar(
+            ).scalar_one(),
+            deals=conn.execute(
                 select(func.count()).select_from(deals).where(deals.c.organization_id == organization_id)
-            ),
-        }
+            ).scalar_one(),
+        )
 
 
 @router.get("/{organization_id}/timeline")
 def organization_timeline(
     organization_id: schemas.PathId,
-    limit: int = Query(timeline.DEFAULT_LIMIT, ge=1, le=500),
-    offset: int = Query(0, ge=0, le=schemas.MAX_ID),
+    limit: schemas.PageLimit = timeline.DEFAULT_LIMIT,
+    offset: schemas.PageOffset = 0,
 ) -> schemas.Timeline:
     with db.reading() as conn:
         _get(conn, organization_id)

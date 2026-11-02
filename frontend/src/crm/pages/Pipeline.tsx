@@ -31,7 +31,10 @@ export function Pipeline() {
             </div>
             <div className="flex items-baseline gap-2">
               <b className="font-semibold">Expected revenue</b>
-              <span className="num text-[20px] leading-[26px] font-medium tracking-[-0.02em]" data-testid="board-expected">
+              <span
+                className="num text-[20px] leading-[26px] font-medium tracking-[-0.02em]"
+                data-testid="board-expected"
+              >
                 {money(totals.expected)}
               </span>
             </div>

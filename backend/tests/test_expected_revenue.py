@@ -3,7 +3,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from accountable.crm import rules
 
 CASES = json.loads((Path(__file__).resolve().parents[2] / "shared" / "expected-revenue-cases.json").read_text())

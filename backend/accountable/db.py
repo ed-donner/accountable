@@ -3,10 +3,11 @@
 import os
 import sqlite3
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import TypedDict
 
 from alembic import command
 from alembic.config import Config
@@ -25,9 +26,14 @@ metadata = MetaData(
     }
 )
 
+
+class TableOptions(TypedDict):
+    sqlite_autoincrement: bool
+
+
 # Every table gets these. SQLite would otherwise give the newest record's id to
 # the next one after a delete, so an old address could open a different record.
-TABLE_OPTIONS = {"sqlite_autoincrement": True}
+TABLE_OPTIONS: TableOptions = {"sqlite_autoincrement": True}
 
 # FastAPI runs requests on separate threads, and renumbering a column reads it
 # before writing it, so all writes go one at a time.
@@ -74,13 +80,13 @@ def dispose() -> None:
 
 
 @contextmanager
-def reading() -> Iterator[Connection]:
+def reading() -> Generator[Connection]:
     with engine().connect() as connection:
         yield connection
 
 
 @contextmanager
-def writing() -> Iterator[Connection]:
+def writing() -> Generator[Connection]:
     """One transaction, with every other write waiting for it."""
     with _write_lock, engine().begin() as connection:
         yield connection

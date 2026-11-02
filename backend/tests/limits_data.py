@@ -17,7 +17,9 @@ DEALS = 500
 ACTIVITIES = 5000
 
 # Won and Lost get long columns, the worst case for dragging.
-STAGE_SHARE = ["new"] * 60 + ["qualified"] * 60 + ["proposal"] * 50 + ["negotiation"] * 30 + ["won"] * 240 + ["lost"] * 60
+STAGE_SHARE = (
+    ["new"] * 60 + ["qualified"] * 60 + ["proposal"] * 50 + ["negotiation"] * 30 + ["won"] * 240 + ["lost"] * 60
+)
 
 
 def fill(conn: Connection, today: date) -> None:
@@ -26,16 +28,17 @@ def fill(conn: Connection, today: date) -> None:
 
     now = sample_data.moment(today - timedelta(days=1), 3)
 
-    organization_ids = [
-        conn.execute(
-            insert(organizations).values(
-                name=f"Organization {number:03d} and Partners Holdings",
-                website=f"https://org{number}.example",
-                industry=f"Industry {number % 12}",
-            )
-        ).inserted_primary_key[0]
-        for number in range(ORGANIZATIONS)
-    ]
+    organization_ids = conn.scalars(
+        insert(organizations).returning(organizations.c.id, sort_by_parameter_order=True),
+        [
+            {
+                "name": f"Organization {number:03d} and Partners Holdings",
+                "website": f"https://org{number}.example",
+                "industry": f"Industry {number % 12}",
+            }
+            for number in range(ORGANIZATIONS)
+        ],
+    ).all()
 
     contact_ids = conn.scalars(
         insert(contacts).returning(contacts.c.id, sort_by_parameter_order=True),
@@ -56,7 +59,11 @@ def fill(conn: Connection, today: date) -> None:
     for number in range(DEALS):
         stage = STAGE_SHARE[number]
         steps = [*rules.OPEN_STAGES[: 1 + number % 4]]
-        close = today - timedelta(days=number % 330) if stage in rules.CLOSED_STAGES else today + timedelta(days=number % 90 - 10)
+        close = (
+            today - timedelta(days=number % 330)
+            if stage in rules.CLOSED_STAGES
+            else today + timedelta(days=number % 90 - 10)
+        )
         deal_id = rules.add_deal(
             conn,
             {
@@ -70,7 +77,11 @@ def fill(conn: Connection, today: date) -> None:
             today=today,
             now=now,
         )
-        path = [step for step in steps[1:] if stage not in rules.OPEN_STAGES or rules.OPEN_STAGES.index(step) <= rules.OPEN_STAGES.index(stage)]
+        path = [
+            step
+            for step in steps[1:]
+            if stage not in rules.OPEN_STAGES or rules.OPEN_STAGES.index(step) <= rules.OPEN_STAGES.index(stage)
+        ]
         for step in [*path, stage]:
             rules.change_stage(conn, deal_id, step, today=close if step == stage else today, now=now)
         deal_ids.append(deal_id)

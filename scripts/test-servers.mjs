@@ -34,10 +34,24 @@ for (let index = 0; index < workers; index += 1) {
     ACCOUNTABLE_API_PORT: String(stack.apiPort),
   };
   const apiPort = String(stack.apiPort);
-  const backend = ["run", "--no-sync", "uvicorn", "accountable.main:app", "--host", "127.0.0.1", "--port", apiPort, "--log-level", "warning"];
+  const backend = [
+    "run",
+    "--no-sync",
+    "uvicorn",
+    "accountable.main:app",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    apiPort,
+    "--log-level",
+    "warning",
+  ];
   servers.push(
     { url: `http://127.0.0.1:${apiPort}/api/meta`, child: start("uv", backend, { env }) },
-    { url: `http://127.0.0.1:${stack.webPort}/`, child: start(process.execPath, [vite, "frontend", "--logLevel", "warn"], { env }) },
+    {
+      url: `http://127.0.0.1:${stack.webPort}/`,
+      child: start(process.execPath, [vite, "frontend", "--logLevel", "warn"], { env }),
+    },
   );
 }
 

@@ -30,7 +30,8 @@ function OrganizationRecord({ id }: { id: number }) {
   if (organization.error instanceof ApiError && organization.error.kind === "missing") {
     return <MissingRecord word="organization" to="/organizations" section="Organizations" />;
   }
-  if (!organization.data) return <LoadFailed onPage error={organization.error} onRetry={() => organization.refetch()} />;
+  if (!organization.data)
+    return <LoadFailed onPage error={organization.error} onRetry={() => organization.refetch()} />;
   const record = organization.data;
 
   return (

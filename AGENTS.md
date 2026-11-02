@@ -14,10 +14,12 @@ Each change has a folder, `docs/changes/<branch name>/`, holding its `intent.md`
 
 Update `docs/STATUS.md` when you finish a piece of work
 
-## Testing
+## Checks and tests
 
-Run `npm test` from the project root before calling any work finished, and fix failures until it passes.
+Run `npm run check` from the project root before calling any work finished, and fix failures until it passes. Fix the code, not the rules: don't add disable comments, ignores or exclusions, or loosen a setting. If a rule doesn't suit this project, ask first.
 
-It runs the type check, the backend unit tests (pytest), the frontend unit tests (Vitest) and the end-to-end tests (Playwright), ends with a summary, and exits with an error if any of them failed. It takes about two minutes on 10 cores, and uses its own temporary databases. It picks the number of end-to-end workers from the machine's cores and memory. `ACCOUNTABLE_TEST_WORKERS=2 npm test` sets it by hand.
+It runs Prettier, ESLint, ruff format, ruff check and gitleaks, then everything `npm test` runs, ends with a summary, and exits with an error if any of them failed. `npm run format` fixes the formatting. `npm run check:quick` leaves out the end-to-end tests, for checking as you go.
+
+`npm test` runs the type checks (tsc and ty), the backend unit tests (pytest), the frontend unit tests (Vitest) and the end-to-end tests (Playwright). Unit test coverage under 80% fails it. It takes about two minutes on 10 cores, and uses its own temporary databases. It picks the number of end-to-end workers from the machine's cores and memory. `ACCOUNTABLE_TEST_WORKERS=2 npm test` sets it by hand.
 
 Pytest and Playwright refuse to start on their own, because `npm test` is what sets up those databases.

@@ -20,7 +20,10 @@ describe("readPytest", () => {
   });
 
   it("names only the tests that failed, including a file that couldn't load", () => {
-    expect(readPytest(xml).failures).toEqual(["backend.tests.test_rules::test_fails[a>b]", "backend.tests.test_broken"]);
+    expect(readPytest(xml).failures).toEqual([
+      "backend.tests.test_rules::test_fails[a>b]",
+      "backend.tests.test_broken",
+    ]);
   });
 });
 
@@ -40,7 +43,11 @@ describe("readVitest", () => {
           { status: "failed", fullName: "a breaks" },
         ],
       },
-      { name: "/project/frontend/src/b.test.ts", status: "passed", assertionResults: [{ status: "passed", fullName: "b works" }] },
+      {
+        name: "/project/frontend/src/b.test.ts",
+        status: "passed",
+        assertionResults: [{ status: "passed", fullName: "b works" }],
+      },
     ],
   };
 
@@ -74,7 +81,12 @@ describe("readPlaywright", () => {
   };
 
   it("finds a failure however deep its suite is", () => {
-    expect(readPlaywright(JSON.stringify(report))).toEqual({ passed: 4, failed: 1, skipped: 1, failures: ["a.spec.ts:9 > deep down"] });
+    expect(readPlaywright(JSON.stringify(report))).toEqual({
+      passed: 4,
+      failed: 1,
+      skipped: 1,
+      failures: ["a.spec.ts:9 > deep down"],
+    });
   });
 
   it("counts a problem outside any test, such as a spec file that can't load", () => {
@@ -86,8 +98,20 @@ describe("readPlaywright", () => {
 
 describe("summarize", () => {
   const typeCheck = { name: "Type check", code: 0, ms: 700, runsTests: false, results: null };
-  const backend = { name: "Backend", code: 0, ms: 4600, runsTests: true, results: { passed: 331, failed: 0, skipped: 0, failures: [] } };
-  const browser = { name: "End-to-end", code: 0, ms: 45_000, runsTests: true, results: { passed: 106, failed: 0, skipped: 0, failures: [] } };
+  const backend = {
+    name: "Backend",
+    code: 0,
+    ms: 4600,
+    runsTests: true,
+    results: { passed: 331, failed: 0, skipped: 0, failures: [] },
+  };
+  const browser = {
+    name: "End-to-end",
+    code: 0,
+    ms: 45_000,
+    runsTests: true,
+    results: { passed: 106, failed: 0, skipped: 0, failures: [] },
+  };
   const failing = (layer, failures) => ({
     ...layer,
     code: 1,
@@ -126,7 +150,10 @@ describe("summarize", () => {
   });
 
   it("fails when a runner exits cleanly having run no tests", () => {
-    const { passed, text } = summarize([{ ...backend, results: { passed: 0, failed: 0, skipped: 0, failures: [] } }], 5000);
+    const { passed, text } = summarize(
+      [{ ...backend, results: { passed: 0, failed: 0, skipped: 0, failures: [] } }],
+      5000,
+    );
     expect(passed).toBe(false);
     expect(text).toContain("FAILED, ran no tests");
   });

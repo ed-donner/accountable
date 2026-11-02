@@ -1,7 +1,17 @@
 import type { APIRequestContext, Locator, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { addActivity, addDeal, addLinkedDeal, addOrganization, card, column, dropAtEnd, emptyDatabase, isoDay } from "./helpers";
+import {
+  addActivity,
+  addDeal,
+  addLinkedDeal,
+  addOrganization,
+  card,
+  column,
+  dropAtEnd,
+  emptyDatabase,
+  isoDay,
+} from "./helpers";
 
 // What the app does when things go wrong, which is where the bugs the review found
 // were hiding. Each idea runs across every screen it could apply to.
@@ -39,10 +49,30 @@ type Ids = { deal: number; contact: number; organization: number };
 const heading = (page: Page, name: string) => page.getByRole("heading", { level: 1, name });
 
 const SCREENS: Screen[] = [
-  { name: "the dashboard", address: () => "/", read: () => "/api/dashboard", shown: (page) => page.getByTestId("revenue-this-month") },
-  { name: "Organizations", address: () => "/organizations", read: () => "/api/organizations", shown: (page) => page.locator("tbody tr").first() },
-  { name: "Contacts", address: () => "/contacts", read: () => "/api/contacts", shown: (page) => page.locator("tbody tr").first() },
-  { name: "Deals", address: () => "/deals", read: () => "/api/deals", shown: (page) => page.locator("tbody tr").first() },
+  {
+    name: "the dashboard",
+    address: () => "/",
+    read: () => "/api/dashboard",
+    shown: (page) => page.getByTestId("revenue-this-month"),
+  },
+  {
+    name: "Organizations",
+    address: () => "/organizations",
+    read: () => "/api/organizations",
+    shown: (page) => page.locator("tbody tr").first(),
+  },
+  {
+    name: "Contacts",
+    address: () => "/contacts",
+    read: () => "/api/contacts",
+    shown: (page) => page.locator("tbody tr").first(),
+  },
+  {
+    name: "Deals",
+    address: () => "/deals",
+    read: () => "/api/deals",
+    shown: (page) => page.locator("tbody tr").first(),
+  },
   { name: "the Pipeline", address: () => "/pipeline", read: () => "/api/deals", shown: (page) => card(page, "Solid") },
   {
     name: "a deal's page",
@@ -89,7 +119,11 @@ async function solidRecords(request: APIRequestContext): Promise<Ids> {
 }
 
 for (const screen of SCREENS) {
-  test(`${screen.name} says so when it can't load, and Try again works`, async ({ page, request, expectConsoleError }) => {
+  test(`${screen.name} says so when it can't load, and Try again works`, async ({
+    page,
+    request,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/status of 500/);
     const ids = await solidRecords(request);
     const broken = await breakApi(page, screen.read(ids));
@@ -104,7 +138,11 @@ for (const screen of SCREENS) {
     await expect(page.getByText("Couldn't load this.")).toHaveCount(0);
   });
 
-  test(`${screen.name} keeps what it's showing if a later read fails, says so, and Try again works`, async ({ page, request, expectConsoleError }) => {
+  test(`${screen.name} keeps what it's showing if a later read fails, says so, and Try again works`, async ({
+    page,
+    request,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/status of 500/);
     const ids = await solidRecords(request);
     await page.goto(screen.address(ids));
@@ -124,13 +162,22 @@ for (const screen of SCREENS) {
   });
 }
 
-test("the dashboard says its figures may be out of date, rather than showing them as real", async ({ page, request, expectConsoleError }) => {
+test("the dashboard says its figures may be out of date, rather than showing them as real", async ({
+  page,
+  request,
+  expectConsoleError,
+}) => {
   expectConsoleError(/status of 500/);
   const ids = await solidRecords(request);
   await page.goto("/");
   await expect(page.getByTestId("revenue-this-month")).toHaveText("$0");
 
-  await addDeal(request, "Won meanwhile", { organization_id: ids.organization, main_contact_id: ids.contact, stage: "won", close_date: isoDay() });
+  await addDeal(request, "Won meanwhile", {
+    organization_id: ids.organization,
+    main_contact_id: ids.contact,
+    stage: "won",
+    close_date: isoDay(),
+  });
   const broken = await breakApi(page, "/api/dashboard");
   await comeBackToTheWindow(page, "/api/dashboard");
 
@@ -143,7 +190,11 @@ test("the dashboard says its figures may be out of date, rather than showing the
   await expect(page.getByText(OUT_OF_DATE)).toHaveCount(0);
 });
 
-test("a first read that fails just before another succeeds still loads, with no blank screen", async ({ page, request, expectConsoleError }) => {
+test("a first read that fails just before another succeeds still loads, with no blank screen", async ({
+  page,
+  request,
+  expectConsoleError,
+}) => {
   expectConsoleError(/status of 500/);
   await solidRecords(request);
   let reads = 0;
@@ -209,7 +260,11 @@ test.describe("a failed read isn't mistaken for no data", () => {
     await expect(page.getByText("Nothing logged yet.")).toHaveCount(0);
   });
 
-  test("a form that can't read its lists doesn't offer an empty picker", async ({ page, request, expectConsoleError }) => {
+  test("a form that can't read its lists doesn't offer an empty picker", async ({
+    page,
+    request,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/status of 500/);
     await solidRecords(request);
     await breakApi(page, "/api/organizations");
@@ -246,7 +301,11 @@ test.describe("a failed read isn't mistaken for no data", () => {
   });
 });
 
-test("a deleted record's address stays gone after another record is added", async ({ page, request, expectConsoleError }) => {
+test("a deleted record's address stays gone after another record is added", async ({
+  page,
+  request,
+  expectConsoleError,
+}) => {
   expectConsoleError(/status of 404/);
   const { deal, organization, contact } = await addLinkedDeal(request, "First try");
   await request.delete(`/api/deals/${deal.id}`);
@@ -321,7 +380,11 @@ test.describe("a record deleted while it's still on screen", () => {
     ["contact", "contacts", "Name", "Save contact"],
     ["organization", "organizations", "Name", "Save organization"],
   ]) {
-    test(`saving an edit to a ${word} says so, and keeps what was typed`, async ({ page, request, expectConsoleError }) => {
+    test(`saving an edit to a ${word} says so, and keeps what was typed`, async ({
+      page,
+      request,
+      expectConsoleError,
+    }) => {
       expectConsoleError(/status of 404/);
       const { deal, contact, organization } = await addLinkedDeal(request, "Edited");
       const id = { deals: deal.id, contacts: contact.id, organizations: organization.id }[path]!;
@@ -367,7 +430,11 @@ test.describe("a record deleted while it's still on screen", () => {
   test("ticking its follow-up says so, on a timeline", async ({ page, request, expectConsoleError }) => {
     expectConsoleError(/status of 404/);
     const { deal } = await addLinkedDeal(request, "Tick gone");
-    const activity = await addActivity(request, { deal_id: deal.id, description: "Ring back", follow_up_date: isoDay(3) });
+    const activity = await addActivity(request, {
+      deal_id: deal.id,
+      description: "Ring back",
+      follow_up_date: isoDay(3),
+    });
     await page.goto(`/deals/${deal.id}`);
     await expect(page.getByText("Ring back")).toBeVisible();
     await request.delete(`/api/activities/${activity.id}`);
@@ -379,7 +446,11 @@ test.describe("a record deleted while it's still on screen", () => {
   test("ticking its follow-up says so, on the dashboard", async ({ page, request, expectConsoleError }) => {
     expectConsoleError(/status of 404/);
     const { deal } = await addLinkedDeal(request, "Dashboard tick gone");
-    const activity = await addActivity(request, { deal_id: deal.id, description: "Ring back", follow_up_date: isoDay(3) });
+    const activity = await addActivity(request, {
+      deal_id: deal.id,
+      description: "Ring back",
+      follow_up_date: isoDay(3),
+    });
     await page.goto("/");
     const row = page.getByTestId("follow-up").filter({ hasText: "Ring back" });
     await expect(row).toBeVisible();
@@ -402,7 +473,11 @@ test.describe("a record deleted while it's still on screen", () => {
     await expect(card(page, "Card gone")).toHaveCount(0);
   });
 
-  test("choosing a deleted organization puts the message beside its field", async ({ page, request, expectConsoleError }) => {
+  test("choosing a deleted organization puts the message beside its field", async ({
+    page,
+    request,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/status of 422/);
     const organization = await addOrganization(request, "Short lived");
     await page.goto("/contacts");
@@ -420,7 +495,11 @@ test.describe("a record deleted while it's still on screen", () => {
 });
 
 test.describe("saves that fail", () => {
-  test("a failed delete leaves the record and the dialog, and says so", async ({ page, request, expectConsoleError }) => {
+  test("a failed delete leaves the record and the dialog, and says so", async ({
+    page,
+    request,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/status of 500/);
     const { deal } = await addLinkedDeal(request, "Hard to delete");
     await breakApi(page, `/api/deals/${deal.id}`, "DELETE");
@@ -433,7 +512,11 @@ test.describe("saves that fail", () => {
     expect((await request.get(`/api/deals/${deal.id}`)).status()).toBe(200);
   });
 
-  test("a failed save can be tried again without typing it all again", async ({ page, request, expectConsoleError }) => {
+  test("a failed save can be tried again without typing it all again", async ({
+    page,
+    request,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/status of 500/);
     const organization = await addOrganization(request, "Second try");
     const broken = await breakApi(page, `/api/organizations/${organization.id}`, "PATCH");
@@ -453,7 +536,11 @@ test.describe("saves that fail", () => {
   test("a failed tick puts the follow-up back on the dashboard", async ({ page, request, expectConsoleError }) => {
     expectConsoleError(/status of 500/);
     const { deal } = await addLinkedDeal(request, "Tick fails");
-    const activity = await addActivity(request, { deal_id: deal.id, description: "Ring back", follow_up_date: isoDay(3) });
+    const activity = await addActivity(request, {
+      deal_id: deal.id,
+      description: "Ring back",
+      follow_up_date: isoDay(3),
+    });
     await breakApi(page, `/api/activities/${activity.id}`, "PATCH");
     await page.goto("/");
     const row = page.getByTestId("follow-up").filter({ hasText: "Ring back" });
@@ -516,8 +603,9 @@ test.describe("pressing twice", () => {
 
   test("a double click on a card's column button opens one form", async ({ page }) => {
     await page.goto("/pipeline");
-    await column(page, "new").getByRole("button", { name: /Add deal/ }).dblclick();
+    await column(page, "new")
+      .getByRole("button", { name: /Add deal/ })
+      .dblclick();
     await expect(page.getByRole("dialog")).toHaveCount(1);
   });
 });
-

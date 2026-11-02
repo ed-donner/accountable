@@ -5,7 +5,7 @@ import { Icon } from "../../components/Icon";
 import { money } from "../../lib/money";
 import { STAGE_NAMES, figures, isOpen, slideSteps } from "../deals";
 import type { Deal, Stage } from "../queries";
-import { DealCard } from "./DealCard";
+import { DealCard, type PickUpListeners } from "./DealCard";
 
 const HEADS: Record<Stage, string> = {
   new: "bg-sea-green text-ink",
@@ -26,6 +26,7 @@ type Props = {
   place: number | null;
   /** One card's height and gap, in pixels, or 0 if no drag involves this column. */
   step: number;
+  pickUp: PickUpListeners;
   onAdd: (stage: Stage) => void;
   listRef: (stage: Stage, element: HTMLDivElement | null) => void;
 };
@@ -33,7 +34,18 @@ type Props = {
 const LIST_PADDING = 8;
 const CARD_GAP = 8;
 
-export const Column = memo(function Column({ stage, deals, today, draggingId, landedId, place, step, onAdd, listRef }: Props) {
+export const Column = memo(function Column({
+  stage,
+  deals,
+  today,
+  draggingId,
+  landedId,
+  place,
+  step,
+  pickUp,
+  onAdd,
+  listRef,
+}: Props) {
   const { setNodeRef } = useDroppable({ id: stage });
   const totals = figures(deals);
 
@@ -47,9 +59,10 @@ export const Column = memo(function Column({ stage, deals, today, draggingId, la
         dragging={deal.id === draggingId}
         landed={deal.id === landedId}
         offset={slideSteps(index, draggedIndex, place) * step}
+        pickUp={pickUp}
       />
     ));
-  }, [deals, today, draggingId, landedId, place, step]);
+  }, [deals, today, draggingId, landedId, place, step, pickUp]);
 
   return (
     <section aria-label={STAGE_NAMES[stage]} data-testid={`column-${stage}`} className="flex min-h-0 min-w-0 flex-col">

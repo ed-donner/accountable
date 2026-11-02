@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, func, insert, select, update
 
 from accountable import db
@@ -19,14 +19,14 @@ def _get(conn, contact_id: int):
     return row
 
 
-def _detail(conn, contact_id: int) -> dict:
+def _detail(conn, contact_id: int) -> schemas.ContactDetail:
     row = _get(conn, contact_id)
     linked_deals = conn.execute(
         select(deals.c.id, deals.c.name, deals.c.stage, deals.c.value, deals.c.close_date)
         .where(deals.c.main_contact_id == contact_id)
         .order_by(deals.c.close_date.desc())
     ).all()
-    return {**row._mapping, "deals": [item._mapping for item in linked_deals]}
+    return schemas.ContactDetail(**row._mapping, deals=[schemas.LinkedDeal(**item._mapping) for item in linked_deals])
 
 
 def _check_organization(conn, organization_id: int) -> None:
@@ -40,14 +40,14 @@ def list_contacts() -> list[schemas.ContactRow]:
     with db.reading() as conn:
         last = timeline.last_by_contact(conn)
         rows = conn.execute(_with_organization.order_by(contacts.c.name)).all()
-    return [{**row._mapping, "last_activity": last.get(row.id)} for row in rows]
+    return [schemas.ContactRow(**row._mapping, last_activity=last.get(row.id)) for row in rows]
 
 
 @router.post("", status_code=201)
 def add_contact(body: schemas.ContactCreate) -> schemas.ContactDetail:
     with db.writing() as conn:
         _check_organization(conn, body.organization_id)
-        new_id = conn.execute(insert(contacts).values(**body.model_dump())).inserted_primary_key[0]
+        new_id = conn.execute(insert(contacts).values(**body.model_dump()).returning(contacts.c.id)).scalar_one()
         return _detail(conn, new_id)
 
 
@@ -84,19 +84,21 @@ def delete_contact(contact_id: schemas.PathId) -> None:
 def contact_impact(contact_id: schemas.PathId) -> schemas.ContactImpact:
     with db.reading() as conn:
         _get(conn, contact_id)
-        return {
-            "deals": conn.scalar(select(func.count()).select_from(deals).where(deals.c.main_contact_id == contact_id)),
-            "activities": conn.scalar(
+        return schemas.ContactImpact(
+            deals=conn.execute(
+                select(func.count()).select_from(deals).where(deals.c.main_contact_id == contact_id)
+            ).scalar_one(),
+            activities=conn.execute(
                 select(func.count()).select_from(activities).where(activities.c.contact_id == contact_id)
-            ),
-        }
+            ).scalar_one(),
+        )
 
 
 @router.get("/{contact_id}/timeline")
 def contact_timeline(
     contact_id: schemas.PathId,
-    limit: int = Query(timeline.DEFAULT_LIMIT, ge=1, le=500),
-    offset: int = Query(0, ge=0, le=schemas.MAX_ID),
+    limit: schemas.PageLimit = timeline.DEFAULT_LIMIT,
+    offset: schemas.PageOffset = 0,
 ) -> schemas.Timeline:
     with db.reading() as conn:
         _get(conn, contact_id)

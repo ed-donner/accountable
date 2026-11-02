@@ -107,7 +107,12 @@ export function SalesFunnel({ stages }: { stages: Dashboard["funnel"] }) {
   const summary = stages.map((stage) => `${STAGE_NAMES[stage.stage]} ${money(stage.value)}`).join(", ");
 
   return (
-    <div ref={ref} role="img" aria-label={`Sales funnel, value reaching each stage: ${summary}`} className="mt-2 min-h-0 flex-1">
+    <div
+      ref={ref}
+      role="img"
+      aria-label={`Sales funnel, value reaching each stage: ${summary}`}
+      className="mt-2 min-h-0 flex-1"
+    >
       {shown && (
         <FunnelChart width={size.width} height={size.height} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
           <Tooltip content={<Tip />} />

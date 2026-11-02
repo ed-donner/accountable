@@ -12,12 +12,23 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "test": "node scripts/test.mjs",
+    "check": "node scripts/check.mjs",
+    "check:quick": "node scripts/check.mjs --quick",
+    "format": "prettier --write . && uv run --frozen ruff check --select I --fix --quiet && uv run --frozen ruff format",
     "seed": "node scripts/data.mjs seed",
     "empty": "node scripts/data.mjs empty"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.6",
-    "concurrently": "^10.0.6"
+    "concurrently": "^10.0.6",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1"
   }
 }

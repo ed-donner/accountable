@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type KeyboardEvent, type PointerEvent } from "react";
 import { Link } from "react-router";
 
 import { Chip } from "../../components/Chip";
@@ -43,6 +43,12 @@ function CardContent({ deal, late }: { deal: Deal; late: boolean }) {
   );
 }
 
+/** How a press or a key on a card picks it up. The board hands every card the same pair. */
+export type PickUpListeners = {
+  onPointerDown: (event: PointerEvent<HTMLElement>) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
+};
+
 type CardProps = {
   deal: Deal;
   today: string;
@@ -51,12 +57,14 @@ type CardProps = {
   landed: boolean;
   /** Pixels up or down, while another card is dragged. */
   offset: number;
+  pickUp: PickUpListeners;
 };
 
 function sameCard(a: CardProps, b: CardProps) {
-  // Only what's shown counts. A drop renumbers its column, and that shouldn't
-  // redraw every card in it.
+  // Only what's shown counts, and the pick-up listeners, which stay the same. A
+  // drop renumbers its column, and that shouldn't redraw every card in it.
   return (
+    a.pickUp === b.pickUp &&
     a.today === b.today &&
     a.dragging === b.dragging &&
     a.landed === b.landed &&
@@ -72,11 +80,13 @@ function sameCard(a: CardProps, b: CardProps) {
   );
 }
 
-export const DealCard = memo(function DealCard({ deal, today, dragging, landed, offset }: CardProps) {
+export const DealCard = memo(function DealCard({ deal, today, dragging, landed, offset, pickUp }: CardProps) {
   const late = isLate(deal, today);
   return (
     <Link
       to={`/deals/${deal.id}`}
+      onPointerDown={pickUp.onPointerDown}
+      onKeyDown={pickUp.onKeyDown}
       draggable={false}
       data-deal-id={deal.id}
       data-testid="deal-card"

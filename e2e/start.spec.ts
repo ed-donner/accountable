@@ -101,7 +101,9 @@ test.describe("a copy of the app of its own", () => {
     }
   });
 
-  test("a second start works with every network route pointed at a dead port, and nothing loads from outside", async ({ page }) => {
+  test("a second start works with every network route pointed at a dead port, and nothing loads from outside", async ({
+    page,
+  }) => {
     const folder = makeCopyFolder();
     const first = await startCopy(folder.database);
     await first.stop();
@@ -126,7 +128,9 @@ test.describe("a copy of the app of its own", () => {
       // Every request is checked by the base test. These confirm the fonts came too.
       const loaded = await page.evaluate(async () => {
         await document.fonts.ready;
-        return [...document.fonts].filter((font) => font.status === "loaded").map((font) => font.family.replaceAll('"', ""));
+        return [...document.fonts]
+          .filter((font) => font.status === "loaded")
+          .map((font) => font.family.replaceAll('"', ""));
       });
       expect(loaded).toContain("Instrument Sans Variable");
       expect(loaded).toContain("Instrument Serif");
@@ -178,7 +182,10 @@ test.describe("a copy of the app of its own", () => {
     folder.remove();
   });
 
-  test("stopping the backend shows the connection message, not a blank screen", async ({ page, expectConsoleError }) => {
+  test("stopping the backend shows the connection message, not a blank screen", async ({
+    page,
+    expectConsoleError,
+  }) => {
     expectConsoleError(/ERR_CONNECTION_REFUSED|Failed to load resource|Failed to fetch/);
     const folder = makeCopyFolder();
     const copy = await startCopy(folder.database);

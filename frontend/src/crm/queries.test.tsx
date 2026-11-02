@@ -6,7 +6,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { queryDefaults } from "../App";
 import { META, mockApi, type Call } from "../test-utils";
-import { useDashboard, useMoveDeal, useTickFollowUp, type Dashboard, type Deal, type Stage, type Timeline } from "./queries";
+import {
+  useDashboard,
+  useMoveDeal,
+  useTickFollowUp,
+  type Dashboard,
+  type Deal,
+  type Stage,
+  type Timeline,
+} from "./queries";
 
 function deal(id: number, stage: Stage = "new"): Deal {
   return {
@@ -35,7 +43,9 @@ function setup() {
   const client = new QueryClient({ defaultOptions: queryDefaults });
   client.setQueryData(["meta"], META);
   client.setQueryData(["deals"], [deal(1), deal(2)]);
-  const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
   return { client, wrapper };
 }
 
@@ -174,7 +184,11 @@ describe("moves that overlap", () => {
   });
 
   it("go out one at a time, in order", async () => {
-    const calls = mockApi({ "GET /meta": META, "POST /deals/1/move": moved(1, "won"), "POST /deals/2/move": moved(2, "lost") });
+    const calls = mockApi({
+      "GET /meta": META,
+      "POST /deals/1/move": moved(1, "won"),
+      "POST /deals/2/move": moved(2, "lost"),
+    });
     const { wrapper } = setup();
     const { result } = renderHook(() => useMoveDeal(), { wrapper });
 
@@ -240,7 +254,13 @@ describe("ticks", () => {
   }
 
   function followUp(id: number) {
-    return { id, description: `Activity ${id}`, follow_up_date: "2999-01-02", overdue: false, about: { kind: "deal" as const, id: 7, name: "x" } };
+    return {
+      id,
+      description: `Activity ${id}`,
+      follow_up_date: "2999-01-02",
+      overdue: false,
+      about: { kind: "deal" as const, id: 7, name: "x" },
+    };
   }
 
   function board(): Dashboard {
@@ -277,7 +297,9 @@ describe("ticks", () => {
     act(() => result.current.mutate({ id: 1, done: true }));
 
     await waitFor(() => expect(failure).toHaveBeenCalledOnce());
-    expect(client.getQueryData<InfiniteData<Timeline>>(["deals", 7, "timeline"])?.pages[0].entries[0].follow_up_done).toBe(false);
+    expect(
+      client.getQueryData<InfiniteData<Timeline>>(["deals", 7, "timeline"])?.pages[0].entries[0].follow_up_done,
+    ).toBe(false);
     expect(client.getQueryData<Dashboard>(["dashboard"])?.follow_ups.items).toHaveLength(2);
   });
 
@@ -313,7 +335,10 @@ describe("ticks", () => {
     expect(dashboard?.follow_ups.items.map((item) => item.id)).toEqual([1, 2]);
     expect(dashboard?.follow_ups.upcoming).toBe(2);
     const timeline = client.getQueryData<InfiniteData<Timeline>>(["deals", 7, "timeline"]);
-    expect(timeline?.pages.flatMap((page) => page.entries).map((entry) => entry.follow_up_done)).toEqual([false, false]);
+    expect(timeline?.pages.flatMap((page) => page.entries).map((entry) => entry.follow_up_done)).toEqual([
+      false,
+      false,
+    ]);
   });
 
   it("read everything again once, after the last of them", async () => {

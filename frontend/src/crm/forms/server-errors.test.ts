@@ -29,7 +29,10 @@ describe("showSaveError", () => {
   it("handles a mix of the two", () => {
     const failure = vi.spyOn(toast, "error");
     const shown = form();
-    showSaveError(new ApiError("fields", "Check the form.", { website: "Enter a website", body: "Check this field" }), shown);
+    showSaveError(
+      new ApiError("fields", "Check the form.", { website: "Enter a website", body: "Check this field" }),
+      shown,
+    );
     expect(shown.setError).toHaveBeenCalledOnce();
     expect(failure).toHaveBeenCalledWith("Check this field");
   });

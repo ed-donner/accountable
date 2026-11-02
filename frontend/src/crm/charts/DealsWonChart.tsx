@@ -1,4 +1,14 @@
-import { Bar, BarChart, CartesianGrid, LabelList, Rectangle, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  Rectangle,
+  Tooltip,
+  XAxis,
+  YAxis,
+  type BarShapeProps,
+} from "recharts";
 
 import { plural } from "../../lib/words";
 import type { Dashboard } from "../queries";

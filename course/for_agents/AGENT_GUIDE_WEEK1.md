@@ -50,3 +50,29 @@ The student commits at the end of each stage with `git add .` and `git commit -m
 - **Usage limits:** Day 3 is the heaviest day of the week. On a plan of about $20 a month, use Sonnet or the equivalent, and if a limit stops the build, wait for the reset and carry on in the same session ("Models and usage limits" in `course/for_agents/AGENT_COURSE_GUIDE.md`).
 - **The agent may commit its own work,** for example after each phase when `plan.md` calls each phase a commit point. That's fine. "If the agent has committed" in `course/for_agents/AGENT_GIT_GUIDE.md` explains what to do.
 - **The review can find Important bugs that every test missed.** That's what the stage is for, and it doesn't mean the build failed. The agent fixes them before the merge.
+
+## Day 4: Harness engineering
+
+The student adds a harness to Accountable, then makes one change through all six stages with the harness in place. The prompts are in `course/instructions/week1day4.md`. Each part has its own branch, and the student merges each one into their own `main`.
+
+**Part 1, the harness,** on a branch called `harness`, with a step for each practice:
+
+- **Shared capabilities:** the student starts the branch and installs gitleaks.
+- **The repo as memory:** the agent moves `intent.md` and `plan.md` into `docs/changes/mvp/`, and `docs/spec.md` becomes the description of the whole product.
+- **Enforced standards:** the student writes `docs/STANDARDS.md` by hand. The agent then adds `npm run check`, `npm run check:quick` and `npm run format`.
+- **Feedback in the loop:** the agent adds a lefthook pre-commit hook, a hook that runs `npm run check:quick` when it finishes a turn, a hook that blocks edits to `.env`, and a GitHub Actions workflow. The student pushes the branch to their fork and watches the run.
+- **Security:** the student tries to commit a fake key and sees the hook stop it, then skips the hook and sees CI fail.
+- **Harness discipline:** the agent adds `docs/IMPROVE.md`, and the student merges `harness` into `main`.
+
+**Part 2, dark mode,** on a branch called `dark-mode`. The stages are the same as Day 3. The intent has its own folder, `docs/spec.md` is edited on the branch, `npm run check` replaces `npm test`, and `docs/IMPROVE.md` runs at Deploy. The student pushes the branch to their fork, waits for CI and merges into `main`.
+
+**Watch out for:**
+
+- **Coverage:** Ed uses 80%, and reaching it is the longest step of the day. The student can lower the number in the prompt or leave coverage out. On a smaller plan, suggest a lower number.
+- **gitleaks:** the pre-commit hook refuses every commit if gitleaks isn't installed, and its message says how to install it.
+- **CI is slow:** 15 to 20 minutes on Ed's build, because the end-to-end tests run one at a time on GitHub's small machine. A leaked secret fails sooner, because gitleaks runs as its own step before anything else is installed.
+- **CI fails at "Set up job":** GitHub couldn't find an action at the version the workflow names. `astral-sh/setup-uv` has published only exact versions since v8, so `@v10` fails. The CI prompt says so, but an agent can still miss it. Use the full version of its latest release, such as `@v10.3.3`. Leave out its `version` setting, so it installs the latest uv.
+- **CI fails but the student's machine passes:** GitHub runs Linux on a small machine, so some failures only show there. Read the error in the run, find the root cause, fix it on the branch and push again, without skipping or weakening the test.
+- **The fake key:** `npm run check` stays red until `make-it-fail` is deleted on both the student's machine and their fork, because gitleaks scans every branch.
+- **Hooks in other agents:** if the student's agent doesn't support a hook, it says so. The pre-commit hook and CI work with any agent.
+- **Starting from Ed's Day 3 version:** the student moves their `main` onto `week1day3-end` first, using the commands in the instructions. Branching from `week1day3-end` without moving `main` leads to conflicts at the merge.

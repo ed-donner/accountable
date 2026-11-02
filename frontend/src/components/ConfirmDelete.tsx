@@ -32,8 +32,8 @@ export function ConfirmDelete({ title, message, checkFailed, confirmLabel, pendi
   return (
     <AlertDialog.Root open onOpenChange={(open) => !open && onClose()}>
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-40 grid animate-fade-in place-items-center bg-ink/40 p-6">
-          <AlertDialog.Content className="w-full max-w-[460px] rounded-panel bg-panel p-6 shadow-[0_12px_40px_rgba(7,59,76,0.24)]">
+        <AlertDialog.Overlay className="fixed inset-0 z-40 grid animate-fade-in place-items-center bg-veil p-6">
+          <AlertDialog.Content className="w-full max-w-[460px] rounded-panel bg-raised p-6 shadow-(--shadow-dialog)">
             <AlertDialog.Title className="line-clamp-2 text-[20px] leading-7 font-semibold break-words">
               {title}
             </AlertDialog.Title>

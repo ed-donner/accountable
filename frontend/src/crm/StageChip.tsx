@@ -8,7 +8,7 @@ const STAGE_TONES: Record<Stage, ChipTone> = {
   qualified: "marigold",
   proposal: "coral",
   negotiation: "info",
-  won: "midnight",
+  won: "won",
   lost: "alert",
 };
 

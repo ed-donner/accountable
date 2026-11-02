@@ -8,11 +8,11 @@ import type { Deal, Stage } from "../queries";
 import { DealCard, type PickUpListeners } from "./DealCard";
 
 const HEADS: Record<Stage, string> = {
-  new: "bg-sea-green text-ink",
-  qualified: "bg-marigold text-ink",
-  proposal: "bg-coral text-ink",
+  new: "bg-sea-green text-midnight",
+  qualified: "bg-marigold text-midnight",
+  proposal: "bg-coral text-midnight",
   negotiation: "bg-cerulean text-white",
-  won: "bg-ink text-sea-mist",
+  won: "bg-ink text-on-won",
   lost: "bg-raspberry text-white",
 };
 
@@ -102,7 +102,7 @@ export const Column = memo(function Column({
             <div
               data-testid="drop-gap"
               style={{ height: step - CARD_GAP, transform: `translateY(${LIST_PADDING + place * step}px)` }}
-              className="pointer-events-none absolute inset-x-0 top-0 rounded-card bg-sea-mist/50 transition-transform duration-150"
+              className="pointer-events-none absolute inset-x-0 top-0 rounded-card bg-line/50 transition-transform duration-150"
             />
           )}
           {cards}

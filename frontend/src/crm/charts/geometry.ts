@@ -36,6 +36,24 @@ export function funnelWidths(values: number[], width: number) {
 
 export const REVENUE_MARGIN = { top: 30, right: 64, bottom: 28, left: 36 };
 
+/** Each money label's baseline sits this far above its grid line, and its figures stand this tall. */
+export const MONEY_LABEL = { rise: 5, height: 9 };
+
+/** How far down the revenue chart a value sits, in pixels, given the top and bottom of its scale. */
+export function revenueY(value: number, height: number, top: number, bottom: number) {
+  return REVENUE_MARGIN.top + ((top - value) / (top - bottom)) * (height - REVENUE_MARGIN.top);
+}
+
+/**
+ * Whether the money label on a grid line sits on the fill, and so needs Midnight in dark
+ * mode. It goes by the label's middle. Both are in pixels down from the chart's top, and
+ * fillTop is the fill's top at the right-hand edge, where the labels are.
+ */
+export function moneyLabelOnFill(gridLine: number, fillTop: number) {
+  const middle = gridLine - MONEY_LABEL.rise - MONEY_LABEL.height / 2;
+  return middle >= fillTop;
+}
+
 /**
  * The margins are in pixels, but the axes work in months and dollars. The fill runs
  * past the months on both sides and below zero, to the panel's edges, so this says how

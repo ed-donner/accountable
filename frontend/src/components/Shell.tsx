@@ -5,6 +5,7 @@ import { formatDate } from "../lib/dates";
 import { useToday } from "../lib/useToday";
 import { ConnectionMessage } from "./ConnectionMessage";
 import { Icon, type IconName } from "./Icon";
+import { ModeButton } from "./ModeButton";
 
 const SECTIONS: { to: string; label: string; icon: IconName }[] = [
   { to: "/", label: "Dashboard", icon: "dashboard" },
@@ -28,7 +29,7 @@ export function Shell() {
               end={to === "/"}
               className={({ isActive }) =>
                 `flex h-9 items-center gap-[7px] rounded-control px-3 font-medium ${
-                  isActive ? "bg-sea-green font-semibold" : "hover:bg-page"
+                  isActive ? "bg-sea-green font-semibold text-midnight" : "hover:bg-page"
                 }`
               }
             >
@@ -37,7 +38,10 @@ export function Shell() {
             </NavLink>
           ))}
         </nav>
-        <span className="num ml-auto text-[13px] text-muted">{formatDate(today)}</span>
+        <div className="ml-auto flex items-center gap-3">
+          <ModeButton />
+          <span className="num text-[13px] text-muted">{formatDate(today)}</span>
+        </div>
       </header>
       <ConnectionMessage />
       <main className="flex min-h-0 flex-1 flex-col">

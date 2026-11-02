@@ -2,6 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script>
+      // A saved dark choice goes on before anything draws, so light mode never flashes
+      // first. It does what lib/mode.ts does, with the same key, and stays light if
+      // storage can't be read.
+      try {
+        if (localStorage.getItem("accountable-mode") === "dark") {
+          document.documentElement.dataset.mode = "dark";
+          document.documentElement.style.colorScheme = "dark";
+        }
+      } catch {
+        // Light mode, then.
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:," />
     <title>Accountable</title>

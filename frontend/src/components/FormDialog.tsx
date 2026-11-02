@@ -33,10 +33,10 @@ export function FormDialog({ title, submitLabel, pending, onClose, onSubmit, chi
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 grid animate-fade-in place-items-center overflow-y-auto bg-ink/40 p-6">
+        <Dialog.Overlay className="fixed inset-0 z-40 grid animate-fade-in place-items-center overflow-y-auto bg-veil p-6">
           <Dialog.Content
             aria-describedby={undefined}
-            className="w-full max-w-[520px] rounded-panel bg-panel p-6 shadow-[0_12px_40px_rgba(7,59,76,0.24)]"
+            className="w-full max-w-[520px] rounded-panel bg-raised p-6 shadow-(--shadow-dialog)"
           >
             <Dialog.Title className="text-[20px] leading-7 font-semibold">{title}</Dialog.Title>
             <form noValidate onSubmit={submit} className="mt-4 flex flex-col gap-3.5">

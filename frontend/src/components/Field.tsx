@@ -15,7 +15,7 @@ export function Field({ label, htmlFor, error, children }: Props) {
       </label>
       {children}
       {error && (
-        <p role="alert" className="text-[13px] leading-[18px] text-chip-alert">
+        <p role="alert" className="text-[13px] leading-[18px] text-raspberry-text">
           {error}
         </p>
       )}

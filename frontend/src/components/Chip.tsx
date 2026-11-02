@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
 const TONES = {
-  seaGreen: "bg-sea-green text-ink",
-  marigold: "bg-marigold text-ink",
-  coral: "bg-coral text-ink",
+  seaGreen: "bg-sea-green text-midnight",
+  marigold: "bg-marigold text-midnight",
+  coral: "bg-coral text-midnight",
   info: "bg-chip-info text-white",
-  midnight: "bg-ink text-sea-mist",
+  won: "bg-ink text-on-won",
   alert: "bg-chip-alert text-white",
   quiet: "bg-page text-muted",
 };

@@ -70,7 +70,7 @@ export function RecordPicker({ id, label, noun, value, options, placeholder, inv
         id={popupId}
         align="start"
         sideOffset={4}
-        className="z-50 w-[var(--radix-popover-trigger-width)] rounded-card bg-panel p-1.5 shadow-[0_8px_28px_rgba(7,59,76,0.2)]"
+        className="z-50 w-[var(--radix-popover-trigger-width)] rounded-card bg-raised p-1.5 shadow-(--shadow-popover)"
       >
         <Command shouldFilter={false} label={label}>
           <Command.Input

@@ -3,10 +3,13 @@ import { Area, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from 
 import { money, shortMoney } from "../../lib/money";
 import type { Dashboard } from "../queries";
 import { ChartTooltip } from "./ChartTooltip";
-import { REVENUE_MARGIN, revenueEdges, useSize } from "./geometry";
+import { MONEY_LABEL, REVENUE_MARGIN, moneyLabelOnFill, revenueEdges, revenueY, useSize } from "./geometry";
 import { MonthsTable } from "./MonthsTable";
 
-const AXIS_TEXT = { fill: "var(--color-ink)", fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 500 };
+const AXIS_TEXT = { fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 500 };
+// Text on the Sea Green fill is Midnight in both modes, because Sea Mist can't be read on it.
+const ON_FILL = "var(--color-midnight)";
+const MONTH_TEXT = { ...AXIS_TEXT, fill: ON_FILL };
 
 function niceTop(value: number) {
   const power = 10 ** Math.floor(Math.log10(value));
@@ -33,11 +36,12 @@ function Tip({ active, payload }: TipProps) {
   return <ChartTooltip value={money(row.revenue)} label={row.current ? `${row.label} so far` : row.label} />;
 }
 
-type TickProps = { x?: number; y?: number; payload?: { value: number } };
+type TickProps = { x?: number; y?: number; payload?: { value: number }; fillTop: number };
 
-function MoneyTick({ x = 0, y = 0, payload }: TickProps) {
+function MoneyTick({ x = 0, y = 0, payload, fillTop }: TickProps) {
+  const fill = moneyLabelOnFill(y, fillTop) ? ON_FILL : "var(--color-ink)";
   return (
-    <text x={x + 6} y={y - 5} textAnchor="end" style={AXIS_TEXT}>
+    <text x={x + 6} y={y - MONEY_LABEL.rise} textAnchor="end" style={{ ...AXIS_TEXT, fill }}>
       {shortMoney(payload?.value ?? 0)}
     </text>
   );
@@ -47,7 +51,7 @@ type DotProps = { cx?: number; cy?: number; payload?: Row };
 
 function EndDot({ cx, cy, payload }: DotProps) {
   if (!payload?.current || cx === undefined || cy === undefined) return null;
-  return <circle cx={cx} cy={cy} r={5} fill="var(--color-ink)" stroke="#fff" strokeWidth={2} />;
+  return <circle cx={cx} cy={cy} r={5} fill="var(--color-ink)" stroke="var(--color-panel)" strokeWidth={2} />;
 }
 
 export function RevenueChart({ months }: { months: Dashboard["months"] }) {
@@ -57,6 +61,7 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
   const shown =
     size.width > REVENUE_MARGIN.left + REVENUE_MARGIN.right && size.height > REVENUE_MARGIN.top + REVENUE_MARGIN.bottom;
   const edges = revenueEdges(size.width, size.height, months.length, top);
+  const fillTop = revenueY(months[last].revenue, size.height, top, edges.bottom);
 
   const rows: Row[] = [
     { x: edges.left, fill: months[0].revenue },
@@ -104,7 +109,7 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
               mirror
               axisLine={false}
               tickLine={false}
-              tick={AXIS_TEXT}
+              tick={MONTH_TEXT}
               interval={0}
             />
             <YAxis
@@ -114,7 +119,7 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
               mirror
               axisLine={false}
               tickLine={false}
-              tick={<MoneyTick />}
+              tick={<MoneyTick fillTop={fillTop} />}
               tickMargin={12}
               allowDataOverflow
             />

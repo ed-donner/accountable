@@ -106,7 +106,7 @@ export const DealCard = memo(function DealCard({ deal, today, dragging, landed, 
 export function DealCardLifted({ deal, today }: { deal: Deal; today: string }) {
   const late = isLate(deal, today);
   return (
-    <div className={`${CARD_CLASS} ${background(late)} cursor-grabbing shadow-[0_10px_28px_rgba(7,59,76,0.22)]`}>
+    <div className={`${CARD_CLASS} ${background(late)} cursor-grabbing shadow-(--shadow-lift)`}>
       <CardContent deal={deal} late={late} />
     </div>
   );

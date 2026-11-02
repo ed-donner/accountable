@@ -79,6 +79,17 @@ describe("the top bar", () => {
     expect(screen.getByRole("main").textContent).toBe("One deal's page");
   });
 
+  it.each(["/", "/organizations", "/contacts", "/deals", "/pipeline", "/deals/7"])(
+    "has the mode button just before the date at %s",
+    (path) => {
+      openAt(path);
+      const bar = within(screen.getByRole("banner"));
+      const modeButton = bar.getByRole("button", { name: "Switch to dark mode" });
+      expect(modeButton.nextElementSibling?.textContent).toBe("Oct 31, 2026");
+      expect(modeButton.nextElementSibling?.nextElementSibling).toBeNull();
+    },
+  );
+
   it("opens a section from the top bar, and keeps the bar there", async () => {
     openAt("/");
     expect(screen.getByRole("main").textContent).toBe("The dashboard page");

@@ -166,7 +166,7 @@ function FollowUps({ data }: { data: Figures }) {
       {items.length === 0 ? (
         <ChartEmpty>No follow-ups due.</ChartEmpty>
       ) : (
-        <ul className="mt-1.5 -mr-2 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-color:var(--color-sea-mist)_transparent] [scrollbar-width:thin]">
+        <ul className="mt-1.5 -mr-2 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-color:var(--color-line)_transparent] [scrollbar-width:thin]">
           {items.map((item) => (
             <FollowUpRow key={item.id} item={item} today={data.today} />
           ))}
@@ -183,7 +183,7 @@ function RecentActivity({ data }: { data: Figures }) {
       {data.recent.length === 0 ? (
         <ChartEmpty>Nothing has happened yet.</ChartEmpty>
       ) : (
-        <ul className="mt-1.5 -mr-2 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-color:var(--color-sea-mist)_transparent] [scrollbar-width:thin]">
+        <ul className="mt-1.5 -mr-2 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-color:var(--color-line)_transparent] [scrollbar-width:thin]">
           {data.recent.map((entry) => (
             <li
               key={`${entry.kind}-${entry.id}`}

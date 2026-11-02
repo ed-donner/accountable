@@ -1,10 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { user } from "../../test-utils";
+import { STAGE_NAMES } from "../deals";
 import type { Dashboard } from "../queries";
 import { DealsWonChart } from "./DealsWonChart";
 import { FUNNEL_SIDE, REVENUE_MARGIN } from "./geometry";
+import { PipelineBand } from "./PipelineBand";
 import { RevenueChart } from "./RevenueChart";
 import { SalesFunnel } from "./SalesFunnel";
 
@@ -59,6 +62,15 @@ const MONTHS = year(REVENUE, DEALS);
 /** Eleven months of the same, then this month's best. */
 function quietThen(quiet: number, best: number) {
   return [...Array.from({ length: 11 }, () => quiet), best];
+}
+
+const MIDNIGHT = "var(--color-midnight)";
+const INK = "var(--color-ink)";
+
+/** The color an SVG text is drawn in, whether Recharts set it as an attribute or a style. */
+function fillOf(element: HTMLElement) {
+  const text = element.closest("text")!;
+  return text.style.fill || text.getAttribute("fill");
 }
 
 /** Moves the mouse across a chart, the way Recharts tracks it. */
@@ -144,6 +156,48 @@ describe("the revenue chart", () => {
     render(<RevenueChart months={MONTHS} />);
     expect(within(revenueChart()).queryByText("Oct")).toBeNull();
     expect(screen.getByRole("table", { name: "Revenue and deals won per month" })).toBeTruthy();
+  });
+
+  describe("its text on the Sea Green fill", () => {
+    function moneyLabelColors() {
+      return Object.fromEntries(
+        within(revenueChart())
+          .getAllByText(/^\$/)
+          .map((label) => [label.textContent, fillOf(label)]),
+      );
+    }
+
+    it("puts the month labels in Midnight, because they sit on the fill", () => {
+      render(<RevenueChart months={MONTHS} />);
+      for (const [, label] of MONTH_NAMES) {
+        expect(fillOf(within(revenueChart()).getByText(label)), label).toBe(MIDNIGHT);
+      }
+    });
+
+    it("puts the money labels below the fill's top in Midnight, and those above it in ink", () => {
+      // The scale reaches $50k, and this month's $42,000 brings the fill's top between $37.5k and $50k.
+      render(<RevenueChart months={MONTHS} />);
+      expect(moneyLabelColors()).toEqual({ "$12.5k": MIDNIGHT, $25k: MIDNIGHT, "$37.5k": MIDNIGHT, $50k: INK });
+    });
+
+    it("keeps the top label in ink when the fill reaches the top of the scale, because it sits above its line", () => {
+      render(<RevenueChart months={year(quietThen(1000, 10000), DEALS)} />);
+      expect(moneyLabelColors()).toEqual({ "$2.5k": MIDNIGHT, $5k: MIDNIGHT, "$7.5k": MIDNIGHT, $10k: INK });
+    });
+
+    it("puts every money label in ink when this month's fill is low, whatever came before", () => {
+      const lowNow = [...REVENUE.slice(0, 10), 42000, 2000];
+      render(<RevenueChart months={year(lowNow, DEALS)} />);
+      expect(moneyLabelColors()).toEqual({ "$12.5k": INK, $25k: INK, "$37.5k": INK, $50k: INK });
+    });
+
+    it("rings this month's dot in the panel color", () => {
+      render(<RevenueChart months={MONTHS} />);
+      const dots = revenueChart().querySelectorAll("circle");
+      expect(dots).toHaveLength(1);
+      expect(dots[0].getAttribute("fill")).toBe(INK);
+      expect(dots[0].getAttribute("stroke")).toBe("var(--color-panel)");
+    });
   });
 });
 
@@ -256,5 +310,50 @@ describe("the sales funnel", () => {
     render(<SalesFunnel stages={FUNNEL} />);
     expect(within(funnelChart()).queryByText("New")).toBeNull();
     expect(funnelChart().getAttribute("aria-label")).toContain("New $68,000");
+  });
+});
+
+describe("stage names on their fills", () => {
+  const STAGE_TEXT = {
+    New: MIDNIGHT,
+    Qualified: MIDNIGHT,
+    Proposal: MIDNIGHT,
+    Negotiation: "var(--color-white)",
+    Won: "var(--color-on-won)",
+  };
+
+  it("are Midnight on Sea Green, Marigold and Coral, white on Cerulean, and the Won text color on Won, in the funnel", () => {
+    render(
+      <SalesFunnel
+        stages={[
+          { stage: "new", value: 68000, carried: null },
+          { stage: "qualified", value: 58000, carried: 85 },
+          { stage: "proposal", value: 58000, carried: 100 },
+          { stage: "negotiation", value: 49000, carried: 84 },
+          { stage: "won", value: 49000, carried: 100 },
+        ]}
+      />,
+    );
+    const funnel = within(screen.getByRole("img", { name: /^Sales funnel/ }));
+    for (const [name, color] of Object.entries(STAGE_TEXT)) expect(fillOf(funnel.getByText(name)), name).toBe(color);
+  });
+
+  it("are the same in the pipeline band", () => {
+    render(
+      <MemoryRouter>
+        <PipelineBand
+          stages={[
+            { stage: "new", value: 310000, count: 11 },
+            { stage: "qualified", value: 420000, count: 9 },
+            { stage: "proposal", value: 290000, count: 8 },
+            { stage: "negotiation", value: 220000, count: 8 },
+          ]}
+        />
+      </MemoryRouter>,
+    );
+    for (const stage of ["new", "qualified", "proposal", "negotiation"] as const) {
+      const name = STAGE_NAMES[stage] as keyof typeof STAGE_TEXT;
+      expect(screen.getByTestId(`band-${stage}`).style.color, name).toBe(STAGE_TEXT[name]);
+    }
   });
 });

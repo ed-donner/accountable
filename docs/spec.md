@@ -602,6 +602,7 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, current section |
 | Sea Green text | `#047A5B` | `#51E2BC` | If Sea Green is ever needed as text |
 | Marigold text | `#866522` | `#FFD47D` | If Marigold is ever needed as text |
+| Raspberry text | `#D23E62` | `#F591A9` | Error messages beside a field. Light mode uses the Alert chip's shade |
 | Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts |
 | Alert | `#EF476F` Raspberry, white text | Same | Delete buttons, charts |
 | Small chip, Information | `#107FA4`, white text | Same | Negotiation chips |
@@ -619,6 +620,7 @@ Small text meets 4.5:1 in both modes, and anything that isn't text, such as the 
 | Ink and muted ink on the late tint | 10.61:1, 5.05:1 | 9.00:1, 5.83:1 |
 | Sea Green text on page, panel | 4.81:1, 5.33:1 | 10.08:1, 8.39:1 |
 | Marigold text on page, panel | 4.86:1, 5.39:1 | 11.65:1, 9.69:1 |
+| Raspberry text on raised, where the forms are | 4.56:1 | 5.08:1 |
 | Midnight on Sea Green, Marigold, Coral | 6.40:1, 7.46:1, 5.13:1 | Same |
 | Text on the Won fill | 8.30:1 | 8.30:1 |
 | Focus ring on page, panel, raised | 3.58:1, 3.96:1, 3.96:1 | 6.79:1, 5.65:1, 4.66:1 |
@@ -791,7 +793,7 @@ There's no sign-in, so the app relies on being reachable only from this computer
 
 **Frontend (Vitest):** money and date formatting, including dates near midnight, expected revenue and board totals using the same cases as the backend, the deal form's stage behavior, the table's search and sort, and every page, chart and the pipeline board as a user sees them, with the API stood in for by `mockApi` in `src/test-utils.tsx`. The board's tests give jsdom a plain layout, because jsdom lays nothing out, and move cards with the keyboard and the pointer. The mode button and the saved choice are tested too, including a saved choice that can't be read.
 
-**Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value.
+**Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value. It also fails if the dark block sets a token that `@theme` doesn't have, so a misspelled one can't go unnoticed.
 
 **Unit coverage:** `npm test` fails if the unit tests cover less than 80% of the app code. For `frontend/src` that's lines, statements, functions and branches, leaving out the tests and their helpers, `test-setup.ts` and `test-utils.tsx`. For `backend/accountable` it's lines and branches together. The end-to-end tests don't count towards it.
 

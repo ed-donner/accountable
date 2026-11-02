@@ -90,7 +90,7 @@ export function Contacts() {
                 address.delete("page");
               })
             }
-            className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-semibold ${on ? "bg-sea-green" : "hover:bg-page"}`}
+            className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-semibold ${on ? "bg-sea-green text-midnight" : "hover:bg-page"}`}
           >
             {option ? capitalize(option) : "All"}
             {contacts.data && <span className="num font-normal">{count(option)}</span>}

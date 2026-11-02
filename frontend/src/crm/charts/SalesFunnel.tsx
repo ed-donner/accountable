@@ -60,7 +60,7 @@ function Segment({ index, stages, width, height }: SegmentProps) {
         x2={funnelWidth + 10}
         y1={centerY}
         y2={centerY}
-        stroke="var(--color-sea-mist)"
+        stroke="var(--color-line)"
         strokeDasharray="2 4"
       />
       <text

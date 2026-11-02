@@ -13,9 +13,9 @@ import { EditActivity, LogActivity } from "./forms/ActivityForm";
 import { useTickFollowUp, useTimeline, type About, type RecordKind, type TimelineEntry } from "./queries";
 
 const TYPE_STYLES = {
-  call: { label: "Call", fill: "bg-sea-green text-ink" },
-  email: { label: "Email", fill: "bg-marigold text-ink" },
-  note: { label: "Note", fill: "bg-coral text-ink" },
+  call: { label: "Call", fill: "bg-sea-green text-midnight" },
+  email: { label: "Email", fill: "bg-marigold text-midnight" },
+  note: { label: "Note", fill: "bg-coral text-midnight" },
   stage: { label: "Stage change", fill: "bg-cerulean text-white" },
 };
 

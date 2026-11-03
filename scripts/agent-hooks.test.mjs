@@ -2,7 +2,16 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import { envGuardReply, isEnvFile, shorten, stopHookReply } from "./agent-hooks.mjs";
+import {
+  envGuardReply,
+  isEnvFile,
+  isInPlaywrightFolder,
+  playwrightFolderGuardReply,
+  readOnlyGuardReply,
+  readsOnly,
+  shorten,
+  stopHookReply,
+} from "./agent-hooks.mjs";
 
 const HERE = import.meta.dirname;
 
@@ -63,6 +72,121 @@ describe("envGuardReply", () => {
     expect(blocked.reply.hookSpecificOutput).toMatchObject({ hookEventName: "PreToolUse", permissionDecision: "deny" });
 
     expect(hook("agent-guard-env.mjs", { tool_name: "Write", tool_input: { file_path: "/repo/notes.txt" } })).toEqual({
+      code: 0,
+      reply: null,
+    });
+  });
+});
+
+describe("readsOnly", () => {
+  it.each([
+    "git diff --stat --merge-base main",
+    "git log --oneline main..HEAD",
+    "git show HEAD~1 -- frontend/src/App.tsx",
+    'git log --format="%h %an %s" -5',
+    "git --no-pager diff --stat",
+    "git -C frontend status --short",
+    "git branch --show-current",
+    "git grep -n useToday -- frontend/src",
+    "git ls-files --others --exclude-standard",
+    'grep -rn "Won|Lost" docs | head -20',
+    "grep -n 'a > b' scripts/checks.mjs",
+    "cd /repo && git diff --stat 2>/dev/null | wc -l",
+    "git diff main 2>&1 | tail -40",
+    "rg -n TODO backend; ls -la docs",
+    "git log --format=%an | sort | head",
+    "cat docs/REVIEW.md",
+  ])("lets %s run", (command) => expect(readsOnly(command)).toBe(true));
+
+  it.each([
+    "git checkout main",
+    "git commit -m 'Review fixes'",
+    "git stash",
+    "git branch old-work",
+    "git branch -D old-work",
+    "git -c core.pager=less log",
+    "git diff --output=changes.diff",
+    'git diff "--output=changes.diff"',
+    "git diff > changes.diff",
+    "git log >> notes.txt",
+    "cat docs/spec.md | tee copy.md",
+    "rm -rf node_modules",
+    "npm test",
+    "sed -i '' 's/a/b/' docs/spec.md",
+    "git diff $(git merge-base main HEAD)",
+    'echo "$(rm notes.txt)"',
+    "git log `whoami`",
+    'grep "`rm notes.txt`" docs',
+    "(cd docs && rm spec.md)",
+    "git status && touch notes.txt",
+    "rg --pre ./convert.sh pattern",
+    "sort -o sorted.txt names.txt",
+    "PAGER=less git log",
+    'grep "unclosed',
+  ])("stops %s", (command) => expect(readsOnly(command)).toBe(false));
+});
+
+describe("readOnlyGuardReply", () => {
+  it("stops a command that writes, and says what the reviewer can run instead", () => {
+    const reply = readOnlyGuardReply({ tool_name: "Bash", tool_input: { command: "git checkout main" } });
+
+    expect(denied(reply)).toBe(true);
+    expect(reply.hookSpecificOutput.permissionDecisionReason).toContain("only commands that read");
+  });
+
+  it("lets a command that reads go ahead", () => {
+    expect(readOnlyGuardReply({ tool_name: "Bash", tool_input: { command: "git diff main" } })).toBeNull();
+  });
+
+  it("answers Claude Code through the hook script", () => {
+    const blocked = hook("agent-guard-read-only.mjs", { tool_name: "Bash", tool_input: { command: "git stash" } });
+    expect(blocked.code).toBe(0);
+    expect(blocked.reply.hookSpecificOutput).toMatchObject({ hookEventName: "PreToolUse", permissionDecision: "deny" });
+
+    expect(hook("agent-guard-read-only.mjs", { tool_name: "Bash", tool_input: { command: "git log -3" } })).toEqual({
+      code: 0,
+      reply: null,
+    });
+  });
+});
+
+describe("playwrightFolderGuardReply", () => {
+  const screenshot = (filename) => ({
+    tool_name: "mcp__playwright__browser_take_screenshot",
+    tool_input: { filename, scale: "css" },
+  });
+
+  it.each([
+    ".playwright-mcp/dashboard-light-1440.png",
+    "./.playwright-mcp/pipeline-dark-1440.png",
+    ".playwright-mcp\\deals.png",
+  ])("lets a file be saved at %s", (filename) => {
+    expect(isInPlaywrightFolder(filename)).toBe(true);
+    expect(playwrightFolderGuardReply(screenshot(filename))).toBeNull();
+  });
+
+  it.each([
+    "dashboard.png",
+    "docs/dashboard.png",
+    ".playwright-mcp/../dashboard.png",
+    "/tmp/dashboard.png",
+    ".playwright-mcp-old/dashboard.png",
+  ])("stops a file being saved at %s", (filename) => {
+    expect(denied(playwrightFolderGuardReply(screenshot(filename)))).toBe(true);
+  });
+
+  it("lets a tool that saves no file go ahead", () => {
+    const navigate = { tool_name: "mcp__playwright__browser_navigate", tool_input: { url: "http://localhost:5173" } };
+    expect(playwrightFolderGuardReply(navigate)).toBeNull();
+    expect(playwrightFolderGuardReply({ tool_name: "mcp__playwright__browser_take_screenshot" })).toBeNull();
+  });
+
+  it("answers Claude Code through the hook script", () => {
+    const blocked = hook("agent-guard-playwright-folder.mjs", screenshot("dashboard.png"));
+    expect(blocked.code).toBe(0);
+    expect(blocked.reply.hookSpecificOutput).toMatchObject({ hookEventName: "PreToolUse", permissionDecision: "deny" });
+
+    expect(hook("agent-guard-playwright-folder.mjs", screenshot(".playwright-mcp/dashboard.png"))).toEqual({
       code: 0,
       reply: null,
     });

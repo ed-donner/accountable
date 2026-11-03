@@ -292,6 +292,9 @@ eslint.config.js, .prettierrc.json, .prettierignore, .gitleaks.toml   settings f
 lefthook.yml                      the git pre-commit hook
 .github/workflows/ci.yml          CI: gitleaks, then npm run check, on every push
 .claude/settings.json             the coding agent's permissions and hooks
+.claude/agents/                   reviewer.md and ui-check.md, the coding agent's two subagents
+.claude/skills/brand/SKILL.md     the brand skill: fonts, colors and tone
+.mcp.json                         the Playwright MCP server, which ui-check uses
 shared/                           expected-revenue-cases.json and website-cases.json, read by both unit test suites
 scripts/
   setup.mjs                       shared setup, used by the scripts below that start things, Node built-ins only
@@ -305,7 +308,9 @@ scripts/
   test-report.mjs                 turns what each test runner wrote into the summary that ends npm test
   agent-check-on-stop.mjs         the coding agent's hook that runs npm run check:quick when it finishes a turn
   agent-guard-env.mjs             the coding agent's hook that stops any edit to .env
-  agent-hooks.mjs                 what those two hooks decide
+  agent-guard-read-only.mjs       the reviewer's hook that lets its shell run only commands that read
+  agent-guard-playwright-folder.mjs   ui-check's hook that keeps the files it saves in .playwright-mcp/
+  agent-hooks.mjs                 what those four hooks decide
   setup.test.mjs, test-plan.test.mjs, test-report.test.mjs, agent-hooks.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, JSON-only check, startup, routers
@@ -812,6 +817,11 @@ There's no sign-in, so the app relies on being reachable only from this computer
 - Before each commit, lefthook formats the staged files with Prettier and ruff and adds the changes to the commit. Then it runs ESLint and ruff check on those files, tsc and ty on the whole project, and gitleaks on what's staged. It leaves out the tests, so a commit takes a few seconds. `npm install` sets it up. If a staged file also has unstaged changes on the lines formatting touches, lefthook stops the commit and leaves both as they were, rather than mix them.
 - When the coding agent finishes a turn, a hook in `.claude/settings.json` runs `npm run check:quick -- --failures-only` and sends what failed back to the agent to fix. It does that once a turn: the next time the agent stops, the hook lets it, so it can't loop. The check takes about 30 seconds, so every turn ends with that wait.
 - Another hook stops the agent's file tools from changing any file called `.env`, and stops any shell command that names `.env`, because a command can change a file in too many ways to tell a read from a write. It guards against mistakes. It isn't a sandbox: a command could still reach the file without naming it. If the hook itself fails, the edit or command is stopped too.
+
+**Subagents:** the coding agent has two, in `.claude/agents/`. Claude Code loads that folder when a session starts. Each one ends with a report in a set layout, and the hook in its file runs only once the project folder is trusted in Claude Code. If the hook itself fails, the tool call is stopped.
+
+- **reviewer** reviews a branch, a commit or a range against `docs/REVIEW.md`, reading the spec, `AGENTS.md`, `docs/STANDARDS.md` and the branch's `plan.md`, and reports Important findings and at most five nits. By default it reviews the current branch against `main` as it stands in the working tree, including work not yet committed. It runs on Sonnet, so that a different model from the session's checks the work. It has Read, Grep, Glob and Bash. Claude Code can't limit Bash to some commands through the tool list, so a hook lets it run only commands that read: `git blame`, `cat-file`, `describe`, `diff`, `grep`, `log`, `ls-files`, `ls-tree`, `merge-base`, `rev-list`, `rev-parse`, `shortlog`, `show` and `status`, `git branch` to list branches, and `cat`, `cd`, `cut`, `diff`, `echo`, `grep`, `head`, `ls`, `pwd`, `rg`, `sort`, `tail`, `tr` and `wc`. They can be joined with `|`, `&&` or `;`, and send output to `/dev/null`. It stops redirects into a file, `$( )`, backticks, subshells, and the flags that let those commands write a file or run another program, such as `git diff --output` and `rg --pre`. Like the `.env` hook, it guards against mistakes and isn't a sandbox.
+- **ui-check** opens the running app at `http://localhost:5173` with the Playwright MCP server, and checks each page against the brand skill, which its file loads, and this spec. The pages are the routes in `frontend/src/App.tsx`, with the first record of each kind and an unknown address. By default it checks every page at 1440 by 900 in light mode and then dark mode, reading computed styles to confirm fonts and colors, and the console and network for Q2 and C2. It reports what's broken, what's off-brand and up to five nits. It runs on the session's model. It has Read, Grep, Glob and the browser tools that look rather than enter data: it can open pages and dialogs, but can't type, drag or upload, and never saves, deletes or ticks anything, because the running app holds real records. A hook stops any Playwright tool from saving a file outside `.playwright-mcp/`, which git ignores, because a bare file name would land in the project folder.
 
 **CI:** `.github/workflows/ci.yml` runs on every push, to any branch, on GitHub's Ubuntu runner. It installs gitleaks and runs it on every commit first, so a leaked secret fails the run straight away. Then it installs Node 26 and the latest uv, and runs `npm run check`, with the Google Chrome the runner already has. If that fails, it uploads the Playwright report. It uses no secrets, and its token can only read the repo.
 

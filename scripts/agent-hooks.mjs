@@ -1,6 +1,8 @@
-// What the coding agent's hooks in .claude/settings.json decide, kept apart from
-// reading the agent's message and answering it, so that it can be tested.
+// What the coding agent's hooks decide, those in .claude/settings.json and in the subagents'
+// files in .claude/agents/, kept apart from reading the agent's message and answering it,
+// so that it can be tested.
 
+import path from "node:path";
 import { stripVTControlCharacters } from "node:util";
 
 // Claude Code saves a hook message over 10,000 characters to a file and shows the
@@ -31,13 +33,142 @@ function envGuardReason(toolName, toolInput) {
   return typeof filePath === "string" && isEnvFile(filePath) ? FILE_REASON : null;
 }
 
-/** The PreToolUse hook's answer to a tool call: null lets it go ahead. */
-export function envGuardReply({ tool_name: toolName, tool_input: toolInput = {} }) {
-  const reason = envGuardReason(toolName, toolInput);
-  if (!reason) return null;
+function deny(reason) {
   return {
     hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason },
   };
+}
+
+/** The PreToolUse hook's answer to a tool call: null lets it go ahead. */
+export function envGuardReply({ tool_name: toolName, tool_input: toolInput = {} }) {
+  const reason = envGuardReason(toolName, toolInput);
+  return reason ? deny(reason) : null;
+}
+
+// Commands that only read, each with the flags that would let it write a file or run another program.
+const READ_ONLY_COMMANDS = new Map([
+  ["cat", null],
+  ["cd", null],
+  ["cut", null],
+  ["diff", null],
+  ["echo", null],
+  ["grep", null],
+  ["head", null],
+  ["ls", null],
+  ["pwd", null],
+  ["tail", null],
+  ["tr", null],
+  ["wc", null],
+  ["git", /^(--output|-O|--open-files-in-pager)/],
+  ["rg", /^--pre/],
+  ["sort", /^(-[a-zA-Z]*o|--output)/],
+]);
+const READ_ONLY_GIT = new Set([
+  "blame",
+  "cat-file",
+  "describe",
+  "diff",
+  "grep",
+  "log",
+  "ls-files",
+  "ls-tree",
+  "merge-base",
+  "rev-list",
+  "rev-parse",
+  "shortlog",
+  "show",
+  "status",
+]);
+// git branch with these alone lists branches. Anything else could create, rename or delete one.
+const BRANCH_LISTING = new Set(["--show-current", "-a", "--all", "-r", "--remotes", "-v", "-vv", "--list"]);
+
+const READ_ONLY_REASON =
+  "The reviewer only reads, so its shell runs only commands that read: " +
+  `${[...READ_ONLY_COMMANDS.keys()].join(", ")}, with git limited to ${[...READ_ONLY_GIT].join(", ")} ` +
+  "and branch to list branches. They can be joined with |, && or ;, and send output to /dev/null. " +
+  "Redirects into a file, $( ) and backticks are stopped, so run each command on its own and use what it " +
+  "printed in the next. The Read, Grep and Glob tools work too.";
+
+// The pieces of a shell command line, tried in this order at each point.
+const SHELL_PIECES = new RegExp(
+  [
+    /(?<harmless>\d?>>?(?:&\d|[ \t]*\/dev\/null(?![^\s|&;])))/, // 2>&1, >/dev/null and the like
+    /(?<space>[ \t]+)/,
+    /(?<separator>[|&;\n])/,
+    // Plain, quoted or escaped characters, with no $( or backticks inside double quotes.
+    /(?<word>(?:'[^']*'|"(?:\\.|[^"\\`$]|\$(?!\())*"|\\.|[^\s'"\\|&;<>`()])+)/,
+    // Anything else: a redirect into a file, $( ), backticks, a subshell, an unclosed quote.
+    /(?<other>.)/,
+  ]
+    .map((piece) => piece.source)
+    .join("|"),
+  "gs",
+);
+const QUOTED_OR_ESCAPED = /'([^']*)'|"((?:\\.|[^"\\])*)"|\\(.)/gs;
+
+function unquote(word) {
+  return word.replace(QUOTED_OR_ESCAPED, (_, single, double, escaped) => single ?? double ?? escaped);
+}
+
+/** Each simple command in a command line as its words, or null if the line holds anything else. */
+function simpleCommands(line) {
+  const commands = [[]];
+  for (const { groups } of line.matchAll(SHELL_PIECES)) {
+    if (groups.other) return null;
+    if (groups.separator) commands.push([]);
+    if (groups.word) commands.at(-1).push(unquote(groups.word));
+  }
+  return commands.filter((words) => words.length > 0);
+}
+
+// Skips git's own options that come before the subcommand and change nothing.
+function fromGitSubcommand(args) {
+  if (args[0] === "--no-pager") return fromGitSubcommand(args.slice(1));
+  if (args[0] === "-C") return fromGitSubcommand(args.slice(2));
+  return args;
+}
+
+function gitReadsOnly(args) {
+  const [subcommand, ...rest] = fromGitSubcommand(args);
+  if (subcommand === "branch") return rest.every((arg) => BRANCH_LISTING.has(arg));
+  return READ_ONLY_GIT.has(subcommand);
+}
+
+function commandReadsOnly([name, ...args]) {
+  if (!READ_ONLY_COMMANDS.has(name)) return false;
+  const writingFlags = READ_ONLY_COMMANDS.get(name);
+  if (writingFlags && args.some((arg) => writingFlags.test(arg))) return false;
+  return name !== "git" || gitReadsOnly(args);
+}
+
+/** True if every command in a shell command line only reads. */
+export function readsOnly(line) {
+  const commands = simpleCommands(line);
+  return commands !== null && commands.every(commandReadsOnly);
+}
+
+/** The reviewer subagent's PreToolUse hook: null lets a shell command that only reads go ahead. */
+export function readOnlyGuardReply({ tool_name: toolName, tool_input: toolInput = {} }) {
+  if (toolName !== "Bash" || readsOnly(toolInput.command ?? "")) return null;
+  return deny(READ_ONLY_REASON);
+}
+
+const PLAYWRIGHT_FOLDER = ".playwright-mcp/";
+const PLAYWRIGHT_FOLDER_REASON =
+  "Save files from the browser in .playwright-mcp/, which git ignores, with a path such as " +
+  ".playwright-mcp/dashboard-light-1440.png. The Playwright tools save a bare name such as dashboard.png " +
+  "in the project, where the next git add would pick it up.";
+
+/** True for a relative path inside .playwright-mcp/. */
+export function isInPlaywrightFolder(filename) {
+  return path.posix.normalize(filename.replaceAll("\\", "/")).startsWith(PLAYWRIGHT_FOLDER);
+}
+
+/** ui-check's PreToolUse hook: null lets a Playwright tool go ahead, unless it would save a file elsewhere. */
+export function playwrightFolderGuardReply({ tool_input: toolInput = {} }) {
+  const { filename } = toolInput;
+  if (typeof filename !== "string" || isInPlaywrightFolder(filename)) return null;
+  return deny(PLAYWRIGHT_FOLDER_REASON);
 }
 
 function lastLineBreak(text) {

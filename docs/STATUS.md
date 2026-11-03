@@ -68,6 +68,15 @@ Every screen was also walked in both modes at both sizes, on a temporary databas
 
 `npm test` now runs 1,636 tests, including 50 new ones for dark mode.
 
+## Subagents
+
+Built on the `subagents` branch. The coding agent has two subagents in `.claude/agents/`, and `docs/spec.md` describes them under Testing:
+
+- **reviewer** reviews a branch, a commit or a range against `docs/REVIEW.md` and reports Important findings and nits. It runs on Sonnet. A hook in its file lets its shell run only commands that read, such as `git diff`, `git log`, `git show`, `git grep` and `grep`, and stops anything that could write, such as `git checkout`, a redirect into a file or `$( )`.
+- **ui-check** checks each page of the running app in the browser, with the Playwright MCP server, against the brand skill and the spec, in light and dark mode, and reports what's broken or off-brand. It runs on the session's model. It has no tools to edit files or type into the app, and a hook keeps every file it saves in `.playwright-mcp/`, which git ignores.
+
+Claude Code loads a new `.claude/agents/` folder only when a session starts, so restart it before using them. The hooks in the agents' files run only once the project folder is trusted, and not in a `claude -p` run. Both agents were started with `claude -p --agent`, which confirmed they load and that the reviewer runs on Sonnet. The hooks are tested through their scripts in `scripts/agent-hooks.test.mjs`, but neither agent has done a full run yet. `npm test` now runs 1,689 tests.
+
 ## Build progress
 
 - **Phase 1, a shell that runs:** done.

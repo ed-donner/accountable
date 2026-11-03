@@ -77,3 +77,42 @@ The student adds a harness to Accountable, then makes one change through all six
 - **The fake key:** `npm run check` stays red until `make-it-fail` is deleted on both the student's machine and their fork, because gitleaks scans every branch.
 - **Hooks in other agents:** if the student's agent doesn't support a hook, it says so. The pre-commit hook and CI work with any agent.
 - **Starting from Ed's Day 3 version:** the student moves their `main` onto `week1day3-end` first, using the commands in the instructions. Branching from `week1day3-end` without moving `main` leads to conflicts at the merge.
+
+## Day 5: Subagents and Agent Teams
+
+The student adds two subagents to Accountable, then takes one change through all six stages and deploys the app to Render. The prompts are in `course/instructions/week1day5.md`. Each part has its own branch, and the student merges each one into their own `main`.
+
+**Part 1, subagents,** on a branch called `subagents`. The agent creates two project subagents and tries each one:
+
+- **reviewer:** reviews the changes on a branch with `docs/REVIEW.md`, reports findings by severity and changes nothing. It runs on a different model from the student's session: Sonnet, or Haiku if the session already runs Sonnet.
+- **ui-check:** opens the running app with the Playwright MCP server, takes a screenshot of each page and checks it against the brand skill and the spec.
+
+**Part 2, sign-in, search and a user menu,** on a branch called `multi-user`. The student sets up Supabase by hand first: a free project, the session pooler's connection string, the project URL and publishable key, one user, and sign-ups turned off. They write the three lines of `.env` themselves. Then the six stages, as on Day 4, with two differences: Design starts by splitting `docs/spec.md` into a short summary and one file per area in `docs/specs/`, and Deploy uses the reviewer subagent, merges into `main`, pushes `main` to the fork and sets up Render, which deploys each time CI passes on `main`.
+
+Ed builds the change with an agent team on camera as a demo. Students build it in one session.
+
+**Watch out for:**
+
+- **Subagents in other coding agents:** use that agent's own kind of subagent, saved in the project, and say so if it has none.
+- **New subagents need a restart:** Claude Code only loads a new `.claude/agents/` folder when a session starts, so after creating the first subagents the student exits and starts Claude Code again before trying them.
+- **The reviewer's model:** if the student's session already runs Sonnet, the reviewer uses Haiku, so a different model checks the work.
+- **The reviewer and hooks:** Claude Code can't limit a subagent's Bash to some commands through its tool list, so the agent may add a hook that lets the reviewer run only commands that read. The hook must still let it search (`grep`, `git show`, `git grep`), or its reviews miss things. Agent-file hooks only run once the folder is trusted.
+- **ui-check's screenshots:** they belong in `.playwright-mcp/`, which git ignores. Screenshots in the project root would be committed by the next `git add .`.
+- **ui-check is slow on the session's model:** it runs on the session's model unless its file sets one, and checking every page in both modes can take 10 to 40 minutes on Opus.
+- **`.env`:** the hooks stop the agent from reading or editing `.env`, so the student writes it. Never ask them to paste its values into the chat.
+- **`npm run check` fails at its gitleaks step once `.env` exists:** gitleaks reads the publishable key in `.env` as an API key. Day 4's checks prompt now asks for the git-ignored `.env` to be allowed, but a build from before that change may not allow it. The fix is in `.gitleaks.toml`: allow the git-ignored `.env` and nothing else. Ask the student before changing it, since AGENTS.md says not to loosen a setting without asking.
+- **The database connection:** use the session pooler's connection string from Supabase's Connect dialog, port 5432. The direct connection is IPv6 only on the free plan, and Render can't reach it. Copy the host from the dialog, since the `aws-0` or `aws-1` part varies.
+- **Sign-ups:** turning off "Allow new users to sign up" matters, because the publishable key is public by design. With sign-ups on, anyone could make an account on the student's live app.
+- **Supabase's free plan:** two active free projects per person. A paused project doesn't count. The plan may suggest a second, throwaway project for checks by hand; that's optional.
+- **Supabase's Data API:** Supabase serves the tables in the `public` schema to anyone holding the publishable key unless row-level security is on. Every table needs it, turned on in a migration, including any table a later change adds.
+- **The region:** `render.yaml` sets Render's region, which can't change once the service exists. It should be the Render region nearest the Supabase project (`oregon`, `ohio`, `virginia`, `frankfurt` or `singapore`); every query crosses between the two.
+- **Two ways to run it:** `npm run dev` runs on this computer with the sample data and made-up teammates, and never touches Supabase. `npm start` builds the app and runs it the way Render does, against Supabase, and its migrations change the real database.
+- **Today's date on Render:** Render runs on UTC, so `render.yaml` should set `TZ` to the team's time zone, such as `America/New_York`.
+- **The `.env` hook stops any shell command that names `.env`,** even a help message that mentions it. The agent can write such a file with its file tools instead.
+- **Render's Python version:** Render's default Python is newer than the 3.12 that `pyproject.toml` requires, so `render.yaml` should set `PYTHON_VERSION` to a 3.12 release.
+- **Render's free plan:** the app sleeps after 15 minutes without visits and takes about a minute to wake. The first deploy starts when the student clicks Deploy Blueprint. After that, each push to `main` deploys once CI passes on it, about 15 to 20 minutes after the push.
+- **Render's button:** after New, then Blueprint, the student clicks Connect beside their fork, names the Blueprint, chooses `main` and pastes the three values. The last button is Deploy Blueprint.
+- **Render doesn't deploy:** check the fork's Actions tab. Render deploys only after the CI run on `main` passes, and never if the repo has no CI run at all.
+- **A second review with Codex:** `codex exec -s read-only "..."` takes several minutes and may run the tests itself, so it shouldn't run while another test run is going (the end-to-end tests use fixed ports). Paste its report into the fix prompt, as the instructions show. (`codex review --base main` won't take a prompt alongside `--base`.)
+- **Deploying elsewhere:** if the student would rather deploy somewhere other than Render, such as Fly.io or AWS Lambda, work with them to set that up instead. Any host needs the same things: the built app served with the API, the Supabase settings as environment variables, and a deploy from `main` that waits for CI to pass.
+- **Starting from Ed's Day 4 version:** the student moves their `main` onto `week1day4-end` first, using the commands in the instructions.

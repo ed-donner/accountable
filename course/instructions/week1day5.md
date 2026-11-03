@@ -82,6 +82,21 @@ SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key
 ```
 
+### Connect your agent to Supabase, read-only
+
+Supabase's MCP server lets your agent look at your project. Connect it read-only and to this one project, so your agent can read the database but can't change it. Changes to the database go through the app's migrations, which are in git.
+
+1. Find your project's ref, the part of `SUPABASE_URL` before `.supabase.co`.
+2. In the terminal, in the `accountable` folder, run this with your own ref in place of `abcdefghijklmnopqrst`. Claude Code keeps the server for this folder on your computer only, so your project ref stays out of git.
+
+```
+claude mcp add --transport http supabase "https://mcp.supabase.com/mcp?project_ref=abcdefghijklmnopqrst&read_only=true"
+```
+
+3. Restart Claude Code (`/exit`, then `claude`). Type `/mcp`, choose **supabase**, then **Authenticate**, and sign in to Supabase in the browser.
+
+With another coding agent, use the same address. Supabase's guide shows how to add it to each one: https://supabase.com/docs/guides/getting-started/mcp
+
 ### Plan
 
 Start a fresh session (`/clear` in Claude Code), then:
@@ -199,6 +214,12 @@ Run `npm run check` yourself. Then try the app two ways:
 
 - `npm run dev` runs it on this computer with the sample data, and you sign in as one of the made-up teammates.
 - `npm start` runs it the way Render will, against your Supabase project. Sign in as the user you added and go through the success criteria in the intent. Press Ctrl+C to stop it.
+
+Once `npm start` has run, your tables are in Supabase. Have your agent check them:
+
+```
+Use the Supabase MCP server to check the live database: list its tables, confirm that row-level security is on for every table, and run Supabase's security advisors. Report only.
+```
 
 ```
 git add .

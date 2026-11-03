@@ -69,8 +69,9 @@ The student adds a harness to Accountable, then makes one change through all six
 **Watch out for:**
 
 - **Coverage:** Ed uses 80%, and reaching it is the longest step of the day. The student can lower the number in the prompt or leave coverage out. On a smaller plan, suggest a lower number.
-- **gitleaks:** the pre-commit hook refuses every commit if gitleaks isn't installed, and its message says how to install it.
+- **gitleaks:** the pre-commit hook refuses every commit if gitleaks isn't installed, and its message says how to install it. The check allows the git-ignored `.env`, where the student's own keys go from Day 5.
 - **CI is slow:** 15 to 20 minutes on Ed's build, because the end-to-end tests run one at a time on GitHub's small machine. A leaked secret fails sooner, because gitleaks runs as its own step before anything else is installed.
+- **The browser in CI:** the end-to-end tests use the Google Chrome that GitHub's Ubuntu runner already has, because Chrome is the browser Accountable supports. Don't install Playwright's Chromium for them.
 - **CI fails at "Set up job":** GitHub couldn't find an action at the version the workflow names. `astral-sh/setup-uv` has published only exact versions since v8, so `@v10` fails. The CI prompt says so, but an agent can still miss it. Use the full version of its latest release, such as `@v10.3.3`. Leave out its `version` setting, so it installs the latest uv.
 - **CI fails but the student's machine passes:** GitHub runs Linux on a small machine, so some failures only show there. Read the error in the run, find the root cause, fix it on the branch and push again, without skipping or weakening the test.
 - **The fake key:** `npm run check` stays red until `make-it-fail` is deleted on both the student's machine and their fork, because gitleaks scans every branch.

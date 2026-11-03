@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Command } from "cmdk";
 import { Search as Magnifier } from "lucide-react";
 import { Popover } from "radix-ui";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router";
 
 import { ApiError, api } from "../lib/api";
@@ -161,6 +161,7 @@ function failedHere(error: unknown) {
 export function Search() {
   const navigate = useNavigate();
   const box = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
   const pause = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [text, setText] = useState("");
   const [wanted, setWanted] = useState("");
@@ -210,6 +211,12 @@ export function Search() {
   const failed = failedHere(search.error);
   const showing = open && (failed || shown !== undefined);
 
+  // cmdk always marks its input expanded, after any props given to it, so screen readers would
+  // hear the list as open while it's closed. Set here instead; React leaves it, as cmdk's value never changes.
+  useLayoutEffect(() => {
+    input.current?.setAttribute("aria-expanded", String(showing));
+  }, [showing]);
+
   return (
     <Command shouldFilter={false} label={LABEL}>
       <Popover.Root open={showing} onOpenChange={setOpen}>
@@ -217,6 +224,7 @@ export function Search() {
           <div ref={box} className="relative w-[240px]">
             <Magnifier size={16} aria-hidden="true" className="absolute top-[10px] left-3 text-muted" />
             <Command.Input
+              ref={input}
               value={text}
               onValueChange={type}
               onKeyDown={onKeyDown}

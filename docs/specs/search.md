@@ -17,6 +17,6 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ### Search box and results
 
-The search box sits in the top bar after the five sections ([Shell](shell.md#shell)). It's 240px wide and 36px tall, in the page color like other inputs, with a magnifier icon and the placeholder "Search". Its label for screen readers is "Search organizations, contacts and deals".
+The search box sits in the top bar after the five sections ([Shell](shell.md#shell)). It's 240px wide and 36px tall, in the page color like other inputs, with a magnifier icon and the placeholder "Search". Its label for screen readers is "Search organizations, contacts and deals", and it tells them whether its results are open.
 
 The results open below the box, 420px wide and lined up with its right edge, on the raised surface with a soft shadow, rounded like picker lists. Group headings are labels in muted ink. Each result is one 44px row, with the highlighted one in the page color, as rows are on hover. Built with `cmdk` and Radix Popover, like the record pickers.

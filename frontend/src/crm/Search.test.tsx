@@ -231,6 +231,18 @@ describe("opening a result", () => {
     expect(address()).toBe("/");
   });
 
+  it("tells screen readers whether the list is open", async () => {
+    mockApi({ "GET /search?q=harb": HARB });
+    const box = openSearch();
+    expect(box.getAttribute("aria-expanded")).toBe("false");
+    const keys = typist();
+    await keys.type(box, "harb");
+    await wait(PAUSE_MS);
+    expect(box.getAttribute("aria-expanded")).toBe("true");
+    await keys.keyboard("{Escape}");
+    expect(box.getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("opens the list again with a click or the down arrow after Escape", async () => {
     const { box, keys } = await showResults();
     await keys.keyboard("{Escape}");

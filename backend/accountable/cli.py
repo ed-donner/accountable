@@ -1,4 +1,5 @@
-"""The seed and empty commands, run as `python -m accountable.cli seed` or `empty`.
+"""The seed and empty commands, run with `npm run seed` or `npm run empty`, which call
+`uv run python -m accountable.cli seed` or `empty`.
 
 Both delete rows inside one transaction and leave the file and tables in place,
 which is why they're safe with the app running and why an emptied database isn't

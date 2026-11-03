@@ -37,7 +37,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 
 - Both sign-in screens, with Supabase's client stood in for the shared app's: each message in U2, a session that ends (U6), and signing out emptying the query cache (U5)
 - The menu, and the theme: each choice, the saved choice, one that can't be read, and System following the device as it changes, with the browser's `prefers-color-scheme` stood in
-- The search box: the pause before searching, an older reply arriving late, the groups, "See all", the keyboard and each message in K7
+- The search box: the pause before searching, an older reply arriving late, the groups, "See all", the keyboard, each message in K7, and telling screen readers whether its results are open
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
 
 **Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value. It also fails if the dark block sets a token that `@theme` doesn't have, so a misspelled one can't go unnoticed.

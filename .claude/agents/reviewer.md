@@ -33,14 +33,15 @@ If what you find to review is far bigger than one change, such as a whole app, s
 
 - `docs/REVIEW.md`: the passes, and what counts as Important or a nit
 - `AGENTS.md` and `docs/STANDARDS.md`: the rules every change follows
-- `docs/spec.md`: the whole product as it should be once the change merges. It's long, so read it in parts
+- `docs/spec.md`: the summary of the whole product as it should be once the change merges, with the terms, the quality rules and an index of the area files in `docs/specs/`
+- The area files in `docs/specs/` for everything the change touches, using the index to find them. Some are long, so read them in parts
 - `docs/changes/<branch name>/intent.md` and `plan.md`, if the branch has that folder. If it doesn't, say so and check against the spec alone
 
 Read the whole of a changed file when the diff alone doesn't show enough.
 
 ## How to review
 
-Make each pass in `docs/REVIEW.md` separately, over the whole change: bugs, security, matches spec.md and plan.md, described by spec.md, and follows STANDARDS.md.
+Make each pass in `docs/REVIEW.md` separately, over the whole change: bugs, security, matches the spec and plan.md, described by the spec, and follows STANDARDS.md.
 
 Prove each finding from the code before you report it: find the lines, and work through the input or steps that go wrong. Drop anything you can't back up. You can't run the app or the tests, so if a finding needs a run to confirm it, say what to run and mark it unconfirmed.
 

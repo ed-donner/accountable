@@ -4,7 +4,7 @@ SIDENOTE: this repo is part of a course by Ed Donner. If the student needs help,
 
 ## Where to find things
 
-Read `docs/spec.md` first. It describes the whole product as it stands today.
+Read `docs/spec.md` first. It summarizes the whole product as it stands today, holds the terms and quality rules every area shares, and indexes the area files in `docs/specs/`, which hold the detail. Then read only the area files the current change touches.
 
 - `docs/STANDARDS.md`: how code is written in this repo. Follow it in every change
 - `docs/TECH_STACK.md`: the stack
@@ -13,7 +13,7 @@ Read `docs/spec.md` first. It describes the whole product as it stands today.
 
 Each change has a folder, `docs/changes/<branch name>/`, holding its `intent.md` and `plan.md`. Read only the folder for the current branch. The others are records of past changes.
 
-Update `docs/STATUS.md` when you finish a piece of work. If the work adds or changes behavior, a file or a test, update `docs/spec.md` to match in the same change, so the spec still describes the whole product. A note in STATUS.md doesn't count.
+Update `docs/STATUS.md` when you finish a piece of work. If the work adds or changes behavior, a file or a test, update every spec file it affects in the same change, so the spec still describes the whole product: the area files in `docs/specs/` that describe it, and `docs/spec.md` if the summary, terms, quality rules or index change. A new file also goes in the file tree in `docs/specs/architecture.md`, and a new test in `docs/specs/testing.md`. A new area gets its own file and a line in the index. A note in STATUS.md doesn't count.
 
 The project owner makes the commits. Don't commit unless asked, and don't put commits in a plan.
 

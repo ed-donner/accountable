@@ -21,7 +21,7 @@ Everything the checks found was fixed in the code, with no rule turned off or lo
 - **Types:** ty found 71 problems. The routes now build the reply models they say they return, updates mark an unsent field with Pydantic's `MISSING` instead of `None`, new ids come back through `RETURNING`, and FastAPI's dependencies use `Annotated`. The same 741 requests gave byte-identical replies before and after.
 - **Coverage:** frontend unit coverage was 56%. New tests cover every page, the charts, the shell, the routes and the pipeline board, and it's now about 98% of lines and 95% of branches. The backend is at 99%. A slow timeline test, which timed out with coverage on, now finds its button once instead of searching the page each time.
 
-`typescript-eslint` can't read TypeScript 7, so the root has TypeScript 6.0 for ESLint alone, and the type check still uses TypeScript 7. `docs/spec.md` has the details.
+`typescript-eslint` can't read TypeScript 7, so the root has TypeScript 6.0 for ESLint alone, and the type check still uses TypeScript 7. `docs/specs/architecture.md` has the details.
 
 ## Hooks
 
@@ -72,12 +72,16 @@ Every screen was also walked in both modes at both sizes, on a temporary databas
 
 ## Subagents
 
-Built on the `subagents` branch. The coding agent has two subagents in `.claude/agents/`, and `docs/spec.md` describes them under Testing:
+Built on the `subagents` branch. The coding agent has two subagents in `.claude/agents/`, and `docs/specs/testing.md` describes them:
 
 - **reviewer** reviews a branch, a commit or a range against `docs/REVIEW.md` and reports Important findings and nits. It runs on Sonnet. A hook in its file lets its shell run only commands that read, such as `git diff`, `git log`, `git show`, `git grep` and `grep`, and stops anything that could write, such as `git checkout`, a redirect into a file or `$( )`.
 - **ui-check** checks each page of the running app in the browser, with the Playwright MCP server, against the brand skill and the spec, in light and dark mode, and reports what's broken or off-brand. It runs on the session's model. It has no tools to edit files or type into the app, and a hook keeps every file it saves in `.playwright-mcp/`, which git ignores.
 
 Claude Code loads a new `.claude/agents/` folder only when a session starts, so restart it before using them. The hooks in the agents' files run only once the project folder is trusted, and not in a `claude -p` run. Both agents were started with `claude -p --agent`, which confirmed they load and that the reviewer runs on Sonnet. The hooks are tested through their scripts in `scripts/agent-hooks.test.mjs`, but neither agent has done a full run yet. `npm test` now runs 1,689 tests.
+
+## Spec split by area
+
+Done on the `multi-user` branch, before its design. The spec had grown past 850 lines, so it's now split by area, with the wording unchanged. `docs/spec.md` keeps the problem, what Accountable is, the terms, the quality rules and an index. The detail is in twelve files in `docs/specs/`: six product areas, each with its requirements and screen (`shell.md`, `records.md`, `deals.md`, `activities.md`, `dashboard.md`, `running.md`), and six that cover every area (`visual-design.md`, `architecture.md`, `backend.md`, `frontend.md`, `security.md`, `testing.md`). The only edits are links and words like "this file" and "below" that pointed across sections, which now name the file. `AGENTS.md` says to read `docs/spec.md` and then only the area files a change touches, and to keep every file a change affects up to date. `docs/REVIEW.md`'s spec passes cover the area files, and the reviewer and ui-check subagents read them. No code changed.
 
 ## Build progress
 

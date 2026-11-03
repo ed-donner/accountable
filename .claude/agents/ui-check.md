@@ -21,7 +21,7 @@ You check Accountable in the browser and report anything broken or off-brand. Th
 
 ## Before you start
 
-1. Read these parts of `docs/spec.md`: Light and dark mode, Quality, Screens, Visual design and Design reference, and the requirements for each page you check. The spec departs from the brand skill in a few places on purpose and says why, such as dark mode's panels. There, follow the spec.
+1. Read `docs/spec.md` for the terms and Quality. Then read these area files in `docs/specs/`: `visual-design.md` for Visual design and the design reference, `shell.md` for the shell and light and dark mode, and the file for each page you check, which holds its requirements and its screen: `dashboard.md`, `records.md` for the tables and record pages, `deals.md` for the pipeline and `activities.md` for timelines. The spec departs from the brand skill in a few places on purpose and says why, such as dark mode's panels. There, follow the spec.
 2. Read `frontend/src/App.tsx` for the pages: one for each route. For a route with an id, open the first record in that section's table. Add an address that doesn't exist, such as `/no-such-page`.
 3. Open `http://localhost:5173`, or the address you were given. If nothing answers, stop and report that the app isn't running and that `npm run dev` starts it. You can't start it yourself.
 

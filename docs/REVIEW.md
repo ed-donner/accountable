@@ -8,8 +8,8 @@ Make a separate pass over every change for each of these:
 
 - **Bugs:** the code does what it's meant to, including when something goes wrong.
 - **Security:** no secrets or personal data are exposed, and nobody can do what they shouldn't.
-- **Matches spec.md and plan.md:** the change does what `docs/spec.md` and the change's own `docs/changes/<branch name>/plan.md` say, with nothing missing and nothing extra.
-- **Described by spec.md:** flag any code that `docs/spec.md` doesn't describe.
+- **Matches the spec and plan.md:** the change does what `docs/spec.md`, the area files in `docs/specs/` for everything it touches and the change's own `docs/changes/<branch name>/plan.md` say, with nothing missing and nothing extra.
+- **Described by the spec:** flag any code that neither `docs/spec.md` nor an area file in `docs/specs/` describes. Flag any area file the change affects but left out of date, and any area file missing from the index in `docs/spec.md`.
 - **Follows STANDARDS.md:** the change follows the coding standards in `docs/STANDARDS.md`.
 
 ## Important

@@ -1,0 +1,159 @@
+# Spec: Visual design
+
+Part of the [spec](../spec.md), which has the summary, the terms, the quality rules and the index of every area file.
+
+## Visual design
+
+The brand skill is the source for all of this, and it takes priority over any general design guidance.
+
+### Color tokens
+
+Every color is a token with a light and a dark value, and every screen uses the tokens. Where the spec says a panel, card or backing is in the panel color, it's white in light mode and dark Midnight in dark mode. Ink is Midnight in light mode and Sea Mist in dark mode.
+
+Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panels, because clarity and contrast come first. On black, shadows vanish and a dialog barely shows against a dimmed page. So dark mode is built in three layers that each get a step lighter: the page, then panels and cards, then dialogs, picker lists, chart tooltips and messages. Each layer stands out from the one beneath it, as white panels do on the light page.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| Page | `#F0F4F5` | `#04232E` | Page background, row hover, inputs, secondary buttons, percentage pills |
+| Panel | `#FFFFFF` | `#0B3240` | Panels, cards, the top bar, the revenue figure's backing |
+| Raised | `#FFFFFF` | `#12404F` | Dialogs, picker lists, chart tooltips and messages, which float over the rest |
+| Ink | `#073B4C` Midnight | `#CDD8DB` Sea Mist | Body text and headings, the revenue line, the deals-won bars, the Won fill |
+| Ink on Won | `#CDD8DB` Sea Mist | `#073B4C` Midnight | Text on the Won fill |
+| Midnight | `#073B4C` | `#073B4C` | Text on Sea Green, Marigold and Coral, including on the revenue chart's fill |
+| Muted ink | `#4A6B76` | `#9AB1B8` | Secondary text |
+| Line | `#CDD8DB` Sea Mist | `#45646E` | Link underlines, funnel leader lines, scrollbars, and at half strength the slot where a dragged card will land |
+| Grid | `#E4ECEE` | `#1E4350` | Chart grid lines |
+| Soft bar | `#839DA5` | `#6C858E` | The current month's bar, halfway between ink and the panel |
+| Focus ring | `#118AB2` Cerulean | `#4CB3D6` | Focus rings, a lighter Cerulean in dark mode so it shows on every layer |
+| Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, current section |
+| Sea Green text | `#047A5B` | `#51E2BC` | If Sea Green is ever needed as text |
+| Marigold text | `#866522` | `#FFD47D` | If Marigold is ever needed as text |
+| Raspberry text | `#D23E62` | `#F591A9` | Error messages beside a field. Light mode uses the Alert chip's shade |
+| Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts |
+| Alert | `#EF476F` Raspberry, white text | Same | Delete buttons, charts |
+| Small chip, Information | `#107FA4`, white text | Same | Negotiation chips |
+| Small chip, Alert | `#D23E62`, white text | Same | Late, Overdue and Lost chips, the connection message |
+| Late tint | `#FDECF1` | `#4B2436` | Late cards |
+| Veil | Midnight at 40% | Black at 50% | Behind dialogs |
+| Shadow | Midnight, 18% to 24% | Black, 40% to 50% | Dialogs, picker lists, chart tooltips, messages, the dragged card |
+
+Small text meets 4.5:1 in both modes, and anything that isn't text, such as the focus ring, meets 3:1:
+
+| Pair | Light | Dark |
+|---|---|---|
+| Ink on page, panel, raised | 10.91:1, 12.08:1, 12.08:1 | 11.24:1, 9.35:1, 7.71:1 |
+| Muted ink on page, panel, raised | 5.19:1, 5.74:1, 5.74:1 | 7.28:1, 6.06:1, 5.00:1 |
+| Ink and muted ink on the late tint | 10.61:1, 5.05:1 | 9.00:1, 5.83:1 |
+| Sea Green text on page, panel | 4.81:1, 5.33:1 | 10.08:1, 8.39:1 |
+| Marigold text on page, panel | 4.86:1, 5.39:1 | 11.65:1, 9.69:1 |
+| Raspberry text on raised, where the forms are | 4.56:1 | 5.08:1 |
+| Midnight on Sea Green, Marigold, Coral | 6.40:1, 7.46:1, 5.13:1 | Same |
+| Text on the Won fill | 8.30:1 | 8.30:1 |
+| Focus ring on page, panel, raised | 3.58:1, 3.96:1, 3.96:1 | 6.79:1, 5.65:1, 4.66:1 |
+
+In dark mode, each layer is 1.2:1 against the one beneath it, a little more than white panels on the light page at 1.11:1. Inputs keep the page color, so in a dialog they sit 1.46:1 darker than the dialog around them. The late tint is about as light as a panel and stands out by its color.
+
+The small chip shades are an agreed exception to the brand, for small chips only. White text on the brand's Cerulean and Raspberry is 3.96:1 and 3.62:1, below the usual 4.5:1 minimum for small text, and these slightly darker shades reach it at 4.57:1 and 4.56:1 and look almost the same. The pipeline band, the funnel, the pipeline's column headers and the delete buttons keep the exact brand colors, so small white text on their Cerulean and Raspberry fills stays at 3.96:1 and 3.62:1. These fills and their text are the same in both modes, so the same figures, and the same exception, hold in dark mode.
+
+### Stage, chip and chart colors
+
+| Stage | Fill | Text on it |
+|---|---|---|
+| New | Sea Green `#06D6A0` | Midnight |
+| Qualified | Marigold `#FFC145` | Midnight |
+| Proposal | Coral `#F78C6B` | Midnight |
+| Negotiation | Cerulean `#118AB2` | White |
+| Won | Midnight `#073B4C`, Sea Mist `#CDD8DB` in dark mode | Sea Mist, Midnight in dark mode |
+| Lost | Raspberry `#EF476F` | White |
+
+Six stages share the brand's five colors, keeping the brand's order: Lost takes the fifth color and Won takes the ink. The colors can't carry meaning alone: the chart validator puts Marigold and Coral just under its line for telling colors apart (14.5 against 15), and Sea Green, Marigold and Coral are all below 3:1 on white. So every stage color has the stage's name beside it.
+
+Won is the one stage whose color changes with the mode. Midnight almost disappears on the dark surfaces, at 1.13:1 on a panel, so in dark mode Won turns Sea Mist with Midnight text, following the ink as the revenue line and the deals-won bars do. The other five stages look the same in both modes.
+
+Within a mode, a stage keeps its color everywhere. Negotiation and Lost chips use the small chip shades above, and larger fills, such as the pipeline band, the funnel and the pipeline's column headers, use the colors in this table. Other sets of three follow the brand's trio:
+
+| Set | Sea Green | Marigold | Coral |
+|---|---|---|---|
+| Contact status | Customer | Qualified | Lead |
+| Activity type | Call | Email | Note |
+
+Stage-change entries use Cerulean, which marks them as information.
+
+### Type
+
+The fonts are bundled through Fontsource, so nothing loads from outside the computer.
+
+| Use | Font | Size and line height | Weight |
+|---|---|---|---|
+| Page title | Instrument Sans | 28/36 | 600 |
+| Section heading | Instrument Sans | 16/24 | 600 |
+| Body, table text | Instrument Sans | 14/20 | 400 |
+| Label, chip | Instrument Sans | 13/18 | 600 |
+| Dashboard summary line | Instrument Serif | 22/30 | 400 |
+| Revenue won figure | JetBrains Mono | 52/60 | 500 |
+| Other headline figures, column totals | JetBrains Mono | 24/30 | 500 |
+| Board totals | JetBrains Mono | 20/26 | 500 |
+| Card value | JetBrains Mono | 19/26 | 500 |
+| Money, counts, dates in tables | JetBrains Mono | 13/20 | 400 |
+| Probability and date on cards | JetBrains Mono | 12/18 | 400 |
+| Chart axis | JetBrains Mono | 12/16 | 400 |
+
+Numbers are always in JetBrains Mono, so columns of figures line up. Instrument Serif appears in one place only: the dashboard's summary line.
+
+### Shapes
+
+- Panels have a 16px radius, cards 10px, inputs and buttons 8px, and chips are fully round.
+- Panels are in the panel color on the page background, white in light mode and dark Midnight in dark mode, with no outline and no shadow.
+- There are no gradient fills, and no borders on one edge of a panel. There's no line across the top of the page.
+- Late cards are marked by the chip and tint, never a colored edge.
+- Pipeline columns are headed by a solid block in the stage color, never a colored bar or edge.
+- Labels are in sentence case, not capitals. No text runs joined with middle dots, and no arrows added to link text.
+
+### Charts
+
+- **Line chart:** a 2px line in ink over a solid Sea Green area that runs to the panel's left, right and bottom edges. Won takes the ink, and the fill brings in the brand's primary color without losing the line. The money axis sits inside the panel on the right, and the month labels sit on the fill. The revenue figure sits at the top left on a backing in the panel color, so grid lines don't run through it.
+- **Line chart text in dark mode:** Sea Mist can't be read on Sea Green, at 1.30:1, so anything that sits on the fill is Midnight in both modes: the month labels, and each money label below the fill's top at the right-hand edge. Money labels above it are in ink. A label goes by where its middle falls.
+- **Line's current month:** the last segment is dashed, so an unfinished month doesn't look like a fall in sales. It ends in a dot in ink, ringed in the panel color.
+- **Bar chart:** thin bars in ink with 4px rounded tops. The current month is in the soft bar color, halfway between ink and the panel, labeled "so far".
+- **Sales funnel:** stacked segments narrowing from top to bottom, in stage colors, with 2px gaps and softly rounded corners. The top edge of each segment is as wide as the value that reached it, and the last segment tapers a little further so the shape ends in a neat spout. Each stage name sits inside its segment in the stage's text color. Its full value sits to the right in ink, joined by a dotted leader line in the line color. The percentage carried forward sits in a pill in the page color, level with the join between two stages, because it describes the step between them. Built with Recharts' `FunnelChart` and a custom `shape`.
+- **Pipeline band:** compact blocks, 76px tall, sized by value with 2px gaps. A small stage keeps a minimum width so its label still fits.
+- **All charts:** one axis per chart, so revenue and deal count are never on the same one. Faint horizontal grid lines only, in the grid color. Direct labels on the current month only, which is usually the highest in the sample data. Text is in ink, never the series color, apart from Midnight text on the bright fills. Each chart has a hover tooltip, on the raised surface.
+- **Money on axes:** shortened with the currency, such as `$40k` and `$1.2M`.
+
+### Motion
+
+The revenue line and its fill draw in once on load. Cards slide apart while one is dragged, and settle into place when dropped. Dialogs fade in quickly. Nothing else moves, and all of it stops under reduced motion. Switching between light and dark mode is instant, with no fade.
+
+### Words
+
+Plain business English, short labels, no exclamation marks.
+
+| Where | Text |
+|---|---|
+| Buttons | Add deal, Save deal, Delete deal, Log activity |
+| Mode button, for screen readers | Switch to dark mode. Switch to light mode. |
+| Messages | Deal saved. Deal deleted. |
+| Errors | Enter a name. Choose an organization. |
+| Empty table | No deals yet. Add the first one. |
+| Empty funnel | Deals will show here once you've added some. |
+| Empty follow-ups | No follow-ups due. |
+| Connection lost | Can't reach Accountable. Check that it's still running. |
+| Failed read | Couldn't load this. |
+| Failed read, with something already showing | Couldn't refresh this, so it may be out of date. |
+| Delete dialog | Delete Harbor & Pine? Its 4 contacts and 3 deals will stay, with no organization. This can't be undone. |
+
+Money always carries its currency, as in `$48,000`. Dates read `Oct 31, 2026`, and times read `Oct 31, 3:20 PM`.
+
+## Design reference
+
+`docs/mockups/4-chosen-design.html` is the reference for the shell, the dashboard and the pipeline, with `4-chosen-design-dashboard.png` and `4-chosen-design-pipeline.png` beside it. It brings together:
+
+- **Mockup 2, Work desk:** the page shell and the dashboard.
+- **Mockup 3, Deal wall:** the style of the pipeline board.
+- **A top-down sales funnel** in place of Mockup 2's funnel bars, in the style common in sales CRMs.
+
+Organizations, Contacts, Deals and the record pages aren't in the mockup, and follow [Screens](records.md#screens) with the same shell, colors and type. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
+
+The mockups show light mode only. Dark mode follows the dark values in [Color tokens](#color-tokens), and `docs/changes/dark-mode/` holds screenshots of the dashboard and the pipeline in both modes, at 1440 by 900 with the sample data.
+
+Where the spec and the mockup disagree, the spec is right.

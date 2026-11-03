@@ -10,6 +10,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 - **A4.** Timelines show the newest first. Each entry shows its type, when it happened, its description, any follow-up, and a link to the contact or deal it belongs to.
 - **A5.** Timelines show 50 entries at first, with a Show more button that reaches the end, however long the timeline is. If it fails, what's showing stays.
 - **A6.** A deal's entries follow its main contact: changing the main contact moves them to the new contact's timeline.
+- **A7.** Each timeline entry also shows who added it, beside when it happened: who logged an activity, and who moved the deal for a stage change. Its name follows U8, and an entry with no one recorded (U12) shows the time alone. Ticking a follow-up, or editing an activity, records who last changed it (U10) but doesn't change the name shown.
 
 | Timeline on | Shows |
 |---|---|

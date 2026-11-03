@@ -6,6 +6,10 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 `npm test` runs the type checks, tsc on the frontend, because Vite doesn't check types, and ty on the backend, then all three layers, and uses databases of its own. `scripts/checks.mjs` picks the database path once and passes it down. Pytest and Playwright refuse to start without it, or with a path inside `data/`, so a test can never wipe real data.
 
+Every test runs as the local copy, on SQLite. The checks never read `.env`, and pass down an environment without the three Supabase settings (C9), so no test can reach Supabase, whether the settings are in `.env` or not, and CI needs no secrets. Where a test needs Supabase, such as the shared app's token check, it stands in for it.
+
+**Speed:** every unit test, backend and frontend, old and new, runs in under a second on the developer's computer, because CI runs on a much slower machine. The summary at the end of `npm test` names any unit test that took a second or more.
+
 **Backend (pytest)**, on a fresh temporary database each test:
 
 - Every row of the stage rules, with today's date fixed, including hand-set probabilities and blank main contacts
@@ -14,12 +18,27 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 - Dashboard figures against a small dataset with known answers, including month boundaries, an edited close date and a reopened deal
 - The funnel, including skipped stages, a deal moved backwards, a lost deal and a deal added at Won
 - All three timelines, with no duplicates
-- Sample data meets every line of M3, including when seeded on the 1st of a month
+- Sample data meets every line of M3, including when seeded on the 1st of a month, and M7
 - An emptied database stays empty after a restart
 - Migrations build the same tables as `tables.py`
-- Every route the app has gets the security and bad-input checks, taken from the app's own list of routes
+- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps and turn on row-level security for every table, Alembic's own included
+- The startup check for row-level security, given a list of tables with it on and off, refuses to start and names each table that has it off
+- Every route the app has gets the security and bad-input checks, taken from the app's own list of routes. That includes refusing a request with no token, an expired one, one signed with another key and one issued for something other than a signed-in user, in the local copy and in the shared app
+- The shared app's token check against a stand-in for Supabase's public keys, made in the test: a good token, a key it hasn't seen, and keys that can't be fetched
+- The local copy's sign-in routes, and that the shared app doesn't have them
+- Some but not all of the three settings stop the backend, naming the missing ones
+- Who added and who last changed, through every kind of change in U10, including a won deal's contact, and leaving renumbered cards and blanked links alone. A request body naming someone changes nothing.
+- Names and initials, including no display name, a one-word name and a name changed in Supabase
+- Search: part of a name, any case, accented letters, `%` and `_`, spaces at the ends, the order, the limit of 5 and the counts
+- Today follows `TZ`
+- The built app: an unknown address gets the page, an unknown `/api` address gets a JSON 404, and nothing outside `frontend/dist` can be reached
 
-**Frontend (Vitest):** money and date formatting, including dates near midnight, expected revenue and board totals using the same cases as the backend, the deal form's stage behavior, the table's search and sort, and every page, chart and the pipeline board as a user sees them, with the API stood in for by `mockApi` in `src/test-utils.tsx`. The board's tests give jsdom a plain layout, because jsdom lays nothing out, and move cards with the keyboard and the pointer. The mode button and the saved choice are tested too, including a saved choice that can't be read.
+**Frontend (Vitest):** money and date formatting, including dates near midnight, expected revenue and board totals using the same cases as the backend, the deal form's stage behavior, the table's search and sort, and every page, chart and the pipeline board as a user sees them, with the API stood in for by `mockApi` in `src/test-utils.tsx`. The board's tests give jsdom a plain layout, because jsdom lays nothing out, and move cards with the keyboard and the pointer. Also:
+
+- Both sign-in screens, with Supabase's client stood in for the shared app's: each message in U2, a session that ends (U6), and signing out emptying the query cache (U5)
+- The menu, and the theme: each choice, the saved choice, one that can't be read, and System following the device as it changes, with the browser's `prefers-color-scheme` stood in
+- The search box: the pause before searching, an older reply arriving late, the groups, "See all", the keyboard and each message in K7
+- Who added and last changed, on each record page and timeline, including a record with no one recorded
 
 **Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value. It also fails if the dark block sets a token that `@theme` doesn't have, so a misspelled one can't go unnoticed.
 
@@ -44,12 +63,13 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 **Subagents:** the coding agent has two, in `.claude/agents/`. Claude Code loads that folder when a session starts. Each one ends with a report in a set layout, and the hook in its file runs only once the project folder is trusted in Claude Code. If the hook itself fails, the tool call is stopped.
 
 - **reviewer** reviews a branch, a commit or a range against `docs/REVIEW.md`, reading the spec, `AGENTS.md`, `docs/STANDARDS.md` and the branch's `plan.md`, and reports Important findings and at most five nits. By default it reviews the current branch against `main` as it stands in the working tree, including work not yet committed. It runs on Sonnet, so that a different model from the session's checks the work. It has Read, Grep, Glob and Bash. Claude Code can't limit Bash to some commands through the tool list, so a hook lets it run only commands that read: `git blame`, `cat-file`, `describe`, `diff`, `grep`, `log`, `ls-files`, `ls-tree`, `merge-base`, `rev-list`, `rev-parse`, `shortlog`, `show` and `status`, `git branch` to list branches, and `cat`, `cd`, `cut`, `diff`, `echo`, `grep`, `head`, `ls`, `pwd`, `rg`, `sort`, `tail`, `tr` and `wc`. They can be joined with `|`, `&&` or `;`, and send output to `/dev/null`. It stops redirects into a file, `$( )`, backticks, subshells, and the flags that let those commands write a file or run another program, such as `git diff --output` and `rg --pre`. Like the `.env` hook, it guards against mistakes and isn't a sandbox.
-- **ui-check** opens the running app at `http://localhost:5173` with the Playwright MCP server, and checks each page against the brand skill, which its file loads, and the spec. The pages are the routes in `frontend/src/App.tsx`, with the first record of each kind and an unknown address. By default it checks every page at 1440 by 900 in light mode and then dark mode, reading computed styles to confirm fonts and colors, and the console and network for Q2 and C2. It reports what's broken, what's off-brand and up to five nits. It runs on Sonnet. It has Read, Grep, Glob and the browser tools that look rather than enter data: it can open pages and dialogs, but can't type, drag or upload, and never saves, deletes or ticks anything, because the running app holds real records. A hook stops any Playwright tool from saving a file outside `.playwright-mcp/`, which git ignores, because a bare file name would land in the project folder.
+- **ui-check** opens the local copy that `npm run dev` starts, at `http://localhost:5173`, with the Playwright MCP server, and checks each page against the brand skill, which its file loads, and the spec. It checks the sign-in screen first, then signs in by clicking one of the made-up teammates, so it needs no password and never touches Supabase. The pages are the routes in `frontend/src/App.tsx`, with the first record of each kind and an unknown address, plus the open menu. By default it checks every page at 1440 by 900 in light mode and then dark mode, switching with the menu, reading computed styles to confirm fonts and colors, and the console and network for Q2 and C2. It reports what's broken, what's off-brand and up to five nits. It runs on Sonnet. It has Read, Grep, Glob and the browser tools that look rather than enter data: it can open pages, dialogs and the menu, but can't type, drag or upload, and never saves, deletes or ticks anything, because the running app holds someone's records. Without typing it can't see search results, so those are left to the end-to-end tests. A hook stops any Playwright tool from saving a file outside `.playwright-mcp/`, which git ignores, because a bare file name would land in the project folder.
 
 **CI:** `.github/workflows/ci.yml` runs on every push, to any branch, on GitHub's Ubuntu runner. It installs gitleaks and runs it on every commit first, so a leaked secret fails the run straight away. Then it installs Node 26 and the latest uv, and runs `npm run check:quick`. It leaves out the end-to-end and speed tests, which took most of each 15-minute run, so they run only in `npm run check` on the developer's computer. It uses no secrets, and its token can only read the repo.
 
 **End to end (Playwright Test)**, with the installed Chrome, not in CI:
 
+- The tests run the local copy. Each test starts signed in as a made-up teammate, through the local sign-in route, apart from the sign-in tests, which use the screen. The shared app's sign-in to Supabase is covered by the unit tests and checked by hand, below.
 - The tests run on several workers, chosen from the machine's cores and memory, and `ACCOUNTABLE_TEST_WORKERS` sets the number by hand. Each worker has its own servers, on ports from 5200 and 8800, and its own temporary database, with `reuseExistingServer` off. If they reused a server, they could attach to a running copy of the app and change real data. Tests that stop and restart the app start their own copy, on ports from 5300 and 8900.
 - Every test fails on any console error it didn't name in advance, and on any request to an address outside the computer. The second check proves the offline requirement. Tests that expect a failed request, such as the 404 behind N4, name the exact message.
 - Drags use `page.mouse` with several small moves, because dnd-kit needs to see the pointer travel.
@@ -59,19 +79,25 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 | Area | Requirements | Tests |
 |---|---|---|
-| Start and land on the dashboard | C1, C2, N1 to N5, M1 to M5 | `e2e/start.spec.ts` |
+| Start and land on the dashboard | C1, C2, N1 to N5, M1 to M5, M7 | `e2e/start.spec.ts` |
 | Tables, forms, delete, reset, empty | T1 to T9, F1 to F9, D1 to D3, C3 to C6 | `e2e/records.spec.ts`, `e2e/data.spec.ts` |
 | Filter and record pages | T6, R1 to R5 | `e2e/records.spec.ts` |
 | Pipeline | P1 to P9, S1 to S6 | `e2e/pipeline.spec.ts` |
 | Activities and timelines | A1 to A5, S2, H6 | `e2e/activities.spec.ts` |
 | Dashboard figures | H1 to H8, S1 | `e2e/dashboard.spec.ts` |
 | Five answers, two clicks | H9 | `e2e/problem.spec.ts`, then by hand, below |
-| Light and dark mode | L1 to L4 | `e2e/mode.spec.ts` |
+| The menu and the theme | N7, L1 to L4 | `e2e/menu.spec.ts`, which replaces `e2e/mode.spec.ts` |
+| Signing in and out, and who added | U1, U4 to U7, U13 to U15, R6, A7, S2 | `e2e/sign-in.spec.ts`, `e2e/records.spec.ts`, `e2e/activities.spec.ts` |
+| Search | K1 to K7 | `e2e/search.spec.ts` |
 | Look and brand | Visual design, L5 | By hand, against the design reference and the dark mode screenshots |
 | Layout, console, keyboard, Chrome | N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
 | Speed at the limits | Q1 | `e2e/stress.spec.ts` |
-| Keeping data on this computer | Security | `e2e/security.spec.ts`, `backend/tests/test_every_route.py`, `backend/tests/test_security.py` |
+| Security | Security, U7, U16 | `e2e/security.spec.ts`, `backend/tests/test_every_route.py`, `backend/tests/test_security.py`, `backend/tests/test_auth.py` |
+| Which copy runs | C8 to C10 | `backend/tests/test_settings.py`, `scripts/setup.test.mjs` |
+| The shared app | U2, U3, W1 to W9, C10 | By hand, below |
 | When things go wrong | N4, N6, F10, F11, D1, P4 | `e2e/failures.spec.ts`, `frontend/src/crm/forms/forms.test.tsx`, `frontend/src/crm/queries.test.tsx` |
 | Layout rules | Layout rules | `backend/tests/test_layout.py`, `frontend/src/layout.test.ts` |
 
 **By hand:** tests can't settle everything. The app is also used in Chrome at 1440 by 900 and 1280 by 720 the way a salesperson would, including with an emptied database, after a restart and with the network off, and each screen is compared with the design reference, in light mode and dark mode. The project owner checks that someone with no instructions can answer the five questions from the dashboard (H9), and has the final say, including on how it looks. Passing tests is necessary, but it isn't enough.
+
+The shared app is checked by hand too, because no test touches Supabase. The project owner runs `npm start` against an empty Supabase database, which proves that every migration runs from empty on Postgres and that the startup check for row-level security passes. Then they sign in as their Supabase user, and goes through the change's success criteria: a wrong password, signing out, who added each record, search and the theme. Once `npm start` has built the tables, the coding agent uses the Supabase MCP server to confirm that row-level security is on for every table and to run Supabase's security advisors, reporting only. After the first deploy, the same checks run on the `onrender.com` address.

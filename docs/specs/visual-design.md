@@ -14,9 +14,9 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| Page | `#F0F4F5` | `#04232E` | Page background, row hover, inputs, secondary buttons, percentage pills |
-| Panel | `#FFFFFF` | `#0B3240` | Panels, cards, the top bar, the revenue figure's backing |
-| Raised | `#FFFFFF` | `#12404F` | Dialogs, picker lists, chart tooltips and messages, which float over the rest |
+| Page | `#F0F4F5` | `#04232E` | Page background, row hover, inputs including the search box, secondary buttons, percentage pills, the highlighted menu item and search result |
+| Panel | `#FFFFFF` | `#0B3240` | Panels, cards, the top bar, the sign-in panel, the revenue figure's backing |
+| Raised | `#FFFFFF` | `#12404F` | Dialogs, the menu, search results, picker lists, chart tooltips and messages, which float over the rest |
 | Ink | `#073B4C` Midnight | `#CDD8DB` Sea Mist | Body text and headings, the revenue line, the deals-won bars, the Won fill |
 | Ink on Won | `#CDD8DB` Sea Mist | `#073B4C` Midnight | Text on the Won fill |
 | Midnight | `#073B4C` | `#073B4C` | Text on Sea Green, Marigold and Coral, including on the revenue chart's fill |
@@ -25,7 +25,8 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Grid | `#E4ECEE` | `#1E4350` | Chart grid lines |
 | Soft bar | `#839DA5` | `#6C858E` | The current month's bar, halfway between ink and the panel |
 | Focus ring | `#118AB2` Cerulean | `#4CB3D6` | Focus rings, a lighter Cerulean in dark mode so it shows on every layer |
-| Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, current section |
+| Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, including Sign in, current section |
+| Secondary | `#FFC145` Marigold, Midnight text | Same | The initials circle, on the menu button and the local copy's sign-in screen |
 | Sea Green text | `#047A5B` | `#51E2BC` | If Sea Green is ever needed as text |
 | Marigold text | `#866522` | `#FFD47D` | If Marigold is ever needed as text |
 | Raspberry text | `#D23E62` | `#F591A9` | Error messages beside a field. Light mode uses the Alert chip's shade |
@@ -35,7 +36,7 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Small chip, Alert | `#D23E62`, white text | Same | Late, Overdue and Lost chips, the connection message |
 | Late tint | `#FDECF1` | `#4B2436` | Late cards |
 | Veil | Midnight at 40% | Black at 50% | Behind dialogs |
-| Shadow | Midnight, 18% to 24% | Black, 40% to 50% | Dialogs, picker lists, chart tooltips, messages, the dragged card |
+| Shadow | Midnight, 18% to 24% | Black, 40% to 50% | Dialogs, the menu, search results, picker lists, chart tooltips, messages, the dragged card |
 
 Small text meets 4.5:1 in both modes, and anything that isn't text, such as the focus ring, meets 3:1:
 
@@ -81,7 +82,7 @@ Stage-change entries use Cerulean, which marks them as information.
 
 ### Type
 
-The fonts are bundled through Fontsource, so nothing loads from outside the computer.
+The fonts are bundled through Fontsource, so nothing loads from outside the app's own address.
 
 | Use | Font | Size and line height | Weight |
 |---|---|---|---|
@@ -131,13 +132,26 @@ Plain business English, short labels, no exclamation marks.
 | Where | Text |
 |---|---|
 | Buttons | Add deal, Save deal, Delete deal, Log activity |
-| Mode button, for screen readers | Switch to dark mode. Switch to light mode. |
+| Menu button, for screen readers | Menu for Alex Rivera |
+| Menu | Theme. Light. Dark. System. Sign out. |
+| Sign-in | Sign in. Email. Password. |
+| Sign-in failed | That email and password don't match. |
+| Sign-in service unreachable | Can't reach the sign-in service. Check your internet connection. |
+| Too many sign-in tries | Too many tries. Wait a minute and try again. |
+| Session ended | Your session has ended. Sign in again. |
+| Local copy's sign-in | This is a local copy with made-up data. Choose who to sign in as. |
+| Who added and changed | Added by Alex Rivera on Oct 12, 2026. Last changed by Dana Whitfield on Oct 30, 2026. |
+| Search, for screen readers | Search organizations, contacts and deals |
+| No search matches | No organizations, contacts or deals match "harbour". |
+| Search failed | Couldn't search. Try again. |
+| More search results | See all 12 contacts |
 | Messages | Deal saved. Deal deleted. |
-| Errors | Enter a name. Choose an organization. |
+| Errors | Enter a name. Choose an organization. Enter your email. |
 | Empty table | No deals yet. Add the first one. |
 | Empty funnel | Deals will show here once you've added some. |
 | Empty follow-ups | No follow-ups due. |
-| Connection lost | Can't reach Accountable. Check that it's still running. |
+| Connection lost, local copy | Can't reach Accountable. Check that it's still running. |
+| Connection lost, shared app | Can't reach Accountable. Check your internet connection. |
 | Failed read | Couldn't load this. |
 | Failed read, with something already showing | Couldn't refresh this, so it may be out of date. |
 | Delete dialog | Delete Harbor & Pine? Its 4 contacts and 3 deals will stay, with no organization. This can't be undone. |
@@ -152,7 +166,7 @@ Money always carries its currency, as in `$48,000`. Dates read `Oct 31, 2026`, a
 - **Mockup 3, Deal wall:** the style of the pipeline board.
 - **A top-down sales funnel** in place of Mockup 2's funnel bars, in the style common in sales CRMs.
 
-Organizations, Contacts, Deals and the record pages aren't in the mockup, and follow [Screens](records.md#screens) with the same shell, colors and type. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
+Organizations, Contacts, Deals and the record pages aren't in the mockup, and follow [Screens](records.md#screens) with the same shell, colors and type. Nor are the sign-in screen, the search results and the menu, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results) and [shell.md](shell.md#shell). The mockup's top bar has no search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
 
 The mockups show light mode only. Dark mode follows the dark values in [Color tokens](#color-tokens), and `docs/changes/dark-mode/` holds screenshots of the dashboard and the pipeline in both modes, at 1440 by 900 with the sample data.
 

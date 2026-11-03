@@ -85,6 +85,10 @@ Done on the `multi-user` branch, before its design. The spec had grown past 850 
 
 Two fixes followed. The spec and this file said ui-check runs on the session's model, but its file sets Sonnet, and both now say Sonnet. And `e2e/mode.spec.ts`'s "switching keeps what's on screen" failed once in `npm run check`: it scrolled the page straight after typing, and if the table hadn't drawn yet, the page was too short to scroll and stayed at 0. Holding back the organizations reply for 1.5 seconds made it fail the same way every time. It now waits for the first row before it scrolls, and passes with the delay in place.
 
+## Sign-in, search and a user menu: design
+
+On the `multi-user` branch, `docs/spec.md`, the area files and `docs/TECH_STACK.md` now describe Accountable with sign-in, search and the user menu in it, as it will be once the branch merges. Three area files are new: `sign-in.md`, `search.md` and `deploy.md`. Nothing is built yet, so the run instructions below still describe the app as it is on `main`.
+
 ## Build progress
 
 - **Phase 1, a shell that runs:** done.

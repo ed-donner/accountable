@@ -6,6 +6,29 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 Every table also has `id` and `created_at`, and all but `stage_changes` have `updated_at`.
 
+The local copy keeps these tables in SQLite and the shared app in Postgres on Supabase. Both use the same tables, built by the same migrations, through SQLAlchemy Core.
+
+**users**
+
+| Column | Type | Notes |
+|---|---|---|
+| id | text | the Supabase user id, or a fixed id for each made-up teammate |
+| name | text | the display name, optional |
+| email | text | required |
+
+Each person's row is added the first time the backend sees their token, and updated when the token shows a new name or email (U9). Rows are never deleted, so a removed person's records still show their name. Someone with no display name has no `name`, and replies give their email in its place (U8).
+
+**Who on every record**
+
+Organizations, contacts, deals and activities each also have:
+
+| Column | Type | Notes |
+|---|---|---|
+| created_by | foreign key to users | who added it. Blank only on records from before sign-in (U12) |
+| updated_by | foreign key to users | who last changed it, following U10. The same as `created_by` until someone changes it |
+
+Stage changes also have `created_by`, for who moved the deal (U11).
+
 **organizations**
 
 | Column | Type | Notes |
@@ -62,12 +85,16 @@ Stage changes get their own table because they aren't activities: they have no t
 Notes:
 
 - **Links:** required links are enforced by the API, not the database, because deletes have to be able to blank them. The database columns allow blank.
-- **New database:** a first start builds the database under a temporary name and renames it once the migrations and sample data are done, so an interrupted first start can't leave an empty database behind.
-- **Ids:** never used twice, so an old address can't open a different record. SQLite would otherwise give the newest record's id to the next one after a delete. Every table gets `TABLE_OPTIONS` from `db.py`.
-- **Foreign keys:** SQLite turns these off by default. They're turned on for each connection with `connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_FKEY, True)` in a SQLAlchemy connect event. This keeps to the "no raw SQL" rule, and it has been checked on Python 3.12.
-- **Migrations:** these run with foreign keys off, all in one transaction. SQLite makes most table changes by rebuilding the table, and dropping the old table with foreign keys on would run its delete rules, blanking links and deleting activities.
+- **Which database:** `db.py` uses SQLite at `data/accountable.db` in the local copy and Postgres at `DATABASE_URL` in the shared app (C8). Everything specific to either one stays in `db.py` and the migrations.
+- **New database:** in the local copy, a first start builds the database under a temporary name and renames it once the migrations and sample data are done, so an interrupted first start can't leave an empty database behind. In the shared app, a database with none of the app's tables is new, and the first start builds the tables and adds the sample data in one transaction, which Postgres can roll back whole.
+- **Ids:** never used twice, so an old address can't open a different record. SQLite would otherwise give the newest record's id to the next one after a delete. Every table gets `TABLE_OPTIONS` from `db.py`. Postgres never reuses an id, so it needs nothing extra. Users keep the id Supabase gave them.
+- **Foreign keys:** SQLite turns these off by default. They're turned on for each connection with `connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_FKEY, True)` in a SQLAlchemy connect event. This keeps to the "no raw SQL" rule, and it has been checked on Python 3.12. Postgres always enforces them.
+- **Migrations:** these run when the backend starts, all in one transaction, on both databases. On SQLite they run with foreign keys off, because SQLite makes most table changes by rebuilding the table, and dropping the old table with foreign keys on would run its delete rules, blanking links and deleting activities. Steps that only SQLite needs, such as those rebuilds, are skipped on Postgres, where Postgres can change a table in place. Every migration, the first ones included, runs from an empty database on both, so a new Supabase project gets the whole history.
+- **Row-level security:** on Postgres, the migrations turn on row-level security for every table, Alembic's version table included, with no policies ([Security](security.md#the-database)). SQLAlchemy has no way to say this, so it's the one place the migrations use raw SQL, and it runs only on Postgres.
+- **Row-level security check:** on Postgres, once the migrations have run, the backend reads Postgres's catalog through SQLAlchemy Core and refuses to start if any table in the `public` schema has row-level security off. The message names each one, such as "Row-level security is off for these tables: notes. Turn it on in a migration." That catches a later migration that forgot, and a table added in Supabase's dashboard. The check lives in `db.py`.
 - **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)` and `stage_changes (changed_at)`.
-- **Times:** SQLite stores no time zone, so the API always sends times with a `Z`. Otherwise the browser would read a UTC time as local.
+- **Times:** stored in UTC with no time zone, on both databases, so the API always sends times with a `Z`. Otherwise the browser would read a UTC time as local.
+- **Search:** case is ignored the same way on both databases (K2). SQLite's own `lower()` only knows the letters A to Z, so `db.py` gives SQLite a lowercase function that knows every language, and matching uses it on both sides of the comparison.
 - **Dates:** close dates and follow-up dates are plain dates. In the frontend, always read them with date-fns `parseISO`. `new Date("2026-10-31")` reads as UTC and shows the day before in US time zones.
 - **Probabilities:** the six usual probabilities live in one place in the backend. The frontend reads them from `GET /api/meta`.
 
@@ -81,11 +108,13 @@ Notes:
 4. On Won, set the main contact's status to customer, if there is a main contact.
 5. Put the deal at the top of the new column, unless this request gave a place.
 
-The function takes today's date as an argument, so tests can fix it. The backend's today is the computer's local date.
+The function takes today's date and the person making the change as arguments, so tests can fix them. It records that person on the `stage_changes` row, on the deal, and on the main contact if step 4 changes their status (U10). The backend's today is the date in the zone set by `TZ`, which `render.yaml` sets to the team's zone, or the computer's own zone without it.
 
-Adding a deal at Won uses step 4 and writes no `stage_changes` row. Moving a card renumbers the target column in the same transaction. With a few hundred rows at most, this is simple and quick enough, and no fractional position scheme is needed.
+Adding a deal at Won uses step 4 and writes no `stage_changes` row. Moving a card renumbers the target column in the same transaction. With a few hundred rows at most, this is simple and quick enough, and no fractional position scheme is needed. Renumbering leaves the other cards' `updated_at` and `updated_by` alone.
 
-Every write takes one lock in `db.py`, because FastAPI runs requests on separate threads and renumbering reads a column before writing it, so two quick moves could otherwise undo each other.
+Every add and save sets `created_by` and `updated_by` from the token, never from the request.
+
+Every write takes one lock in `db.py`, because FastAPI runs requests on separate threads and renumbering reads a column before writing it, so two quick moves could otherwise undo each other. Teammates' moves on the shared app go through the same lock. It lives in the process, so the shared app runs as one process (W6).
 
 Last activity in the list replies comes from grouped queries, one for each kind of record, not one query per row, so the lists stay quick at the Q1 limits.
 
@@ -93,10 +122,11 @@ Reset and empty delete rows inside a transaction and leave the file and tables i
 
 ## API
 
-All routes are under `/api` and use JSON. Validation errors return 422 with a message per field, and a missing record returns 404. An id that couldn't be a record, such as one too large for SQLite, is a validation error, and so is text with no valid encoding.
+All routes are under `/api` and use JSON. Every route needs a valid token in the `Authorization` header, and refuses with 401 without one ([Security](security.md#signing-in)). Validation errors return 422 with a message per field, and a missing record returns 404. An id that couldn't be a record, such as one too large for SQLite, is a validation error, and so is text with no valid encoding.
 
 | Method and path | Purpose |
 |---|---|
+| `GET /me` | The signed-in person's name, email and initials (U8) |
 | `GET /meta` | Stages in order with usual probabilities, statuses, activity types |
 | `GET /organizations` | All rows, with contact count, open deal count, open value, last activity |
 | `POST /organizations` | Add |
@@ -112,6 +142,18 @@ All routes are under `/api` and use JSON. Validation errors return 422 with a me
 | `PATCH /activities/{id}` | Edit, including marking a follow-up done |
 | `DELETE /activities/{id}` | Delete |
 | `GET /dashboard` | Everything on the dashboard, in one reply |
+| `GET /search?q=` | Up to 5 organizations, contacts and deals whose names hold `q`, with a count for each kind (K1 to K5). `q` is 1 to 100 characters once the spaces at its ends are gone. |
+
+The local copy also has these two, which need no token and which the shared app doesn't have (U16):
+
+| Method and path | Purpose |
+|---|---|
+| `GET /local/teammates` | The made-up teammates, for the sign-in screen |
+| `POST /local/sign-in` | Body: `user_id`. Returns a token for that teammate. |
+
+Signing in to the shared app goes from the browser straight to Supabase Auth, so it has no route here.
+
+The single-record replies for organizations, contacts and deals carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in. Timeline entries carry `created_by` the same way. Names follow U8.
 
 The list routes return every row, and the table does its searching, sorting and paging in the browser. At these limits that's small and quick, and it makes typing in the search box feel instant.
 

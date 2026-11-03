@@ -67,6 +67,7 @@ So a contact can't be added before their organization exists, and a deal can't b
 - **R3.** A deal's page shows its details, stage, value, probability, expected revenue, close date, organization and main contact, a Late chip if late, and its timeline.
 - **R4.** Each page has Edit and Delete. After a delete, the app returns to the section's table.
 - **R5.** The contacts and deals listed on these pages are short linked lists, not tables, so T1 doesn't apply to them.
+- **R6.** Each page shows who added the record and when, such as "Added by Alex Rivera on Oct 12, 2026", and who last changed it and when, such as "Last changed by Dana Whitfield on Oct 30, 2026", following U8 to U12. The second line is left out if nobody has changed the record since it was added. A record with no one recorded shows the dates alone, such as "Added Oct 12, 2026". Nobody chooses these in a form: the backend sets them from the token of whoever saves.
 
 ## Screens
 
@@ -76,4 +77,4 @@ A page title with the Add button beside it, then the search box, then the table 
 
 ### Record pages
 
-Two columns of panels on the page background. The left, narrower one holds the details, plus the linked contacts and deals. The right one holds the timeline, as the main thing on the page, with Log activity at its top. Each timeline entry has a round colored icon showing its type.
+Two columns of panels on the page background. The left, narrower one holds the details, with the lines from R6 at the foot of the details panel in muted ink, plus the linked contacts and deals. The right one holds the timeline, as the main thing on the page, with Log activity at its top. Each timeline entry has a round colored icon showing its type.

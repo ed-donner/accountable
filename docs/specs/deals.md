@@ -13,7 +13,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 | To Lost | 0% | Today | Unchanged | New entry |
 | From Won or Lost to an open stage | The new stage's usual one | Unchanged | Unchanged, stays a Customer if they were one | New entry |
 
-- **S2.** The entry reads "Moved from Proposal to Negotiation". It appears on the deal's timeline, on its main contact's timeline, on its organization's timeline and in the dashboard's recent activity.
+- **S2.** The entry reads "Moved from Proposal to Negotiation", and on timelines it shows who moved the deal (A7). It appears on the deal's timeline, on its main contact's timeline, on its organization's timeline and in the dashboard's recent activity.
 - **S3.** Moving a card within its own column changes nothing but its place, and adds no entry.
 - **S4.** A probability set by hand stays until the stage changes.
 - **S5.** A won deal with a blank main contact is still won. There's just no contact to update.

@@ -10,9 +10,11 @@ A small business keeps track of its customers and sales in spreadsheets, inboxes
 
 ## What Accountable is
 
-Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for one person, running on their own computer: a private Salesforce that does the everyday CRM essentials really well. It should feel sharp, modern and professional, and be a pleasure to use.
+Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. It should feel sharp, modern and professional, and be a pleasure to use.
 
-**Who uses it:** one salesperson, using Accountable on their own computer every day with their own real data. They start from the sample data to look around, then clear it and type in their own records. The rest of the sales team joins later. No other systems are involved yet.
+**Who uses it:** a small sales team, sharing one Accountable every day with their own real data. Each person signs in with their own email and password, everyone works on the same records, and each record shows who added it. They start from the sample data to look around, then clear it and type in their own records. No other systems are involved yet.
+
+**Two ways to run it:** the **shared app** is the team's, on Render, with its data in Postgres on Supabase. The **local copy** runs on one computer with `npm run dev`, with the sample data and made-up teammates to sign in as, and needs neither Supabase nor the internet. It's where the app is built and tried out, and nothing done in it reaches the team's data. [running.md](specs/running.md) has both.
 
 **Five sections:**
 
@@ -24,6 +26,8 @@ Accountable is a business management system: a sales CRM that will grow into a f
 | Deals | The potential sales, each with its stage, value, close date and timeline |
 | Pipeline | The deals as cards on a board, one column per stage, moved by dragging |
 
+Around them, a search box in the top bar finds any organization, contact or deal, and a menu under your initials holds the theme and Sign out.
+
 **Four kinds of record:**
 
 - **Organization:** a company we do business with. It has many contacts and many deals.
@@ -33,10 +37,13 @@ Accountable is a business management system: a sales CRM that will grow into a f
 
 **Not in Accountable yet:**
 
-- Sign-in, user accounts, several people sharing the same data, or a record of who did what
-- Reaching Accountable from anywhere but the computer it runs on
+- Roles and permissions: everyone who can sign in can do everything
+- A sign-up page, a password reset, changing a password in the app, or signing in with Google or a magic link. People are added, and their passwords set, in Supabase's dashboard.
+- Moving the records in a local copy to the shared app
+- Seeing teammates' changes as they happen. They show when the window is used again or the page is refreshed.
+- A warning when two people edit the same record at once. The last save wins.
+- A history of every change. Each record keeps who added it and who last changed it, nothing in between.
 - A layout for phones
-- Following the device's own dark mode setting
 - AI features
 - Email, calendar or phone integrations
 - Currencies other than US dollars
@@ -50,7 +57,15 @@ Accountable is a business management system: a sales CRM that will grow into a f
 
 | Term | Meaning |
 |---|---|
-| Today | The date on the computer running the app |
+| Shared app | The team's Accountable, on Render, with its data in Supabase. `npm start` runs it on this computer. |
+| Local copy | Accountable on one computer from `npm run dev`, with its own SQLite file and made-up teammates |
+| Teammate | Someone who can sign in to the shared app, added in Supabase's dashboard. In the local copy, one of the four made-up teammates. |
+| Name | A teammate's display name in Supabase, or their email if they have none |
+| Initials | From the name, such as AR for Alex Rivera, or the email's first letter if there's no display name |
+| Added by, last changed by | The teammate who added a record, and the one whose save last changed it |
+| Theme | Light, Dark or System, chosen in the menu. System follows the device's setting. |
+| Mode | What's on screen, light or dark, set by the theme |
+| Today | The date in the team's time zone. The backend takes it from `TZ`, which `render.yaml` sets, or from the computer's own zone without it. The browser takes it from the device, which for the team is the same zone. |
 | Open deal | Stage is New, Qualified, Proposal or Negotiation |
 | Closed deal | Stage is Won or Lost |
 | Late deal | An open deal whose close date is before today. A deal due today isn't late. |
@@ -73,7 +88,7 @@ Accountable is a business management system: a sales CRM that will grow into a f
 
 ## Quality
 
-- **Q1.** At 1,000 contacts, 500 deals and 5,000 activities: the dashboard's data arrives in under 200ms, a table opens in under a second, a search keystroke updates within 100ms, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag.
+- **Q1.** At 1,000 contacts, 500 deals and 5,000 activities, in the local copy: the dashboard's data arrives in under 200ms, a table opens in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
 - **Q2.** No errors in the browser's console, on any screen, at any time.
 - **Q3.** All controls can be reached by keyboard, with a visible focus ring. Animations respect the system's reduced motion setting.
 - **Q4.** Chrome is the one supported and tested browser. Safari and Firefox may work, but nobody has checked.
@@ -86,20 +101,23 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 
 | File | What it covers | Requirements |
 |---|---|---|
-| [shell.md](specs/shell.md) | The top bar, addresses, missing pages, the connection message, failed reads, light and dark mode, and the shell's screen | N1 to N6, L1 to L5 |
-| [records.md](specs/records.md) | Organizations, contacts and deals: the tables, adding and editing, deleting, the record pages, and their screens | T1 to T10, F1 to F12, D1 to D3, R1 to R5 |
+| [shell.md](specs/shell.md) | The top bar, addresses, missing pages, the connection message, failed reads, the menu, the theme, and the shell's screen | N1 to N7, L1 to L5 |
+| [sign-in.md](specs/sign-in.md) | Signing in and out, names and initials, who added and changed each record, the local copy's made-up teammates, and the sign-in screen | U1 to U16 |
+| [search.md](specs/search.md) | The top bar's search, and its screen | K1 to K7 |
+| [records.md](specs/records.md) | Organizations, contacts and deals: the tables, adding and editing, deleting, the record pages, and their screens | T1 to T10, F1 to F12, D1 to D3, R1 to R6 |
 | [deals.md](specs/deals.md) | Stage changes, the pipeline board and its screen | S1 to S9, P1 to P11 |
-| [activities.md](specs/activities.md) | Activities, follow-ups and timelines | A1 to A6 |
+| [activities.md](specs/activities.md) | Activities, follow-ups and timelines | A1 to A7 |
 | [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, and its screen | H1 to H9 |
-| [running.md](specs/running.md) | Sample data, running the app, keeping data, and the commands and first run | M1 to M6, C1 to C7 |
+| [running.md](specs/running.md) | The local copy and the shared app, sample data, keeping data, and the commands and first run | M1 to M7, C1 to C11 |
+| [deploy.md](specs/deploy.md) | The shared app on Render: `render.yaml`, building, starting, settings and the free plans' limits | W1 to W9 |
 
 **Across every area**
 
 | File | What it covers |
 |---|---|
 | [visual-design.md](specs/visual-design.md) | Color tokens and contrast, stage and chart colors, type, shapes, charts, motion, words, and the design reference |
-| [architecture.md](specs/architecture.md) | How the parts connect, every file and folder, the layout rules and the libraries |
-| [backend.md](specs/backend.md) | The data model, the backend rules and the API |
-| [frontend.md](specs/frontend.md) | Server data, today's date, instant updates, board figures, dragging, dialogs inside dialogs, and the two modes |
-| [security.md](specs/security.md) | What keeps the data reachable only from this computer |
+| [architecture.md](specs/architecture.md) | How the parts connect in each copy, every file and folder, the layout rules and the libraries |
+| [backend.md](specs/backend.md) | The data model, including users and who added each record, the backend rules and the API |
+| [frontend.md](specs/frontend.md) | Server data, signing in, today's date, instant updates, board figures, dragging, dialogs inside dialogs, search and the theme |
+| [security.md](specs/security.md) | Signing in and the token check, keys and settings, row-level security, and which addresses can reach the app |
 | [testing.md](specs/testing.md) | The type checks, tests, code checks, hooks, subagents and CI, and which tests cover which requirements |

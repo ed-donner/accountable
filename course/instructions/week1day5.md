@@ -41,6 +41,19 @@ Start the app, ask ui-check to look at the dashboard and the pipeline, and ask r
 ```
 git add .
 git commit -m "Subagents: reviewer and ui-check"
+```
+
+### Quicker CI
+
+The end-to-end tests take up most of the 15 minutes of each CI run. From today, CI leaves them out. They still run on your computer in `npm run check`:
+
+```
+Change .github/workflows/ci.yml to run npm run check:quick instead of npm run check, so that CI leaves out the end-to-end tests. Take out any step that only the end-to-end tests need, and update the docs that describe CI. Leave the commits to me.
+```
+
+```
+git add .
+git commit -m "CI: leave out the end-to-end tests"
 git checkout main
 git merge subagents
 git branch -d subagents

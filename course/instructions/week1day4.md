@@ -73,7 +73,7 @@ Add npm run check, which runs all of these and fails if any of them fails:
 - ruff format and ruff check for the backend
 - A maximum cyclomatic complexity of 15 per function, using ESLint's complexity rule and ruff's C901 rule
 - tsc for the frontend and ty for the backend
-- gitleaks across the repo
+- gitleaks across the repo, allowing the git-ignored .env
 - npm test, with unit test coverage of at least 80%
 Add npm run check:quick, which runs the same checks without the end-to-end tests. Add npm run format to fix the formatting. Fix what the checks find, without weakening any rule. If a rule doesn't suit this project, ask me first. Add npm run check to AGENTS.md, run it and show me the output.
 ```
@@ -103,7 +103,7 @@ git commit -m "Harness: hooks"
 Open your fork on GitHub and click the **Actions** tab. If GitHub asks, enable workflows. Then:
 
 ```
-Add .github/workflows/ci.yml with one job named check that runs on every push to any branch. It installs gitleaks and runs it across the repo first, so a leaked secret fails the run straight away. Then it installs Node, uv and Playwright's Chromium, and runs npm run check. If it fails, upload the Playwright report. Add no secrets. astral-sh/setup-uv has no major version tags like v10, so use the full version number of its latest release, and let it install the latest uv.
+Add .github/workflows/ci.yml with one job named check that runs on every push to any branch. It installs gitleaks and runs it across the repo first, so a leaked secret fails the run straight away. Then it installs Node and uv, and runs npm run check with the Google Chrome already on GitHub's runner. If it fails, upload the Playwright report. Add no secrets. astral-sh/setup-uv has no major version tags like v10, so use the full version number of its latest release, and let it install the latest uv.
 ```
 
 ```

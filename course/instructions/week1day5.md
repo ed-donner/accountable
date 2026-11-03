@@ -13,10 +13,10 @@ git checkout main
 git checkout -b subagents
 ```
 
-Or to carry on from my Day 4 version. This keeps your own work on a branch called `my-version` and moves your `main` onto my branch:
+Or to carry on from my Day 4 version. This keeps your own work on a branch called `my-day4` and moves your `main` onto my branch:
 
 ```
-git branch my-version
+git branch my-day4
 git checkout --no-track -B main origin/week1day4-end
 git checkout -b subagents
 ```

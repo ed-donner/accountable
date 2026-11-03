@@ -118,6 +118,8 @@ test("switching keeps what's on screen", async ({ page }) => {
   await page.goto("/organizations");
   await page.getByRole("searchbox", { name: "Search organizations" }).fill("e");
   await expect(page).toHaveURL(/q=e/);
+  // The page is only tall enough to scroll once the rows are in.
+  await expect(page.locator("tbody tr").first()).toBeVisible();
   const address = page.url();
   const rows = await page.locator("tbody tr").count();
   // Far enough to tell, and not so far that the button leaves the screen.

@@ -1,4 +1,5 @@
-# On every push to any branch: look for secrets first, then run npm run check.
+# On every push to any branch: look for secrets first, then run npm run check:quick.
+# That leaves out the end-to-end and speed tests, which run in npm run check on your own computer.
 # It needs no secrets of its own.
 
 name: CI
@@ -48,15 +49,5 @@ jobs:
       - name: Install the npm packages
         run: npm ci
 
-      # The end-to-end tests use the Google Chrome that GitHub's Ubuntu runner already has,
-      # because Chrome is the browser Accountable supports.
-      - name: npm run check
-        id: check
-        run: npm run check
-
-      - name: Upload the Playwright report
-        if: failure() && steps.check.outcome == 'failure'
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report
-          path: playwright-report/
+      - name: npm run check:quick
+        run: npm run check:quick

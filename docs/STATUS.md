@@ -35,7 +35,9 @@ Testing them showed that gitleaks only said how many secrets it found, not where
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push, to any branch, on GitHub's Ubuntu runner. It installs gitleaks and scans every commit first, so a leaked secret fails the run straight away. Then it installs Node 26 and the latest uv, and runs `npm run check` with the Google Chrome the runner already has. If the check fails, the run keeps the Playwright report. It uses no secrets.
+`.github/workflows/ci.yml` runs on every push, to any branch, on GitHub's Ubuntu runner. It installs gitleaks and scans every commit first, so a leaked secret fails the run straight away. Then it installs Node 26 and the latest uv, and runs `npm run check:quick`. It uses no secrets.
+
+CI used to run `npm run check`, and the end-to-end tests took up most of each 15-minute run. It now leaves them out, along with the speed tests, so they run only in `npm run check` on your own computer. The step that uploaded the Playwright report went with them.
 
 Running the checks on Linux for the first time found two things, both now fixed:
 
@@ -222,7 +224,7 @@ Everything lives in one file, `data/accountable.db`. Copy that file somewhere sa
 
 ### Not yet proven
 
-Accountable has only been used on a Mac. It's built to work the same on Windows and Linux. All its checks and tests also pass on Ubuntu Linux, which CI uses, but nobody has used it there yet, or tried Windows at all. Safari and Firefox may work, but only Chrome is checked.
+Accountable has only been used on a Mac. It's built to work the same on Windows and Linux. All its checks and tests have also passed on Ubuntu Linux, and CI runs all but the end-to-end and speed tests there on every push, but nobody has used it there yet, or tried Windows at all. Safari and Firefox may work, but only Chrome is checked.
 
 ## Running the tests
 
@@ -230,4 +232,4 @@ Accountable has only been used on a Mac. It's built to work the same on Windows 
 
 The end-to-end tests run side by side, using a number of workers chosen from your computer's cores and memory, so a smaller computer runs fewer at once and takes longer. To set the number yourself, for example while the computer is busy, run `ACCOUNTABLE_TEST_WORKERS=2 npm test`. The speed tests always run last and alone, so their timings are fair.
 
-Each run leaves a report of the end-to-end tests, with a screenshot of each failure. `npx playwright show-report playwright-report/main` opens it, and `playwright-report/speed` has the speed tests'. When `npm run check` fails in CI, the run on GitHub keeps the same report.
+Each run leaves a report of the end-to-end tests, with a screenshot of each failure. `npx playwright show-report playwright-report/main` opens it, and `playwright-report/speed` has the speed tests'. CI on GitHub doesn't run the end-to-end tests, so run `npm run check` yourself before merging.

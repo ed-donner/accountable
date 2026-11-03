@@ -89,6 +89,8 @@ Two fixes followed. The spec and this file said ui-check runs on the session's m
 
 On the `multi-user` branch, `docs/spec.md`, the area files and `docs/TECH_STACK.md` now describe Accountable with sign-in, search and the user menu in it, as it will be once the branch merges. Three area files are new: `sign-in.md`, `search.md` and `deploy.md`. Nothing is built yet, so the run instructions below still describe the app as it is on `main`.
 
+The build plan is in `docs/changes/multi-user/plan.md`. It splits the work into nine parts that share no files, in three phases: sign-in and the database, then search, then the user menu.
+
 ## Build progress
 
 - **Phase 1, a shell that runs:** done.

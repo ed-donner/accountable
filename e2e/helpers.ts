@@ -17,6 +17,12 @@ const stackEnv = { ...process.env, ACCOUNTABLE_DB: stack.database };
 
 export const API = "/api";
 
+/** Where the local copy keeps its token in the browser. */
+export const SESSION_KEY = "accountable-session";
+
+/** The made-up teammate each test starts signed in as, unless it says otherwise. */
+export const SIGNED_IN = { id: "teammate-alex-rivera", name: "Alex Rivera" };
+
 function database(command: "seed" | "empty") {
   execFileSync("uv", ["run", "--no-sync", "python", "-m", "accountable.cli", command, "--yes"], {
     cwd: ROOT,
@@ -46,6 +52,35 @@ async function post<T>(request: APIRequestContext, route: string, data: unknown)
   const reply = await request.post(`${API}${route}`, { data });
   if (!reply.ok()) throw new Error(`POST ${route} failed: ${reply.status()} ${await reply.text()}`);
   return reply.json();
+}
+
+export type Teammate = { id: string; name: string; email: string; initials: string };
+
+/** The local copy's made-up teammates. Listing them needs no token. */
+export async function teammates(request: APIRequestContext): Promise<Teammate[]> {
+  const reply = await request.get(`${API}/local/teammates`);
+  if (!reply.ok()) throw new Error(`GET /local/teammates failed: ${reply.status()} ${await reply.text()}`);
+  return reply.json();
+}
+
+/** A token for the teammate with this id or name, or this email for one with no display name. */
+export async function tokenFor(request: APIRequestContext, teammate: string) {
+  const found = (await teammates(request)).find((each) => [each.id, each.name, each.email].includes(teammate));
+  if (!found) throw new Error(`The local copy has no teammate called ${teammate}`);
+  const { token } = await post<{ token: string }>(request, "/local/sign-in", { user_id: found.id });
+  return token;
+}
+
+/** Signs the page in as another teammate, as if they'd signed in earlier on this browser. Call it once the page is on the app. */
+export async function signInAs(page: Page, teammate: string) {
+  const token = await tokenFor(page.request, teammate);
+  await page.evaluate(([key, value]) => localStorage.setItem(key, value), [SESSION_KEY, token]);
+  await page.reload();
+}
+
+/** Signs in on the local copy's sign-in screen, by choosing a teammate. */
+export async function chooseTeammate(page: Page, teammate: string) {
+  await page.getByRole("button", { name: teammate }).click();
 }
 
 export function addOrganization(request: APIRequestContext, name: string, values: object = {}) {
@@ -91,7 +126,8 @@ export async function addLinkedDeal(request: APIRequestContext, name: string, de
 }
 
 export async function chooseInPicker(page: Page, label: string, name: string) {
-  await page.getByRole("combobox", { name: label }).click();
+  // Exact, or "Organization" would also find the top bar's search box.
+  await page.getByRole("combobox", { name: label, exact: true }).click();
   await page
     .getByRole("dialog")
     .last()
@@ -141,6 +177,23 @@ export async function dropAtEnd(page: Page, name: string, stage: string) {
   });
   const box = (await column(page, stage).boundingBox())!;
   await dragTo(page, name, { x: box.x + box.width / 2, y: box.y + box.height - 20 });
+}
+
+/**
+ * Moves a card, by dragging or with the keys, then waits until the server has saved
+ * that move. The board shows a move before it's saved, and waiting for the network
+ * to go quiet returns at once on a page that has already loaded. Moves are saved one
+ * at a time, in order, so this also means every earlier move is saved.
+ */
+export async function savedMove(page: Page, name: string, move: () => Promise<void>) {
+  const id = await card(page, name).getAttribute("data-deal-id");
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && new URL(response.url()).pathname === `/api/deals/${id}/move`,
+  );
+  await move();
+  const reply = await saved;
+  if (!reply.ok()) throw new Error(`Moving ${name} failed: ${reply.status()} ${await reply.text()}`);
 }
 
 /** Presses keys at a person's pace, so the board has drawn each step before the next. */
@@ -200,7 +253,12 @@ export async function startCopy(database: string, extra: Record<string, string> 
   const { child, output, exited } = runDevScript(copyEnv(database, extra));
   const deadline = Date.now() + 60_000;
   while (!output().includes("Accountable is running at")) {
-    if (Date.now() > deadline || child.exitCode !== null) throw new Error(`The copy didn't start:\n${output()}`);
+    if (Date.now() > deadline || child.exitCode !== null) {
+      // Stopped like Ctrl+C, so a slow start doesn't leave servers on this worker's copy ports.
+      child.kill("SIGINT");
+      await exited;
+      throw new Error(`The copy didn't start:\n${output()}`);
+    }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   return {

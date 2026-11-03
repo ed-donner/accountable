@@ -1,7 +1,7 @@
 """Stage rules, usual probabilities and expected revenue.
 
-Today and the current time are always arguments, so tests and the sample data
-can choose them.
+Today, the current time and the person making the change are always arguments,
+so tests and the sample data can choose them.
 """
 
 from collections.abc import Iterable
@@ -11,6 +11,7 @@ from typing import Any
 
 from sqlalchemy import Connection, bindparam, func, insert, select, update
 
+from accountable.crm import who
 from accountable.crm.tables import contacts, deals, stage_changes
 
 STAGES = ["new", "qualified", "proposal", "negotiation", "won", "lost"]
@@ -64,18 +65,20 @@ def top_position(conn: Connection, stage: str) -> int:
     return 0 if lowest is None else lowest - 1
 
 
-def _make_customer(conn: Connection, contact_id: int | None) -> str | None:
-    """Returns the contact's name if this made them a customer."""
+def _make_customer(conn: Connection, contact_id: int | None, *, user_id: str | None, now: datetime) -> str | None:
+    """Returns the contact's name if this made them a customer, which counts as a change by whoever won the deal."""
     if contact_id is None:
         return None
     contact = conn.execute(select(contacts).where(contacts.c.id == contact_id)).one_or_none()
     if contact is None or contact.status == "customer":
         return None
-    conn.execute(update(contacts).where(contacts.c.id == contact_id).values(status="customer"))
+    conn.execute(
+        update(contacts).where(contacts.c.id == contact_id).values(status="customer", **who.changed(user_id, now))
+    )
     return contact.name
 
 
-def add_deal(conn: Connection, values: dict[str, Any], *, today: date, now: datetime) -> int:
+def add_deal(conn: Connection, values: dict[str, Any], *, today: date, now: datetime, user_id: str | None) -> int:
     """Adds a deal at the top of its column. Nothing moved, so no stage change is recorded."""
     stage = values["stage"]
     row = dict(values)
@@ -84,11 +87,9 @@ def add_deal(conn: Connection, values: dict[str, Any], *, today: date, now: date
     if row.get("close_date") is None:
         row["close_date"] = today
     row["position"] = top_position(conn, stage)
-    row["created_at"] = now
-    row["updated_at"] = now
-    deal_id = conn.execute(insert(deals).values(**row).returning(deals.c.id)).scalar_one()
+    deal_id = conn.execute(insert(deals).values(**row, **who.added(user_id, now)).returning(deals.c.id)).scalar_one()
     if stage == "won":
-        _make_customer(conn, row.get("main_contact_id"))
+        _make_customer(conn, row.get("main_contact_id"), user_id=user_id, now=now)
     return deal_id
 
 
@@ -99,6 +100,7 @@ def change_stage(
     *,
     today: date,
     now: datetime,
+    user_id: str | None,
     probability: int | None = None,
     close_date: date | None = None,
     to_top: bool = True,
@@ -119,13 +121,14 @@ def change_stage(
             to_stage=new_stage,
             changed_at=now,
             created_at=now,
+            created_by=user_id,
         )
     )
 
     values: dict[str, Any] = {
         "stage": new_stage,
         "probability": USUAL_PROBABILITY[new_stage] if probability is None else probability,
-        "updated_at": now,
+        **who.changed(user_id, now),
     }
     result = StageResult(changed=True)
     if new_stage in CLOSED_STAGES:
@@ -139,22 +142,27 @@ def change_stage(
     conn.execute(update(deals).where(deals.c.id == deal_id).values(**values))
 
     if new_stage == "won":
-        result.new_customer = _make_customer(conn, deal.main_contact_id)
+        result.new_customer = _make_customer(conn, deal.main_contact_id, user_id=user_id, now=now)
     return result
 
 
-def place_deal(conn: Connection, deal_id: int, stage: str, before_deal_id: int | None) -> None:
-    """Puts a deal just above another in the column, or at the end, and renumbers the column."""
-    others = conn.scalars(
-        select(deals.c.id).where(deals.c.stage == stage, deals.c.id != deal_id).order_by(deals.c.position, deals.c.id)
-    ).all()
-    order = list(others)
+def place_deal(
+    conn: Connection, deal_id: int, stage: str, before_deal_id: int | None, *, now: datetime, user_id: str | None
+) -> None:
+    """Puts a deal just above another in the column, or at the end, and renumbers the column.
+
+    A new place is a change to the deal that moved. Renumbering the others isn't a
+    change to them, so it leaves who last changed them, and when, as it was.
+    """
+    column = conn.scalars(select(deals.c.id).where(deals.c.stage == stage).order_by(deals.c.position, deals.c.id)).all()
+    order = [each for each in column if each != deal_id]
     place = order.index(before_deal_id) if before_deal_id in order else len(order)
     order.insert(place, deal_id)
     conn.execute(
         update(deals)
         .where(deals.c.id == bindparam("deal_id"))
-        # Renumbering isn't an edit, so it leaves updated_at as it was.
         .values(position=bindparam("place"), updated_at=deals.c.updated_at),
         [{"deal_id": each, "place": place} for place, each in enumerate(order)],
     )
+    if order != list(column):
+        conn.execute(update(deals).where(deals.c.id == deal_id).values(**who.changed(user_id, now)))

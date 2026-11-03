@@ -1,8 +1,11 @@
+import { differenceInSeconds, parseISO } from "date-fns";
 import { Pencil, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { PageHeader } from "../components/PageHeader";
+import { formatDate } from "../lib/dates";
+import type { Authorship, Person } from "./queries";
 
 type HeaderProps = { title: string; chips?: ReactNode; onEdit: () => void; onDelete: () => void };
 
@@ -80,3 +83,33 @@ export function LinkedList({
 }
 
 export const NONE = <span className="text-muted">None</span>;
+
+function WhoAndWhen({ action, person, at }: { action: string; person: Person | null; at: string }) {
+  return (
+    <p>
+      {person ? `${action} by ${person.name} on ` : `${action} `}
+      <span className="num text-[12px]">{formatDate(at)}</span>
+    </p>
+  );
+}
+
+/**
+ * An add sets both times at once. Records from before sign-in may have got them from
+ * two readings of the clock, a moment apart, so for those under a second isn't a change.
+ */
+function hasChanged(record: Authorship) {
+  if (record.updated_at === record.created_at) return false;
+  const fromBeforeSignIn = record.created_by === null && record.updated_by === null;
+  return !fromBeforeSignIn || differenceInSeconds(parseISO(record.updated_at), parseISO(record.created_at)) >= 1;
+}
+
+/** Who added the record and who last changed it, for the foot of its details panel. */
+export function AddedAndChanged({ record }: { record: Authorship }) {
+  const changed = hasChanged(record);
+  return (
+    <div className="mt-3 flex flex-col gap-0.5 text-[13px] leading-[18px] text-muted">
+      <WhoAndWhen action="Added" person={record.created_by} at={record.created_at} />
+      {changed && <WhoAndWhen action="Last changed" person={record.updated_by} at={record.updated_at} />}
+    </div>
+  );
+}

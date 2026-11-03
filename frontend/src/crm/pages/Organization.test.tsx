@@ -8,6 +8,11 @@ import { META, mockApi, user } from "../../test-utils";
 import type { OrganizationDetail, TimelineEntry } from "../queries";
 import { Organization } from "./Organization";
 
+const ALEX = { id: "alex", name: "Alex Rivera" };
+const DANA = { id: "dana", name: "Dana Whitfield" };
+const ADDED = "2026-10-12T12:00:00Z";
+const CHANGED = "2026-10-30T12:00:00Z";
+
 const HARBOR: OrganizationDetail = {
   id: 1,
   name: "Harbor & Pine",
@@ -19,6 +24,10 @@ const HARBOR: OrganizationDetail = {
     { id: 12, name: "Ana Lima", job_title: null, status: "lead" },
   ],
   deals: [{ id: 5, name: "Annual support", stage: "negotiation", value: 36000, close_date: "2026-12-18" }],
+  created_at: ADDED,
+  created_by: ALEX,
+  updated_at: ADDED,
+  updated_by: ALEX,
 };
 
 const BLANK: OrganizationDetail = {
@@ -39,6 +48,7 @@ const STAGE_CHANGE: TimelineEntry = {
   follow_up_date: null,
   follow_up_done: false,
   about: { kind: "deal", id: 5, name: "Annual support" },
+  created_by: DANA,
 };
 
 const TIMELINE = "GET /organizations/1/timeline?limit=50&offset=0";
@@ -81,6 +91,13 @@ async function showHarbor(organization = HARBOR, routes: Record<string, unknown>
 
 function panel(name: string) {
   return within(screen.getByRole("region", { name }));
+}
+
+/** The lines at the foot of the details panel saying who added and changed the record. */
+function whoLines() {
+  return panel("Details")
+    .queryAllByText(/^(Added|Last changed)\b/)
+    .map((line) => line.textContent);
 }
 
 describe("an organization's page", () => {
@@ -140,6 +157,51 @@ describe("an organization's page", () => {
   it("says when nothing has happened yet", async () => {
     await showHarbor();
     expect(await panel("Timeline").findByText("Nothing has happened here yet.")).toBeTruthy();
+  });
+});
+
+describe("who added and changed an organization", () => {
+  it("says who added it and when, and leaves out the last change while nobody has changed it", async () => {
+    await showHarbor();
+    expect(whoLines()).toEqual(["Added by Alex Rivera on Oct 12, 2026"]);
+  });
+
+  it("says who last changed it and when", async () => {
+    await showHarbor({ ...HARBOR, updated_at: CHANGED, updated_by: DANA });
+    expect(whoLines()).toEqual([
+      "Added by Alex Rivera on Oct 12, 2026",
+      "Last changed by Dana Whitfield on Oct 30, 2026",
+    ]);
+  });
+
+  it("shows the dates alone when no one is recorded", async () => {
+    await showHarbor({ ...HARBOR, created_by: null, updated_at: CHANGED, updated_by: null });
+    expect(whoLines()).toEqual(["Added Oct 12, 2026", "Last changed Oct 30, 2026"]);
+  });
+
+  it("doesn't count times a moment apart on a record from before sign-in as a change", async () => {
+    await showHarbor({
+      ...HARBOR,
+      created_at: "2026-10-12T12:00:00.000001Z",
+      created_by: null,
+      updated_at: "2026-10-12T12:00:00.000004Z",
+      updated_by: null,
+    });
+    expect(whoLines()).toEqual(["Added Oct 12, 2026"]);
+  });
+
+  it("counts a change made straight after adding", async () => {
+    await showHarbor({ ...HARBOR, updated_at: "2026-10-12T12:00:00.300000Z", updated_by: DANA });
+    expect(whoLines()).toEqual([
+      "Added by Alex Rivera on Oct 12, 2026",
+      "Last changed by Dana Whitfield on Oct 12, 2026",
+    ]);
+  });
+
+  it("shows who moved a deal on the timeline", async () => {
+    await showHarbor(HARBOR, { [TIMELINE]: { entries: [STAGE_CHANGE], total: 1 } });
+    const entry = (await panel("Timeline").findByText("Moved from Proposal to Negotiation")).closest("li")!;
+    expect(entry.textContent).toMatch(/Oct 30, \d+:20 [AP]M by Dana Whitfield/);
   });
 });
 

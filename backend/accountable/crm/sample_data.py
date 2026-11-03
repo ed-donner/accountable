@@ -1,4 +1,4 @@
-"""Fictional sample records, dated from a given day so a fresh copy always looks current.
+"""Fictional sample records and teammates, dated from a given day so a fresh copy always looks current.
 
 Every deal is walked through rules.py with an explicit date, so its stage history
 can't contradict the rules. All names, addresses and websites are made up, and
@@ -12,8 +12,39 @@ from typing import Any
 
 from sqlalchemy import Connection, insert
 
-from accountable.crm import rules
+from accountable import users
+from accountable.crm import rules, who
 from accountable.crm.tables import activities, contacts, organizations
+
+
+@dataclass(frozen=True)
+class Teammate:
+    id: str
+    name: str | None
+    email: str
+
+
+# The local copy's made-up teammates (U13). The shared app has them too, as the
+# people the sample data is put down to, though nobody can sign in as them there.
+TEAMMATES = [
+    Teammate("teammate-alex-rivera", "Alex Rivera", "alex.rivera@accountable.example"),
+    Teammate("teammate-dana-whitfield", "Dana Whitfield", "dana.whitfield@accountable.example"),
+    Teammate("teammate-theo-brandt", "Theo Brandt", "theo.brandt@accountable.example"),
+    # No display name, so the email standing in for a name always has a case to show.
+    Teammate("teammate-robin", None, "robin@accountable.example"),
+]
+
+
+def add_missing_teammates(conn: Connection) -> None:
+    """Puts back any made-up teammate the users table lacks, so there's always someone to sign in as."""
+    for teammate in TEAMMATES:
+        users.remember(conn, teammate.id, teammate.name, teammate.email)
+
+
+def teammate(number: int) -> str:
+    """The teammate a numbered sample record is put down to, taking turns."""
+    return TEAMMATES[number % len(TEAMMATES)].id
+
 
 # name, website slug, industry
 ORGANIZATIONS = [
@@ -377,10 +408,18 @@ def _lost_walks(today: date) -> list[Walk]:
     return walks
 
 
+def _who(number: int, start: datetime, today: date, every: int) -> dict[str, Any]:
+    """Added by one teammate, and for one record in every few, last changed by the next one since."""
+    if number % every != 1:
+        return who.added(teammate(number), start)
+    changed_on = today - timedelta(days=3 + number * 7 % 90)
+    return {**who.added(teammate(number), start), **who.changed(teammate(number + 1), moment(changed_on, number))}
+
+
 def _add_people(conn: Connection, today: date) -> tuple[dict[str, int], dict[str, int], list[int]]:
     start = moment(today - timedelta(days=400), 1)
     org_ids = {}
-    for name, slug, industry, notes in ORGANIZATIONS:
+    for number, (name, slug, industry, notes) in enumerate(ORGANIZATIONS):
         org_ids[name] = conn.execute(
             insert(organizations)
             .values(
@@ -388,8 +427,7 @@ def _add_people(conn: Connection, today: date) -> tuple[dict[str, int], dict[str
                 website=f"https://www.{slug}.example",
                 industry=industry,
                 notes=notes,
-                created_at=start,
-                updated_at=start,
+                **_who(number, start, today, every=3),
             )
             .returning(organizations.c.id)
         ).scalar_one()
@@ -422,8 +460,7 @@ def _add_people(conn: Connection, today: date) -> tuple[dict[str, int], dict[str
                 job_title=job_title,
                 organization_id=org_ids[organization],
                 status=status,
-                created_at=start,
-                updated_at=start,
+                **_who(number, start, today, every=4),
             )
             .returning(contacts.c.id)
         ).scalar_one()
@@ -433,10 +470,14 @@ def _add_people(conn: Connection, today: date) -> tuple[dict[str, int], dict[str
 
 
 def _walk_deal(conn: Connection, walk: Walk, number: int, org_ids: dict, contact_ids: dict) -> tuple[int, date]:
-    """Adds a deal at New and moves it through each stage to where it ends up."""
+    """Adds a deal at New and moves it through each stage to where it ends up.
+
+    The teammate who added it makes most of its moves, and a colleague some of them.
+    """
     gap = 6 + number % 5
     steps = len(walk.stages) - 1
     first_day = walk.last_step - timedelta(days=gap * steps)
+    owner = teammate(number)
     deal_id = rules.add_deal(
         conn,
         {
@@ -449,10 +490,12 @@ def _walk_deal(conn: Connection, walk: Walk, number: int, org_ids: dict, contact
         },
         today=first_day,
         now=moment(first_day, number),
+        user_id=owner,
     )
     for step, stage in enumerate(walk.stages[1:], start=1):
         day = walk.last_step - timedelta(days=gap * (steps - step))
-        rules.change_stage(conn, deal_id, stage, today=day, now=moment(day, number + step))
+        mover = teammate(number + 1) if (number + step) % 3 == 0 else owner
+        rules.change_stage(conn, deal_id, stage, today=day, now=moment(day, number + step), user_id=mover)
     return deal_id, first_day
 
 
@@ -462,7 +505,20 @@ def _activity(number: int) -> tuple[str, str]:
     return kind, texts[number // 3 % len(texts)]
 
 
+def _activity_who(row: dict[str, Any], number: int, today: date) -> dict[str, Any]:
+    """Logged by one teammate. A done follow-up was ticked by the next, on its date, if that's passed."""
+    logged = who.added(teammate(number), row["occurred_at"])
+    if not row["follow_up_done"]:
+        return logged
+    ticked_on = min(row["follow_up_date"], today - timedelta(days=1))
+    ticked = moment(ticked_on, number + 1)
+    if ticked <= row["occurred_at"]:
+        return logged
+    return {**logged, **who.changed(teammate(number + 1), ticked)}
+
+
 def fill(conn: Connection, today: date) -> None:
+    add_missing_teammates(conn)
     org_ids, contact_ids, all_contacts = _add_people(conn, today)
 
     deal_ids: dict[str, int] = {}
@@ -524,7 +580,6 @@ def fill(conn: Connection, today: date) -> None:
         )
         number += 1
 
-    for row in rows:
-        row["created_at"] = row["occurred_at"]
-        row["updated_at"] = row["occurred_at"]
+    for number, row in enumerate(rows):
+        row.update(_activity_who(row, number, today))
     conn.execute(insert(activities), rows)

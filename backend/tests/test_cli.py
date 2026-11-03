@@ -1,7 +1,8 @@
 import io
 
 import pytest
-from accountable import cli, db
+from accountable import cli, db, users
+from accountable.crm import sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from sqlalchemy import func, select
 
@@ -100,12 +101,43 @@ def test_leaves_the_file_and_tables_in_place(with_records, database):
     assert counts() == EMPTY
 
 
+def everyone() -> set[str]:
+    with db.reading() as conn:
+        return set(conn.scalars(select(users.users.c.id)))
+
+
+@pytest.mark.parametrize("command", ["seed", "empty"])
+def test_the_teammates_and_everyone_else_who_signed_in_stay(with_records, command):
+    with db.writing() as conn:
+        sample_data.add_missing_teammates(conn)
+        users.remember(conn, "someone-real", "Sam Real", "sam@company.example")
+    before = everyone()
+
+    assert cli.main([command, "--yes"]) == 0
+
+    assert everyone() == before
+    assert {teammate.id for teammate in sample_data.TEAMMATES} <= before
+
+
+@pytest.mark.parametrize("command", ["seed", "empty"])
+@pytest.mark.parametrize("address", ["postgresql://someone@db.example/postgres", ""])
+def test_refuses_with_the_shared_apps_database_set(with_records, monkeypatch, capsys, command, address):
+    before = counts()
+    with monkeypatch.context() as patch:
+        patch.setenv("DATABASE_URL", address)
+        patch.setattr("builtins.input", lambda *_args: "yes")
+        assert cli.main([command]) == 2
+    assert counts() == before
+    assert "nothing was changed" in capsys.readouterr().err.lower()
+
+
 def test_seed_before_the_first_start_builds_the_database(tmp_path, monkeypatch, capsys):
     path = tmp_path / "first.db"
     monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
     db.dispose()
     assert cli.main(["seed"]) == 0
     assert counts()["deals"] == 80
+    assert everyone() == {teammate.id for teammate in sample_data.TEAMMATES}
     assert "Sample data added" in capsys.readouterr().out
     db.dispose()
 
@@ -117,4 +149,5 @@ def test_empty_before_the_first_start_leaves_an_empty_database(tmp_path, monkeyp
     assert cli.main(["empty"]) == 0
     assert path.exists()
     assert counts() == EMPTY
+    assert everyone() == {teammate.id for teammate in sample_data.TEAMMATES}
     db.dispose()

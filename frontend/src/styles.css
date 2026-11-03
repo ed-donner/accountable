@@ -66,7 +66,7 @@
 }
 
 /* Dark mode's values for the tokens that change. Outside any layer, so they win over
-   Tailwind's theme layer. index.html and lib/mode.ts set data-mode. */
+   Tailwind's theme layer. index.html and lib/theme.ts set data-mode. */
 :root[data-mode="dark"] {
   --color-page: #04232e;
   --color-panel: #0b3240;

@@ -16,6 +16,7 @@ import {
   holdOver,
   isoDay,
   pressKeys,
+  savedMove,
 } from "./helpers";
 
 test.beforeEach(emptyDatabase);
@@ -86,10 +87,9 @@ test("a card dropped at the top, middle or bottom of a column stays there after 
   await dropAbove(page, "Middle", "B");
   await expect.poll(() => cardOrder(page, "proposal")).toEqual(["Top", "A", "Middle", "B", "C"]);
 
-  await dropAtEnd(page, "Bottom", "proposal");
+  await savedMove(page, "Bottom", () => dropAtEnd(page, "Bottom", "proposal"));
   await expect.poll(() => cardOrder(page, "proposal")).toEqual(["Top", "A", "Middle", "B", "C", "Bottom"]);
 
-  await page.waitForLoadState("networkidle");
   await page.reload();
   await expect(card(page, "A")).toBeVisible();
   expect(await cardOrder(page, "proposal")).toEqual(["Top", "A", "Middle", "B", "C", "Bottom"]);
@@ -103,10 +103,9 @@ test("a card moved higher or lower in its own column stays there, with no entry"
   await dropAbove(page, "C", "A");
   await expect.poll(() => cardOrder(page, "proposal")).toEqual(["C", "A", "B"]);
 
-  await dropAtEnd(page, "A", "proposal");
+  await savedMove(page, "A", () => dropAtEnd(page, "A", "proposal"));
   await expect.poll(() => cardOrder(page, "proposal")).toEqual(["C", "B", "A"]);
 
-  await page.waitForLoadState("networkidle");
   await page.reload();
   await expect(card(page, "A")).toBeVisible();
   expect(await cardOrder(page, "proposal")).toEqual(["C", "B", "A"]);
@@ -607,14 +606,12 @@ test("a drop on Lost shows the message and sets the close date", async ({ page, 
 test("a deal dragged back from Won follows the rules, and its contact stays a customer", async ({ page, request }) => {
   const { deal, contact } = await addLinkedDeal(request, "Reopened");
   await page.goto("/pipeline");
-  await dropAtEnd(page, "Reopened", "won");
+  await savedMove(page, "Reopened", () => dropAtEnd(page, "Reopened", "won"));
   await expect(column(page, "won").locator('[data-deal="Reopened"]')).toBeVisible();
-  await page.waitForLoadState("networkidle");
 
-  await dropAtEnd(page, "Reopened", "qualified");
+  await savedMove(page, "Reopened", () => dropAtEnd(page, "Reopened", "qualified"));
   await expect(column(page, "qualified").locator('[data-deal="Reopened"]')).toContainText("20%");
 
-  await page.waitForLoadState("networkidle");
   const saved = await (await request.get(`${API}/deals/${deal.id}`)).json();
   expect(saved.stage).toBe("qualified");
   expect(saved.close_date).toBe(isoDay(0));
@@ -663,10 +660,9 @@ test("with the keyboard, Space picks up, arrows move within and across columns, 
   await expect(page).toHaveURL(/\/pipeline$/);
 
   await card(page, "Keyed").focus();
-  await pressKeys(page, "Space", "ArrowRight", "Space");
+  await savedMove(page, "Keyed", () => pressKeys(page, "Space", "ArrowRight", "Space"));
   await expect(column(page, "proposal").locator('[data-deal="Keyed"]')).toContainText("40%");
 
-  await page.waitForLoadState("networkidle");
   await page.reload();
   await expect(column(page, "proposal").locator('[data-deal="Keyed"]')).toBeVisible();
 });
@@ -677,14 +673,12 @@ test("one arrow press moves a card one place, up as well as down", async ({ page
   await expect(card(page, "A")).toBeVisible();
 
   await card(page, "B").focus();
-  await pressKeys(page, "Space", "ArrowUp", "Space");
+  await savedMove(page, "B", () => pressKeys(page, "Space", "ArrowUp", "Space"));
   await expect.poll(() => cardOrder(page, "proposal")).toEqual(["B", "A", "C"]);
-  await page.waitForLoadState("networkidle");
 
   await card(page, "A").focus();
-  await pressKeys(page, "Space", "ArrowDown", "Space");
+  await savedMove(page, "A", () => pressKeys(page, "Space", "ArrowDown", "Space"));
   await expect.poll(() => cardOrder(page, "proposal")).toEqual(["B", "C", "A"]);
-  await page.waitForLoadState("networkidle");
 
   await card(page, "A").focus();
   await pressKeys(page, "Space", "ArrowUp", "ArrowUp", "Space");

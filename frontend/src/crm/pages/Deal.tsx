@@ -15,7 +15,7 @@ import { DeleteDeal } from "../forms/DeleteDialogs";
 import { useDeal } from "../queries";
 import { StageChip } from "../StageChip";
 import { Timeline } from "../Timeline";
-import { Detail, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
+import { AddedAndChanged, Detail, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
 
 export function Deal() {
   const id = recordId(useParams().id);
@@ -88,6 +88,7 @@ function DealRecord({ id }: { id: number }) {
                 )}
               </Detail>
             </dl>
+            <AddedAndChanged record={record} />
           </SidePanel>
         }
       >

@@ -4,13 +4,14 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { queryDefaults } from "../App";
-import { user } from "../test-utils";
+import { mockApi, user } from "../test-utils";
 import { Shell } from "./Shell";
 
 const SECTIONS = ["Dashboard", "Organizations", "Contacts", "Deals", "Pipeline"];
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 9, 31, 12, 0) });
+  mockApi({ "GET /me": { id: "alex", name: "Alex Rivera", email: "alex@accountable.example", initials: "AR" } });
 });
 
 afterEach(() => {
@@ -23,7 +24,7 @@ function openAt(path: string) {
     <QueryClientProvider client={new QueryClient({ defaultOptions: queryDefaults })}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route element={<Shell />}>
+          <Route element={<Shell search={<input aria-label="The search box" />} />}>
             <Route path="/" element={<p>The dashboard page</p>} />
             <Route path="/organizations" element={<p>The organizations page</p>} />
             <Route path="/contacts" element={<p>The contacts page</p>} />
@@ -35,6 +36,15 @@ function openAt(path: string) {
       </MemoryRouter>
     </QueryClientProvider>,
   );
+}
+
+/** The names of these elements, in the order they come in the page. */
+function inPageOrder(elements: Record<string, Element>) {
+  const comesAfter = (a: Element, b: Element) =>
+    Boolean(b.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+  return Object.entries(elements)
+    .sort(([, a], [, b]) => (comesAfter(a, b) ? 1 : -1))
+    .map(([name]) => name);
 }
 
 function sections() {
@@ -80,13 +90,20 @@ describe("the top bar", () => {
   });
 
   it.each(["/", "/organizations", "/contacts", "/deals", "/pipeline", "/deals/7"])(
-    "has the mode button just before the date at %s",
-    (path) => {
+    "has the search box after the sections, then the date and the menu button, at %s",
+    async (path) => {
       openAt(path);
       const bar = within(screen.getByRole("banner"));
-      const modeButton = bar.getByRole("button", { name: "Switch to dark mode" });
-      expect(modeButton.nextElementSibling?.textContent).toBe("Oct 31, 2026");
-      expect(modeButton.nextElementSibling?.nextElementSibling).toBeNull();
+      const menuButton = await bar.findByRole("button", { name: "Menu for Alex Rivera" });
+      const parts = {
+        sections: bar.getByRole("navigation", { name: "Sections" }),
+        search: bar.getByRole("textbox", { name: "The search box" }),
+        date: bar.getByText("Oct 31, 2026"),
+        menu: menuButton,
+      };
+      expect(inPageOrder(parts)).toEqual(["sections", "search", "date", "menu"]);
+      expect(menuButton.nextElementSibling).toBeNull();
+      expect(bar.getAllByRole("button")).toEqual([menuButton]);
     },
   );
 

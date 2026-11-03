@@ -1,62 +1,103 @@
+import type { APIRequestContext, Browser, Page } from "@playwright/test";
+
 import { expect, test } from "./fixtures";
 import {
   COPY_URL,
   card,
   cardOrder,
   chooseInPicker,
+  chooseTeammate,
   dataCommand,
   dropAbove,
   makeCopyFolder,
+  savedMove,
   startCopy,
+  tokenFor,
   type AppCopy,
 } from "./helpers";
 
-test.describe.configure({ mode: "serial", timeout: 120_000 });
+// startCopy waits up to 60s for a copy to start on a busy machine, so anything that starts one
+// needs that and time for its own work. Hooks don't take the tests' timeout, so they set it too.
+const ONE_START_MS = 120_000;
+test.describe.configure({ mode: "serial", timeout: ONE_START_MS });
 
-const COPY_API = `${COPY_URL}/api`;
 const SCREENS = ["/", "/organizations", "/contacts", "/deals", "/pipeline"];
+const TEAMMATES = ["Alex Rivera", "Dana Whitfield", "Theo Brandt", "robin@accountable.example"];
 
 let folder: ReturnType<typeof makeCopyFolder>;
 let copy: AppCopy;
+/** The copy's API, signed in as one of its teammates. The copy has its own key, so the fixture's token won't do. */
+let api: APIRequestContext;
 
-test.beforeAll(async () => {
+test.beforeAll(async ({ playwright }) => {
+  test.setTimeout(ONE_START_MS);
   folder = makeCopyFolder();
   copy = await startCopy(folder.database);
+
+  const signedOut = await playwright.request.newContext({ baseURL: COPY_URL });
+  const token = await tokenFor(signedOut, "Theo Brandt");
+  await signedOut.dispose();
+  api = await playwright.request.newContext({
+    baseURL: COPY_URL,
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+  });
 });
 
+// The copy goes first, and each step allows for beforeAll having stopped partway.
 test.afterAll(async () => {
-  await copy.stop();
-  folder.remove();
+  await copy?.stop();
+  await api?.dispose();
+  folder?.remove();
 });
 
-async function restart() {
+/** Restarts the copy. Left open, the page's Vite client reloads it as the server returns, cutting off the next goto. */
+async function restart(page: Page) {
+  await page.goto("about:blank");
   await copy.stop();
   copy = await startCopy(folder.database);
 }
 
-async function goto(page: import("@playwright/test").Page, path: string) {
+async function goto(page: Page, path: string) {
   await page.goto(`${COPY_URL}${path}`);
 }
 
-test("changes survive a restart, including a card's place on the board", async ({ page, request }) => {
-  await goto(page, "/pipeline");
+/** Opens an address in a browser that hasn't signed in to the copy yet, and signs in there. */
+async function openSignedIn(page: Page, path: string) {
+  await goto(page, path);
+  await chooseTeammate(page, "Alex Rivera");
+}
+
+/** Checks a browser that has never signed in can still choose any of the four teammates. */
+async function expectAllTeammatesToChooseFrom(browser: Browser) {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await page.goto(COPY_URL);
+    for (const name of TEAMMATES) {
+      await expect(page.getByRole("button", { name })).toBeVisible();
+    }
+  } finally {
+    await context.close();
+  }
+}
+
+test("changes survive a restart, including a card's place on the board and being signed in", async ({ page }) => {
+  await openSignedIn(page, "/pipeline");
   const order = await (async () => {
     await expect(page.locator("[data-deal]").first()).toBeVisible();
     return cardOrder(page, "negotiation");
   })();
   const [first, second, third] = order as string[];
 
-  await dropAbove(page, third, first);
+  // Saved before the restart, which would otherwise cut off the request.
+  await savedMove(page, third, () => dropAbove(page, third, first));
   await expect
     .poll(() => cardOrder(page, "negotiation"))
     .toEqual([third, first, second, ...(order.slice(3) as string[])]);
-  await page.waitForLoadState("networkidle");
 
-  await request.post(`${COPY_API}/organizations`, { data: { name: "Survives Restart Ltd" } });
+  expect((await api.post("/api/organizations", { data: { name: "Survives Restart Ltd" } })).ok()).toBe(true);
 
-  // Left open, the page's Vite client reloads it as the server returns, cutting off the next goto.
-  await page.goto("about:blank");
-  await restart();
+  await restart(page);
 
   await goto(page, "/pipeline");
   await expect(card(page, third)).toBeVisible();
@@ -66,8 +107,8 @@ test("changes survive a restart, including a card's place on the board", async (
   await expect(page.locator("tbody tr")).toHaveCount(1);
 });
 
-test("without yes, nothing is wiped", async ({ request }) => {
-  const before = (await (await request.get(`${COPY_API}/deals`)).json()).length;
+test("without yes, nothing is wiped", async () => {
+  const before = (await (await api.get("/api/deals")).json()).length;
   expect(before).toBeGreaterThan(0);
 
   const declined = dataCommand(folder.database, "empty", [], "no\n");
@@ -77,11 +118,14 @@ test("without yes, nothing is wiped", async ({ request }) => {
   const unanswered = dataCommand(folder.database, "seed");
   expect(unanswered).toContain("Nothing was changed.");
 
-  expect((await (await request.get(`${COPY_API}/deals`)).json()).length).toBe(before);
+  expect((await (await api.get("/api/deals")).json()).length).toBe(before);
 });
 
-test("npm run seed with the app running brings back the sample data, and a refresh shows it", async ({ page }) => {
-  await goto(page, "/organizations?q=survives");
+test("npm run seed with the app running brings back the sample data and keeps the teammates, and a refresh shows it", async ({
+  page,
+  browser,
+}) => {
+  await openSignedIn(page, "/organizations?q=survives");
   await expect(page.locator("tbody tr")).toHaveCount(1);
 
   expect(dataCommand(folder.database, "seed", ["--yes"])).toContain("Sample data restored.");
@@ -91,12 +135,15 @@ test("npm run seed with the app running brings back the sample data, and a refre
 
   await goto(page, "/organizations");
   await expect(page.locator("tbody tr")).toHaveCount(24);
+
+  await expectAllTeammatesToChooseFrom(browser);
 });
 
-test("npm run empty with the app running leaves every screen working and inviting the first record", async ({
+test("npm run empty with the app running keeps the teammates and leaves every screen working and inviting the first record", async ({
   page,
+  browser,
 }) => {
-  await goto(page, "/deals");
+  await openSignedIn(page, "/deals");
   await expect(page.locator("tbody tr").first()).toBeVisible();
 
   expect(dataCommand(folder.database, "empty", ["--yes"])).toContain("Database emptied.");
@@ -117,16 +164,18 @@ test("npm run empty with the app running leaves every screen working and invitin
     await goto(page, path);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   }
+
+  await expectAllTeammatesToChooseFrom(browser);
 });
 
 test("an emptied database stays empty after a restart", async ({ page }) => {
-  await restart();
-  await goto(page, "/deals");
+  await restart(page);
+  await openSignedIn(page, "/deals");
   await expect(page.getByText("No deals yet. Add the first one.")).toBeVisible();
 });
 
 test("from an empty database, the first organization, contact and deal can be added", async ({ page }) => {
-  await goto(page, "/organizations");
+  await openSignedIn(page, "/organizations");
   await page.getByRole("button", { name: "Add organization" }).first().click();
   await page.getByRole("dialog").getByLabel("Name").fill("First Co");
   await page.getByRole("dialog").getByRole("button", { name: "Save organization" }).click();

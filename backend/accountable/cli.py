@@ -2,12 +2,17 @@
 
 Both delete rows inside one transaction and leave the file and tables in place,
 which is why they're safe with the app running and why an emptied database isn't
-treated as new.
+treated as new. They leave the users table alone, so the made-up teammates are
+still there to sign in as.
+
+They only ever touch the local copy. npm run seed and npm run empty already leave
+the shared app's settings out, and refusing here as well means no slip in a script
+can wipe the team's data.
 """
 
 import argparse
+import os
 import sys
-from datetime import date
 
 from sqlalchemy import Connection, delete, func, select
 
@@ -17,11 +22,8 @@ from accountable.crm.tables import activities, contacts, deals, organizations, s
 
 
 def fill_sample(conn: Connection) -> None:
-    sample_data.fill(conn, date.today())
-
-
-def _nothing(_conn: Connection) -> None:
-    pass
+    """The sample data, dated from today in the team's zone, which is what the shared app's first start uses too."""
+    sample_data.fill(conn, db.local_today())
 
 
 def _counts(conn: Connection) -> dict[str, int]:
@@ -35,6 +37,10 @@ def _plural(count: int, name: str) -> str:
     if count == 1:
         return f"1 {name[:-3]}y" if name.endswith("ies") else f"1 {name[:-1]}"
     return f"{count} {name}"
+
+
+def _reaches_the_shared_app() -> bool:
+    return "DATABASE_URL" in os.environ
 
 
 def _wipe(conn: Connection) -> None:
@@ -57,7 +63,16 @@ def main(arguments: list[str] | None = None) -> int:
     options = parser.parse_args(arguments)
     seeding = options.command == "seed"
 
-    built = db.prepare_database(fill_sample if seeding else _nothing)
+    if _reaches_the_shared_app():
+        print(
+            "DATABASE_URL is set, so this could reach the team's data. "
+            "Seed and empty only work on the local copy, so nothing was changed.",
+            file=sys.stderr,
+        )
+        return 2
+
+    # An empty database still has the made-up teammates, so there's someone to sign in as.
+    built = db.prepare_database(fill_sample if seeding else sample_data.add_missing_teammates)
     if built:
         print("Sample data added." if seeding else "Database emptied.")
         return 0

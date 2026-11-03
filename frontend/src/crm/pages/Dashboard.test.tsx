@@ -40,6 +40,7 @@ function entry(id: number, description: string, extra: Partial<TimelineEntry> = 
     follow_up_date: null,
     follow_up_done: false,
     about: SAM,
+    created_by: null,
     ...extra,
   };
 }

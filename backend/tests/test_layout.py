@@ -29,8 +29,24 @@ def test_there_is_no_raw_sql():
     for path in sources():
         text = path.read_text()
         assert "exec_driver_sql" not in text, path
-        assert not re.search(r"\bfrom sqlalchemy import [^\n]*\btext\b", text), path
+        assert not re.search(r"\bfrom sqlalchemy import [^\n]*\b(text|literal_column)\b", text), path
+        assert not re.search(r"\b(sa|sqlalchemy)\.(text|literal_column)\(", text), path
         assert not re.search(r"""CheckConstraint\(\s*['"]""", text), path
+
+
+# Turning on row-level security is the one thing SQLAlchemy can't say, so it's the one raw SQL allowed.
+SQL_IN_A_STRING = re.compile(r"""\w+\.execute\(\s*f?['"][^\n]*""")
+TURNS_ON_ROW_LEVEL_SECURITY = re.compile(r"""op\.execute\(f?"ALTER TABLE (\w+|\{\w+\}) ENABLE ROW LEVEL SECURITY"\)$""")
+
+
+def test_the_only_sql_in_a_string_turns_on_row_level_security_in_a_migration():
+    found = {path: SQL_IN_A_STRING.findall(path.read_text()) for path in sources()}
+    for path, calls in found.items():
+        if calls:
+            assert path.is_relative_to(PACKAGE / "migrations" / "versions"), path
+        for call in calls:
+            assert TURNS_ON_ROW_LEVEL_SECURITY.search(call), (path, call)
+    assert any(found.values())  # The check is looking in the right place.
 
 
 def test_sqlite_specific_code_stays_in_db():

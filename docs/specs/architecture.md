@@ -66,12 +66,13 @@ scripts/
   agent-guard-read-only.mjs       the reviewer's hook that lets its shell run only commands that read
   agent-guard-playwright-folder.mjs   ui-check's hook that keeps the files it saves in .playwright-mcp/
   agent-hooks.mjs                 what those four hooks decide
-  setup.test.mjs, test-plan.test.mjs, test-report.test.mjs, agent-hooks.test.mjs
+  setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-report.test.mjs, agent-hooks.test.mjs
 backend/accountable/
-  main.py                         app, trusted hosts, JSON-only check, startup, routers, and the built frontend in the shared app
+  main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, routers, and the built frontend in the shared app
+  settings.py                     which copy runs, from DATABASE_URL, SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (C8)
   db.py                           engine for SQLite or Postgres, metadata, foreign keys, write lock, migrations on start
-  auth.py                         the token check, the signed-in person, and the local copy's sign-in routes
-  users.py                        the users table, names and initials, and GET /me
+  auth.py                         the token check, the signed-in person and GET /me, and the local copy's sign-in routes
+  users.py                        the users table, names and initials
   cli.py                          seed and empty commands, for the local copy only
   migrations/                     Alembic, with batch mode on
   crm/
@@ -79,6 +80,7 @@ backend/accountable/
     schemas.py                    Pydantic request and reply models
     rules.py                      stage-change rules, usual probabilities, expected revenue
     timeline.py                   merged timelines and last-activity queries
+    who.py                        who added and last changed: the values a save writes, and the names in replies (U10)
     sample_data.py                sample records and the made-up teammates, dated from a given day
     routers/                      meta, organizations, contacts, deals, activities, dashboard, search
 backend/tests/

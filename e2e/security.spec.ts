@@ -4,16 +4,16 @@ import { networkInterfaces } from "node:os";
 import path from "node:path";
 
 import { expect, test } from "./fixtures";
-import { ROOT, addLinkedDeal, stack } from "./helpers";
+import { ROOT, SESSION_KEY, addActivity, addLinkedDeal, chooseTeammate, stack } from "./helpers";
 
-// There's no sign-in, so these are what keep customer data on this computer. They go
-// through the Vite address on purpose: it's the one the browser uses, and the backend's
-// own checks can't see what Vite adds in front of it.
+// Signing in, and these checks around it, are what keep customer data on this computer.
+// They go through the Vite address on purpose: it's the one the browser uses, and the
+// backend's own checks can't see what Vite adds in front of it.
 
 type Reply = { status: number; headers: http.IncomingHttpHeaders; body: Buffer };
 
 /** Sends the path exactly as written, where a browser or a URL parser would tidy it up first. */
-function send(port: number, target: string, headers: http.OutgoingHttpHeaders = {}, method = "GET") {
+function send(port: number, target: string, headers: http.OutgoingHttpHeaders = {}, method = "GET", body?: string) {
   return new Promise<Reply>((resolve, reject) => {
     const request = http.request({ host: "127.0.0.1", port, path: target, method, headers }, (reply) => {
       const chunks: Buffer[] = [];
@@ -23,9 +23,111 @@ function send(port: number, target: string, headers: http.OutgoingHttpHeaders = 
       );
     });
     request.on("error", reject);
-    request.end();
+    request.end(body);
   });
 }
+
+const REFUSED = { detail: "Sign in to use Accountable." };
+
+/** The same token with the first letter of its signature changed. */
+function withSignatureChanged(token: string) {
+  const [header, payload, signature] = token.split(".");
+  return `${header}.${payload}.${signature.startsWith("A") ? "B" : "A"}${signature.slice(1)}`;
+}
+
+/** Every route the API has, against records that exist, so a refused delete would show. */
+function everyRoute(ids: { organization: number; contact: number; deal: number; activity: number }) {
+  const records = [
+    ["organizations", ids.organization],
+    ["contacts", ids.contact],
+    ["deals", ids.deal],
+  ] as const;
+  return [
+    ["GET", "/api/meta"],
+    ["GET", "/api/me"],
+    ["GET", "/api/dashboard"],
+    ["GET", "/api/search?q=Guarded"],
+    ...records.flatMap(([kind, id]) => [
+      ["GET", `/api/${kind}`],
+      ["POST", `/api/${kind}`],
+      ["GET", `/api/${kind}/${id}`],
+      ["PATCH", `/api/${kind}/${id}`],
+      ["DELETE", `/api/${kind}/${id}`],
+      ["GET", `/api/${kind}/${id}/timeline`],
+      ["GET", `/api/${kind}/${id}/delete-impact`],
+    ]),
+    ["POST", `/api/deals/${ids.deal}/move`],
+    ["POST", "/api/activities"],
+    ["PATCH", `/api/activities/${ids.activity}`],
+    ["DELETE", `/api/activities/${ids.activity}`],
+  ] as const;
+}
+
+test("every API route refuses a request without a good token, through either server", async ({
+  request,
+  sessionToken,
+}) => {
+  const { organization, contact, deal } = await addLinkedDeal(request, "Guarded");
+  const activity = await addActivity(request, { deal_id: deal.id, description: "Guarded call" });
+  const ids = { organization: organization.id, contact: contact.id, deal: deal.id, activity: activity.id };
+  const badTokens: [string, http.OutgoingHttpHeaders][] = [
+    ["no token", {}],
+    ["a made-up token", { authorization: "Bearer not-a-token" }],
+    ["a token with its signature changed", { authorization: `Bearer ${withSignatureChanged(sessionToken)}` }],
+    ["a token with no Bearer", { authorization: sessionToken }],
+    ["a token in a cookie", { cookie: `${SESSION_KEY}=${sessionToken}` }],
+  ];
+
+  for (const port of [stack.webPort, stack.apiPort]) {
+    for (const [method, route] of everyRoute(ids)) {
+      for (const [bad, headers] of badTokens) {
+        const reply = await send(
+          port,
+          route,
+          { ...headers, "content-type": "application/json" },
+          method,
+          method === "GET" || method === "DELETE" ? undefined : JSON.stringify({ name: "Planted" }),
+        );
+        const where = `${port} ${method} ${route} with ${bad}`;
+        expect(reply.status, where).toBe(401);
+        expect(JSON.parse(reply.body.toString()), where).toEqual(REFUSED);
+      }
+    }
+  }
+
+  // Signed in, every read answers, so the refusals came from real routes, and the
+  // records the refused deletes named are all still there.
+  for (const [method, route] of everyRoute(ids)) {
+    if (method === "GET") expect((await request.get(route)).status(), route).toBe(200);
+  }
+  expect(JSON.stringify(await (await request.get(`/api/deals/${deal.id}/timeline`)).json())).toContain("Guarded call");
+  const names = (await (await request.get("/api/organizations")).json()).map((each: { name: string }) => each.name);
+  expect(names).not.toContain("Planted");
+});
+
+test.describe("signed in through the screen", () => {
+  test.use({ signedIn: false });
+
+  test("the token travels in a header, never a cookie", async ({ page, context }) => {
+    const sending: Promise<{ url: string; headers: Record<string, string> }>[] = [];
+    page.on("request", (request) => {
+      if (!new URL(request.url()).pathname.startsWith("/api/")) return;
+      sending.push(request.allHeaders().then((headers) => ({ url: request.url(), headers })));
+    });
+
+    await page.goto("/");
+    await chooseTeammate(page, "Alex Rivera");
+    await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
+
+    const signedInReads = (await Promise.all(sending)).filter(({ url }) => !url.includes("/api/local/"));
+    expect(signedInReads.length).toBeGreaterThan(0);
+    for (const { url, headers } of signedInReads) {
+      expect(headers.authorization, url).toMatch(/^Bearer \S+$/);
+      expect(headers.cookie, url).toBeUndefined();
+    }
+    expect(await context.cookies()).toEqual([]);
+  });
+});
 
 const OTHER_ORIGINS = [
   "http://localhost:3000",
@@ -129,9 +231,10 @@ test("a wrong host is refused, whichever server it reaches", async () => {
   expect((await send(stack.apiPort, "/api/contacts", { host })).status).toBe(400);
 });
 
-test("the local addresses are what's accepted", async () => {
+test("the local addresses are what's accepted", async ({ sessionToken }) => {
   for (const host of [`localhost:${stack.webPort}`, `127.0.0.1:${stack.webPort}`]) {
-    expect((await send(stack.webPort, "/api/meta", { host })).status).toBe(200);
+    const authorization = `Bearer ${sessionToken}`;
+    expect((await send(stack.webPort, "/api/meta", { host, authorization })).status).toBe(200);
   }
 });
 

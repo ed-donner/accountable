@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider, type DefaultOptions } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
 import { MissingRecord } from "./components/MissingRecord";
 import { Shell } from "./components/Shell";
+import { SignedIn } from "./components/SignIn";
 import { Contact } from "./crm/pages/Contact";
 import { Dashboard } from "./crm/pages/Dashboard";
 import { Contacts } from "./crm/pages/Contacts";
@@ -13,8 +15,10 @@ import { Organization } from "./crm/pages/Organization";
 import { Organizations } from "./crm/pages/Organizations";
 import { Pipeline } from "./crm/pages/Pipeline";
 import { useMeta } from "./crm/queries";
+import { Search } from "./crm/Search";
+import { applyTheme, savedTheme } from "./lib/theme";
 
-// The backend is on this computer, so losing Wi-Fi must not pause anything.
+// The local copy runs with no internet, so the browser reporting it's offline must not pause anything.
 export const queryDefaults: DefaultOptions = {
   queries: { networkMode: "always", retry: false, refetchOnWindowFocus: true },
   mutations: { networkMode: "always" },
@@ -24,7 +28,7 @@ export const queryClient = new QueryClient({ defaultOptions: queryDefaults });
 
 function AppShell() {
   useMeta(); // Fetched early, because it never changes and forms need it straight away.
-  return <Shell />;
+  return <Shell search={<Search />} />;
 }
 
 const router = createBrowserRouter([
@@ -45,9 +49,15 @@ const router = createBrowserRouter([
 ]);
 
 export function App() {
+  // index.html has already put the saved theme's mode on the page. This keeps System following the device.
+  useEffect(() => applyTheme(savedTheme()), []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      {/* The router is made once, outside SignedIn, so signing in opens the address the app was opened at. */}
+      <SignedIn>
+        <RouterProvider router={router} />
+      </SignedIn>
     </QueryClientProvider>
   );
 }

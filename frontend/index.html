@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <script>
-      // A saved dark choice goes on before anything draws, so light mode never flashes
-      // first. It does what lib/mode.ts does, with the same key, and stays light if
-      // storage can't be read.
+      // The saved theme's mode goes on before anything draws, so the other mode never
+      // flashes first. It does what lib/theme.ts does, with the same key: System asks
+      // the device, and anything else but dark, or storage that can't be read, is light.
       try {
-        if (localStorage.getItem("accountable-mode") === "dark") {
-          document.documentElement.dataset.mode = "dark";
-          document.documentElement.style.colorScheme = "dark";
-        }
+        const theme = localStorage.getItem("accountable-mode");
+        const dark = theme === "dark" || (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.mode = dark ? "dark" : "light";
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
       } catch {
         // Light mode, then.
       }

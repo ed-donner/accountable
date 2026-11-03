@@ -1,0 +1,44 @@
+# The shared app on Render's free plan: one web service, where FastAPI serves the built frontend and the API.
+# Render asks for the three Supabase settings at the bottom when the Blueprint is first made, and keeps them.
+# Their values never go in this file.
+services:
+  - type: web
+    name: accountable
+    runtime: python
+    plan: free
+    # Must be the region nearest the Supabase project, since every query crosses between the two.
+    # Check it before the first deploy: Render can't move a service to another region once it exists.
+    region: virginia
+    branch: main
+    # Deploys main only once CI has passed on it.
+    autoDeployTrigger: checksPass
+    # Vite builds in only VITE_ settings, so the page gets the URL and the publishable key and nothing else.
+    buildCommand: >-
+      uv sync --locked --no-dev &&
+      npm ci --include=dev --no-audit --no-fund &&
+      VITE_SUPABASE_URL="$SUPABASE_URL" VITE_SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+      node node_modules/vite/bin/vite.js build frontend
+    # One worker, because the lock that keeps writes in order lives in the process. npm start runs the
+    # same command on 127.0.0.1:8000. The migrations and the row-level security check run as it starts.
+    startCommand: uv run --no-sync uvicorn accountable.main:app --host 0.0.0.0 --port $PORT --workers 1
+    # Every /api address needs a token, so the health check asks for the page.
+    healthCheckPath: /
+    envVars:
+      # Render's default Python is newer than pyproject.toml allows.
+      - key: PYTHON_VERSION
+        value: 3.12.16
+      # Pinned to the versions this project is built and tested with, since Render's defaults
+      # depend on when the service was made. Render adds uv itself because uv.lock is here.
+      - key: NODE_VERSION
+        value: 26.13.0
+      - key: UV_VERSION
+        value: 0.13.6
+      # Must be the team's time zone, which sets the backend's today. Render's servers run on UTC.
+      - key: TZ
+        value: Europe/London
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false

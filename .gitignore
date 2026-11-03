@@ -43,6 +43,9 @@ htmlcov/
 coverage.xml
 coverage/
 
+# The local copy's database and the key it signs its tokens with
+/data/
+
 # Local databases
 *.db
 *.sqlite

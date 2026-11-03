@@ -20,15 +20,16 @@ from pydantic import (
 )
 
 from accountable import db
+from accountable.users import Person
 
 Stage = Literal["new", "qualified", "proposal", "negotiation", "won", "lost"]
 Status = Literal["lead", "qualified", "customer"]
 ActivityType = Literal["note", "call", "email"]
 
 MAX_VALUE = 1_000_000_000_000
-# The largest whole number SQLite can hold. A query given a bigger one crashes
-# instead of finding nothing.
-MAX_ID = 2**63 - 1
+# The largest id both databases can hold: Postgres's integer columns stop here,
+# well before SQLite's. A query given a bigger one crashes instead of finding nothing.
+MAX_ID = 2**31 - 1
 
 FIELD_MESSAGES = {
     "name": "Enter a name",
@@ -155,20 +156,43 @@ UtcTime = Annotated[datetime, PlainSerializer(_with_z, return_type=str)]
 
 
 class Request(BaseModel):
-    """What a form sends. In an update, MISSING marks a field that wasn't sent, which keeps its value."""
+    """What a form sends. In an update, MISSING marks a field that wasn't sent, which keeps its value.
+
+    Who added or changed a record comes from the token, so a body naming someone
+    has it ignored, like any other field a form doesn't send.
+    """
 
     model_config = ConfigDict(extra="ignore")
 
     @field_validator("*")
     @classmethod
     def _storable(cls, value: Any) -> Any:
-        """JSON can carry text with no valid encoding, which would crash the save."""
-        if isinstance(value, str) and not value.isascii():
-            try:
-                value.encode()
-            except UnicodeEncodeError as error:
-                raise ValueError("Use plain text here") from error
+        if isinstance(value, str) and not _is_storable(value):
+            raise ValueError("Use plain text here")
         return value
+
+
+def _is_storable(text: str) -> bool:
+    """JSON can carry text a database can't store, which would crash the save: a
+    character with no valid encoding, or a NUL, which Postgres refuses in text."""
+    if "\x00" in text:
+        return False
+    if text.isascii():
+        return True
+    try:
+        text.encode()
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+class Authorship(BaseModel):
+    """Who added the record and who last changed it, and when. Nobody, on records from before sign-in."""
+
+    created_at: UtcTime
+    created_by: Person | None
+    updated_at: UtcTime
+    updated_by: Person | None
 
 
 # Organizations
@@ -218,7 +242,7 @@ class LinkedDeal(BaseModel):
     close_date: date
 
 
-class OrganizationDetail(Organization):
+class OrganizationDetail(Organization, Authorship):
     contacts: list[LinkedContact]
     deals: list[LinkedDeal]
 
@@ -264,7 +288,7 @@ class ContactRow(Contact):
     last_activity: UtcTime | None
 
 
-class ContactDetail(Contact):
+class ContactDetail(Contact, Authorship):
     deals: list[LinkedDeal]
 
 
@@ -314,6 +338,10 @@ class Deal(BaseModel):
     expected_revenue: int
     close_date: date
     position: int
+
+
+class DealDetail(Deal, Authorship):
+    pass
 
 
 class MoveChanges(BaseModel):
@@ -380,6 +408,7 @@ class TimelineEntry(BaseModel):
     follow_up_date: date | None
     follow_up_done: bool
     about: About
+    created_by: Person | None
 
 
 class Timeline(BaseModel):

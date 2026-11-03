@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from accountable import db
 from accountable.crm.tables import deals, stage_changes
-from conftest import TODAY
+from conftest import NOW, TODAY
 from sqlalchemy import select
 
 
@@ -134,6 +134,19 @@ def test_a_move_across_columns_follows_the_stage_rules_and_says_what_changed(api
     assert body["deal"]["close_date"] == TODAY.isoformat()
     assert body["changes"] == {"close_date": TODAY.isoformat(), "new_customer": "Sam Carter"}
     assert stage_change_count() == 1
+
+
+def test_a_move_records_who_made_it_on_the_stage_change_the_deal_and_the_new_customer(api, make, deal_row, contact_row):
+    contact = make.contact()
+    deal = make.deal("Moved", stage="negotiation", main_contact_id=contact)
+    me = api.get("/api/me").json()["id"]
+
+    move(api, deal, "won")
+
+    with db.reading() as conn:
+        assert conn.scalar(select(stage_changes.c.created_by).where(stage_changes.c.deal_id == deal)) == me
+    assert (deal_row(deal).updated_by, deal_row(deal).updated_at) == (me, NOW)
+    assert (contact_row(contact).updated_by, contact_row(contact).updated_at) == (me, NOW)
 
 
 def test_a_move_says_nothing_extra_when_nothing_else_changed(api, make):

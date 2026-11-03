@@ -13,7 +13,7 @@ import { createRequire } from "node:module";
 import { availableParallelism, tmpdir, totalmem } from "node:os";
 import path from "node:path";
 
-import { ROOT, setup, start } from "./setup.mjs";
+import { ROOT, localEnv, setup, start } from "./setup.mjs";
 import { chooseWorkers } from "./test-plan.mjs";
 import { readPlaywright, readPytest, readVitest, summarize } from "./test-report.mjs";
 
@@ -160,8 +160,9 @@ export async function runChecks({ withCodeChecks, withBrowserTests, failuresOnly
   const report = (name) => path.join(folder, name);
   const text = (file) => readFileSync(report(file), "utf8");
 
+  // Without the shared app's settings, so no check or test can reach Supabase.
   const env = {
-    ...process.env,
+    ...localEnv(),
     ACCOUNTABLE_DB: report("test.db"),
     // Kept between runs to save filling it each time, and apart from the cache npm run dev uses.
     ACCOUNTABLE_VITE_CACHE: path.join(ROOT, "node_modules", ".vite-test"),

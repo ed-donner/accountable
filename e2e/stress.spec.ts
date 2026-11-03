@@ -15,18 +15,23 @@ function median(readings: number[]) {
   return [...readings].sort((a, b) => a - b)[Math.floor(readings.length / 2)];
 }
 
-test("the dashboard's data arrives in under 200ms", async ({ page }) => {
+test("the dashboard's data arrives in under 200ms", async ({ page, sessionToken }) => {
   await page.goto("/");
   await expect(page.getByTestId("revenue-this-month")).toBeVisible();
-  const readings = await page.evaluate(async () => {
+  const { readings, statuses } = await page.evaluate(async (token) => {
     const times: number[] = [];
+    const codes: number[] = [];
     for (let reading = 0; reading < 5; reading += 1) {
       const start = performance.now();
-      await (await fetch("/api/dashboard")).json();
+      const reply = await fetch("/api/dashboard", { headers: { Authorization: `Bearer ${token}` } });
+      await reply.json();
       times.push(performance.now() - start);
+      codes.push(reply.status);
     }
-    return times;
-  });
+    return { readings: times, statuses: codes };
+  }, sessionToken);
+  // A refused read comes back fast too, so only real data counts.
+  expect(statuses).toEqual([200, 200, 200, 200, 200]);
   console.log(`Dashboard data: ${median(readings).toFixed(1)}ms`);
   expect(median(readings)).toBeLessThan(200);
 });
@@ -86,6 +91,39 @@ test("typing at full speed loses no characters", async ({ page }) => {
   await expect(search).toHaveValue(text);
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await expect(page).toHaveURL(/q=contact/);
+});
+
+/** From a keystroke in the top bar's search to its results on screen, the 150ms pause included. */
+async function topBarSearchTime(page: Page, text: string) {
+  return page.evaluate(async (value) => {
+    const input = document.querySelector<HTMLInputElement>("input[cmdk-input]")!;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    // The first result's matching part, which is in semibold, shows whose results are on screen.
+    const showing = () => document.querySelector("[cmdk-item] strong")?.textContent?.toLowerCase();
+    const start = performance.now();
+    setValue.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    while (showing() !== value) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (performance.now() - start > 3000) break;
+    }
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    return performance.now() - start;
+  }, text);
+}
+
+test("the top bar's search shows its results within 300ms of the last keystroke", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("revenue-this-month")).toBeVisible();
+  await page.getByRole("combobox", { name: "Search organizations, contacts and deals" }).focus();
+  const readings: number[] = [];
+  // Each letter is in nearly every name, the most a search can find at these limits.
+  for (const text of ["o", "a", "n", "t", "c"]) {
+    readings.push(await topBarSearchTime(page, text));
+    await expect(page.locator("[cmdk-item] strong").first()).toHaveText(new RegExp(`^${text}$`, "i"));
+  }
+  console.log(`Top bar search: ${median(readings).toFixed(1)}ms`);
+  expect(median(readings)).toBeLessThan(300);
 });
 
 test(`dragging a card, including into a long Won column, has no task over ${DRAG_LIMIT_MS}ms`, async ({ page }) => {

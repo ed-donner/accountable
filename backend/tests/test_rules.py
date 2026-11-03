@@ -2,15 +2,23 @@ from datetime import date, timedelta
 
 import pytest
 from accountable import db
-from accountable.crm import rules
+from accountable.crm import rules, sample_data
 from accountable.crm.tables import stage_changes
 from conftest import NOW, TODAY
 from sqlalchemy import select
 
+DANA = sample_data.TEAMMATES[1].id
 
-def move(deal_id: int, stage: str, **given):
+
+def move(deal_id: int, stage: str, *, by: str | None = None, **given):
     with db.writing() as conn:
-        return rules.change_stage(conn, deal_id, stage, today=TODAY, now=NOW, **given)
+        return rules.change_stage(conn, deal_id, stage, today=TODAY, now=NOW, user_id=by, **given)
+
+
+@pytest.fixture
+def teammates(database):
+    with db.writing() as conn:
+        sample_data.add_missing_teammates(conn)
 
 
 def history(deal_id: int) -> list[tuple[str, str]]:
@@ -151,7 +159,7 @@ def test_a_failure_partway_leaves_nothing_changed(make, deal_row, contact_row):
     before = deal_row(deal)
 
     with pytest.raises(RuntimeError), db.writing() as conn:
-        rules.change_stage(conn, deal, "won", today=TODAY, now=NOW)
+        rules.change_stage(conn, deal, "won", today=TODAY, now=NOW, user_id=None)
         raise RuntimeError("the power went out")
 
     assert deal_row(deal) == before
@@ -166,6 +174,48 @@ def test_a_stage_change_puts_the_deal_at_the_top_of_its_new_column(make, deal_ro
     move(moved, "proposal")
     tops = sorted([first, second, moved], key=lambda deal: deal_row(deal).position)
     assert tops[0] == moved
+
+
+def test_a_stage_change_records_who_made_it_on_the_change_the_deal_and_the_new_customer(
+    make, teammates, deal_row, contact_row
+):
+    contact = make.contact(status="lead")
+    deal = make.deal(stage="negotiation", main_contact_id=contact)
+
+    move(deal, "won", by=DANA)
+
+    with db.reading() as conn:
+        change = conn.execute(select(stage_changes).where(stage_changes.c.deal_id == deal)).one()
+    assert change.created_by == DANA
+    assert (deal_row(deal).updated_by, deal_row(deal).updated_at) == (DANA, NOW)
+    assert (contact_row(contact).updated_by, contact_row(contact).updated_at) == (DANA, NOW)
+
+
+def test_winning_with_a_contact_who_is_already_a_customer_isnt_a_change_to_them(make, contact_row):
+    contact = make.contact(status="customer")
+    before = contact_row(contact)
+    move(make.deal(main_contact_id=contact), "won")
+    assert contact_row(contact) == before
+
+
+def test_naming_the_current_stage_records_nobody(make, teammates, deal_row):
+    deal = make.deal(stage="proposal")
+    before = deal_row(deal).updated_by
+    move(deal, "proposal", by=DANA)
+    assert deal_row(deal).updated_by == before
+
+
+def test_a_deal_added_at_won_makes_its_contact_a_customer_by_whoever_added_it(make, teammates, contact_row):
+    contact = make.contact(status="lead")
+    with db.writing() as conn:
+        rules.add_deal(
+            conn,
+            {"name": "Won at once", "stage": "won", "value": 100, "main_contact_id": contact},
+            today=TODAY,
+            now=NOW,
+            user_id=DANA,
+        )
+    assert (contact_row(contact).updated_by, contact_row(contact).updated_at) == (DANA, NOW)
 
 
 def test_late_means_open_and_before_today():

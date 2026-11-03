@@ -1,12 +1,40 @@
-from sqlalchemy import Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Index, Integer, Table, Text, column
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Table,
+    Text,
+    column,
+)
+from sqlalchemy.engine.default import DefaultExecutionContext
 
 from accountable.db import TABLE_OPTIONS, metadata, utc_now
+from accountable.users import users
+
+
+def _same_as_created(context: DefaultExecutionContext):
+    return context.get_current_parameters()["created_at"]
 
 
 def _times() -> list[Column]:
+    # A new record's two times are one moment, so "changed" means updated_at differs.
     return [
         Column("created_at", DateTime, nullable=False, default=utc_now),
-        Column("updated_at", DateTime, nullable=False, default=utc_now, onupdate=utc_now),
+        Column("updated_at", DateTime, nullable=False, default=_same_as_created, onupdate=utc_now),
+    ]
+
+
+def _who() -> list[Column]:
+    """Who added the record and who last changed it, blank on records from before sign-in (U12)."""
+    return [
+        Column("created_by", ForeignKey(users.c.id), index=True),
+        Column("updated_by", ForeignKey(users.c.id), index=True),
     ]
 
 
@@ -19,6 +47,7 @@ organizations = Table(
     Column("industry", Text),
     Column("notes", Text),
     *_times(),
+    *_who(),
     **TABLE_OPTIONS,
 )
 
@@ -35,6 +64,7 @@ contacts = Table(
     Column("organization_id", ForeignKey("organizations.id", ondelete="SET NULL"), index=True),
     Column("status", Text, nullable=False, default="lead"),
     *_times(),
+    *_who(),
     **TABLE_OPTIONS,
 )
 
@@ -46,11 +76,12 @@ deals = Table(
     Column("organization_id", ForeignKey("organizations.id", ondelete="SET NULL"), index=True),
     Column("main_contact_id", ForeignKey("contacts.id", ondelete="SET NULL"), index=True),
     Column("stage", Text, nullable=False),
-    Column("value", Integer, nullable=False),
+    Column("value", BigInteger, nullable=False),
     Column("probability", Integer, nullable=False),
     Column("close_date", Date, nullable=False),
     Column("position", Integer, nullable=False),
     *_times(),
+    *_who(),
     Index("ix_deals_stage_position", "stage", "position"),
     **TABLE_OPTIONS,
 )
@@ -67,6 +98,7 @@ activities = Table(
     Column("follow_up_date", Date, index=True),
     Column("follow_up_done", Boolean, nullable=False, default=False),
     *_times(),
+    *_who(),
     CheckConstraint(column("contact_id").is_(None) != column("deal_id").is_(None), name="one_parent"),
     **TABLE_OPTIONS,
 )
@@ -80,5 +112,6 @@ stage_changes = Table(
     Column("to_stage", Text, nullable=False),
     Column("changed_at", DateTime, nullable=False, index=True),
     Column("created_at", DateTime, nullable=False, default=utc_now),
+    Column("created_by", ForeignKey(users.c.id), index=True),
     **TABLE_OPTIONS,
 )

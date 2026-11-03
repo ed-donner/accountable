@@ -39,7 +39,9 @@ describe("when the connection comes back", () => {
         <Reader />
       </QueryClientProvider>,
     );
-    await screen.findByRole("alert");
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Can't reach Accountable. Check that it's still running.",
+    );
 
     await act(() => api("/something-else"));
 

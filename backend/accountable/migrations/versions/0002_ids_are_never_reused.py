@@ -2,6 +2,7 @@
 
 SQLite can only turn this on by rebuilding each table. db.py runs migrations with
 foreign keys off, so that dropping the old tables leaves the links to them alone.
+Postgres never reuses an id anyway, so there it does nothing.
 
 Revision ID: 0002
 Revises: 0001
@@ -18,6 +19,8 @@ TABLES = ["organizations", "contacts", "deals", "activities", "stage_changes"]
 
 
 def rebuild(autoincrement: bool) -> None:
+    if op.get_context().dialect.name != "sqlite":
+        return
     for table in TABLES:
         with op.batch_alter_table(table, recreate="always", table_kwargs={"sqlite_autoincrement": autoincrement}):
             pass

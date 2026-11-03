@@ -16,7 +16,7 @@ The intent allows a new dependency only if the plan makes the case for it. There
 - **`psycopg[binary]`** (backend). SQLAlchemy needs a driver to reach Postgres at all. The binary build needs no compiler on Render or this computer.
 - **`pyjwt[crypto]`** (backend), which brings in `cryptography`. It checks token signatures against Supabase's public keys and fetches the key set. Signature checking isn't something to hand-roll.
 
-`npm start` reads `.env` with Node's own `process.loadEnvFile`, so nothing like `python-dotenv` is needed.
+`npm start` reads `.env` with Node's own `parseEnv` from `node:util`, so nothing like `python-dotenv` is needed. (The build chose it over `process.loadEnvFile`, so the result can be tested without touching `process.env`.)
 
 ### What the parts agree on
 
@@ -33,7 +33,7 @@ The intent allows a new dependency only if the plan makes the case for it. There
 - `GET /me` gives `{id, name, email, initials}`.
 - `GET /local/teammates` gives `[{id, name, email, initials}]`. `POST /local/sign-in` takes `{user_id}` and gives `{token}`.
 - No token, or a bad one: 401 with `{"detail": "Sign in to use Accountable."}`. Keys that can't be fetched: 503 with `{"detail": "Can't check your sign-in right now."}`.
-- Organization, contact and deal replies carry `created_by` and `updated_by`, each `{id, name}` or `null`. Timeline entries carry `created_by` the same way.
+- Organization, contact and deal replies carry `created_by` and `updated_by`, each `{id, name}` or `null`, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way. The record pages show "Last changed" when `updated_at` differs from `created_at`, or by a second or more on a record with no one recorded, since records from before sign-in can have them a moment apart, so an add sets both from one moment, and renumbering leaves other cards' `updated_at` alone. (Added during the build: R6 shows dates, which the replies didn't carry.)
 - `GET /search?q=` gives `{organizations, contacts, deals}`, each `{count, results}`. Results are up to 5 of `{id, name, industry}`, `{id, name, organization_name}` and `{id, name, stage, organization_name}`.
 
 **Frontend, between parts**
@@ -51,9 +51,9 @@ The intent allows a new dependency only if the plan makes the case for it. There
 | `pyproject.toml`, `uv.lock` | Add `psycopg[binary]` and `pyjwt[crypto]`. Both Python packages go in here, so only this part touches the lock file |
 | `backend/accountable/settings.py` | New. Reads `DATABASE_URL`, `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` and says which copy runs: local with none, shared with all three, and with some but not all it stops and names the missing ones (C8) |
 | `backend/accountable/db.py` | SQLite or Postgres from the settings. Postgres goes through `postgresql+psycopg`, with pre-ping so a connection dropped while Render slept isn't reused. A Postgres database with none of the app's tables is new, and gets its migrations and sample data in one transaction (W9). The row-level security check runs after the migrations, split into a Core query on `pg_class` and a pure function that names each table with it off. `local_today` follows `TZ`. In Phase 2, SQLite's `lower` is replaced, in the connect event, with one that knows every language (K2) |
-| `backend/accountable/users.py` | New. The `users` table, `remember`, names and initials (U8, U9) and `GET /me` |
+| `backend/accountable/users.py` | New. The `users` table, `remember`, names and initials (U8, U9). `GET /me` lives in `auth.py`, so `users.py` never imports it (changed during the build) |
 | `backend/accountable/crm/tables.py` | `created_by` and `updated_by` on organizations, contacts, deals and activities, and `created_by` on stage changes, as foreign keys to `users` with an index each. `deals.value` becomes `BigInteger` |
-| `backend/accountable/migrations/env.py` | Offline mode, so a test can write out the Postgres SQL with no database. Imports `users`, so its table is in the metadata |
+| `backend/accountable/migrations/env.py` | Offline mode, so a test can write out the Postgres SQL with no database. The `users` table reaches the metadata through `tables.py`, which imports it for its foreign keys |
 | `backend/accountable/migrations/versions/0002_ids_are_never_reused.py` | Skips its table rebuilds on Postgres, where ids are never reused anyway. SQLite runs it exactly as before |
 | `backend/accountable/migrations/versions/0003_users_and_who.py` | New. The `users` table, the new columns and indexes, `deals.value` to `bigint` on Postgres, and, on Postgres only, row-level security on every table, `alembic_version` included |
 | `backend/tests/test_settings.py` | New |
@@ -83,14 +83,17 @@ The intent allows a new dependency only if the plan makes the case for it. There
 | `backend/accountable/crm/timeline.py` | Entries carry who added them. Each blank column in the union gets its type, such as `cast(null(), Date)`, because Postgres won't guess it the way SQLite does |
 | `backend/accountable/crm/sample_data.py` | The four made-up teammates (U13), `add_missing_teammates`, and every sample record and stage change put down to one of them, some changed by another (M7, U14) |
 | `backend/accountable/cli.py` | Seed and empty leave the `users` table alone (C4). They refuse to run if `DATABASE_URL` is set, as a second guard behind C9 |
+| `backend/accountable/crm/who.py` | New, added during the build. What the routers, `rules.py` and `timeline.py` share for U10: the values an add and a change write, leaving out fields a save doesn't alter, and the joins that turn `created_by` and `updated_by` into names |
+| `backend/tests/limits_data.py`, `test_limits.py` | The stress data puts its records down to a teammate, since `rules.py` now needs `user_id`. Added during the build |
 | `backend/tests/test_who.py` | New |
+| `routers/organizations.py`, `contacts.py`, `deals.py`, `dashboard.py`, `crm/timeline.py`, and a test in `test_limits.py` that caps the queries per call | Added during the build, in Phase 2: one query for each list, record page and timeline, and three for the dashboard, since each is a round trip to Supabase and the Phase 1 walk found the screens slow from London. Replies unchanged, byte for byte |
 | `backend/tests/test_rules.py`, `test_move.py`, `test_timeline.py`, `test_sample_data.py`, `test_cli.py`, `test_records_api.py`, `test_delete.py`, `test_dashboard.py` | Updated where a signature or a reply changes. New cases are listed under Proof |
 
 ### Part D: search (backend and frontend)
 
 | File | Change |
 |---|---|
-| `backend/accountable/crm/routers/search.py` | New. `GET /search`, using `func.lower` on both sides and `contains(..., autoescape=True)`, so `%` and `_` match only themselves. It fetches each kind's matching ids and names and sorts them in Python, starts-with first, so the order is the same on SQLite and Postgres, whose collations differ |
+| `backend/accountable/crm/routers/search.py` | New. `GET /search`, using `func.lower` on both sides and `contains(..., escape="/")`, escaping `/`, `%` and `_` itself, so `%` and `_` match only themselves. (Changed during the build: `autoescape=True` only takes a plain string, so it can't go with `func.lower` on the search text. All three kinds come from one `UNION ALL` query, one round trip per search, and the reply models live in `search.py`, since `schemas.py` is Part C's.) It fetches each kind's matching ids and names and sorts them in Python, starts-with first, so the order is the same on SQLite and Postgres, whose collations differ |
 | `frontend/src/crm/Search.tsx` | New. The box and its results, with `cmdk` and Radix Popover, the 150ms pause, and its query keyed by the text (K3 to K7). "See all" opens the table with the search in its address, which the tables already read (T4) |
 | `backend/tests/test_search.py`, `frontend/src/crm/Search.test.tsx` | New |
 | `e2e/search.spec.ts` | New |
@@ -109,6 +112,7 @@ The intent allows a new dependency only if the plan makes the case for it. There
 | `frontend/src/test-setup.ts` | Clears all of `localStorage` after each test, rather than the mode key alone, so it no longer imports `lib/mode.ts`, which Part G deletes |
 | `frontend/src/lib/session.test.ts`, `components/SignIn.test.tsx` | New |
 | `frontend/src/lib/api.test.ts` | The header, the 401 and the shared app's connection message |
+| `frontend/src/components/ConnectionMessage.tsx`, `ConnectionMessage.test.tsx` | Calls `connectionMessage()` in place of the constant, since the copy now depends on which copy is running, and `api.ts` and `session.ts` import each other, so neither may read the other while loading. Added during the build |
 | `e2e/fixtures.ts` | Each test starts signed in as a made-up teammate through `/local/sign-in`, and its `request` carries the token, so the helpers and every spec's API calls keep working. The page gets the token through storage, never a shared header, so a missing header in `api.ts` can't hide |
 | `e2e/helpers.ts` | Signing in, for the specs that do it themselves |
 | `e2e/sign-in.spec.ts` | New |
@@ -124,6 +128,8 @@ The intent allows a new dependency only if the plan makes the case for it. There
 | `frontend/src/crm/pages/Organization.tsx`, `Contact.tsx`, `Deal.tsx` | Show those lines |
 | `frontend/src/crm/Timeline.tsx` | Each entry shows who added it, beside when (A7, S2) |
 | `frontend/src/crm/Timeline.test.tsx`, `pages/Organization.test.tsx`, `Contact.test.tsx`, `Deal.test.tsx` | See Proof |
+| `frontend/src/lib/validate.ts`, `validate.test.ts`, and one id in `e2e/failures.spec.ts` | `recordId` refuses ids over 2,147,483,647, matching the backend's new limit, which is the largest Postgres's `integer` holds, and the bad-address checks try 2,147,483,648. Added during the build |
+| `frontend/src/crm/forms/forms.test.tsx`, `pages/Dashboard.test.tsx`, `queries.test.tsx` | Only the new fields in their record and timeline fixtures, which the new types require, and in `queries.test.tsx` what a failed tick says in each copy (N5). Added during the build |
 | `e2e/records.spec.ts`, `e2e/activities.spec.ts` | Who added and changed, through the app |
 
 ### Part G: shell, menu and theme (frontend)
@@ -154,6 +160,7 @@ The intent allows a new dependency only if the plan makes the case for it. There
 | `package.json` | The `start` script |
 | `render.yaml` | New. One free web service as W1 to W8 describe, with `healthCheckPath: /`, because `/api/meta` answers 401 and Render would mark the service unhealthy |
 | `scripts/setup.test.mjs` | The local environment drops the settings |
+| `scripts/test-report.mjs`, `test-report.test.mjs` | The summary lists every unit test that took a second or more, which the spec already said it did and risk 15 relies on, but it didn't. Added during the build |
 | `scripts/start.test.mjs` | New |
 | `e2e/start.spec.ts`, `e2e/data.spec.ts` | A started copy shows the sign-in screen first. Signing in survives a restart (U15). Seed and empty keep the teammates (C4) |
 
@@ -252,7 +259,7 @@ The intent's success criteria:
 | `test_settings.py` | None of the three settings gives the local copy, all three the shared app. Any one or two stop the backend, naming the missing ones. A `postgresql://` address gets the psycopg driver | C8 |
 | `test_db.py` | The row-level security check, given tables with it on and off, refuses and names each one that's off, and passes when all are on. Today follows `TZ`. In Phase 2, SQLite's `lower` handles "ÉMILE" and leaves blanks blank | Security, Today, K2 |
 | `test_migrations.py` | The migrations still build the same tables as `tables.py`, `users` included. Upgrading a `0002` database with data keeps every row and leaves who added it blank. Written out for Postgres in offline mode, the migrations skip `0002`'s rebuilds, make `deals.value` a `bigint`, and turn on row-level security for every table, `alembic_version` included | U12, Security, Data model |
-| `test_users.py` | Names and initials: two words, one word, three words, no display name, and a name in another alphabet. `remember` adds a person, updates a changed name or email, and never removes anyone. `GET /me` gives the signed-in person | U8, U9, N7 |
+| `test_users.py` | Names and initials: two words, one word, three words, no display name, and a name in another alphabet. `remember` adds a person, updates a changed name or email, and never removes anyone. `GET /me` gives the signed-in person, through the `api` fixture | U8, U9, N7 |
 | `test_auth.py` | Local copy: `/local/teammates` lists the four, `/local/sign-in` gives a token that works, an unknown id is refused, and a local token is refused at any other host. Shared app, with a stand-in for Supabase's keys: a good token works and adds the person, a key id it hasn't seen fetches the keys once more, the keys are fetched once for many requests, keys that can't be fetched give the 503 and its message, and the `/local` routes aren't there. Refused in both: no token, an expired one, one signed with another key, one for something other than `authenticated`, an anonymous user's, and in the shared app an HS256 token signed with the public key | U7, U16, Security |
 | `test_every_route.py` | Every route the app has, taken from the app, in both copies: refused with 401 and the message without a token and with each bad token above. The existing input, origin and host checks, run signed in | U7, Security |
 | `test_security.py` | The trusted hosts, with Render's address accepted only when `RENDER_EXTERNAL_HOSTNAME` names it | Security |

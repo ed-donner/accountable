@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { NavLink, Outlet } from "react-router";
 import { Toaster } from "sonner";
 
@@ -5,7 +6,7 @@ import { formatDate } from "../lib/dates";
 import { useToday } from "../lib/useToday";
 import { ConnectionMessage } from "./ConnectionMessage";
 import { Icon, type IconName } from "./Icon";
-import { ModeButton } from "./ModeButton";
+import { UserMenu } from "./UserMenu";
 
 const SECTIONS: { to: string; label: string; icon: IconName }[] = [
   { to: "/", label: "Dashboard", icon: "dashboard" },
@@ -15,7 +16,8 @@ const SECTIONS: { to: string; label: string; icon: IconName }[] = [
   { to: "/pipeline", label: "Pipeline", icon: "pipeline" },
 ];
 
-export function Shell() {
+/** The top bar and the page under it. The search box comes from App.tsx, because it knows about records. */
+export function Shell({ search }: { search: ReactNode }) {
   const today = useToday();
   return (
     <div className="flex min-h-screen flex-col">
@@ -39,8 +41,9 @@ export function Shell() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-3">
-          <ModeButton />
+          {search}
           <span className="num text-[13px] text-muted">{formatDate(today)}</span>
+          <UserMenu />
         </div>
       </header>
       <ConnectionMessage />

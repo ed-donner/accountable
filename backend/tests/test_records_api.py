@@ -551,8 +551,10 @@ def test_the_largest_value_is_allowed_and_one_more_is_not(api, linked):
         (ACTIVITIES, "description"),
     ],
 )
-def test_text_the_database_cant_store_is_refused(api, linked, make, path, field):
-    """JSON can carry half of a two-part character, which has no valid encoding."""
+@pytest.mark.parametrize("text", ["\ud800", "\x00", "Acme\x00 Ltd"], ids=["no encoding", "NUL", "NUL inside"])
+def test_text_the_database_cant_store_is_refused(api, linked, make, path, field, text):
+    """JSON can carry half of a two-part character, which has no valid encoding, and
+    a NUL, which Postgres refuses in text."""
     organization, contact = linked
     good = {
         ORGS: {"name": "Acme"},
@@ -560,9 +562,27 @@ def test_text_the_database_cant_store_is_refused(api, linked, make, path, field)
         DEALS: new_deal(organization, contact),
         ACTIVITIES: {"description": "Called", "deal_id": make.deal()},
     }[path]
-    body = json.dumps({**good, field: "\ud800"})
+    body = json.dumps({**good, field: text})
     reply = api.post(path, content=body, headers={"content-type": "application/json"})
     assert field in error_fields(reply)
+
+
+@pytest.mark.parametrize(
+    "path, field", [(ORGS, "notes"), (CONTACTS, "job_title"), (DEALS, "name"), (ACTIVITIES, "description")]
+)
+def test_an_edit_with_a_nul_is_refused_and_changes_nothing(api, linked, make, path, field):
+    organization, contact = linked
+    record = {
+        ORGS: organization,
+        CONTACTS: contact,
+        DEALS: make.deal(),
+        ACTIVITIES: make.activity(deal_id=make.deal()),
+    }[path]
+    before = api.get(f"{path}/{record}").json() if path != ACTIVITIES else None
+    reply = api.patch(f"{path}/{record}", json={field: "Before\x00after"})
+    assert error_fields(reply) == {field: "Use plain text here"}
+    if before is not None:
+        assert api.get(f"{path}/{record}").json() == before
 
 
 def test_ordinary_accents_and_emoji_are_kept(api):

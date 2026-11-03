@@ -4,7 +4,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
-import { ROOT, runSync, start } from "./setup.mjs";
+import { ROOT, isReady, localEnv, runSync, start } from "./setup.mjs";
 import { READY, stackFor } from "./test-plan.mjs";
 
 const WAIT_MS = 60_000;
@@ -28,7 +28,7 @@ for (let index = 0; index < workers; index += 1) {
   const stack = stackFor(index, process.env.ACCOUNTABLE_DB);
   mkdirSync(path.dirname(stack.database), { recursive: true });
   const env = {
-    ...process.env,
+    ...localEnv(),
     ACCOUNTABLE_DB: stack.database,
     ACCOUNTABLE_WEB_PORT: String(stack.webPort),
     ACCOUNTABLE_API_PORT: String(stack.apiPort),
@@ -61,7 +61,7 @@ for (const { child, url } of servers) {
 
 async function isUp(url) {
   try {
-    return (await fetch(url)).ok;
+    return isReady(await fetch(url));
   } catch {
     return false;
   }

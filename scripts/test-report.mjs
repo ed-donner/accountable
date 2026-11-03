@@ -2,6 +2,9 @@
 
 const MOST_NAMES_SHOWN = 15;
 
+// Every unit test should take under a second here, because CI runs on a much slower machine.
+export const SLOW_UNIT_TEST_MS = 1000;
+
 function unescapeXml(text) {
   return text
     .replaceAll("&lt;", "<")
@@ -15,16 +18,21 @@ export function readPytest(xml) {
   const total = (name) => Number(xml.match(new RegExp(`<testsuite\\b[^>]*\\b${name}="(\\d+)"`))?.[1] ?? 0);
   const attribute = (text, name) => unescapeXml(text.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1] ?? "");
 
+  const tests = xml.split("<testcase ").slice(1);
+  const nameOf = (test) => [attribute(test, "classname"), attribute(test, "name")].filter(Boolean).join("::");
+
   // A test that passed closes itself with "/>", so only these go straight into a problem.
-  const failures = xml
-    .split("<testcase ")
-    .slice(1)
-    .filter((test) => /^[^>]*[^/]>\s*<(failure|error)\b/.test(test))
-    .map((test) => [attribute(test, "classname"), attribute(test, "name")].filter(Boolean).join("::"));
+  const failures = tests.filter((test) => /^[^>]*[^/]>\s*<(failure|error)\b/.test(test)).map(nameOf);
+  const slow = slowest(tests.map((test) => ({ name: nameOf(test), ms: Number(attribute(test, "time")) * 1000 })));
 
   const failed = total("failures") + total("errors");
   const skipped = total("skipped");
-  return { passed: total("tests") - failed - skipped, failed, skipped, failures };
+  return { passed: total("tests") - failed - skipped, failed, skipped, failures, slow };
+}
+
+/** The tests that took a second or more, slowest first. */
+function slowest(timings) {
+  return timings.filter(({ ms }) => ms >= SLOW_UNIT_TEST_MS).sort((a, b) => b.ms - a.ms);
 }
 
 export function readVitest(json, root) {
@@ -38,11 +46,19 @@ export function readVitest(json, root) {
     return failedTests.map((test) => `${relative(file.name)} > ${test.fullName}`);
   });
 
+  const timings = report.testResults.flatMap((file) =>
+    file.assertionResults.map((test) => ({
+      name: `${relative(file.name)} > ${test.fullName}`,
+      ms: test.duration ?? 0,
+    })),
+  );
+
   return {
     passed: report.numPassedTests,
     failed: failures.length,
     skipped: report.numPendingTests + report.numTodoTests,
     failures,
+    slow: slowest(timings),
   };
 }
 
@@ -92,6 +108,16 @@ function resultText(layer, passed) {
   return parts.join(", ");
 }
 
+/** Information only: a slow test doesn't fail the run. */
+function slowLines(counted) {
+  const slow = counted
+    .flatMap((row) => (row.results.slow ?? []).map((test) => ({ ...test, layer: row.name })))
+    .sort((a, b) => b.ms - a.ms);
+  if (slow.length === 0) return [];
+  const listed = slow.map((test) => `  ${seconds(test.ms).padStart(5)}  ${test.layer}: ${test.name}`);
+  return ["Unit tests that took a second or more", ...listed, ""];
+}
+
 /** Layers are { name, code, ms, runsTests, results }, where results is null if none were written. */
 export function summarize(layers, elapsedMs) {
   const rows = layers.map((layer) => {
@@ -107,7 +133,7 @@ export function summarize(layers, elapsedMs) {
 
   const counted = rows.filter((row) => row.results !== null && row.results !== undefined);
   const count = (field) => counted.reduce((sum, row) => sum + row.results[field], 0);
-  const lines = ["", "Summary", ...table, ""];
+  const lines = ["", "Summary", ...table, "", ...slowLines(counted)];
 
   const failing = rows.filter((row) => !row.passed);
   if (failing.length === 0) {

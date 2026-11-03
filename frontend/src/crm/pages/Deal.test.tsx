@@ -5,10 +5,15 @@ import { describe, expect, it } from "vitest";
 
 import { queryDefaults } from "../../App";
 import { META, mockApi, user } from "../../test-utils";
-import type { Deal as DealRecord, TimelineEntry } from "../queries";
+import type { DealDetail, TimelineEntry } from "../queries";
 import { Deal } from "./Deal";
 
-const SUPPORT: DealRecord = {
+const ALEX = { id: "alex", name: "Alex Rivera" };
+const DANA = { id: "dana", name: "Dana Whitfield" };
+const ADDED = "2026-10-12T12:00:00Z";
+const CHANGED = "2026-10-30T12:00:00Z";
+
+const SUPPORT: DealDetail = {
   id: 5,
   name: "Annual support",
   organization_id: 1,
@@ -21,6 +26,10 @@ const SUPPORT: DealRecord = {
   expected_revenue: 14400,
   close_date: "2999-12-18",
   position: 0,
+  created_at: ADDED,
+  created_by: ALEX,
+  updated_at: CHANGED,
+  updated_by: DANA,
 };
 
 const EMAIL: TimelineEntry = {
@@ -32,6 +41,7 @@ const EMAIL: TimelineEntry = {
   follow_up_date: null,
   follow_up_done: false,
   about: { kind: "deal", id: 5, name: "Annual support" },
+  created_by: null,
 };
 
 const TIMELINE = "GET /deals/5/timeline?limit=50&offset=0";
@@ -61,7 +71,7 @@ function show(address: string) {
   return client;
 }
 
-async function showSupport(deal: Partial<DealRecord> = {}, routes: Record<string, unknown> = {}) {
+async function showSupport(deal: Partial<DealDetail> = {}, routes: Record<string, unknown> = {}) {
   const calls = mockApi({ "GET /deals/5": { ...SUPPORT, ...deal }, [TIMELINE]: { entries: [], total: 0 }, ...routes });
   const client = show("/deals/5");
   await screen.findByRole("heading", { level: 1, name: "Annual support" });
@@ -70,6 +80,13 @@ async function showSupport(deal: Partial<DealRecord> = {}, routes: Record<string
 
 function details() {
   return within(screen.getByRole("region", { name: "Details" }));
+}
+
+/** The lines at the foot of the details panel saying who added and changed the record. */
+function whoLines() {
+  return details()
+    .queryAllByText(/^(Added|Last changed)\b/)
+    .map((line) => line.textContent);
 }
 
 /** What the details panel shows beside a label. */
@@ -131,6 +148,28 @@ describe("a deal's page", () => {
     const timeline = within(screen.getByRole("region", { name: "Timeline" }));
     expect(await timeline.findByText("Sent the proposal")).toBeTruthy();
     expect(timeline.getByRole("button", { name: "Log activity" })).toBeTruthy();
+  });
+});
+
+describe("who added and changed a deal", () => {
+  it("says who added it and who last changed it, and when", async () => {
+    await showSupport();
+    expect(whoLines()).toEqual([
+      "Added by Alex Rivera on Oct 12, 2026",
+      "Last changed by Dana Whitfield on Oct 30, 2026",
+    ]);
+  });
+
+  it("shows the name of whoever changed a deal from before sign-in, which the email stands in for if they have none", async () => {
+    await showSupport({ created_by: null, updated_by: { id: "robin", name: "robin@accountable.example" } });
+    expect(whoLines()).toEqual(["Added Oct 12, 2026", "Last changed by robin@accountable.example on Oct 30, 2026"]);
+  });
+
+  it("shows the time alone on a timeline entry with no one recorded", async () => {
+    await showSupport({}, { [TIMELINE]: { entries: [EMAIL], total: 1 } });
+    const entry = (await screen.findByText("Sent the proposal")).closest("li")!;
+    expect(entry.textContent).toMatch(/Oct 30, \d+:20 [AP]M/);
+    expect(entry.textContent).not.toContain(" by ");
   });
 });
 

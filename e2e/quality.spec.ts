@@ -1,7 +1,7 @@
-import type { Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { addActivity, addLinkedDeal, card, column, dropAtEnd, isoDay, resetToSampleData } from "./helpers";
+import { SIGNED_IN, addActivity, addLinkedDeal, card, column, dropAtEnd, isoDay, resetToSampleData } from "./helpers";
 
 test.beforeAll(resetToSampleData);
 
@@ -11,8 +11,8 @@ const SIZES = [
   { width: 1440, height: 900 },
 ];
 
-async function recordPaths(page: Page) {
-  const get = async (route: string) => (await (await page.request.get(`/api${route}`)).json())[0].id;
+async function recordPaths(request: APIRequestContext) {
+  const get = async (route: string) => (await (await request.get(`/api${route}`)).json())[0].id;
   return [
     `/organizations/${await get("/organizations")}`,
     `/contacts/${await get("/contacts")}`,
@@ -21,9 +21,9 @@ async function recordPaths(page: Page) {
 }
 
 for (const size of SIZES) {
-  test(`no screen scrolls sideways at ${size.width} by ${size.height}`, async ({ page }) => {
+  test(`no screen scrolls sideways at ${size.width} by ${size.height}`, async ({ page, request }) => {
     await page.setViewportSize(size);
-    for (const path of [...SECTIONS, ...(await recordPaths(page))]) {
+    for (const path of [...SECTIONS, ...(await recordPaths(request))]) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -69,8 +69,12 @@ async function tabThrough(page: Page, presses: number) {
       const element = document.activeElement as HTMLElement | null;
       if (!element || element === document.body) return null;
       const style = getComputedStyle(element);
+      // cmdk labels its input through a hidden label element.
+      const labelledBy = element.getAttribute("aria-labelledby");
+      const label =
+        element.getAttribute("aria-label") ?? (labelledBy && document.getElementById(labelledBy)?.textContent);
       return {
-        name: `${element.tagName} ${element.getAttribute("aria-label") ?? element.textContent?.trim().slice(0, 30)}`,
+        name: `${element.tagName} ${label || element.textContent?.trim().slice(0, 30)}`,
         ring: style.outlineStyle !== "none" && parseFloat(style.outlineWidth) >= 2,
       };
     });
@@ -84,10 +88,12 @@ async function tabThrough(page: Page, presses: number) {
 test("every control can be reached by Tab and shows a focus ring", async ({ page }) => {
   await page.goto("/organizations");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  const table = await tabThrough(page, 19);
+  const table = await tabThrough(page, 20);
   for (const name of [
     "A Dashboard",
     "A Deals",
+    "INPUT Search organizations, contacts and deals",
+    `BUTTON Menu for ${SIGNED_IN.name}`,
     "BUTTON Add organization",
     "INPUT Search organizations",
     "BUTTON Name",
@@ -99,13 +105,13 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
 
   await page.goto("/");
   await expect(page.getByTestId("follow-up").first()).toBeVisible();
-  const dashboard = await tabThrough(page, 17);
+  const dashboard = await tabThrough(page, 18);
   expect([...dashboard].some((name) => name.startsWith("INPUT Mark "))).toBe(true);
   expect([...dashboard]).toContain("A Open the pipeline");
 
   await page.goto("/pipeline");
   await expect(page.locator("[data-deal]").first()).toBeVisible();
-  const board = await tabThrough(page, 11);
+  const board = await tabThrough(page, 12);
   expect([...board].some((name) => name.startsWith("BUTTON Add deal to "))).toBe(true);
   expect([...board].some((name) => name.startsWith("A $"))).toBe(true);
 });

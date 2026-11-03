@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Link } from "react-router";
 
 import { Chip } from "../components/Chip";
@@ -55,9 +55,15 @@ function FollowUp({ entry, today }: { entry: TimelineEntry; today: string }) {
   );
 }
 
-type EntryProps = { entry: TimelineEntry; today: string; onEdit: () => void; onDelete: () => void };
+type EntryProps = {
+  entry: TimelineEntry;
+  today: string;
+  onEdit: (entry: TimelineEntry) => void;
+  onDelete: (entry: TimelineEntry) => void;
+};
 
-function Entry({ entry, today, onEdit, onDelete }: EntryProps) {
+/** Memoized, so Show more draws only the new entries rather than every one already showing. */
+const Entry = memo(function Entry({ entry, today, onEdit, onDelete }: EntryProps) {
   const style = TYPE_STYLES[entry.type ?? "stage"];
   return (
     <li className="flex gap-3 py-2.5" data-testid="timeline-entry">
@@ -66,7 +72,10 @@ function Entry({ entry, today, onEdit, onDelete }: EntryProps) {
         <p className="font-medium whitespace-pre-wrap">{entry.description}</p>
         <p className="flex flex-wrap items-center gap-x-3 text-[13px] leading-[18px] text-muted">
           <span>{style.label}</span>
-          <span className="num text-[12px]">{formatDateTime(entry.at)}</span>
+          <span>
+            <span className="num text-[12px]">{formatDateTime(entry.at)}</span>
+            {entry.created_by && ` by ${entry.created_by.name}`}
+          </span>
           <Link to={aboutPath(entry.about)} className="link">
             {entry.about.name}
           </Link>
@@ -75,17 +84,27 @@ function Entry({ entry, today, onEdit, onDelete }: EntryProps) {
       </div>
       {entry.kind === "activity" && (
         <div className="flex-none whitespace-nowrap">
-          <button type="button" className="icon-btn" aria-label={`Edit ${entry.description}`} onClick={onEdit}>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={`Edit ${entry.description}`}
+            onClick={() => onEdit(entry)}
+          >
             <Pencil size={16} aria-hidden="true" />
           </button>
-          <button type="button" className="icon-btn" aria-label={`Delete ${entry.description}`} onClick={onDelete}>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={`Delete ${entry.description}`}
+            onClick={() => onDelete(entry)}
+          >
             <Trash2 size={16} aria-hidden="true" />
           </button>
         </div>
       )}
     </li>
   );
-}
+});
 
 type Props = {
   kind: RecordKind;
@@ -130,8 +149,8 @@ export function Timeline({ kind, id, logTo, empty }: Props) {
             key={`${entry.kind}-${entry.id}`}
             entry={entry}
             today={today}
-            onEdit={() => setEditing(entry)}
-            onDelete={() => setDeleting(entry)}
+            onEdit={setEditing}
+            onDelete={setDeleting}
           />
         ))}
       </ul>

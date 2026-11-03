@@ -1,43 +1,151 @@
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { addLinkedDeal, card, column, isoDay, resetToSampleData } from "./helpers";
+import { SIGNED_IN, addLinkedDeal, card, chooseTeammate, column, isoDay, resetToSampleData } from "./helpers";
 
 test.beforeAll(resetToSampleData);
 
 type Mode = "light" | "dark";
+type Theme = "Light" | "Dark" | "System";
 
 // The spec's Color tokens, as the browser reports them.
 const SURFACES = {
   light: { page: "rgb(240, 244, 245)", panel: "rgb(255, 255, 255)", ink: "rgb(7, 59, 76)" },
   dark: { page: "rgb(4, 35, 46)", panel: "rgb(11, 50, 64)", ink: "rgb(205, 216, 219)" },
 };
+const RAISED = { light: "rgb(255, 255, 255)", dark: "rgb(18, 64, 79)" };
 const FOCUS = { light: "rgb(17, 138, 178)", dark: "rgb(76, 179, 214)" };
+const MARIGOLD = "rgb(255, 193, 69)";
+const MIDNIGHT = "rgb(7, 59, 76)";
 const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline"];
+const SEARCH_BOX = "Search organizations, contacts and deals";
 
-function modeButton(page: Page) {
-  return page.getByRole("banner").getByRole("button", { name: /^Switch to (dark|light) mode$/ });
+/** Named for the person once the backend says who's signed in, and plain "Menu" until then. */
+function menuButton(page: Page) {
+  return page.getByRole("banner").getByRole("button", { name: /^Menu( for .+)?$/ });
 }
 
-async function expectMode(page: Page, mode: Mode) {
+function menu(page: Page) {
+  return page.getByRole("menu");
+}
+
+/** Chooses a theme from the menu, which closes once it's chosen. */
+async function chooseTheme(page: Page, theme: Theme) {
+  await menuButton(page).click();
+  await menu(page).getByRole("menuitemradio", { name: theme }).click();
+  await expect(menu(page)).toHaveCount(0);
+}
+
+async function expectChecked(page: Page, theme: Theme) {
+  await menuButton(page).click();
+  await expect(menu(page).getByRole("menuitemradio", { checked: true })).toHaveText(theme);
+  await page.keyboard.press("Escape");
+  await expect(menu(page)).toHaveCount(0);
+}
+
+async function signOut(page: Page) {
+  await menuButton(page).click();
+  await menu(page).getByRole("menuitem", { name: "Sign out" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+}
+
+function signInPanel(page: Page) {
+  return page.getByRole("main").locator(":scope > div");
+}
+
+/** The page in this mode, judged by its colors and a panel on it: the top bar unless another is named. */
+async function expectMode(page: Page, mode: Mode, panel: Locator = page.getByRole("banner")) {
   const colors = SURFACES[mode];
+  await expect(page.locator("html")).toHaveAttribute("data-mode", mode);
   await expect(page.locator("html")).toHaveCSS("color-scheme", mode === "dark" ? "dark" : /^(normal|light)$/);
   await expect(page.locator("body")).toHaveCSS("background-color", colors.page);
   await expect(page.locator("body")).toHaveCSS("color", colors.ink);
-  await expect(page.getByRole("banner")).toHaveCSS("background-color", colors.panel);
-  await expect(modeButton(page)).toHaveAccessibleName(`Switch to ${mode === "dark" ? "light" : "dark"} mode`);
+  await expect(panel).toHaveCSS("background-color", colors.panel);
 }
 
-/** Switches to dark mode and back, from wherever the page is. */
+/** Switches to dark mode and back with the menu, from wherever the page is. */
 async function switchBothWays(page: Page) {
-  await modeButton(page).click();
+  await chooseTheme(page, "Dark");
   await expectMode(page, "dark");
-  await modeButton(page).click();
+  await chooseTheme(page, "Light");
   await expectMode(page, "light");
 }
 
-test("the app opens in light mode, and the button switches to dark and back", async ({ page }) => {
-  // Light is the default whatever the device's own setting.
+test("the menu shows the initials, the name and email, the themes and Sign out", async ({ page, request }) => {
+  const me = await (await request.get("/api/me")).json();
+  expect(me.name).toBe(SIGNED_IN.name);
+  await page.goto("/");
+  const button = menuButton(page);
+  await expect(button).toHaveAccessibleName(`Menu for ${me.name}`);
+  await expect(button).toHaveText(me.initials);
+  await expect(button).toHaveCSS("background-color", MARIGOLD);
+  await expect(button).toHaveCSS("color", MIDNIGHT);
+  await expect(button).toHaveCSS("width", "32px");
+  await expect(button).toHaveCSS("height", "32px");
+  // Measured first: while the menu is open, Radix hides the rest of the page from the accessibility tree.
+  const buttonBox = (await button.boundingBox())!;
+
+  await button.click();
+  await expect(menu(page)).toContainText(me.name);
+  await expect(menu(page)).toContainText(me.email);
+  await expect(menu(page).getByRole("menuitemradio")).toHaveText(["Light", "Dark", "System"]);
+  await expect(menu(page).getByRole("menuitemradio", { checked: true })).toHaveText("Light");
+  await expect(menu(page).getByRole("menuitem")).toHaveText(["Sign out"]);
+
+  // 240px wide on the raised surface, below the button and lined up with its right edge.
+  await expect(menu(page)).toHaveCSS("width", "240px");
+  await expect(menu(page)).toHaveCSS("background-color", RAISED.light);
+  const menuBox = (await menu(page).boundingBox())!;
+  expect(menuBox.y).toBeGreaterThan(buttonBox.y + buttonBox.height);
+  expect(Math.abs(menuBox.x + menuBox.width - (buttonBox.x + buttonBox.width))).toBeLessThanOrEqual(1);
+
+  await page.keyboard.press("Escape");
+  await expect(menu(page)).toHaveCount(0);
+  await expect(button).toBeFocused();
+});
+
+test("the menu button can be reached by Tab, shows a focus ring, and its menu works by keyboard", async ({ page }) => {
+  await page.goto("/organizations");
+  await expect(page.locator("tbody tr").first()).toBeVisible();
+
+  const sections = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
+  for (let index = 0; index < 5; index += 1) {
+    await page.keyboard.press("Tab");
+    await expect(sections.nth(index)).toBeFocused();
+  }
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("banner").getByLabel(SEARCH_BOX)).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(menuButton(page)).toBeFocused();
+  await expect(menuButton(page)).toHaveCSS("outline-color", FOCUS.light);
+  await expect(menuButton(page)).toHaveCSS("outline-style", "solid");
+
+  await page.keyboard.press("Enter");
+  await expect(menu(page).getByRole("menuitemradio", { name: "Light" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(menu(page).getByRole("menuitemradio", { name: "Dark" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expectMode(page, "dark");
+  await expect(menu(page)).toHaveCount(0);
+  await expect(menuButton(page)).toBeFocused();
+  await expect(menuButton(page)).toHaveCSS("outline-color", FOCUS.dark);
+
+  await page.keyboard.press("Space");
+  await expect(menu(page).getByRole("menuitemradio", { name: "Light" })).toBeFocused();
+  await page.keyboard.press("Space");
+  await expectMode(page, "light");
+
+  await page.keyboard.press("Enter");
+  await expect(menu(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu(page)).toHaveCount(0);
+  await expect(menuButton(page)).toBeFocused();
+  await expect(menuButton(page)).toHaveCSS("outline-color", FOCUS.light);
+});
+
+test("the app opens in light mode whatever the device's setting, and the menu switches to dark and back", async ({
+  page,
+}) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/");
   await expect(page.getByTestId("summary")).toBeVisible();
@@ -46,59 +154,93 @@ test("the app opens in light mode, and the button switches to dark and back", as
   await switchBothWays(page);
 });
 
-test("the choice is remembered after a reload and in a new tab", async ({ page }) => {
-  await page.goto("/");
-  await modeButton(page).click();
-  await expectMode(page, "dark");
+for (const [theme, mode] of [
+  ["Dark", "dark"],
+  ["System", "dark"],
+  ["Light", "light"],
+] as const) {
+  test(`${theme} on a dark device survives a reload, a new tab and signing out`, async ({ page, context }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/");
+    await chooseTheme(page, theme);
+    await expectMode(page, mode);
 
-  await page.reload();
-  await expectMode(page, "dark");
+    await page.reload();
+    await expectMode(page, mode);
+    await expectChecked(page, theme);
 
-  const tab = await page.context().newPage();
-  await tab.goto("/pipeline");
-  await expectMode(tab, "dark");
-  await tab.close();
+    const tab = await context.newPage();
+    await tab.emulateMedia({ colorScheme: "dark" });
+    await tab.goto("/pipeline");
+    await expectMode(tab, mode);
+    await tab.close();
 
-  await modeButton(page).click();
-  await expectMode(page, "light");
-  await page.reload();
-  await expectMode(page, "light");
-});
-
-test("a saved dark choice is in place before the app's script runs", async ({ page }) => {
-  await page.goto("/");
-  await modeButton(page).click();
-  await expectMode(page, "dark");
-
-  // The app's script also brings the styles, so until it runs the page has none.
-  const held: Route[] = [];
-  await page.route("**/src/main.tsx", (route) => {
-    held.push(route);
+    await signOut(page);
+    await expectMode(page, mode, signInPanel(page));
+    await chooseTeammate(page, SIGNED_IN.name);
+    await expectMode(page, mode);
+    await expectChecked(page, theme);
   });
-  await page.reload({ waitUntil: "commit" });
-  await expect.poll(() => held.length).toBe(1);
+}
 
-  const early = await page.evaluate(() => ({
-    mode: document.documentElement.dataset.mode,
-    colorScheme: getComputedStyle(document.documentElement).colorScheme,
-    appStarted: Boolean(document.getElementById("root")?.childElementCount),
-  }));
-  expect(early).toEqual({ mode: "dark", colorScheme: "dark", appStarted: false });
+test("System follows the device while the page is open, on the sign-in screen too", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/organizations");
+  await chooseTheme(page, "System");
+  await expectMode(page, "light");
+  await page.evaluate(() => Object.assign(window, { notReloaded: true }));
 
-  await held[0].continue();
+  await page.emulateMedia({ colorScheme: "dark" });
   await expectMode(page, "dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expectMode(page, "light");
+
+  await signOut(page);
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expectMode(page, "dark", signInPanel(page));
+  expect(await page.evaluate(() => "notReloaded" in window)).toBe(true);
 });
 
-test("the button is on every screen and works there", async ({ page, request, expectConsoleError }) => {
+for (const [theme, device] of [
+  ["Dark", "light"],
+  ["System", "dark"],
+] as const) {
+  test(`${theme} saved on a ${device} device is in place before the app's script runs`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: device });
+    await page.goto("/");
+    await chooseTheme(page, theme);
+    await expectMode(page, "dark");
+
+    // The app's script also brings the styles, so until it runs the page has none.
+    const held: Route[] = [];
+    await page.route("**/src/main.tsx", (route) => {
+      held.push(route);
+    });
+    await page.reload({ waitUntil: "commit" });
+    await expect.poll(() => held.length).toBe(1);
+
+    const early = await page.evaluate(() => ({
+      mode: document.documentElement.dataset.mode,
+      colorScheme: getComputedStyle(document.documentElement).colorScheme,
+      appStarted: Boolean(document.getElementById("root")?.childElementCount),
+    }));
+    expect(early).toEqual({ mode: "dark", colorScheme: "dark", appStarted: false });
+
+    await held[0].continue();
+    await expectMode(page, "dark");
+  });
+}
+
+test("the menu is on every screen and works there", async ({ page, request, expectConsoleError }) => {
   expectConsoleError(/404 \(Not Found\).*\/api\/deals\/\d+/);
   expectConsoleError(/ERR_CONNECTION_REFUSED|Failed to fetch/);
-  const { deal } = await addLinkedDeal(request, "Mode everywhere");
-  const { deal: gone } = await addLinkedDeal(request, "Mode gone");
+  const { deal } = await addLinkedDeal(request, "Menu everywhere");
+  const { deal: gone } = await addLinkedDeal(request, "Menu gone");
   await request.delete(`/api/deals/${gone.id}`);
 
   const screens: [string, RegExp | string][] = [
     ...SECTIONS.map((path): [string, RegExp] => [path, /^(Dashboard|Organizations|Contacts|Deals|Pipeline)$/]),
-    [`/deals/${deal.id}`, "Mode everywhere"],
+    [`/deals/${deal.id}`, "Menu everywhere"],
     [`/deals/${gone.id}`, "This deal no longer exists"],
     ["/nothing-here", "This page no longer exists"],
   ];
@@ -108,9 +250,11 @@ test("the button is on every screen and works there", async ({ page, request, ex
     await switchBothWays(page);
   }
 
+  // With the backend out of reach, nobody can be named, but the themes are still there.
   await page.route("**/api/**", (route) => route.abort("connectionrefused"));
   await page.goto("/organizations");
   await expect(page.getByRole("alert")).toHaveText("Can't reach Accountable. Check that it's still running.");
+  await expect(menuButton(page)).toHaveAccessibleName("Menu");
   await switchBothWays(page);
 });
 
@@ -127,7 +271,7 @@ test("switching keeps what's on screen", async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(20);
   await page.evaluate(() => Object.assign(window, { notReloaded: true }));
 
-  await modeButton(page).click();
+  await chooseTheme(page, "Dark");
   await expectMode(page, "dark");
 
   expect(page.url()).toBe(address);
@@ -137,31 +281,6 @@ test("switching keeps what's on screen", async ({ page }) => {
   expect(await page.evaluate(() => "notReloaded" in window)).toBe(true);
 });
 
-test("the button can be reached by Tab, shows a focus ring, and works with Enter and Space", async ({ page }) => {
-  await page.goto("/organizations");
-  await expect(page.locator("tbody tr").first()).toBeVisible();
-
-  const sections = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
-  for (let index = 0; index < 5; index += 1) {
-    await page.keyboard.press("Tab");
-    await expect(sections.nth(index)).toBeFocused();
-  }
-  await page.keyboard.press("Tab");
-  await expect(modeButton(page)).toBeFocused();
-  await expect(modeButton(page)).toHaveCSS("outline-color", FOCUS.light);
-  await expect(modeButton(page)).toHaveCSS("outline-style", "solid");
-
-  await page.keyboard.press("Enter");
-  await expectMode(page, "dark");
-  await expect(modeButton(page)).toBeFocused();
-  await expect(modeButton(page)).toHaveCSS("outline-color", FOCUS.dark);
-
-  await page.keyboard.press("Space");
-  await expectMode(page, "light");
-  await expect(modeButton(page)).toHaveCSS("outline-color", FOCUS.light);
-});
-
-const RAISED = { light: "rgb(255, 255, 255)", dark: "rgb(18, 64, 79)" };
 const WON = {
   light: { fill: "rgb(7, 59, 76)", text: "rgb(205, 216, 219)" },
   dark: { fill: "rgb(205, 216, 219)", text: "rgb(7, 59, 76)" },
@@ -189,7 +308,7 @@ async function saveDealFromItsPage(page: Page, id: number) {
 test("dialogs, picker lists, chart tooltips and messages follow the mode", async ({ page, request }) => {
   const { deal } = await addLinkedDeal(request, "Floating");
   await page.goto("/deals");
-  await modeButton(page).click();
+  await chooseTheme(page, "Dark");
   await expectMode(page, "dark");
 
   await page.getByRole("button", { name: "Add deal" }).click();
@@ -217,7 +336,7 @@ test("dialogs, picker lists, chart tooltips and messages follow the mode", async
   await saveDealFromItsPage(page, deal.id);
   await expectMessage(page, "Deal saved.", "dark");
 
-  await modeButton(page).click();
+  await chooseTheme(page, "Light");
   await expectMode(page, "light");
   await saveDealFromItsPage(page, deal.id);
   await expectMessage(page, "Deal saved.", "light");
@@ -229,7 +348,7 @@ test("the Won stage and late cards take their dark colors", async ({ page, reque
 
   for (const mode of ["light", "dark"] as const) {
     await page.goto("/pipeline");
-    if (mode === "dark") await modeButton(page).click();
+    if (mode === "dark") await chooseTheme(page, "Dark");
     await expectMode(page, mode);
     const head = column(page, "won").locator("div").first();
     await expect(head).toHaveCSS("background-color", WON[mode].fill);
@@ -369,10 +488,33 @@ for (const mode of ["light", "dark"] as const) {
           await expect(page.getByRole("alertdialog")).toContainText("This can't be undone.");
         },
       },
+      {
+        path: "/",
+        ready: async (page) => {
+          await menuButton(page).click();
+          await expect(menu(page)).toContainText(SIGNED_IN.name);
+        },
+      },
+      {
+        path: "/",
+        ready: async (page) => {
+          await page.getByRole("combobox", { name: SEARCH_BOX }).fill("an");
+          const results = page.getByRole("listbox", { name: "Search results" });
+          await expect(results.getByRole("option").first()).toBeVisible();
+        },
+      },
+      // Last, since it signs out.
+      {
+        path: "/",
+        ready: async (page) => {
+          await signOut(page);
+          await expect(page.getByRole("button", { name: SIGNED_IN.name })).toBeVisible();
+        },
+      },
     ];
 
     await page.goto("/");
-    if (mode === "dark") await modeButton(page).click();
+    if (mode === "dark") await chooseTheme(page, "Dark");
     const low: Record<string, LowContrast[]> = {};
     for (const screen of screens) {
       await page.goto(screen.path);

@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderApp, user } from "../test-utils";
@@ -15,6 +15,7 @@ function activity(id: number, extra: Partial<TimelineEntry> = {}): TimelineEntry
     follow_up_date: null,
     follow_up_done: false,
     about: { kind: "deal", id: 7, name: "Annual support" },
+    created_by: null,
     ...extra,
   };
 }
@@ -28,10 +29,20 @@ const STAGE_CHANGE: TimelineEntry = {
   follow_up_date: null,
   follow_up_done: false,
   about: { kind: "deal", id: 7, name: "Annual support" },
+  created_by: { id: "dana", name: "Dana Whitfield" },
 };
 
 function entriesFrom(first: number, count: number): TimelineEntry[] {
   return Array.from({ length: count }, (_, index) => activity(first + index));
+}
+
+/** Stage changes draw quicker than activities, which have Edit and Delete, so long timelines use them. */
+function stageChangesFrom(first: number, count: number): TimelineEntry[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...STAGE_CHANGE,
+    id: first + index,
+    description: `Moved ${first + index}`,
+  }));
 }
 
 function reply(entries: TimelineEntry[], total = entries.length): TimelineReply {
@@ -58,6 +69,19 @@ describe("an entry", () => {
     expect(entry.getByText("Call")).toBeTruthy();
     expect(entry.getByText(/Oct 30, \d+:20 [AP]M/)).toBeTruthy();
     expect(entry.getByRole("link", { name: "Annual support" }).getAttribute("href")).toBe("/deals/7");
+  });
+
+  it("shows who logged an activity, beside when", async () => {
+    show({ [FIRST_PAGE]: reply([activity(1, { created_by: { id: "alex", name: "Alex Rivera" } })]) });
+    const entry = await entryNamed("Activity 1");
+    expect(entry.textContent).toMatch(/Oct 30, \d+:20 [AP]M by Alex Rivera/);
+  });
+
+  it("shows the time alone when no one is recorded", async () => {
+    show({ [FIRST_PAGE]: reply([activity(1)]) });
+    const entry = await entryNamed("Activity 1");
+    expect(entry.textContent).toMatch(/Oct 30, \d+:20 [AP]M/);
+    expect(entry.textContent).not.toContain(" by ");
   });
 
   it("links an activity on a contact to the contact", async () => {
@@ -98,6 +122,12 @@ describe("an entry", () => {
     const entry = within(await entryNamed("Moved from Proposal to Negotiation"));
     expect(entry.getByText("Stage change")).toBeTruthy();
     expect(entry.queryByRole("button")).toBeNull();
+  });
+
+  it("shows who moved the deal on a stage change", async () => {
+    show({ [FIRST_PAGE]: reply([STAGE_CHANGE]) });
+    const entry = await entryNamed("Moved from Proposal to Negotiation");
+    expect(entry.textContent).toMatch(/Oct 30, \d+:20 [AP]M by Dana Whitfield/);
   });
 });
 
@@ -140,24 +170,26 @@ describe("the timeline", () => {
   });
 
   it("can be read to the end however long it is", async () => {
-    const total = 525;
+    // One more than the most the API gives in a reply.
+    const total = 501;
     const routes: Record<string, TimelineReply> = {};
     for (let offset = 0; offset < total; offset += 50) {
       routes[`GET /deals/7/timeline?limit=50&offset=${offset}`] = reply(
-        entriesFrom(offset + 1, Math.min(50, total - offset)),
+        stageChangesFrom(offset + 1, Math.min(50, total - offset)),
         total,
       );
     }
     show(routes);
-    await entryNamed("Activity 50");
+    await entryNamed("Moved 50");
     // Found once, because finding it by role among hundreds of entries takes a tenth of a second each time.
+    // Pressed with fireEvent, because userEvent's fuller click, ten times over, would take longer than the rest.
     const showMore = screen.getByRole("button", { name: "Show more" });
     for (let shown = 50; shown < total; shown += 50) {
-      await user().click(showMore);
+      fireEvent.click(showMore);
       await waitFor(() => expect(screen.getAllByTestId("timeline-entry").length).toBeGreaterThan(shown));
     }
     expect(screen.getAllByTestId("timeline-entry")).toHaveLength(total);
-    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+    expect(screen.queryByText("Show more", { selector: "button" })).toBeNull();
   });
 
   it("keeps what's showing if Show more fails, and can try again", async () => {

@@ -6,6 +6,7 @@ import pytest
 from accountable import db
 from accountable.crm import rules, sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
+from accountable.users import users
 from sqlalchemy import select
 
 DAYS = [date(2027, 1, 1), date(2027, 3, 1), date(2028, 2, 29), date(2027, 1, 31), date(2026, 10, 31), date(2026, 7, 14)]
@@ -35,6 +36,7 @@ def seeded(request, rows_by_day, database):
                 "deals": rows_of(conn, deals),
                 "activities": rows_of(conn, activities),
                 "stage_changes": rows_of(conn, stage_changes),
+                "users": rows_of(conn, users),
             }
     return rows_by_day[today]
 
@@ -205,3 +207,57 @@ def test_won_and_lost_columns_start_newest_first(seeded):
         column = sorted((row for row in seeded["deals"] if row.stage == stage), key=lambda row: row.position)
         dates = [row.close_date for row in column]
         assert dates == sorted(dates, reverse=True)
+
+
+TEAMMATE_IDS = {teammate.id for teammate in sample_data.TEAMMATES}
+RECORDS = ("organizations", "contacts", "deals", "activities")
+
+
+def test_the_four_made_up_teammates_with_robin_having_no_name(seeded):
+    assert {(row.name, row.email) for row in seeded["users"]} == {
+        ("Alex Rivera", "alex.rivera@accountable.example"),
+        ("Dana Whitfield", "dana.whitfield@accountable.example"),
+        ("Theo Brandt", "theo.brandt@accountable.example"),
+        (None, "robin@accountable.example"),
+    }
+    assert {row.id for row in seeded["users"]} == TEAMMATE_IDS
+
+
+def test_no_teammate_shares_a_name_with_a_sample_contact(seeded):
+    contact_words = {word for row in seeded["contacts"] for word in row.name.split()}
+    for teammate in sample_data.TEAMMATES:
+        assert not set((teammate.name or "").split()) & contact_words, teammate.name
+
+
+def test_every_record_and_stage_change_is_put_down_to_a_teammate(seeded):
+    for kind in RECORDS:
+        for row in seeded[kind]:
+            assert row.created_by in TEAMMATE_IDS, kind
+            assert row.updated_by in TEAMMATE_IDS, kind
+    assert {row.created_by for row in seeded["stage_changes"]} == TEAMMATE_IDS
+
+
+def test_each_teammate_added_some_of_each_kind(seeded):
+    for kind in RECORDS:
+        assert {row.created_by for row in seeded[kind]} == TEAMMATE_IDS, kind
+
+
+@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals"])
+def test_some_records_were_last_changed_by_another_teammate_since(seeded, kind):
+    changed = [row for row in seeded[kind] if row.updated_by != row.created_by]
+    assert len(changed) >= 5
+    assert all(row.updated_at > row.created_at for row in changed)
+
+
+@pytest.mark.parametrize("kind", RECORDS)
+def test_nothing_was_changed_before_it_was_added_or_after_today(seeded, kind):
+    limit = datetime.combine(seeded["today"] + timedelta(days=1), datetime.min.time()) + timedelta(hours=14)
+    for row in seeded[kind]:
+        assert row.created_at <= row.updated_at < limit
+
+
+@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals"])
+def test_records_nobody_changed_have_one_moment_for_both_times(seeded, kind):
+    unchanged = [row for row in seeded[kind] if row.updated_at == row.created_at]
+    assert unchanged
+    assert all(row.updated_by == row.created_by for row in unchanged)

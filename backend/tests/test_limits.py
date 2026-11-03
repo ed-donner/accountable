@@ -8,7 +8,7 @@ from accountable import db
 from accountable.crm.tables import activities, contacts, deals
 from conftest import TODAY, using_database
 from limits_data import fill
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 
 DASHBOARD_LIMIT_MS = 200
 LIST_LIMIT_MS = 400
@@ -66,3 +66,42 @@ def test_a_timeline_on_a_busy_organization_is_quick(full):
     elapsed = median_ms(full, f"/api/organizations/{organization}/timeline")
     print(f"timeline: {elapsed:.1f}ms")
     assert elapsed < LIST_LIMIT_MS
+
+
+# Each query is a round trip to the shared app's database, 80ms or more away, so
+# every screen's reads keep to a few, however many records there are.
+QUERIES = {
+    "/api/dashboard": 3,
+    "/api/organizations": 1,
+    "/api/contacts": 1,
+    "/api/deals": 1,
+    "/api/organizations/{organization}": 1,
+    "/api/contacts/{contact}": 1,
+    "/api/deals/{deal}": 1,
+    "/api/organizations/{organization}/timeline": 1,
+    "/api/contacts/{contact}/timeline": 1,
+    "/api/deals/{deal}/timeline": 1,
+}
+
+
+@pytest.mark.parametrize(("path", "most"), QUERIES.items())
+def test_a_screen_asks_the_database_only_a_few_times(api, make, path, most):
+    organization = make.organization()
+    contact = make.contact(organization_id=organization)
+    deal = make.deal(organization_id=organization, main_contact_id=contact)
+    make.deal("Another", organization_id=organization, main_contact_id=contact)
+    make.activity(deal_id=deal, follow_up_date=TODAY)
+    make.activity(contact_id=contact)
+    api.post(f"/api/deals/{deal}/move", json={"stage": "qualified"})
+
+    statements: list[str] = []
+
+    def count(_conn, _cursor, statement, *_rest) -> None:
+        statements.append(statement)
+
+    event.listen(db.engine(), "before_cursor_execute", count)
+    try:
+        assert api.get(path.format(organization=organization, contact=contact, deal=deal)).status_code == 200
+    finally:
+        event.remove(db.engine(), "before_cursor_execute", count)
+    assert len(statements) <= most, statements

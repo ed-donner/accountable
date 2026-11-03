@@ -87,9 +87,50 @@ Two fixes followed. The spec and this file said ui-check runs on the session's m
 
 ## Sign-in, search and a user menu: design
 
-On the `multi-user` branch, `docs/spec.md`, the area files and `docs/TECH_STACK.md` now describe Accountable with sign-in, search and the user menu in it, as it will be once the branch merges. Three area files are new: `sign-in.md`, `search.md` and `deploy.md`. Nothing is built yet, so the run instructions below still describe the app as it is on `main`.
+On the `multi-user` branch, `docs/spec.md`, the area files and `docs/TECH_STACK.md` now describe Accountable with sign-in, search and the user menu in it, as it will be once the branch merges. Three area files are new: `sign-in.md`, `search.md` and `deploy.md`.
 
 The build plan is in `docs/changes/multi-user/plan.md`. It splits the work into nine parts that share no files, in three phases: sign-in and the database, then search, then the user menu.
+
+## Sign-in, search and a user menu: build
+
+The build was done by an agent team, one agent per part of the plan, each editing only its own files, with the lead merging their work and keeping the spec and this file up to date.
+
+- **Phase 1, sign-in and the database:** done. `npm run check` passes, 2,587 tests, and the project owner walked the shared app on Supabase from `npm start`. The run instructions below describe the local copy's sign-in and how to set up the shared app.
+- **Phase 2, search:** done. `npm run check` passes, 2,830 tests. On Supabase, from `npm start`, the project owner searched with the same terms as the local copy and got the same results in the same order, and found the screens quicker after the queries were cut down: "all acceptable", with the Dashboard, at three queries, the slowest.
+- **Phase 3, the user menu:** done. `npm run check` passes, 2,856 tests. The menu under your initials holds the theme, Light, Dark or System, and Sign out, and the mode button, `lib/mode.ts` and `e2e/mode.spec.ts` are gone, replaced by `lib/theme.ts` and `e2e/menu.spec.ts`. Until the app knows who's signed in, or if it can't reach the backend, the button shows a person icon and the menu still offers the themes and Sign out. `.claude/agents/ui-check.md` now signs in by choosing a made-up teammate, switches the theme with the menu, and leaves search results to the end-to-end tests.
+- **Phase 4, finish:** built and checked, apart from three steps for the project owner below. The last `npm run check` passes, 2,857 tests. Its slow list names two frontend tests at 1.0 and 1.1 seconds, which take 310 and 378ms on their own: every unit layer runs at once in a full check.
+  - `npm run check` with the three Supabase settings in `.env` passes, and doesn't reach Supabase: its count of statements on the app's tables, read through the Supabase MCP server, was 1,607 before a run of the backend tests and 1,607 after.
+  - ui-check, on a copy from `npm run dev` with a temporary database, found nothing broken or off-brand on the sign-in screen, every page, the menu and the search box, in both modes, with no console errors and nothing loaded from outside.
+  - The reviewer found no Important problems. Two of its nits are fixed: pytest now refuses to start with any of the Supabase settings set, since a by-hand run would have pointed the tests at Postgres, and making the local signing key is locked, since two first requests on a new database could race and one get a 500.
+  - Known and left as they are: a key fetch that fails isn't rate-limited, so while Supabase is down a request naming an unseen key waits its full 10 seconds and others queue behind it, though it still refuses. Search fetches every match and keeps 5 in Python, fine locally but the heaviest call on Render at the limits. The search box always reports its list as open (`aria-expanded`), which is how cmdk works. "Last changed by … on Aug 28, 2026" can break inside the date. The Dashboard's "Deals won in November" heading wraps at 1280 wide. The tables' search boxes use the panel color, not the page color. Long emails in the Contacts table end in "…".
+  - Still to do: `npm run check` with `.env` moved aside, the local copy on a copy of the owner's own database, and a last look at the menu and Sign out on `npm start`.
+
+What Phase 1 added: the `users` table and who added and last changed every record, migration `0003`, Postgres through psycopg with the row-level security check, `settings.py` choosing the copy, the token check in `auth.py` for both copies, the local sign-in routes and four made-up teammates, the sign-in screen and session in the frontend, "Added by" and "Last changed by" on record pages and timelines, `npm start`, `render.yaml`, and a local environment for every other command that leaves out the Supabase settings.
+
+Changes to the plan and spec found during the build:
+
+- **Times on record pages:** R6 shows when a record was added and last changed, but the agreed replies carried only who. The organization, contact and deal replies now carry `created_at` and `updated_at` too, and a record counts as changed when the two differ. So an add sets both from one moment, and renumbering a column leaves the other cards' times alone. Records from before sign-in can have their two times a moment apart, so on those a difference under a second doesn't count. `docs/specs/backend.md` says so.
+- **What counts as a change (U10):** a save that alters nothing writes nothing, since the Edit dialogs send every field. A move within a column counts, and dropping a card back where it was doesn't.
+- **`settings.py`** is new, and `deals.value` is a 64-bit integer, because Postgres's `integer` stops at about $2.1 billion and the API accepts up to $1 trillion. Both are in the spec.
+- **Ids stop at 2,147,483,647,** the largest Postgres's `integer` holds. The API accepted ids up to 2^63, and on Postgres a bigger one would have been a 500. The frontend treats an address past the limit as a missing record without asking.
+- **Display names:** Supabase's docs don't say where the dashboard's Display name column comes from. The dashboard's own code takes the first of `name`, `displayName`, `display_name`, then `fullName` and `full_name`, from the person's user metadata, and the backend reads them in the same order.
+- **The 401 comes first:** the token check started as a FastAPI dependency, which runs after the body is read, so a request with no token and broken JSON got a 422. It's now a middleware, so every address under `/api` refuses anyone not signed in, whatever the body.
+- **`GET /me`** lives in `auth.py`, so `users.py` never imports it and the two don't import each other.
+- **Keys:** PyJWT drops Supabase's key set after 5 minutes by default (plan risk 5). The backend keeps it until a token names a key it hasn't seen, fetching at most once every 30 seconds.
+- **The slow-test list:** the spec said the summary at the end of `npm test` names any unit test that took a second or more, but it didn't. It does now. Two tests it found are being cut down: a timeline test from before this branch, and a new one that paid psycopg's first import.
+- **A save that fails in the shared app** now says to check the internet connection (N5), not that Accountable is still running.
+- **Tests that raced:** several end-to-end tests checked the API right after a move or tick shown on screen, with a wait that returns at once on a page that's already loaded. They failed under the load of a full run. They now wait for the save's reply. Two copy tests could leave a copy of the app holding its ports when they timed out, and now always stop it.
+- **Fewer queries (Phase 2):** each list, record page and timeline is now one query, and the Dashboard three, where Organizations had made 9 and Contacts and the Dashboard 5 each. Every reply is byte-for-byte what it was, checked on 1,524 replies, and `test_limits.py` caps the queries per call so they can't creep back. With the sign-in check and reads fixed in Phase 1, a screen costs about 2 round trips on Postgres, where it took 8 to 16 at the walk.
+- **Search (Phase 2):** one query answers all three kinds at once, so a keystroke costs one round trip. SQLAlchemy's `autoescape` can't go with `func.lower` on the search text, so `search.py` escapes `%` and `_` itself. SQLite's `lower` is replaced with Python's, so "ÉMILE" finds "émile" on both databases. While the next search loads, the last results stay on screen (K8, new).
+- **NUL in text (Phase 2):** Postgres can't store a NUL character in text, so any request body or search holding one was a 500 there, though SQLite stored it. Every text field and search's `q` now refuse it with a 422, and `test_every_route.py` sends one to every text field the app has.
+
+`TZ` is Europe/London, the team's time zone. The Supabase project is in us-east, so the Render region is `virginia`, beside it.
+
+The walk on Supabase so far, with `npm start` on this computer:
+
+- **Tables and row-level security:** the first start built every table with the sample data, and row-level security is on for all seven, `alembic_version` included, confirmed through the Supabase MCP server. The security advisors list the seven tables having row-level security with no policies, which is intended, since no policies shuts the Data API out, and suggest turning on leaked password protection in Supabase Auth. The performance advisors list only unused indexes on a database nobody has used yet.
+- **Nothing secret in the page:** `frontend/dist` holds the Supabase URL and the publishable key, and no database host or address. `gitleaks dir` finds nothing with `frontend/dist` in place (plan risk 9). The local signing key was tested separately and isn't flagged either.
+- **Slow from London:** every screen took about 5 seconds the first time, and a rename felt slow. The cause: each API call made 8 to 16 round trips to the database, one after another. The sign-in check took a connection of its own on every request just to read the `users` row, and every read paid for a BEGIN and a ROLLBACK. From London to us-east each round trip costs about 80 to 150ms. Inside Postgres, every query took under half a millisecond. The sign-in check now remembers each person in the process, and reads on Postgres skip the transaction. Render runs beside the database, where a round trip is 1 to 2ms. The region in `render.yaml` had been `frankfurt`, which would have made every query on Render cross the Atlantic too.
 
 ## Build progress
 
@@ -188,7 +229,10 @@ A third review of the `mvp` branch against `main` using `docs/REVIEW.md` found t
 
 ## Running Accountable
 
-This runs on your own computer, and nothing you enter leaves it.
+Accountable runs two ways:
+
+- **The local copy**, from `npm run dev`, runs on your own computer with made-up data and four made-up teammates. Nothing you enter leaves the computer.
+- **The shared app** is the team's Accountable, on Render, with its data in Supabase. Everyone signs in with their own email and password. `npm start` runs the same thing on your computer, against the same Supabase data. [The shared app](#the-shared-app) below says how to set it up.
 
 ### Install two things, once
 
@@ -197,7 +241,7 @@ This runs on your own computer, and nothing you enter leaves it.
 
 You'll also need Google Chrome, which is the one browser Accountable is tested with.
 
-### Start it
+### Start the local copy
 
 Open a terminal in this folder and run:
 
@@ -213,9 +257,11 @@ Accountable is running at http://localhost:5173
 
 Open that address in Chrome. Keep the terminal window open while you use Accountable.
 
+It opens on a sign-in screen listing four made-up teammates: Alex Rivera, Dana Whitfield, Theo Brandt and robin@accountable.example, who has no display name. Click one to sign in as them. There are no passwords, because everything here is made up and stays on this computer. Each record shows which teammate added it and who last changed it. The browser stays signed in through refreshes and restarts.
+
 If it says a port is in use, Accountable is probably already running in another window.
 
-The moon button at the top right, beside the date, switches to dark mode, and the sun switches back. This browser remembers your choice.
+The search box in the top bar finds organizations, contacts and deals by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme and Sign out. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -228,11 +274,82 @@ Accountable comes with made-up sample data so you can look around.
 - `npm run seed` replaces everything with fresh sample data.
 - `npm run empty` removes everything, so you can type in your own records.
 
-Both tell you what will be lost and only go ahead if you type `yes`. Both are safe with the app running: refresh the browser to see the result.
+Both tell you what will be lost and only go ahead if you type `yes`. Both are safe with the app running: refresh the browser to see the result. Both keep the four teammates, so there's still someone to sign in as. They only ever touch the local copy, never the team's data in Supabase.
 
 ### Back up your data
 
-Everything lives in one file, `data/accountable.db`. Copy that file somewhere safe to back it up. There's no undo, and nothing is backed up for you, so if the file is lost or this folder is deleted, your records go with it.
+The local copy keeps everything in one file, `data/accountable.db`. Copy that file somewhere safe to back it up. There's no undo, and nothing is backed up for you, so if the file is lost or this folder is deleted, your records go with it.
+
+Records added before sign-in existed show their dates with no name.
+
+### The shared app
+
+The shared app needs a free Supabase project, for the data and for signing in, and a free Render web service, to put it on the web. Set up Supabase first. The steps below use Supabase's dashboard at <https://supabase.com/dashboard>.
+
+#### Set up Supabase, once
+
+1. **Make a project.** Choose the region nearest your team, and keep the database password somewhere safe. Render will need to sit in a nearby region, so note it.
+2. **Turn on signing keys.** In Project Settings, open JWT Keys. If the current key is ECC (P-256) or RSA, it's already done. If it says the project uses the legacy JWT secret, click Migrate JWT secret, then Rotate keys. Accountable only accepts tokens signed with these keys, never the legacy secret.
+3. **Turn off sign-ups.** In Authentication, under Sign In / Providers, turn off Allow new users to sign up. People get in only when you add them.
+4. **Copy three settings into `.env`** in this folder, one per line:
+
+   ```
+   DATABASE_URL=postgresql://...
+   SUPABASE_URL=https://<project ref>.supabase.co
+   SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+   ```
+
+   `DATABASE_URL` comes from the Connect button at the top of the project: choose **Session pooler** and put your database password in place of `[YOUR-PASSWORD]`. If the password has characters like `@`, `:` or `/`, they need percent-encoding, so a password of letters and numbers is easier. Use the session pooler, on port 5432, not the direct connection: on the free plan the direct one only works over IPv6, and Render can't reach it. `SUPABASE_URL` and the publishable key are in Project Settings, under Data API and API Keys. The publishable key is safe in a web page. The secret key isn't, and Accountable never needs it.
+
+`.env` stays on your computer: git ignores it, and only `npm start` reads it. `npm run dev`, `npm test`, `npm run seed` and `npm run empty` leave those settings out, so they can't touch the team's data.
+
+#### Add a teammate
+
+1. In Authentication, under Users, click Add user, then Create new user. Enter their email and a password, and leave Auto Confirm User ticked. Give them the password yourself.
+2. Supabase's form has no name field, so set their display name in the SQL Editor:
+
+   ```sql
+   update auth.users
+   set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('display_name', 'Alex Rivera')
+   where email = 'alex@example.com';
+   ```
+
+   It shows in Supabase's Display name column straight away, and in Accountable once their sign-in next renews, within the hour, or when they sign in again. Without one, Accountable shows their email.
+
+To remove someone, delete them under Users. Their records keep their name.
+
+#### Run the shared app on this computer
+
+```
+npm start
+```
+
+This reads the three settings from `.env`, stops if any is missing and names it, builds the frontend, and runs the shared app at `http://localhost:8000` against Supabase. It needs an internet connection. Anything you do there is done to the team's real data. Ctrl+C stops it.
+
+The first start against an empty Supabase project builds the tables and fills them with the sample data, all or nothing. Every start checks that row-level security is on for every table, and stops if it isn't, because Supabase's public Data API could otherwise read them.
+
+#### Clear the sample data
+
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity and stage change, and leaves the people and the tables in place:
+
+```sql
+truncate table activities, stage_changes, deals, contacts, organizations;
+```
+
+New records carry on from the next id, so an old address never opens a different record. There's no undo.
+
+#### Put it on Render
+
+`render.yaml` describes the whole service, so Render needs only a few clicks. It deploys the `main` branch, so do this once this change is merged.
+
+1. **Check two lines in `render.yaml` first.** `region` must be the Render region nearest your Supabase project: `oregon`, `ohio`, `virginia`, `frankfurt` or `singapore`. Render can't move a service once it exists. `TZ` must be the team's time zone, such as `America/New_York`, because it decides what the app counts as today. They're set to Europe/London and `virginia`, for a Supabase project in us-east.
+2. In Render's dashboard, click New, then Blueprint, and connect this GitHub repository.
+3. Render reads `render.yaml` and asks for `DATABASE_URL`, `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Paste the same values as in `.env`. Render keeps them, and they never go in the file.
+4. Apply it. The first build takes a few minutes. The app is then at `https://accountable.onrender.com`, or a similar address if that name is taken, shown at the top of the service's page.
+
+After that, Render deploys `main` by itself each time CI passes on it, and never a commit whose CI failed. If a start fails, for example because row-level security is off on a table, Render keeps the last good version running.
+
+On the free plan, the app sleeps after 15 minutes without visits, and the next visit takes about a minute to wake it. Supabase pauses a free project after a week without use, and restoring it in Supabase's dashboard brings it back with its data.
 
 ### Not yet proven
 

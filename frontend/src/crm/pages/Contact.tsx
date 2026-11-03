@@ -12,7 +12,7 @@ import { DeleteContact } from "../forms/DeleteDialogs";
 import { useContact } from "../queries";
 import { StageChip, StatusChip } from "../StageChip";
 import { Timeline } from "../Timeline";
-import { Detail, LinkedList, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
+import { AddedAndChanged, Detail, LinkedList, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
 
 export function Contact() {
   const id = recordId(useParams().id);
@@ -69,6 +69,7 @@ function ContactRecord({ id }: { id: number }) {
                   {record.phone ? <span className="num text-[13px]">{record.phone}</span> : NONE}
                 </Detail>
               </dl>
+              <AddedAndChanged record={record} />
             </SidePanel>
             <SidePanel
               title="Deals"

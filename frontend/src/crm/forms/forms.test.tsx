@@ -23,6 +23,10 @@ const ORGANIZATION: OrganizationDetail = {
   notes: null,
   contacts: [],
   deals: [],
+  created_at: "2026-10-12T12:00:00Z",
+  created_by: null,
+  updated_at: "2026-10-12T12:00:00Z",
+  updated_by: null,
 };
 const CONTACT: ContactDetail = {
   id: 11,
@@ -34,6 +38,10 @@ const CONTACT: ContactDetail = {
   organization_name: "Harbor & Pine",
   status: "lead",
   deals: [],
+  created_at: "2026-10-12T12:00:00Z",
+  created_by: null,
+  updated_at: "2026-10-12T12:00:00Z",
+  updated_by: null,
 };
 const DEAL: Deal = {
   id: 5,
@@ -58,6 +66,7 @@ const ENTRY: TimelineEntry = {
   follow_up_date: "2026-11-20",
   follow_up_done: true,
   about: { kind: "deal", id: 5, name: "Annual support" },
+  created_by: null,
 };
 
 type Case = {

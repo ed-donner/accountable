@@ -41,6 +41,7 @@ export default defineConfig({
       "date-fns",
       "sonner",
       "lucide-react",
+      "@supabase/supabase-js",
     ],
   },
   test: {

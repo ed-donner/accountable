@@ -10,7 +10,8 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 - **K4.** Results come in three groups, Organizations, Contacts and Deals, in that order, and a group with no matches is left out. Each group shows up to 5: names that start with the text come first, then the rest, each in alphabetical order. A group with more than 5 ends with "See all 12 contacts" (or the matching word), which opens that section's table with the same search (T4). The table also searches its other columns (T2), so it can show more than the group counted.
 - **K5.** Each result shows its name, with the part that matches in semibold, and one detail in muted ink: an organization's industry, a contact's organization, or a deal's organization. A deal also shows its stage chip after its name.
 - **K6.** The arrow keys move through the results, Enter opens the one highlighted, and clicking a result opens it too. Opening a result clears the box and closes the list. Escape closes the list, and a second Escape clears the box.
-- **K7.** With no matches, the list says "No organizations, contacts or deals match "harbour"." If the search fails, it says "Couldn't search. Try again." and keeps what was typed. A lost connection shows the message in N5 as usual.
+- **K7.** With no matches, the list says "No organizations, contacts or deals match "harbour"." If the search fails, it says "Couldn't search. Try again." and keeps what was typed, and clicking the box or pressing the down arrow tries again. A lost connection shows the message in N5 as usual, and adds nothing to the list.
+- **K8.** While the next search loads, the last results stay on screen, so the list doesn't flicker as you type. Clearing the box drops them. The box takes up to 100 characters, the longest search the API accepts. The backend answers each search with one query, all three kinds at once, so a keystroke costs one round trip to the database.
 
 ## Screens
 

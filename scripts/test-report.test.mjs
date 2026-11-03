@@ -25,6 +25,26 @@ describe("readPytest", () => {
       "backend.tests.test_broken",
     ]);
   });
+
+  it("lists the tests that took a second or more, slowest first, whether they passed or not", () => {
+    const timed = [
+      '<testsuite name="pytest" errors="0" failures="1" skipped="0" tests="4" time="4.0">',
+      '<testcase classname="backend.tests.test_auth" name="test_quick" time="0.999" />',
+      '<testcase classname="backend.tests.test_auth" name="test_keys" time="1.000" />',
+      '<testcase classname="backend.tests.test_auth" name="test_slow_failure" time="2.500"><failure message="no">details</failure></testcase>',
+      '<testcase classname="backend.tests.test_search" name="test_pause[a&amp;b]" time="1.250" />',
+      "</testsuite>",
+    ].join("");
+    expect(readPytest(timed).slow).toEqual([
+      { name: "backend.tests.test_auth::test_slow_failure", ms: 2500 },
+      { name: "backend.tests.test_search::test_pause[a&b]", ms: 1250 },
+      { name: "backend.tests.test_auth::test_keys", ms: 1000 },
+    ]);
+  });
+
+  it("lists none when every test is quick", () => {
+    expect(readPytest(xml).slow).toEqual([]);
+  });
 });
 
 describe("readVitest", () => {
@@ -57,7 +77,33 @@ describe("readVitest", () => {
       failed: 1,
       skipped: 2,
       failures: ["frontend/src/a.test.ts > a breaks"],
+      slow: [],
     });
+  });
+
+  it("lists the tests that took a second or more, slowest first, by file and name", () => {
+    const timed = {
+      ...report,
+      testResults: [
+        {
+          name: "/project/frontend/src/a.test.ts",
+          status: "passed",
+          assertionResults: [
+            { status: "passed", fullName: "a is quick", duration: 999.9 },
+            { status: "passed", fullName: "a waits", duration: 1000 },
+          ],
+        },
+        {
+          name: "/project/frontend/src/b.test.ts",
+          status: "failed",
+          assertionResults: [{ status: "failed", fullName: "b times out", duration: 5000.4 }],
+        },
+      ],
+    };
+    expect(readVitest(JSON.stringify(timed), root).slow).toEqual([
+      { name: "frontend/src/b.test.ts > b times out", ms: 5000.4 },
+      { name: "frontend/src/a.test.ts > a waits", ms: 1000 },
+    ]);
   });
 
   it("counts a file that couldn't load, which has no tests of its own to fail", () => {
@@ -170,6 +216,51 @@ describe("summarize", () => {
     const { passed, text } = summarize([{ ...backend, results: { ...backend.results, skipped: 2 } }], 5000);
     expect(passed).toBe(true);
     expect(text).toContain("331 passed, 2 skipped");
+  });
+
+  describe("unit tests that took a second or more", () => {
+    const frontend = {
+      name: "Frontend",
+      code: 0,
+      ms: 21_000,
+      runsTests: true,
+      results: { passed: 757, failed: 0, skipped: 0, failures: [] },
+    };
+    const slow = (layer, tests) => ({ ...layer, results: { ...layer.results, slow: tests } });
+    const layers = [
+      typeCheck,
+      slow(backend, [{ name: "backend.tests.test_auth::test_keys", ms: 1500 }]),
+      slow(frontend, [
+        { name: "frontend/src/crm/Search.test.tsx > waits for the pause", ms: 2340 },
+        { name: "frontend/src/App.test.tsx > opens the page", ms: 1000 },
+      ]),
+      browser,
+    ];
+
+    it("lists every one under the table, slowest first, by layer, file and name", () => {
+      const lines = summarize(layers, 72_000).text.split("\n");
+      const heading = lines.indexOf("Unit tests that took a second or more");
+      expect(heading).toBeGreaterThan(lines.indexOf("Summary"));
+      expect(lines.slice(heading + 1, heading + 4)).toEqual([
+        "   2.3s  Frontend: frontend/src/crm/Search.test.tsx > waits for the pause",
+        "   1.5s  Backend: backend.tests.test_auth::test_keys",
+        "   1.0s  Frontend: frontend/src/App.test.tsx > opens the page",
+      ]);
+    });
+
+    it("doesn't change whether the run passes, or its last line", () => {
+      const { passed, text } = summarize(layers, 72_000);
+      expect(passed).toBe(true);
+      expect(text.trimEnd().split("\n").at(-1)).toBe("All 1194 tests passed in 1m 12s.");
+
+      const failed = summarize([layers[0], failing(layers[1], ["test_x"]), layers[2]], 72_000);
+      expect(failed.passed).toBe(false);
+      expect(failed.text).toContain("Unit tests that took a second or more");
+    });
+
+    it("leaves the list out when every unit test was quick", () => {
+      expect(summarize([typeCheck, slow(backend, []), browser], 5000).text).not.toContain("a second or more");
+    });
   });
 
   it("keeps a long list of failures short", () => {

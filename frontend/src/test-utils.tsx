@@ -8,6 +8,7 @@ import { vi } from "vitest";
 import { queryDefaults } from "./App";
 import { STAGES } from "./crm/deals";
 import type { Stage } from "./crm/queries";
+import { SESSION_KEY } from "./lib/session";
 
 export const META = {
   stages: [
@@ -49,6 +50,15 @@ export function mockApi(routes: Record<string, unknown | Handler>): Call[] {
     });
   });
   return calls;
+}
+
+/**
+ * Starts the test signed in to the local copy, the way a tab does when another tab
+ * signs in. mockApi takes any token. test-setup.ts signs out after each test.
+ */
+export function startSignedIn(token = "test-token") {
+  localStorage.setItem(SESSION_KEY, token);
+  window.dispatchEvent(new StorageEvent("storage", { key: SESSION_KEY }));
 }
 
 export function renderApp(ui: ReactNode) {

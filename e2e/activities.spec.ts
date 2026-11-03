@@ -1,12 +1,36 @@
-import type { Page } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { addActivity, addLinkedDeal, isoDay, resetToSampleData } from "./helpers";
+import {
+  addActivity,
+  addLinkedDeal,
+  card,
+  column,
+  dropAtEnd,
+  isoDay,
+  resetToSampleData,
+  SIGNED_IN,
+  signInAs,
+} from "./helpers";
 
 test.beforeAll(resetToSampleData);
 
 function entries(page: Page) {
   return page.getByTestId("timeline-entry");
+}
+
+function isTickSaved(reply: Response, id: number) {
+  return reply.request().method() === "PATCH" && new URL(reply.url()).pathname === `/api/activities/${id}`;
+}
+
+/**
+ * A tick shows before it's saved, so a reload or a new page straight after it could
+ * cancel the save. This waits until the backend has it.
+ */
+async function savedTick(page: Page, id: number, tick: () => Promise<void>) {
+  const saved = page.waitForResponse((reply) => isTickSaved(reply, id));
+  await tick();
+  expect((await saved).ok(), "tick saved").toBe(true);
 }
 
 async function logActivity(page: Page, description: string, type = "note", followUp?: string) {
@@ -86,6 +110,33 @@ test("a stage change shows on the deal, contact and organization timelines", asy
     await page.goto(path);
     await expect(entries(page).filter({ hasText: wording })).toHaveCount(1);
   }
+});
+
+test("each logged activity shows who logged it", async ({ page, request }) => {
+  const { deal } = await addLinkedDeal(request, "Whose words");
+  await page.goto(`/deals/${deal.id}`);
+  await logActivity(page, "Asked about the budget");
+
+  await signInAs(page, "teammate-dana-whitfield");
+  await logActivity(page, "Sent the price list");
+
+  await expect(entries(page).filter({ hasText: "Asked about the budget" })).toContainText(`by ${SIGNED_IN.name}`);
+  await expect(entries(page).filter({ hasText: "Sent the price list" })).toContainText("by Dana Whitfield");
+});
+
+test("a deal moved on the board shows who moved it on the deal's timeline", async ({ page, request }) => {
+  const { deal } = await addLinkedDeal(request, "Whose move");
+  await page.goto("/pipeline");
+  await signInAs(page, "teammate-dana-whitfield");
+  await expect(card(page, "Whose move")).toBeVisible();
+
+  const moved = page.waitForResponse((reply) => reply.url().endsWith(`/api/deals/${deal.id}/move`));
+  await dropAtEnd(page, "Whose move", "qualified");
+  expect((await moved).ok()).toBe(true);
+  await expect(column(page, "qualified").locator('[data-deal="Whose move"]')).toBeVisible();
+
+  await page.goto(`/deals/${deal.id}`);
+  await expect(entries(page).filter({ hasText: "Moved from New to Qualified" })).toContainText("by Dana Whitfield");
 });
 
 test("a stage change shows in recent activity", async ({ page, request }) => {
@@ -252,12 +303,16 @@ test("the delete dialog names the activity, and copes with a long one", async ({
 
 test("a follow-up can be ticked done on the dashboard, leaving it but not the timeline", async ({ page, request }) => {
   const { deal } = await addLinkedDeal(request, "Tick on dashboard");
-  await addActivity(request, { deal_id: deal.id, description: "Ring them back", follow_up_date: isoDay(-40) });
+  const ringBack = await addActivity(request, {
+    deal_id: deal.id,
+    description: "Ring them back",
+    follow_up_date: isoDay(-40),
+  });
 
   await page.goto("/");
   const row = page.getByTestId("follow-up").filter({ hasText: "Ring them back" });
   await expect(row).toHaveCount(1);
-  await row.getByRole("checkbox").click();
+  await savedTick(page, ringBack.id, () => row.getByRole("checkbox").click());
   await expect(row).toHaveCount(0);
 
   await page.reload();
@@ -272,11 +327,15 @@ test("a follow-up can be ticked done on the dashboard, leaving it but not the ti
 
 test("a follow-up can be ticked and unticked on a timeline", async ({ page, request }) => {
   const { deal } = await addLinkedDeal(request, "Tick on timeline");
-  await addActivity(request, { deal_id: deal.id, description: "Send the deck", follow_up_date: isoDay(2) });
+  const sendDeck = await addActivity(request, {
+    deal_id: deal.id,
+    description: "Send the deck",
+    follow_up_date: isoDay(2),
+  });
 
   await page.goto(`/deals/${deal.id}`);
   const entry = entries(page).filter({ hasText: "Send the deck" });
-  await entry.getByRole("checkbox").click();
+  await savedTick(page, sendDeck.id, () => entry.getByRole("checkbox").click());
   await expect(entry).toContainText("Done");
 
   await page.goto("/");
@@ -284,7 +343,7 @@ test("a follow-up can be ticked and unticked on a timeline", async ({ page, requ
   await expect(page.getByTestId("follow-up").filter({ hasText: "Send the deck" })).toHaveCount(0);
 
   await page.goto(`/deals/${deal.id}`);
-  await entry.getByRole("checkbox").click();
+  await savedTick(page, sendDeck.id, () => entry.getByRole("checkbox").click());
   await expect(entry.getByText("Done", { exact: true })).toHaveCount(0);
 
   await page.goto("/");
@@ -294,7 +353,11 @@ test("a follow-up can be ticked and unticked on a timeline", async ({ page, requ
 test("two quick ticks each stay gone from the dashboard", async ({ page, request }) => {
   const { deal } = await addLinkedDeal(request, "Two ticks");
   await addActivity(request, { deal_id: deal.id, description: "Quick tick one", follow_up_date: isoDay(2) });
-  await addActivity(request, { deal_id: deal.id, description: "Quick tick two", follow_up_date: isoDay(2) });
+  const two = await addActivity(request, {
+    deal_id: deal.id,
+    description: "Quick tick two",
+    follow_up_date: isoDay(2),
+  });
   await page.route(
     (url) => /\/api\/activities\/\d+$/.test(url.pathname),
     async (route) => {
@@ -316,10 +379,18 @@ test("two quick ticks each stay gone from the dashboard", async ({ page, request
     }, 5);
   });
 
+  // Ticks are saved one at a time, so the second is saved last. A row coming back would
+  // show by the time the dashboard has been read again after it.
+  let lastSaved = false;
+  const readAfterLastSave = page.waitForResponse((reply) => {
+    if (isTickSaved(reply, two.id) && reply.ok()) lastSaved = true;
+    return lastSaved && reply.request().method() === "GET" && new URL(reply.url()).pathname === "/api/dashboard";
+  });
+
   await row("Quick tick one").getByRole("checkbox").click();
   await row("Quick tick two").getByRole("checkbox").click();
   await expect(page.getByTestId("follow-up").filter({ hasText: "Quick tick" })).toHaveCount(0);
-  await page.waitForLoadState("networkidle");
+  await readAfterLastSave;
 
   expect(await page.evaluate(() => (window as unknown as { rowsSeen: number[] }).rowsSeen)).toEqual([2, 1, 0]);
 });

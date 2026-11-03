@@ -53,7 +53,7 @@ Stage changes also have `created_by`, for who moved the deal (U11).
 | organization_id | foreign key | set to blank when the organization is deleted |
 | main_contact_id | foreign key | set to blank when the contact is deleted |
 | stage | text | one of the six stages |
-| value | integer | whole US dollars, 0 or more |
+| value | 64-bit integer | whole US dollars, 0 or more. Postgres's `integer` stops at about $2.1 billion, and the API accepts up to $1 trillion |
 | probability | integer | 0 to 100 |
 | close_date | date | expected if open, actual if closed |
 | position | integer | place in its column, lowest at the top |
@@ -85,13 +85,13 @@ Stage changes get their own table because they aren't activities: they have no t
 Notes:
 
 - **Links:** required links are enforced by the API, not the database, because deletes have to be able to blank them. The database columns allow blank.
-- **Which database:** `db.py` uses SQLite at `data/accountable.db` in the local copy and Postgres at `DATABASE_URL` in the shared app (C8). Everything specific to either one stays in `db.py` and the migrations.
+- **Which database:** `db.py` uses SQLite at `data/accountable.db` in the local copy and Postgres at `DATABASE_URL` in the shared app (C8). Everything specific to either one stays in `db.py` and the migrations. Postgres connections are checked before each use, because Render's sleep leaves dead ones in the pool, the pool holds at most 5, to stay within the session pooler's limit, and connecting gives up after 10 seconds, so a start can't hang on an unreachable Supabase. Reads on Postgres run in autocommit, with no BEGIN or ROLLBACK: its default isolation gives each query its own snapshot anyway, so a read transaction would only add round trips, and from far away each one costs 80ms or more. Writes are still one transaction each.
 - **New database:** in the local copy, a first start builds the database under a temporary name and renames it once the migrations and sample data are done, so an interrupted first start can't leave an empty database behind. In the shared app, a database with none of the app's tables is new, and the first start builds the tables and adds the sample data in one transaction, which Postgres can roll back whole.
 - **Ids:** never used twice, so an old address can't open a different record. SQLite would otherwise give the newest record's id to the next one after a delete. Every table gets `TABLE_OPTIONS` from `db.py`. Postgres never reuses an id, so it needs nothing extra. Users keep the id Supabase gave them.
 - **Foreign keys:** SQLite turns these off by default. They're turned on for each connection with `connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_FKEY, True)` in a SQLAlchemy connect event. This keeps to the "no raw SQL" rule, and it has been checked on Python 3.12. Postgres always enforces them.
 - **Migrations:** these run when the backend starts, all in one transaction, on both databases. On SQLite they run with foreign keys off, because SQLite makes most table changes by rebuilding the table, and dropping the old table with foreign keys on would run its delete rules, blanking links and deleting activities. Steps that only SQLite needs, such as those rebuilds, are skipped on Postgres, where Postgres can change a table in place. Every migration, the first ones included, runs from an empty database on both, so a new Supabase project gets the whole history.
 - **Row-level security:** on Postgres, the migrations turn on row-level security for every table, Alembic's version table included, with no policies ([Security](security.md#the-database)). SQLAlchemy has no way to say this, so it's the one place the migrations use raw SQL, and it runs only on Postgres.
-- **Row-level security check:** on Postgres, once the migrations have run, the backend reads Postgres's catalog through SQLAlchemy Core and refuses to start if any table in the `public` schema has row-level security off. The message names each one, such as "Row-level security is off for these tables: notes. Turn it on in a migration." That catches a later migration that forgot, and a table added in Supabase's dashboard. The check lives in `db.py`.
+- **Row-level security check:** on Postgres, once the migrations have run, the backend reads Postgres's catalog through SQLAlchemy Core and refuses to start if any table in the `public` schema has row-level security off. It runs inside the migrations' transaction, so a start that fails it changes nothing. The message names each one, such as "Row-level security is off for these tables: notes. Turn it on in a migration." That catches a later migration that forgot, and a table added in Supabase's dashboard. The check lives in `db.py`.
 - **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)` and `stage_changes (changed_at)`.
 - **Times:** stored in UTC with no time zone, on both databases, so the API always sends times with a `Z`. Otherwise the browser would read a UTC time as local.
 - **Search:** case is ignored the same way on both databases (K2). SQLite's own `lower()` only knows the letters A to Z, so `db.py` gives SQLite a lowercase function that knows every language, and matching uses it on both sides of the comparison.
@@ -108,7 +108,7 @@ Notes:
 4. On Won, set the main contact's status to customer, if there is a main contact.
 5. Put the deal at the top of the new column, unless this request gave a place.
 
-The function takes today's date and the person making the change as arguments, so tests can fix them. It records that person on the `stage_changes` row, on the deal, and on the main contact if step 4 changes their status (U10). The backend's today is the date in the zone set by `TZ`, which `render.yaml` sets to the team's zone, or the computer's own zone without it.
+The function takes today's date and the person making the change as arguments, so tests can fix them. It records that person on the `stage_changes` row, on the deal, and on the main contact if step 4 changes their status (U10). The backend's today is the date in the zone set by `TZ`, which `render.yaml` sets to the team's zone, or the computer's own zone without it, or with a value that isn't a zone name, which the computer's own clock then reads as it can.
 
 Adding a deal at Won uses step 4 and writes no `stage_changes` row. Moving a card renumbers the target column in the same transaction. With a few hundred rows at most, this is simple and quick enough, and no fractional position scheme is needed. Renumbering leaves the other cards' `updated_at` and `updated_by` alone.
 
@@ -122,7 +122,7 @@ Reset and empty delete rows inside a transaction and leave the file and tables i
 
 ## API
 
-All routes are under `/api` and use JSON. Every route needs a valid token in the `Authorization` header, and refuses with 401 without one ([Security](security.md#signing-in)). Validation errors return 422 with a message per field, and a missing record returns 404. An id that couldn't be a record, such as one too large for SQLite, is a validation error, and so is text with no valid encoding.
+All routes are under `/api` and use JSON. Every route needs a valid token in the `Authorization` header, and refuses with 401 without one ([Security](security.md#signing-in)). Validation errors return 422 with a message per field, and a missing record returns 404. An id that couldn't be a record, such as one past 2,147,483,647, the largest Postgres's `integer` holds, is a validation error, and the frontend treats such an address as a missing record without asking, and so is text with no valid encoding, or with a NUL character, which Postgres can't store though SQLite can.
 
 | Method and path | Purpose |
 |---|---|
@@ -153,7 +153,7 @@ The local copy also has these two, which need no token and which the shared app 
 
 Signing in to the shared app goes from the browser straight to Supabase Auth, so it has no route here.
 
-The single-record replies for organizations, contacts and deals carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in. Timeline entries carry `created_by` the same way. Names follow U8.
+The single-record replies for organizations, contacts and deals carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way. Names follow U8. A record counts as changed since it was added when its `updated_at` differs from its `created_at`, so an add sets both from one moment, and the changes the app makes around a save, such as renumbering a column, leave the other records' `updated_at` alone as well as their `updated_by` (U10, R6). Records from before sign-in, with no one recorded, can have their two times a moment apart, so on those the record pages treat a difference under a second as no change.
 
 The list routes return every row, and the table does its searching, sorting and paging in the browser. At these limits that's small and quick, and it makes typing in the search box feel instant.
 

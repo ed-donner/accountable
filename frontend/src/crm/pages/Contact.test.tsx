@@ -8,6 +8,11 @@ import { META, mockApi, user } from "../../test-utils";
 import type { ContactDetail, TimelineEntry } from "../queries";
 import { Contact } from "./Contact";
 
+const ALEX = { id: "alex", name: "Alex Rivera" };
+const DANA = { id: "dana", name: "Dana Whitfield" };
+const ADDED = "2026-10-12T12:00:00Z";
+const CHANGED = "2026-10-30T12:00:00Z";
+
 const SAM: ContactDetail = {
   id: 11,
   name: "Sam Carter",
@@ -18,6 +23,10 @@ const SAM: ContactDetail = {
   organization_name: "Harbor & Pine",
   status: "qualified",
   deals: [{ id: 5, name: "Annual support", stage: "proposal", value: 36000, close_date: "2026-12-18" }],
+  created_at: ADDED,
+  created_by: ALEX,
+  updated_at: CHANGED,
+  updated_by: DANA,
 };
 
 const BLANK: ContactDetail = {
@@ -39,6 +48,7 @@ const CALL: TimelineEntry = {
   follow_up_date: null,
   follow_up_done: false,
   about: { kind: "contact", id: 11, name: "Sam Carter" },
+  created_by: ALEX,
 };
 
 const TIMELINE = "GET /contacts/11/timeline?limit=50&offset=0";
@@ -77,6 +87,13 @@ async function showSam(contact = SAM, routes: Record<string, unknown> = {}) {
 
 function panel(name: string) {
   return within(screen.getByRole("region", { name }));
+}
+
+/** The lines at the foot of the details panel saying who added and changed the record. */
+function whoLines() {
+  return panel("Details")
+    .queryAllByText(/^(Added|Last changed)\b/)
+    .map((line) => line.textContent);
 }
 
 describe("a contact's page", () => {
@@ -127,6 +144,27 @@ describe("a contact's page", () => {
   it("says when nothing has been logged yet", async () => {
     await showSam();
     expect(await panel("Timeline").findByText("Nothing logged yet.")).toBeTruthy();
+  });
+});
+
+describe("who added and changed a contact", () => {
+  it("says who added them and who last changed them, and when", async () => {
+    await showSam();
+    expect(whoLines()).toEqual([
+      "Added by Alex Rivera on Oct 12, 2026",
+      "Last changed by Dana Whitfield on Oct 30, 2026",
+    ]);
+  });
+
+  it("shows the date alone for a contact from before sign-in that nobody has changed", async () => {
+    await showSam({ ...SAM, created_by: null, updated_at: ADDED, updated_by: null });
+    expect(whoLines()).toEqual(["Added Oct 12, 2026"]);
+  });
+
+  it("shows who logged an activity on the timeline", async () => {
+    await showSam(SAM, { [TIMELINE]: { entries: [CALL], total: 1 } });
+    const entry = (await panel("Timeline").findByText("Talked through the renewal")).closest("li")!;
+    expect(entry.textContent).toMatch(/Oct 30, \d+:20 [AP]M by Alex Rivera/);
   });
 });
 

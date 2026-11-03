@@ -5,7 +5,7 @@ from datetime import date
 from typing import Any
 
 from fastapi import APIRouter
-from sqlalchemy import and_, select
+from sqlalchemy import Subquery, and_, case, func, select, union_all
 
 from accountable import db
 from accountable.crm import rules, schemas, timeline
@@ -41,22 +41,35 @@ def month_series(won: Iterable[Any], today: date) -> list[schemas.MonthFigures]:
     return months
 
 
-def funnel(all_deals: Sequence[Any], changes: Iterable[Any]) -> list[schemas.FunnelStage]:
+RANK = {stage: place for place, stage in enumerate(FUNNEL_STAGES)}
+
+
+def _furthest_in_history() -> Subquery:
+    """Each deal's furthest funnel stage among its stage changes, as a place in FUNNEL_STAGES.
+
+    Lost has no place, so it counts for nothing here.
+    """
+    stages = union_all(
+        select(stage_changes.c.deal_id, stage_changes.c.from_stage.label("stage")),
+        select(stage_changes.c.deal_id, stage_changes.c.to_stage),
+    ).subquery()
+    return (
+        select(stages.c.deal_id, func.max(case(RANK, value=stages.c.stage)).label("place"))
+        .group_by(stages.c.deal_id)
+        .subquery()
+    )
+
+
+def funnel(all_deals: Sequence[Any]) -> list[schemas.FunnelStage]:
     """Value that has reached each stage, from each deal's furthest stage so far.
 
     The history is what counts, so moving back removes nothing. Being lost isn't
     a step: a lost deal counts up to the furthest stage it reached before that.
     """
-    rank = {stage: place for place, stage in enumerate(FUNNEL_STAGES)}
-    furthest = {deal.id: rank.get(deal.stage, 0) for deal in all_deals}
-    for change in changes:
-        for stage in (change.from_stage, change.to_stage):
-            if stage in rank:
-                furthest[change.deal_id] = max(furthest[change.deal_id], rank[stage])
-
     reached = [0] * len(FUNNEL_STAGES)
     for deal in all_deals:
-        for place in range(furthest[deal.id] + 1):
+        furthest = max(RANK.get(deal.stage, 0), deal.furthest_before or 0)
+        for place in range(furthest + 1):
             reached[place] += deal.value
 
     return [
@@ -106,12 +119,17 @@ def follow_ups(conn, today: date) -> schemas.FollowUps:
 
 @router.get("/dashboard")
 def dashboard(today: schemas.Today, now: schemas.Now) -> schemas.Dashboard:
+    history = _furthest_in_history()
     with db.reading() as conn:
         all_deals = conn.execute(
-            select(deals.c.id, deals.c.stage, deals.c.value, deals.c.probability, deals.c.close_date)
-        ).all()
-        changes = conn.execute(
-            select(stage_changes.c.deal_id, stage_changes.c.from_stage, stage_changes.c.to_stage)
+            select(
+                deals.c.id,
+                deals.c.stage,
+                deals.c.value,
+                deals.c.probability,
+                deals.c.close_date,
+                history.c.place.label("furthest_before"),
+            ).outerjoin(history, history.c.deal_id == deals.c.id)
         ).all()
         waiting = follow_ups(conn, today)
         recent = timeline.recent(conn, now, RECENT)
@@ -142,7 +160,7 @@ def dashboard(today: schemas.Today, now: schemas.Now) -> schemas.Dashboard:
             )
             for stage in rules.OPEN_STAGES
         ],
-        funnel=funnel(all_deals, changes),
+        funnel=funnel(all_deals),
         follow_ups=waiting,
         recent=recent,
     )

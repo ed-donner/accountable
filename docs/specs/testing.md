@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Testing
 
-`npm test` runs the type checks, tsc on the frontend, because Vite doesn't check types, and ty on the backend, then all three layers, and uses databases of its own. `scripts/checks.mjs` picks the database path once and passes it down. Pytest and Playwright refuse to start without it, or with a path inside `data/`, so a test can never wipe real data.
+`npm test` runs the type checks, tsc on the frontend, because Vite doesn't check types, and ty on the backend, then all three layers, and uses databases of its own. `scripts/checks.mjs` picks the database path once and passes it down. Pytest and Playwright refuse to start without it, or with a path inside `data/`, so a test can never wipe real data. Pytest also refuses if any of the three Supabase settings is set, so a by-hand `uv run pytest` can't reach the team's data either.
 
 Every test runs as the local copy, on SQLite. The checks never read `.env`, and pass down an environment without the three Supabase settings (C9), so no test can reach Supabase, whether the settings are in `.env` or not, and CI needs no secrets. Where a test needs Supabase, such as the shared app's token check, it stands in for it.
 
@@ -21,7 +21,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Sample data meets every line of M3, including when seeded on the 1st of a month, and M7
 - An emptied database stays empty after a restart
 - Migrations build the same tables as `tables.py`
-- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps and turn on row-level security for every table, Alembic's own included
+- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value` a `bigint` and turn on row-level security for every table, Alembic's own included
 - The startup check for row-level security, given a list of tables with it on and off, refuses to start and names each table that has it off
 - Every route the app has gets the security and bad-input checks, taken from the app's own list of routes. That includes refusing a request with no token, an expired one, one signed with another key and one issued for something other than a signed-in user, in the local copy and in the shared app
 - The shared app's token check against a stand-in for Supabase's public keys, made in the test: a good token, a key it hasn't seen, and keys that can't be fetched
@@ -79,25 +79,25 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 
 | Area | Requirements | Tests |
 |---|---|---|
-| Start and land on the dashboard | C1, C2, N1 to N5, M1 to M5, M7 | `e2e/start.spec.ts` |
+| Start and land on the dashboard, signed in through a restart | C1, C2, C9, N1 to N5, M1 to M5, M7, U15 | `e2e/start.spec.ts` |
 | Tables, forms, delete, reset, empty | T1 to T9, F1 to F9, D1 to D3, C3 to C6 | `e2e/records.spec.ts`, `e2e/data.spec.ts` |
 | Filter and record pages | T6, R1 to R5 | `e2e/records.spec.ts` |
 | Pipeline | P1 to P9, S1 to S6 | `e2e/pipeline.spec.ts` |
 | Activities and timelines | A1 to A5, S2, H6 | `e2e/activities.spec.ts` |
 | Dashboard figures | H1 to H8, S1 | `e2e/dashboard.spec.ts` |
 | Five answers, two clicks | H9 | `e2e/problem.spec.ts`, then by hand, below |
-| The menu and the theme | N7, L1 to L4 | `e2e/menu.spec.ts`, which replaces `e2e/mode.spec.ts` |
+| The menu and the theme | N7, L1 to L4 | `e2e/menu.spec.ts`, `frontend/src/lib/theme.test.ts`, `frontend/src/components/UserMenu.test.tsx` |
 | Signing in and out, and who added | U1, U4 to U7, U13 to U15, R6, A7, S2 | `e2e/sign-in.spec.ts`, `e2e/records.spec.ts`, `e2e/activities.spec.ts` |
-| Search | K1 to K7 | `e2e/search.spec.ts` |
+| Search | K1 to K8 | `e2e/search.spec.ts`, `backend/tests/test_search.py`, `frontend/src/crm/Search.test.tsx` |
 | Look and brand | Visual design, L5 | By hand, against the design reference and the dark mode screenshots |
 | Layout, console, keyboard, Chrome | N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
 | Speed at the limits | Q1 | `e2e/stress.spec.ts` |
 | Security | Security, U7, U16 | `e2e/security.spec.ts`, `backend/tests/test_every_route.py`, `backend/tests/test_security.py`, `backend/tests/test_auth.py` |
-| Which copy runs | C8 to C10 | `backend/tests/test_settings.py`, `scripts/setup.test.mjs` |
+| Which copy runs | C8 to C10 | `backend/tests/test_settings.py`, `scripts/setup.test.mjs`, `scripts/start.test.mjs` |
 | The shared app | U2, U3, W1 to W9, C10 | By hand, below |
 | When things go wrong | N4, N6, F10, F11, D1, P4 | `e2e/failures.spec.ts`, `frontend/src/crm/forms/forms.test.tsx`, `frontend/src/crm/queries.test.tsx` |
 | Layout rules | Layout rules | `backend/tests/test_layout.py`, `frontend/src/layout.test.ts` |
 
 **By hand:** tests can't settle everything. The app is also used in Chrome at 1440 by 900 and 1280 by 720 the way a salesperson would, including with an emptied database, after a restart and with the network off, and each screen is compared with the design reference, in light mode and dark mode. The project owner checks that someone with no instructions can answer the five questions from the dashboard (H9), and has the final say, including on how it looks. Passing tests is necessary, but it isn't enough.
 
-The shared app is checked by hand too, because no test touches Supabase. The project owner runs `npm start` against an empty Supabase database, which proves that every migration runs from empty on Postgres and that the startup check for row-level security passes. Then they sign in as their Supabase user, and goes through the change's success criteria: a wrong password, signing out, who added each record, search and the theme. Once `npm start` has built the tables, the coding agent uses the Supabase MCP server to confirm that row-level security is on for every table and to run Supabase's security advisors, reporting only. After the first deploy, the same checks run on the `onrender.com` address.
+The shared app is checked by hand too, because no test touches Supabase. The project owner runs `npm start` against an empty Supabase database, which proves that every migration runs from empty on Postgres and that the startup check for row-level security passes. Then they sign in as their Supabase user, and go through the change's success criteria: a wrong password, signing out, who added each record, search and the theme. Once `npm start` has built the tables, the coding agent uses the Supabase MCP server to confirm that row-level security is on for every table and to run Supabase's security advisors, reporting only. After the first deploy, the same checks run on the `onrender.com` address.

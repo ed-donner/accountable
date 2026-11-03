@@ -16,6 +16,17 @@ import {
   type Timeline,
 } from "./queries";
 
+// Supabase's client is never reached. This stand-in is enough for the shared app to be built and send a token.
+vi.mock("@supabase/supabase-js", async (original) => ({
+  ...(await original<typeof import("@supabase/supabase-js")>()),
+  createClient: () => ({
+    auth: {
+      onAuthStateChange: () => undefined,
+      getSession: async () => ({ data: { session: { access_token: "shared-token" } } }),
+    },
+  }),
+}));
+
 function deal(id: number, stage: Stage = "new"): Deal {
   return {
     id,
@@ -243,6 +254,7 @@ describe("ticks", () => {
       follow_up_date: "2999-01-02",
       follow_up_done: done,
       about: { kind: "deal" as const, id: 7, name: "Annual support" },
+      created_by: null,
     });
     return {
       pages: [
@@ -365,6 +377,34 @@ describe("ticks", () => {
     unmount();
 
     await waitFor(() => expect(calls.some((call) => call.method === "PATCH")).toBe(true));
+  });
+});
+
+describe("what a failed tick says", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function failedTick(useTick: typeof useTickFollowUp) {
+    const failure = vi.spyOn(toast, "error");
+    mockApi({ "PATCH /activities/1": FAILED });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useTick(), { wrapper });
+    act(() => result.current.mutate({ id: 1, done: true }));
+    await waitFor(() => expect(failure).toHaveBeenCalledOnce());
+    return failure.mock.calls[0][0];
+  }
+
+  it("says to check Accountable is running in the local copy", async () => {
+    expect(await failedTick(useTickFollowUp)).toBe("Couldn't save that. Check that Accountable is still running.");
+  });
+
+  it("says to check the internet in the shared app", async () => {
+    vi.resetModules();
+    vi.stubEnv("VITE_SUPABASE_URL", "https://team.supabase.co");
+    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    const shared = await import("./queries");
+    expect(await failedTick(shared.useTickFollowUp)).toBe("Couldn't save that. Check your internet connection.");
   });
 });
 

@@ -103,7 +103,7 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 |---|---|---|
 | [shell.md](specs/shell.md) | The top bar, addresses, missing pages, the connection message, failed reads, the menu, the theme, and the shell's screen | N1 to N7, L1 to L5 |
 | [sign-in.md](specs/sign-in.md) | Signing in and out, names and initials, who added and changed each record, the local copy's made-up teammates, and the sign-in screen | U1 to U16 |
-| [search.md](specs/search.md) | The top bar's search, and its screen | K1 to K7 |
+| [search.md](specs/search.md) | The top bar's search, and its screen | K1 to K8 |
 | [records.md](specs/records.md) | Organizations, contacts and deals: the tables, adding and editing, deleting, the record pages, and their screens | T1 to T10, F1 to F12, D1 to D3, R1 to R6 |
 | [deals.md](specs/deals.md) | Stage changes, the pipeline board and its screen | S1 to S9, P1 to P11 |
 | [activities.md](specs/activities.md) | Activities, follow-ups and timelines | A1 to A7 |

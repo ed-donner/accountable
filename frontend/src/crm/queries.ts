@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import { api } from "../lib/api";
 import { todayIso } from "../lib/dates";
+import { isSharedApp } from "../lib/session";
 import { useToday } from "../lib/useToday";
 import { applyMove, moveMessage, type Move } from "./deals";
 
@@ -28,6 +29,17 @@ export type Meta = {
 export type LinkedContact = { id: number; name: string; job_title: string | null; status: Status };
 export type LinkedDeal = { id: number; name: string; stage: Stage; value: number; close_date: string };
 
+/** A teammate, with the name already falling back to their email (U8). */
+export type Person = { id: string; name: string };
+
+/** Who added a record and who last changed it, and when. Nobody is recorded on records from before sign-in (U12). */
+export type Authorship = {
+  created_at: string;
+  created_by: Person | null;
+  updated_at: string;
+  updated_by: Person | null;
+};
+
 export type Organization = {
   id: number;
   name: string;
@@ -41,7 +53,7 @@ export type OrganizationRow = Organization & {
   open_value: number;
   last_activity: string | null;
 };
-export type OrganizationDetail = Organization & { contacts: LinkedContact[]; deals: LinkedDeal[] };
+export type OrganizationDetail = Organization & Authorship & { contacts: LinkedContact[]; deals: LinkedDeal[] };
 
 export type Contact = {
   id: number;
@@ -54,7 +66,7 @@ export type Contact = {
   status: Status;
 };
 export type ContactRow = Contact & { last_activity: string | null };
-export type ContactDetail = Contact & { deals: LinkedDeal[] };
+export type ContactDetail = Contact & Authorship & { deals: LinkedDeal[] };
 
 export type Deal = {
   id: number;
@@ -70,6 +82,7 @@ export type Deal = {
   close_date: string;
   position: number;
 };
+export type DealDetail = Deal & Authorship;
 export type MoveResult = { deal: Deal; changes: { close_date: string | null; new_customer: string | null } };
 
 export type About = { kind: "contact" | "deal"; id: number; name: string };
@@ -82,6 +95,8 @@ export type TimelineEntry = {
   follow_up_date: string | null;
   follow_up_done: boolean;
   about: About;
+  /** Who logged the activity, or moved the deal for a stage change. */
+  created_by: Person | null;
 };
 export type Timeline = { entries: TimelineEntry[]; total: number };
 
@@ -151,7 +166,7 @@ export function useDeals() {
 }
 
 export function useDeal(id: number) {
-  return useQuery({ queryKey: ["deals", id], queryFn: () => api<Deal>(`/deals/${id}`) });
+  return useQuery({ queryKey: ["deals", id], queryFn: () => api<DealDetail>(`/deals/${id}`) });
 }
 
 export function useDashboard() {
@@ -353,6 +368,11 @@ export function useMoveDeal() {
 
 const TICK_KEY = ["tick-follow-up"];
 
+/** The shared app is reached over the internet, and the local copy runs on this computer (N5). */
+const TICK_FAILED = isSharedApp
+  ? "Couldn't save that. Check your internet connection."
+  : "Couldn't save that. Check that Accountable is still running.";
+
 const timelines = { predicate: (query: Query) => query.queryKey[2] === "timeline" };
 
 function setTicked(client: QueryClient, id: number, done: boolean) {
@@ -408,7 +428,7 @@ export function useTickFollowUp() {
       setTicked(client, id, !done);
       const followUp = context?.followUp;
       if (followUp) setFollowUps(client, (items) => [...items, followUp].sort(byDueDate));
-      toast.error("Couldn't save that. Check that Accountable is still running.");
+      toast.error(TICK_FAILED);
     },
     onSettled: () => {
       if (client.isMutating({ mutationKey: TICK_KEY }) === 1) return client.invalidateQueries();

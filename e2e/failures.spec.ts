@@ -326,7 +326,7 @@ test.describe("addresses that lead nowhere", () => {
 
   for (const [folder, word, section] of SECTIONS) {
     test(`a ${word} address that can't be a record says so, with no error in the console`, async ({ page }) => {
-      for (const id of ["abc", "0", "-1", "1.5", "1e3", "0x10", "99999999999999999999", "%20"]) {
+      for (const id of ["abc", "0", "-1", "1.5", "1e3", "0x10", "2147483648", "99999999999999999999", "%20"]) {
         await page.goto(`/${folder}/${id}`);
         await expect(heading(page, `This ${word} no longer exists`), id).toBeVisible();
         await expect(page.getByRole("navigation", { name: "Sections" })).toBeVisible();

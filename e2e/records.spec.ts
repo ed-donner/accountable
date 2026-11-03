@@ -10,6 +10,8 @@ import {
   emptyDatabase,
   isoDay,
   resetToSampleData,
+  SIGNED_IN,
+  signInAs,
 } from "./helpers";
 
 function heading(page: Page, name: string) {
@@ -26,6 +28,11 @@ function bodyRows(page: Page) {
 
 function dialog(page: Page) {
   return page.getByRole("dialog");
+}
+
+/** Today's date as the record pages show it, such as Nov 3, 2026. */
+function today() {
+  return new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 test.describe("tables", () => {
@@ -296,7 +303,7 @@ test.describe("tables", () => {
     await page.getByRole("button", { name: "Add deal" }).click();
     await dialog(page).getByLabel("Name", { exact: true }).fill("From the picker");
 
-    await page.getByRole("combobox", { name: "Organization" }).click();
+    await page.getByRole("combobox", { name: "Organization", exact: true }).click();
     await page.getByPlaceholder("Search organizations").fill("Brand New Co");
     await expect(page.getByText("No organizations match.")).toBeVisible();
     await page.getByRole("option", { name: 'Add "Brand New Co"' }).click();
@@ -314,7 +321,7 @@ test.describe("tables", () => {
   test("Escape closes one layer at a time", async ({ page }) => {
     await page.goto("/deals");
     await page.getByRole("button", { name: "Add deal" }).click();
-    await page.getByRole("combobox", { name: "Organization" }).click();
+    await page.getByRole("combobox", { name: "Organization", exact: true }).click();
     await expect(page.getByPlaceholder("Search organizations")).toBeVisible();
 
     await page.keyboard.press("Escape");
@@ -329,7 +336,7 @@ test.describe("tables", () => {
     await page.goto("/deals");
     await page.getByRole("button", { name: "Add deal" }).click();
     await chooseInPicker(page, "Organization", "Lantern Hotels");
-    await page.getByRole("combobox", { name: "Main contact" }).click();
+    await page.getByRole("combobox", { name: "Main contact", exact: true }).click();
     const options = page.getByRole("listbox").getByRole("option");
     await expect(options.first()).toBeVisible();
     await expect(options.filter({ hasNotText: "Lantern Hotels" })).toHaveCount(0);
@@ -338,7 +345,7 @@ test.describe("tables", () => {
 
     await page.getByRole("button", { name: "Add deal" }).click();
     await chooseInPicker(page, "Main contact", "Noah Kim");
-    await expect(page.getByRole("combobox", { name: "Organization" })).toContainText("Saltmarsh Studio");
+    await expect(page.getByRole("combobox", { name: "Organization", exact: true })).toContainText("Saltmarsh Studio");
   });
 
   test("a blank link shows None and saves blank", async ({ page, request }) => {
@@ -350,8 +357,8 @@ test.describe("tables", () => {
     await expect(row(page, /Blank links/)).toContainText("None");
 
     await page.getByRole("button", { name: "Edit Blank links" }).click();
-    await expect(page.getByRole("combobox", { name: "Organization" })).toContainText("None");
-    await expect(page.getByRole("combobox", { name: "Main contact" })).toContainText("None");
+    await expect(page.getByRole("combobox", { name: "Organization", exact: true })).toContainText("None");
+    await expect(page.getByRole("combobox", { name: "Main contact", exact: true })).toContainText("None");
     await dialog(page).getByLabel("Value").fill("11111");
     await dialog(page).getByRole("button", { name: "Save deal" }).click();
     await expect(row(page, /Blank links/)).toContainText("$11,111");
@@ -526,17 +533,17 @@ test.describe("record pages", () => {
 
     await page.goto(`/organizations/${organization.id}`);
     await page.getByRole("button", { name: "Add contact" }).click();
-    await expect(page.getByRole("combobox", { name: "Organization" })).toContainText("Knows Things Ltd");
+    await expect(page.getByRole("combobox", { name: "Organization", exact: true })).toContainText("Knows Things Ltd");
     await page.keyboard.press("Escape");
 
     await page.getByRole("button", { name: "Add deal" }).click();
-    await expect(page.getByRole("combobox", { name: "Organization" })).toContainText("Knows Things Ltd");
+    await expect(page.getByRole("combobox", { name: "Organization", exact: true })).toContainText("Knows Things Ltd");
     await page.keyboard.press("Escape");
 
     await page.goto(`/contacts/${contact.id}`);
     await page.getByRole("button", { name: "Add deal" }).click();
-    await expect(page.getByRole("combobox", { name: "Main contact" })).toContainText("Known Person");
-    await expect(page.getByRole("combobox", { name: "Organization" })).toContainText("Knows Things Ltd");
+    await expect(page.getByRole("combobox", { name: "Main contact", exact: true })).toContainText("Known Person");
+    await expect(page.getByRole("combobox", { name: "Organization", exact: true })).toContainText("Knows Things Ltd");
   });
 
   test("Edit works from a record page", async ({ page, request }) => {
@@ -566,6 +573,29 @@ test.describe("record pages", () => {
     await page.getByRole("button", { name: "Delete", exact: true }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Delete organization" }).click();
     await expect(heading(page, "Organizations")).toBeVisible();
+  });
+
+  test("a new organization shows who added it, and who last changed it once another teammate edits it", async ({
+    page,
+  }) => {
+    await page.goto("/organizations");
+    await page.getByRole("button", { name: "Add organization" }).click();
+    await dialog(page).getByLabel("Name").fill("Whose Idea Ltd");
+    await dialog(page).getByRole("button", { name: "Save organization" }).click();
+    await expect(page.getByText("Organization saved.")).toBeVisible();
+
+    await page.getByRole("searchbox").fill("whose idea");
+    await page.getByRole("link", { name: "Whose Idea Ltd" }).click();
+    const details = page.getByRole("region", { name: "Details" });
+    await expect(details).toContainText(`Added by ${SIGNED_IN.name} on ${today()}`);
+    await expect(details).not.toContainText("Last changed");
+
+    await signInAs(page, "teammate-dana-whitfield");
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await dialog(page).getByLabel("Industry").fill("Consulting");
+    await dialog(page).getByRole("button", { name: "Save organization" }).click();
+    await expect(details).toContainText(`Last changed by Dana Whitfield on ${today()}`);
+    await expect(details).toContainText(`Added by ${SIGNED_IN.name} on ${today()}`);
   });
 });
 

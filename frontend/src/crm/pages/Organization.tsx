@@ -13,7 +13,7 @@ import { OrganizationForm } from "../forms/OrganizationForm";
 import { useOrganization } from "../queries";
 import { StageChip, StatusChip } from "../StageChip";
 import { Timeline } from "../Timeline";
-import { Detail, LinkedList, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
+import { AddedAndChanged, Detail, LinkedList, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
 
 export function Organization() {
   const id = recordId(useParams().id);
@@ -55,6 +55,7 @@ function OrganizationRecord({ id }: { id: number }) {
                 <Detail label="Industry">{record.industry ?? NONE}</Detail>
               </dl>
               {record.notes && <p className="mt-2 whitespace-pre-wrap text-muted">{record.notes}</p>}
+              <AddedAndChanged record={record} />
             </SidePanel>
             <SidePanel
               title="Contacts"

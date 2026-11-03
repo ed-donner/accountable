@@ -265,9 +265,10 @@ test.describe("with the sample data", () => {
 
   test("both charts cover 12 months with the current one marked so far, and each has a hover tooltip", async ({
     page,
+    request,
   }) => {
     await page.goto("/");
-    const months = await (await page.request.get(`${API}/dashboard`)).json();
+    const months = await (await request.get(`${API}/dashboard`)).json();
     const labels: string[] = months.months.map((month: { label: string }) => month.label);
     expect(labels).toHaveLength(12);
 

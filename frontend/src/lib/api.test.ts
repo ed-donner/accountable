@@ -1,8 +1,17 @@
 import { QueryClient, onlineManager } from "@tanstack/react-query";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { queryDefaults } from "../App";
-import { ApiError, CONNECTION_MESSAGE, api, isConnectionLost, onReconnect } from "./api";
+import { startSignedIn } from "../test-utils";
+import { ApiError, api, connectionMessage, isConnectionLost, onReconnect } from "./api";
+import { SESSION_KEY, onSessionEnd, useSession } from "./session";
+
+// Supabase's client is never reached. These stand-ins are enough for it to be built.
+vi.mock("@supabase/supabase-js", async (original) => ({
+  ...(await original<typeof import("@supabase/supabase-js")>()),
+  createClient: () => ({ auth: { onAuthStateChange: () => undefined } }),
+}));
 
 function reply(status: number, body?: unknown, contentType = "application/json") {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -20,10 +29,17 @@ async function failure(path = "/deals/1"): Promise<ApiError> {
   throw new Error("Expected the request to fail");
 }
 
+function stubFetch(status = 200, body: unknown = {}) {
+  const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () => reply(status, body));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
 afterEach(async () => {
   vi.stubGlobal("fetch", async () => reply(200, {}));
   await api("/meta");
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   onlineManager.setOnline(true);
 });
 
@@ -34,8 +50,7 @@ describe("api", () => {
   });
 
   it("sends bodies as JSON", async () => {
-    const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () => reply(200, {}));
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchMock = stubFetch();
     await api("/organizations", { method: "POST", body: { name: "Acme" } });
     const init = fetchMock.mock.calls[0][1];
     expect(init.headers).toEqual({ "Content-Type": "application/json" });
@@ -60,7 +75,7 @@ describe("api", () => {
     });
     const error = await failure();
     expect(error.kind).toBe("connection");
-    expect(error.message).toBe(CONNECTION_MESSAGE);
+    expect(error.message).toBe("Can't reach Accountable. Check that it's still running.");
     expect(isConnectionLost()).toBe(true);
   });
 
@@ -100,6 +115,58 @@ describe("api", () => {
     await api("/contacts");
     expect(back).toHaveBeenCalledOnce();
     stop();
+  });
+});
+
+describe("signing in", () => {
+  it("sends the token with every request", async () => {
+    startSignedIn("abc");
+    const fetchMock = stubFetch();
+    await api("/deals");
+    await api("/organizations", { method: "POST", body: { name: "Acme" } });
+    expect(fetchMock.mock.calls.map(([, init]) => init.headers)).toEqual([
+      { Authorization: "Bearer abc" },
+      { Authorization: "Bearer abc", "Content-Type": "application/json" },
+    ]);
+  });
+
+  it("reads the token as each request goes, so another tab's sign-out shows on the next", async () => {
+    startSignedIn("abc");
+    const fetchMock = stubFetch();
+    await api("/deals");
+    localStorage.removeItem(SESSION_KEY);
+    await api("/deals");
+    expect(fetchMock.mock.calls[1][1].headers).toEqual({});
+  });
+
+  it("ends the session when the backend refuses the token", async () => {
+    startSignedIn("expired");
+    const ended = vi.fn();
+    const stop = onSessionEnd(ended);
+    const { result } = renderHook(useSession);
+    stubFetch(401, { detail: "Sign in to use Accountable." });
+
+    const error = await act(() => failure("/deals"));
+
+    expect(error.kind).toBe("signed-out");
+    expect(ended).toHaveBeenCalledOnce();
+    expect(result.current).toEqual({ status: "signed-out", message: "Your session has ended. Sign in again." });
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
+    stop();
+  });
+});
+
+describe("the connection message", () => {
+  it("says to check Accountable is running in the local copy", () => {
+    expect(connectionMessage()).toBe("Can't reach Accountable. Check that it's still running.");
+  });
+
+  it("says to check the internet in the shared app", async () => {
+    vi.resetModules();
+    vi.stubEnv("VITE_SUPABASE_URL", "https://team.supabase.co");
+    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    const shared = await import("./api");
+    expect(shared.connectionMessage()).toBe("Can't reach Accountable. Check your internet connection.");
   });
 });
 

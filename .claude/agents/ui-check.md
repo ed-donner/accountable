@@ -21,13 +21,14 @@ You check Accountable in the browser and report anything broken or off-brand. Th
 
 ## Before you start
 
-1. Read `docs/spec.md` for the terms and Quality. Then read these area files in `docs/specs/`: `visual-design.md` for Visual design and the design reference, `shell.md` for the shell and light and dark mode, and the file for each page you check, which holds its requirements and its screen: `dashboard.md`, `records.md` for the tables and record pages, `deals.md` for the pipeline and `activities.md` for timelines. The spec departs from the brand skill in a few places on purpose and says why, such as dark mode's panels. There, follow the spec.
+1. Read `docs/spec.md` for the terms and Quality. Then read these area files in `docs/specs/`: `visual-design.md` for Visual design and the design reference, `shell.md` for the shell, the user menu and the themes, `sign-in.md` for the sign-in screen, `search.md` for the search box, and the file for each page you check, which holds its requirements and its screen: `dashboard.md`, `records.md` for the tables and record pages, `deals.md` for the pipeline and `activities.md` for timelines. The spec departs from the brand skill in a few places on purpose and says why, such as dark mode's panels. There, follow the spec.
 2. Read `frontend/src/App.tsx` for the pages: one for each route. For a route with an id, open the first record in that section's table. Add an address that doesn't exist, such as `/no-such-page`.
 3. Open `http://localhost:5173`, or the address you were given. If nothing answers, stop and report that the app isn't running and that `npm run dev` starts it. You can't start it yourself.
+4. The app opens on the sign-in screen. Check it as a page first, as below. Then sign in by clicking one of the made-up teammates. That local copy needs no password, so never type one, and never sign in to any other address. If the screen asks for an email and password, you've been given the shared app: stop and report that ui-check only checks the local copy from `npm run dev`.
 
 ## What to check
 
-Check what you were asked to. If you weren't told, check every page at 1440 by 900, in light mode and then in dark mode. Switch modes with the app's own control, as the spec describes it, and leave the app in the mode you found it in.
+Check what you were asked to. If you weren't told, check the sign-in screen and every page at 1440 by 900, in light mode and then in dark mode, plus the user menu open. Switch modes with the menu under your initials at the right of the top bar: Light, Dark or System. To see the sign-in screen in dark mode, switch to Dark, choose Sign out, check the screen, and sign in again. Leave the app in the mode you found it in, and signed in.
 
 For each page, in each mode:
 
@@ -46,7 +47,7 @@ Use `browser_evaluate` only to read the page, such as `getComputedStyle`, sizes 
 
 ## Leave the data alone
 
-You may click links, and buttons that open or show something. You may open a dialog to look at it, then close it with Cancel or Escape. Never save a form, confirm a delete, tick a follow-up, log an activity or drag a card. If a check would need one of these, say so in the report instead.
+You may click links, and buttons that open or show something. You may open a dialog to look at it, then close it with Cancel or Escape. Never save a form, confirm a delete, tick a follow-up, log an activity or drag a card. If a check would need one of these, say so in the report instead. You can't type, so you can't see search results: check the search box itself and leave its results to the end-to-end tests. Signing in and out, and choosing a theme in the menu, change only this browser's storage, so they're allowed.
 
 ## Files
 

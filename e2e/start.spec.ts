@@ -7,6 +7,7 @@ import {
   COPY_URL,
   COPY_WEB_PORT,
   addLinkedDeal,
+  chooseTeammate,
   copyEnv,
   makeCopyFolder,
   portIsOpen,
@@ -15,7 +16,20 @@ import {
   startCopy,
 } from "./helpers";
 
-test.describe.configure({ timeout: 120_000 });
+// startCopy waits up to 60s for a copy to start on a busy machine, so a test that starts one
+// needs that and time for its own work.
+const ONE_START_MS = 120_000;
+test.describe.configure({ timeout: ONE_START_MS });
+
+// The settings that would make a copy the shared app, pointed at a port where nothing listens.
+// npm run dev leaves them out, so with them in the shell it still starts the local copy.
+const SHARED_APP_SETTINGS = {
+  DATABASE_URL: "postgresql://nobody@127.0.0.1:9/nothing",
+  SUPABASE_URL: "http://127.0.0.1:9",
+  SUPABASE_PUBLISHABLE_KEY: "nothing",
+  VITE_SUPABASE_URL: "http://127.0.0.1:9",
+  VITE_SUPABASE_PUBLISHABLE_KEY: "nothing",
+};
 
 test("the top bar links to the five sections and the app opens on the dashboard", async ({ page }) => {
   await page.goto("/");
@@ -76,13 +90,19 @@ test("opening a deleted record says so, with a link back", async ({ page, reques
 });
 
 test.describe("a copy of the app of its own", () => {
-  test("it prints the address and lands on the dashboard with sample data on every section", async ({ page }) => {
+  test("it prints the address, shows the sign-in screen, then lands on the dashboard with sample data on every section", async ({
+    page,
+  }) => {
     const folder = makeCopyFolder();
     const copy = await startCopy(folder.database);
     try {
       expect(copy.output()).toContain(`Accountable is running at ${COPY_ADDRESS}`);
 
-      await page.goto(COPY_ADDRESS);
+      await page.goto(COPY_URL);
+      await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Sections" })).toHaveCount(0);
+
+      await chooseTeammate(page, "Alex Rivera");
       await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
       await expect(page.getByTestId("follow-up").first()).toBeVisible();
       await expect(page.getByTestId("recent-entry").first()).toBeVisible();
@@ -101,42 +121,57 @@ test.describe("a copy of the app of its own", () => {
     }
   });
 
-  test("a second start works with every network route pointed at a dead port, and nothing loads from outside", async ({
+  test("after a restart with every network route and the shared app's settings pointed at a dead port, the browser is still signed in and nothing loads from outside", async ({
     page,
   }) => {
+    // Two starts.
+    test.setTimeout(ONE_START_MS + 60_000);
     const folder = makeCopyFolder();
-    const first = await startCopy(folder.database);
-    await first.stop();
-
-    const deadPort = "http://127.0.0.1:9";
-    const copy = await startCopy(folder.database, {
-      HTTP_PROXY: deadPort,
-      HTTPS_PROXY: deadPort,
-      ALL_PROXY: deadPort,
-      http_proxy: deadPort,
-      https_proxy: deadPort,
-      all_proxy: deadPort,
-      NO_PROXY: "",
-      no_proxy: "",
-      npm_config_proxy: deadPort,
-      npm_config_https_proxy: deadPort,
-    });
     try {
-      await page.goto(COPY_URL);
-      await expect(page.getByTestId("follow-up").first()).toBeVisible();
+      const first = await startCopy(folder.database);
+      try {
+        await page.goto(COPY_URL);
+        await chooseTeammate(page, "Dana Whitfield");
+        await expect(page.getByTestId("follow-up").first()).toBeVisible();
+        // Left open, the page's Vite client reloads it as the server returns, cutting off the next goto.
+        await page.goto("about:blank");
+      } finally {
+        await first.stop();
+      }
 
-      // Every request is checked by the base test. These confirm the fonts came too.
-      const loaded = await page.evaluate(async () => {
-        await document.fonts.ready;
-        return [...document.fonts]
-          .filter((font) => font.status === "loaded")
-          .map((font) => font.family.replaceAll('"', ""));
+      const deadPort = "http://127.0.0.1:9";
+      const copy = await startCopy(folder.database, {
+        ...SHARED_APP_SETTINGS,
+        HTTP_PROXY: deadPort,
+        HTTPS_PROXY: deadPort,
+        ALL_PROXY: deadPort,
+        http_proxy: deadPort,
+        https_proxy: deadPort,
+        all_proxy: deadPort,
+        NO_PROXY: "",
+        no_proxy: "",
+        npm_config_proxy: deadPort,
+        npm_config_https_proxy: deadPort,
       });
-      expect(loaded).toContain("Instrument Sans Variable");
-      expect(loaded).toContain("Instrument Serif");
-      expect(loaded).toContain("JetBrains Mono Variable");
+      try {
+        await page.goto(COPY_URL);
+        await expect(page.getByTestId("follow-up").first()).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Sign in" })).toHaveCount(0);
+
+        // Every request is checked by the base test. These confirm the fonts came too.
+        const loaded = await page.evaluate(async () => {
+          await document.fonts.ready;
+          return [...document.fonts]
+            .filter((font) => font.status === "loaded")
+            .map((font) => font.family.replaceAll('"', ""));
+        });
+        expect(loaded).toContain("Instrument Sans Variable");
+        expect(loaded).toContain("Instrument Serif");
+        expect(loaded).toContain("JetBrains Mono Variable");
+      } finally {
+        await copy.stop();
+      }
     } finally {
-      await copy.stop();
       folder.remove();
     }
   });
@@ -171,15 +206,20 @@ test.describe("a copy of the app of its own", () => {
 
   test("Ctrl+C stops both servers", async () => {
     const folder = makeCopyFolder();
-    const copy = await startCopy(folder.database);
-    expect(await portIsOpen(COPY_WEB_PORT)).toBe(true);
-    expect(await portIsOpen(COPY_API_PORT)).toBe(true);
+    try {
+      const copy = await startCopy(folder.database);
+      try {
+        expect(await portIsOpen(COPY_WEB_PORT)).toBe(true);
+        expect(await portIsOpen(COPY_API_PORT)).toBe(true);
+      } finally {
+        await copy.stop("SIGINT");
+      }
 
-    await copy.stop("SIGINT");
-
-    await expect.poll(() => portIsOpen(COPY_WEB_PORT)).toBe(false);
-    await expect.poll(() => portIsOpen(COPY_API_PORT)).toBe(false);
-    folder.remove();
+      await expect.poll(() => portIsOpen(COPY_WEB_PORT)).toBe(false);
+      await expect.poll(() => portIsOpen(COPY_API_PORT)).toBe(false);
+    } finally {
+      folder.remove();
+    }
   });
 
   test("stopping the backend shows the connection message, not a blank screen", async ({
@@ -188,15 +228,21 @@ test.describe("a copy of the app of its own", () => {
   }) => {
     expectConsoleError(/ERR_CONNECTION_REFUSED|Failed to load resource|Failed to fetch/);
     const folder = makeCopyFolder();
-    const copy = await startCopy(folder.database);
-    await page.goto(COPY_URL);
-    await expect(page.getByTestId("follow-up").first()).toBeVisible();
+    try {
+      const copy = await startCopy(folder.database);
+      try {
+        await page.goto(COPY_URL);
+        await chooseTeammate(page, "Theo Brandt");
+        await expect(page.getByTestId("follow-up").first()).toBeVisible();
+      } finally {
+        await copy.stop();
+      }
 
-    await copy.stop();
-
-    await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Organizations" }).click();
-    await expect(page.getByRole("alert")).toHaveText("Can't reach Accountable. Check that it's still running.");
-    await expect(page.getByRole("heading", { level: 1, name: "Organizations" })).toBeVisible();
-    folder.remove();
+      await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Organizations" }).click();
+      await expect(page.getByRole("alert")).toHaveText("Can't reach Accountable. Check that it's still running.");
+      await expect(page.getByRole("heading", { level: 1, name: "Organizations" })).toBeVisible();
+    } finally {
+      folder.remove();
+    }
   });
 });

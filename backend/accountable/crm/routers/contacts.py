@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, func, insert, select, update
 
 from accountable import db
-from accountable.crm import schemas, timeline
+from accountable.auth import CurrentUser
+from accountable.crm import schemas, timeline, who
 from accountable.crm.tables import activities, contacts, deals, organizations
 
 router = APIRouter(prefix="/contacts")
@@ -10,23 +11,47 @@ router = APIRouter(prefix="/contacts")
 _with_organization = select(contacts, organizations.c.name.label("organization_name")).select_from(
     contacts.outerjoin(organizations)
 )
+_with_names = who.with_names(_with_organization, contacts)
 
 
 def _get(conn, contact_id: int):
-    row = conn.execute(_with_organization.where(contacts.c.id == contact_id)).one_or_none()
+    row = conn.execute(_with_names.where(contacts.c.id == contact_id)).one_or_none()
     if row is None:
         raise HTTPException(404, "Contact not found")
     return row
 
 
+# The contact with the deals where they're the main contact, a row for each, so
+# the page takes one query.
+_with_deals = (
+    _with_names.add_columns(
+        deals.c.id.label("deal_id"),
+        deals.c.name.label("deal_name"),
+        deals.c.stage.label("deal_stage"),
+        deals.c.value.label("deal_value"),
+        deals.c.close_date.label("deal_close_date"),
+    )
+    .outerjoin(deals, deals.c.main_contact_id == contacts.c.id)
+    .order_by(deals.c.close_date.desc(), deals.c.id.desc())
+)
+
+
 def _detail(conn, contact_id: int) -> schemas.ContactDetail:
-    row = _get(conn, contact_id)
-    linked_deals = conn.execute(
-        select(deals.c.id, deals.c.name, deals.c.stage, deals.c.value, deals.c.close_date)
-        .where(deals.c.main_contact_id == contact_id)
-        .order_by(deals.c.close_date.desc())
-    ).all()
-    return schemas.ContactDetail(**row._mapping, deals=[schemas.LinkedDeal(**item._mapping) for item in linked_deals])
+    rows = conn.execute(_with_deals.where(contacts.c.id == contact_id)).all()
+    if not rows:
+        raise HTTPException(404, "Contact not found")
+    linked = [
+        schemas.LinkedDeal(
+            id=row.deal_id,
+            name=row.deal_name,
+            stage=row.deal_stage,
+            value=row.deal_value,
+            close_date=row.deal_close_date,
+        )
+        for row in rows
+        if row.deal_id is not None
+    ]
+    return schemas.ContactDetail(**{**rows[0]._mapping, **who.authorship(rows[0])}, deals=linked)
 
 
 def _check_organization(conn, organization_id: int) -> None:
@@ -37,17 +62,24 @@ def _check_organization(conn, organization_id: int) -> None:
 
 @router.get("")
 def list_contacts() -> list[schemas.ContactRow]:
+    last = timeline.contact_last()
+    query = (
+        _with_organization.add_columns(last.c.at.label("last_activity"))
+        .outerjoin(last, last.c.contact_id == contacts.c.id)
+        .order_by(contacts.c.name, contacts.c.id)
+    )
     with db.reading() as conn:
-        last = timeline.last_by_contact(conn)
-        rows = conn.execute(_with_organization.order_by(contacts.c.name)).all()
-    return [schemas.ContactRow(**row._mapping, last_activity=last.get(row.id)) for row in rows]
+        rows = conn.execute(query).all()
+    return [schemas.ContactRow(**row._mapping) for row in rows]
 
 
 @router.post("", status_code=201)
-def add_contact(body: schemas.ContactCreate) -> schemas.ContactDetail:
+def add_contact(body: schemas.ContactCreate, user: CurrentUser, now: schemas.Now) -> schemas.ContactDetail:
     with db.writing() as conn:
         _check_organization(conn, body.organization_id)
-        new_id = conn.execute(insert(contacts).values(**body.model_dump()).returning(contacts.c.id)).scalar_one()
+        new_id = conn.execute(
+            insert(contacts).values(**body.model_dump(), **who.added(user, now)).returning(contacts.c.id)
+        ).scalar_one()
         return _detail(conn, new_id)
 
 
@@ -58,7 +90,9 @@ def get_contact(contact_id: schemas.PathId) -> schemas.ContactDetail:
 
 
 @router.patch("/{contact_id}")
-def edit_contact(contact_id: schemas.PathId, body: schemas.ContactUpdate) -> schemas.ContactDetail:
+def edit_contact(
+    contact_id: schemas.PathId, body: schemas.ContactUpdate, user: CurrentUser, now: schemas.Now
+) -> schemas.ContactDetail:
     fields = body.model_dump(exclude_unset=True)
     with db.writing() as conn:
         current = _get(conn, contact_id)
@@ -68,8 +102,11 @@ def edit_contact(contact_id: schemas.PathId, body: schemas.ContactUpdate) -> sch
                 _check_organization(conn, chosen)
             elif current.organization_id is not None:
                 raise schemas.FieldError({"organization_id": schemas.FIELD_MESSAGES["organization_id"]})
-        if fields:
-            conn.execute(update(contacts).where(contacts.c.id == contact_id).values(**fields))
+        altered = who.alterations(fields, current)
+        if altered:
+            conn.execute(
+                update(contacts).where(contacts.c.id == contact_id).values(**altered, **who.changed(user, now))
+            )
         return _detail(conn, contact_id)
 
 
@@ -101,5 +138,7 @@ def contact_timeline(
     offset: schemas.PageOffset = 0,
 ) -> schemas.Timeline:
     with db.reading() as conn:
-        _get(conn, contact_id)
-        return timeline.for_contact(conn, contact_id, limit, offset)
+        page = timeline.for_contact(conn, contact_id, limit, offset)
+    if page is None:
+        raise HTTPException(404, "Contact not found")
+    return page

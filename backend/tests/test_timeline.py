@@ -196,3 +196,28 @@ def test_a_timeline_can_be_read_to_the_end_however_long_it_is(api, make, kind):
     assert reply["total"] == 620
     assert len(seen) == 620
     assert len(set(seen)) == 620
+
+
+def signed_in(api) -> dict:
+    me = api.get("/api/me").json()
+    return {"id": me["id"], "name": me["name"]}
+
+
+def test_every_entry_on_all_three_timelines_says_who_added_it(api, make):
+    organization = make.organization()
+    contact = make.contact(organization_id=organization)
+    deal = make.deal(organization_id=organization, main_contact_id=contact)
+    api.post("/api/activities", json={"description": "On the contact", "contact_id": contact})
+    api.post("/api/activities", json={"description": "On the deal", "deal_id": deal})
+    api.post(f"/api/deals/{deal}/move", json={"stage": "qualified"})
+
+    for path in (f"/api/deals/{deal}", f"/api/contacts/{contact}", f"/api/organizations/{organization}"):
+        found = entries(api, path)
+        assert {entry["kind"] for entry in found} == {"activity", "stage_change"}, path
+        assert all(entry["created_by"] == signed_in(api) for entry in found), path
+
+
+def test_an_entry_with_nobody_recorded_says_so(api, make):
+    deal = make.deal()
+    make.activity(deal_id=deal)
+    assert entries(api, f"/api/deals/{deal}")[0]["created_by"] is None

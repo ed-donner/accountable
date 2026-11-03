@@ -1,6 +1,9 @@
 import { useSyncExternalStore } from "react";
 
-export type ApiErrorKind = "fields" | "missing" | "connection" | "server";
+// session.ts imports this file too, so what comes from it is only read inside functions.
+import { SESSION_ENDED, currentToken, endSession, isSharedApp } from "./session";
+
+export type ApiErrorKind = "fields" | "missing" | "connection" | "server" | "signed-out";
 
 export class ApiError extends Error {
   readonly kind: ApiErrorKind;
@@ -14,7 +17,12 @@ export class ApiError extends Error {
   }
 }
 
-export const CONNECTION_MESSAGE = "Can't reach Accountable. Check that it's still running.";
+/** The shared app is reached over the internet, and the local copy runs on this computer (N5). */
+export function connectionMessage() {
+  return isSharedApp
+    ? "Can't reach Accountable. Check your internet connection."
+    : "Can't reach Accountable. Check that it's still running.";
+}
 
 let connectionLost = false;
 const listeners = new Set<() => void>();
@@ -60,15 +68,23 @@ type ErrorReply = { detail?: string; fields?: Record<string, string> };
 
 function loseConnection(): never {
   setConnectionLost(true);
-  throw new ApiError("connection", CONNECTION_MESSAGE);
+  throw new ApiError("connection", connectionMessage());
+}
+
+function headersFor(token: string | null, body: unknown): Record<string, string> {
+  return {
+    ...(token === null ? {} : { Authorization: `Bearer ${token}` }),
+    ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+  };
 }
 
 async function send(path: string, { method = "GET", body, signal }: Options): Promise<Response> {
+  const token = await currentToken();
   try {
     return await fetch(`/api${path}`, {
       method,
       signal,
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: headersFor(token, body),
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (error) {
@@ -102,6 +118,7 @@ async function readErrorReply(reply: Response): Promise<ErrorReply> {
 }
 
 function errorFor(status: number, { detail, fields }: ErrorReply) {
+  if (status === 401) return new ApiError("signed-out", detail ?? SESSION_ENDED);
   if (status === 404) return new ApiError("missing", detail ?? "That record no longer exists.");
   if (status === 422) return new ApiError("fields", detail ?? "Check the form.", fields ?? {});
   return new ApiError("server", detail ?? "Something went wrong.");
@@ -111,6 +128,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
   const reply = await send(path, options);
   if (isFromDevServer(reply)) loseConnection();
   setConnectionLost(false);
+  if (reply.status === 401) endSession(SESSION_ENDED);
   if (!reply.ok) throw errorFor(reply.status, await readErrorReply(reply));
   return (reply.status === 204 ? undefined : await reply.json()) as T;
 }

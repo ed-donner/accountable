@@ -208,3 +208,14 @@ def test_a_new_follow_up_shows_at_once(api, make):
 
 def test_the_dashboard_uses_the_fixed_today(api):
     assert dashboard(api)["today"] == "2026-10-31"
+
+
+def test_recent_activity_says_who_added_each_entry(api, make):
+    deal = make.deal()
+    make.activity(deal_id=deal, description="From before sign-in", occurred_at=NOW - timedelta(hours=1))
+    api.post(f"/api/deals/{deal}/move", json={"stage": "qualified"})
+    me = api.get("/api/me").json()
+
+    recent = dashboard(api)["recent"]
+
+    assert [entry["created_by"] for entry in recent] == [{"id": me["id"], "name": me["name"]}, None]

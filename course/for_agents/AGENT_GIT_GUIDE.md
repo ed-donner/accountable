@@ -70,6 +70,7 @@ The files go in `community_contributions/<folder>/`, where `<folder>` is any nam
 
 - **The day's documents:** at the end of Week 1 Day 3, the student shares what they wrote that day: `docs/intent.md`, `docs/spec.md`, `docs/plan.md` and `docs/REVIEW.md`, with a short `README.md` that says what they built and links to their build in their fork. Push their `main` to the fork first, with `git push -u fork main`, so that the link works: `https://github.com/<username>/accountable`.
 - **The day's standards:** at the end of Week 1 Day 4, the student shares `docs/STANDARDS.md` and `docs/IMPROVE.md`, with no README.
+- **The day's subagents:** at the end of Week 1 Day 5, the student shares their two subagent files, `reviewer.md` and `ui-check.md` from `.claude/agents/` in Claude Code (or wherever their coding agent keeps its subagents), with no README. If a subagent's file runs a hook script, the script goes in too.
 - **A small, self-contained piece:** a skill, a hook, a subagent, a CI workflow, or a guide for a coding agent the course doesn't cover, such as `community_contributions/<folder>/skills/release-notes/SKILL.md`.
 
 The student's `main` holds their whole build, so the PR comes from a new branch that starts at Ed's latest `main` instead. It carries nothing else from the student's work:
@@ -124,6 +125,8 @@ Branch from the branch with the bug: `origin/main` for a guide or a document in 
 ## Pushing a branch to run CI
 
 On Week 1 Day 4 the student pushes each of the day's two branches to their fork so that GitHub Actions runs on each: `git push fork harness`, then `git push fork dark-mode`. Merges still happen on the student's machine. Workflows don't run on a fork until the student opens its **Actions** tab and enables them.
+
+On Week 1 Day 5 the student pushes `multi-user` the same way. After merging it, they push their own `main` with `git push fork main`, because Render deploys the fork's `main` once CI passes on it. If git refuses that push because the fork's `main` has commits theirs doesn't, which happens when Ed's `main` moved on between their clone and their fork, they pull Ed's latest changes first (below), then push again.
 
 ## Pulling Ed's latest changes
 

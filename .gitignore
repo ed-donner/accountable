@@ -62,6 +62,9 @@ supabase/.branches/
 .claude/settings.local.json
 .github/copilot/settings.local.json
 
+# Claude Code's worktrees, one folder for each parallel session
+.claude/worktrees/
+
 # Editors and OS
 .idea/
 .vscode/*

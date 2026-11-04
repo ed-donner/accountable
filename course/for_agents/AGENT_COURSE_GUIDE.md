@@ -39,7 +39,7 @@ Plans also have a five-hour limit, and a long build can reach it. The agent stop
 | Week 2 Day 4 | Cloud Agents, Software Factory |
 | Week 2 Day 5 | Capstone |
 
-Each week has its own guide, with what each day covers and what to watch out for: `course/for_agents/AGENT_GUIDE_WEEK1.md`.
+Each week has its own guide, with what each day covers and what to watch out for: `course/for_agents/AGENT_GUIDE_WEEK1.md` and `course/for_agents/AGENT_GUIDE_WEEK2.md`.
 
 ## The branches
 

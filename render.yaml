@@ -9,8 +9,6 @@ services:
     # Must be the region nearest the Supabase project, since every query crosses between the two.
     # Check it before the first deploy: Render can't move a service to another region once it exists.
     region: virginia
-    branch: main
-    # Deploys main only once CI has passed on it.
     autoDeployTrigger: checksPass
     # Vite builds in only VITE_ settings, so the page gets the URL and the publishable key and nothing else.
     buildCommand: >-

@@ -2,10 +2,11 @@
 header, and the person comes from the token and nothing else.
 
 The local copy signs its own tokens for the made-up teammates (U13), and accepts
-them only at this computer's own addresses. The shared app accepts only Supabase's,
-checked against the project's public signing keys.
+them only from this computer. The shared app accepts only Supabase's, checked
+against the project's public signing keys.
 """
 
+import ipaddress
 import math
 import secrets
 import threading
@@ -57,9 +58,22 @@ class SignedOut(HTTPException):
 
 
 class SignIn(Protocol):
-    def user_id(self, token: str, host: str) -> str:
+    def user_id(self, token: str, from_this_computer: bool) -> str:
         """The signed-in person's id, with their users row up to date, or SignedOut."""
         ...
+
+
+def _from_this_computer(request: Request) -> bool:
+    """Whether the request is for this computer's own address and comes from this computer.
+    The address is only the Host header, which the client can set to anything, so the
+    connection has to come from this computer too. Uvicorn replaces that with
+    X-Forwarded-For only on a connection from this computer, so no header can fake it."""
+    if request.url.hostname not in LOCAL_HOSTS or request.client is None:
+        return False
+    try:
+        return ipaddress.ip_address(request.client.host).is_loopback
+    except ValueError:
+        return False
 
 
 def _claims(token: str, key: Any, *, algorithms: list[str], issuer: str) -> dict[str, Any]:
@@ -131,10 +145,10 @@ def _local_token(user_id: str) -> str:
 class LocalSignIn:
     """The local copy: its own tokens, for the people in its users table, the made-up teammates."""
 
-    def user_id(self, token: str, host: str) -> str:
+    def user_id(self, token: str, from_this_computer: bool) -> str:
         # The local copy should never be reachable from elsewhere. If it somehow is,
         # such as on Render without its settings, nobody can sign in to it.
-        if host not in LOCAL_HOSTS:
+        if not from_this_computer:
             raise SignedOut()
         user_id = _claims(token, local_key(), algorithms=["HS256"], issuer=LOCAL_ISSUER)["sub"]
         if not _is_known(user_id):
@@ -193,7 +207,7 @@ class SupabaseSignIn:
         self.issuer = f"{shared.supabase_url}/auth/v1"
         self.keys = keys or SupabaseKeys(shared)
 
-    def user_id(self, token: str, host: str) -> str:
+    def user_id(self, token: str, from_this_computer: bool) -> str:
         claims = _claims(token, self._signing_key(token), algorithms=SUPABASE_ALGORITHMS, issuer=self.issuer)
         email = claims.get("email")
         if not isinstance(email, str) or not email:
@@ -256,7 +270,7 @@ def _signed_in_user(request: Request) -> str:
     if scheme.lower() != "bearer" or not token:
         raise SignedOut()
     sign_in: SignIn = request.app.state.sign_in
-    return sign_in.user_id(token, request.url.hostname or "")
+    return sign_in.user_id(token, _from_this_computer(request))
 
 
 def current_user(request: Request) -> str:
@@ -279,13 +293,13 @@ def me(user_id: CurrentUser) -> Profile:
     return profile(row.id, row.name, row.email)
 
 
-def _at_this_computer(request: Request) -> None:
-    if request.url.hostname not in LOCAL_HOSTS:
+def _only_from_this_computer(request: Request) -> None:
+    if not _from_this_computer(request):
         raise HTTPException(404)
 
 
 # The local copy's sign-in (U13), which needs no token. The shared app doesn't have it (U16).
-local_router = APIRouter(prefix="/local", dependencies=[Depends(_at_this_computer)])
+local_router = APIRouter(prefix="/local", dependencies=[Depends(_only_from_this_computer)])
 
 
 class TeammateChoice(BaseModel):

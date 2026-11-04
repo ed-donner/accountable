@@ -12,7 +12,7 @@ from accountable import db
 from accountable.crm import schemas
 from accountable.crm.routers import dashboard
 from accountable.main import app
-from conftest import LOCAL
+from conftest import LOCAL, THIS_COMPUTER
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -186,7 +186,7 @@ def test_text_the_database_cant_store_is_refused_in_every_body(client, method, p
 @pytest.mark.parametrize("method, path, field", LOCAL_SIGN_IN_TEXT)
 @pytest.mark.parametrize("kind", UNSTORABLE_TEXT)
 def test_the_local_sign_in_refuses_text_the_database_cant_store(local_app, method, path, field, kind):
-    client = TestClient(local_app, base_url=LOCAL)
+    client = TestClient(local_app, base_url=LOCAL, client=THIS_COMPUTER)
     reply = client.request(method, path, content=json.dumps({field: UNSTORABLE_TEXT[kind]}), headers=JSON)
     assert reply.status_code == 422
     assert field in reply.json()["fields"]
@@ -225,7 +225,7 @@ def test_a_wrong_host_is_refused_everywhere(copy, method, path):
 
 @pytest.mark.parametrize("method, path", LOCAL_SIGN_IN)
 def test_the_local_sign_in_keeps_the_same_rules(local_app, method, path):
-    client = TestClient(local_app, base_url=LOCAL)
+    client = TestClient(local_app, base_url=LOCAL, client=THIS_COMPUTER)
     assert TestClient(local_app, base_url="http://evil.example").request(method, path, json={}).status_code == 400
     preflight = client.options(
         path, headers={"origin": "http://localhost:3000", "access-control-request-method": method}

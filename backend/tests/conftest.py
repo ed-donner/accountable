@@ -62,6 +62,9 @@ from accountable.crm import rules, sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations
 
 LOCAL = "http://localhost"
+# Where a request from this computer comes from. The local copy's sign-in accepts no
+# other, and TestClient's own, "testclient", isn't an address.
+THIS_COMPUTER = ("127.0.0.1", 50000)
 
 # The shared app's settings, for tests that build it. Its database is never used:
 # make_app takes the database from the environment, which the tests point at SQLite.
@@ -164,7 +167,7 @@ def bearer(token: str) -> Headers:
 
 def local_token(app: FastAPI, user_id: str) -> str:
     """A token from the local copy's sign-in route, as the sign-in screen gets one."""
-    reply = TestClient(app, base_url=LOCAL).post("/api/local/sign-in", json={"user_id": user_id})
+    reply = TestClient(app, base_url=LOCAL, client=THIS_COMPUTER).post("/api/local/sign-in", json={"user_id": user_id})
     assert reply.status_code == 200, reply.text
     return reply.json()["token"]
 
@@ -189,7 +192,8 @@ def local_app(database) -> Iterator[FastAPI]:
 @pytest.fixture
 def api(local_app) -> TestClient:
     """The local copy's API on a fresh database, signed in as Alex Rivera, the first made-up teammate."""
-    return TestClient(local_app, base_url=LOCAL, headers=bearer(local_token(local_app, sample_data.TEAMMATES[0].id)))
+    token = local_token(local_app, sample_data.TEAMMATES[0].id)
+    return TestClient(local_app, base_url=LOCAL, headers=bearer(token), client=THIS_COMPUTER)
 
 
 @pytest.fixture
@@ -340,7 +344,9 @@ class Copy:
     def client(self, headers: Headers | None = None, base_url: str = LOCAL) -> TestClient:
         """Signed in unless other headers are given. Crashes answer as the real server does, with a 500."""
         signed_in = bearer(self.sign()) if headers is None else headers
-        return TestClient(self.app, base_url=base_url, headers=signed_in, raise_server_exceptions=False)
+        return TestClient(
+            self.app, base_url=base_url, headers=signed_in, raise_server_exceptions=False, client=THIS_COMPUTER
+        )
 
     def refused(self) -> dict[str, Headers]:
         """Every way of failing to sign in that this copy has to refuse, by name."""

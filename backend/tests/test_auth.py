@@ -16,7 +16,16 @@ from accountable import auth, db
 from accountable.crm.sample_data import TEAMMATES, add_missing_teammates
 from accountable.main import make_app
 from accountable.users import users
-from conftest import LOCAL, PROJECT, SUPABASE_PERSON, StandInKeys, bearer, local_token, using_database
+from conftest import (
+    LOCAL,
+    PROJECT,
+    SUPABASE_PERSON,
+    THIS_COMPUTER,
+    StandInKeys,
+    bearer,
+    local_token,
+    using_database,
+)
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import event, select
@@ -27,8 +36,8 @@ SIGNED_OUT = {"detail": "Sign in to use Accountable."}
 NOT_FOUND = {"detail": "Not Found"}
 
 
-def me(app: FastAPI, token: str, base_url: str = LOCAL):
-    return TestClient(app, base_url=base_url).get("/api/me", headers=bearer(token))
+def me(app: FastAPI, token: str, base_url: str = LOCAL, client: tuple[str, int] = THIS_COMPUTER):
+    return TestClient(app, base_url=base_url, client=client).get("/api/me", headers=bearer(token))
 
 
 @contextmanager
@@ -56,7 +65,7 @@ def stored_people() -> list[tuple]:
 
 
 def test_the_sign_in_screen_lists_the_four_teammates(local_app):
-    reply = TestClient(local_app, base_url=LOCAL).get("/api/local/teammates")
+    reply = TestClient(local_app, base_url=LOCAL, client=THIS_COMPUTER).get("/api/local/teammates")
     assert reply.status_code == 200
     assert reply.json() == [
         {"id": ALEX.id, "name": "Alex Rivera", "email": ALEX.email, "initials": "AR"},
@@ -67,24 +76,26 @@ def test_the_sign_in_screen_lists_the_four_teammates(local_app):
 
 
 @pytest.mark.parametrize("base_url", ["http://localhost", "http://127.0.0.1"])
-def test_choosing_a_teammate_gives_a_token_that_works(local_app, base_url):
-    reply = TestClient(local_app, base_url=base_url).post("/api/local/sign-in", json={"user_id": DANA.id})
+@pytest.mark.parametrize("here", ["127.0.0.1", "::1"])
+def test_choosing_a_teammate_gives_a_token_that_works(local_app, base_url, here):
+    client = TestClient(local_app, base_url=base_url, client=(here, 50000))
+    reply = client.post("/api/local/sign-in", json={"user_id": DANA.id})
     assert reply.status_code == 200
-    signed_in = me(local_app, reply.json()["token"], base_url)
+    signed_in = me(local_app, reply.json()["token"], base_url, (here, 50000))
     assert signed_in.status_code == 200
     assert signed_in.json() == {"id": DANA.id, "name": "Dana Whitfield", "email": DANA.email, "initials": "DW"}
 
 
 @pytest.mark.parametrize("body", [{"user_id": "teammate-nobody"}, {"user_id": ""}, {}, {"user_id": None}])
 def test_only_a_teammate_can_be_chosen(local_app, body):
-    reply = TestClient(local_app, base_url=LOCAL).post("/api/local/sign-in", json=body)
+    reply = TestClient(local_app, base_url=LOCAL, client=THIS_COMPUTER).post("/api/local/sign-in", json=body)
     assert reply.status_code in (404, 422)
     assert "token" not in reply.json()
 
 
 def test_a_database_from_before_sign_in_gets_the_teammates_as_the_local_copy_starts(database):
     assert stored_people() == []
-    with TestClient(make_app(None), base_url=LOCAL) as starting:
+    with TestClient(make_app(None), base_url=LOCAL, client=THIS_COMPUTER) as starting:
         assert [teammate["id"] for teammate in starting.get("/api/local/teammates").json()] == [
             teammate.id for teammate in TEAMMATES
         ]
@@ -139,7 +150,26 @@ def test_a_local_token_is_refused_at_any_other_address(reachable_from_render):
 
 
 def test_the_local_sign_in_isnt_there_at_any_other_address(reachable_from_render):
-    elsewhere = TestClient(reachable_from_render, base_url=f"https://{RENDER_HOST}")
+    elsewhere = TestClient(reachable_from_render, base_url=f"https://{RENDER_HOST}", client=THIS_COMPUTER)
+    assert elsewhere.get("/api/local/teammates").status_code == 404
+    assert elsewhere.post("/api/local/sign-in", json={"user_id": ALEX.id}).status_code == 404
+
+
+# Anyone can send a Host header naming this computer, so the connection has to come from it too.
+# Render's proxy, a computer on the same network, one far away, and a forwarded address that isn't one.
+OTHER_COMPUTERS = ["10.0.0.5", "192.168.1.20", "2001:db8::7", "not-an-address"]
+
+
+@pytest.mark.parametrize("there", OTHER_COMPUTERS)
+def test_a_local_token_is_refused_from_any_other_computer(reachable_from_render, there):
+    token = local_token(reachable_from_render, ALEX.id)
+    refused = me(reachable_from_render, token, client=(there, 50000))
+    assert (refused.status_code, refused.json()) == (401, SIGNED_OUT)
+
+
+@pytest.mark.parametrize("there", OTHER_COMPUTERS)
+def test_the_local_sign_in_isnt_there_from_any_other_computer(reachable_from_render, there):
+    elsewhere = TestClient(reachable_from_render, base_url=LOCAL, client=(there, 50000))
     assert elsewhere.get("/api/local/teammates").status_code == 404
     assert elsewhere.post("/api/local/sign-in", json={"user_id": ALEX.id}).status_code == 404
 

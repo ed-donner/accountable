@@ -3,7 +3,7 @@ import { act, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { queryDefaults } from "../App";
+import { queryDefaults } from "../lib/queryDefaults";
 import { api } from "../lib/api";
 import { ConnectionMessage } from "./ConnectionMessage";
 

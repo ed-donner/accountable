@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { queryDefaults } from "../../App";
+import { queryDefaults } from "../../lib/queryDefaults";
 import { META, mockApi, user } from "../../test-utils";
 import type { Deal } from "../queries";
 import { Deals } from "./Deals";

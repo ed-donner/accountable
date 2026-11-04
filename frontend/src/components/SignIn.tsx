@@ -1,24 +1,34 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { ApiError, api, connectionMessage } from "../lib/api";
-import { isSharedApp, onSessionEnd, signInAs, signInWithPassword, useSession } from "../lib/session";
+import { ApiError, CONNECTION_MESSAGE, api } from "../lib/api";
+import { queryDefaults } from "../lib/queryDefaults";
+import { isSharedApp, signInWithPassword, signInWithToken, useSession } from "../lib/session";
 import { Field } from "./Field";
 
 /** Shows the sign-in screen until there's a session, then the app at the address it was opened at (U1). */
 export function SignedIn({ children }: { children: ReactNode }) {
   const session = useSession();
-  const client = useQueryClient();
-
-  // Nothing read in one session shows to whoever signs in next (U5).
-  useEffect(() => onSessionEnd(() => client.clear()), [client]);
-
   if (session.status === "checking") return null;
-  if (session.status === "signed-out") return <SignInScreen message={session.message} />;
-  return children;
+  // Each session reads into a cache of its own, which goes when the session ends. So nothing
+  // from one shows to whoever signs in next, not even a reply or a move that finishes late (U5).
+  if (session.status === "signed-out") {
+    return (
+      <OwnCache key="signed-out">
+        <SignInScreen message={session.message} />
+      </OwnCache>
+    );
+  }
+  return <OwnCache key={session.id}>{children}</OwnCache>;
+}
+
+/** A query cache made for what's inside, and dropped with it. */
+function OwnCache({ children }: { children: ReactNode }) {
+  const [client] = useState(() => new QueryClient({ defaultOptions: queryDefaults }));
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
 function SignInScreen({ message }: { message?: string }) {
@@ -113,6 +123,12 @@ type Teammate = { id: string; name: string; email: string; initials: string };
 
 const RETRY_MS = 3000;
 
+async function signInAs(teammate: Teammate) {
+  const body = { user_id: teammate.id };
+  const { token } = await api<{ token: string }>("/local/sign-in", { method: "POST", body });
+  signInWithToken(token);
+}
+
 /** The local copy's sign-in: choose one of the made-up teammates (U13). */
 function LocalSignIn({ message }: { message?: string }) {
   const teammates = useQuery({
@@ -130,7 +146,7 @@ function LocalSignIn({ message }: { message?: string }) {
     signingIn.current = true;
     setPending(true);
     try {
-      await signInAs(teammate.id);
+      await signInAs(teammate);
     } catch (error) {
       setFailure(error instanceof ApiError ? error.message : "Something went wrong.");
     } finally {
@@ -156,7 +172,7 @@ function LocalSignIn({ message }: { message?: string }) {
 }
 
 function readFailure(error: Error) {
-  return error instanceof ApiError && error.kind === "connection" ? connectionMessage() : "Couldn't load this.";
+  return error instanceof ApiError && error.kind === "connection" ? CONNECTION_MESSAGE : "Couldn't load this.";
 }
 
 type TeammateProps = { teammate: Teammate; disabled: boolean; onChoose: (teammate: Teammate) => void };

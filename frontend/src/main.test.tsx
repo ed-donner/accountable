@@ -1,6 +1,8 @@
 import { act, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+// The app's modules load with this file, so the test's own time is starting the app.
+import "./App";
 import { META, mockApi, user } from "./test-utils";
 
 describe("starting the app", () => {

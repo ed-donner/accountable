@@ -34,31 +34,49 @@ def _get(conn, organization_id: int):
 
 
 def _linked(organization_id: int) -> Subquery:
-    """Its contacts and its deals as one list, each kind in its own order, so the page takes one query."""
-    return union_all(
-        select(
-            literal("contact").label("kind"),
-            func.row_number().over(order_by=(contacts.c.name, contacts.c.id)).label("place"),
-            contacts.c.id,
-            contacts.c.name,
-            contacts.c.job_title,
-            contacts.c.status,
-            cast(null(), Text).label("stage"),
-            cast(null(), BigInteger).label("value"),
-            cast(null(), Date).label("close_date"),
-        ).where(contacts.c.organization_id == organization_id),
-        select(
-            literal("deal"),
-            func.row_number().over(order_by=(deals.c.close_date.desc(), deals.c.id.desc())),
-            deals.c.id,
-            deals.c.name,
-            cast(null(), Text),
-            cast(null(), Text),
-            deals.c.stage,
-            deals.c.value,
-            deals.c.close_date,
-        ).where(deals.c.organization_id == organization_id),
-    ).subquery()
+    """Its contacts and its deals as one list, each kind in its own order, so the page takes one query.
+
+    A union lines its columns up by place, so both kinds name every column, with nothing in the other kind's.
+    """
+    linked_contacts = select(
+        literal("contact").label("kind"),
+        func.row_number().over(order_by=(contacts.c.name, contacts.c.id)).label("place"),
+        contacts.c.id,
+        contacts.c.name,
+        contacts.c.job_title,
+        contacts.c.status,
+        cast(null(), Text).label("stage"),
+        cast(null(), BigInteger).label("value"),
+        cast(null(), Date).label("close_date"),
+    ).where(contacts.c.organization_id == organization_id)
+    linked_deals = select(
+        literal("deal").label("kind"),
+        func.row_number().over(order_by=(deals.c.close_date.desc(), deals.c.id.desc())).label("place"),
+        deals.c.id,
+        deals.c.name,
+        cast(null(), Text).label("job_title"),
+        cast(null(), Text).label("status"),
+        deals.c.stage,
+        deals.c.value,
+        deals.c.close_date,
+    ).where(deals.c.organization_id == organization_id)
+    return union_all(linked_contacts, linked_deals).subquery()
+
+
+def _linked_contact(row) -> schemas.LinkedContact:
+    return schemas.LinkedContact(
+        id=row.linked_id, name=row.linked_name, job_title=row.linked_job_title, status=row.linked_status
+    )
+
+
+def _linked_deal(row) -> schemas.LinkedDeal:
+    return schemas.LinkedDeal(
+        id=row.linked_id,
+        name=row.linked_name,
+        stage=row.linked_stage,
+        value=row.linked_value,
+        close_date=row.linked_close_date,
+    )
 
 
 def _detail(conn, organization_id: int) -> schemas.OrganizationDetail:
@@ -73,24 +91,8 @@ def _detail(conn, organization_id: int) -> schemas.OrganizationDetail:
         raise HTTPException(404, "Organization not found")
     return schemas.OrganizationDetail(
         **{**rows[0]._mapping, **who.authorship(rows[0])},
-        contacts=[
-            schemas.LinkedContact(
-                id=row.linked_id, name=row.linked_name, job_title=row.linked_job_title, status=row.linked_status
-            )
-            for row in rows
-            if row.linked_kind == "contact"
-        ],
-        deals=[
-            schemas.LinkedDeal(
-                id=row.linked_id,
-                name=row.linked_name,
-                stage=row.linked_stage,
-                value=row.linked_value,
-                close_date=row.linked_close_date,
-            )
-            for row in rows
-            if row.linked_kind == "deal"
-        ],
+        contacts=[_linked_contact(row) for row in rows if row.linked_kind == "contact"],
+        deals=[_linked_deal(row) for row in rows if row.linked_kind == "deal"],
     )
 
 

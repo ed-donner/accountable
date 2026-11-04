@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { queryDefaults } from "../App";
+import { queryDefaults } from "../lib/queryDefaults";
 import { mockApi, user } from "../test-utils";
 import { Shell } from "./Shell";
 

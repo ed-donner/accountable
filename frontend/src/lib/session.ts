@@ -1,11 +1,6 @@
 import { createClient, isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js";
 import { useSyncExternalStore } from "react";
 
-import { api } from "./api";
-
-// session.ts and api.ts import each other: signing in to the local copy goes through
-// api(), and api() asks here for the token. So neither reads the other while loading.
-
 /** Where the local copy keeps its token. Supabase's client keeps the shared app's under its own key. */
 export const SESSION_KEY = "accountable-session";
 
@@ -14,9 +9,10 @@ export const WRONG_DETAILS = "That email and password don't match.";
 export const NO_SIGN_IN_SERVICE = "Can't reach the sign-in service. Check your internet connection.";
 export const TOO_MANY_TRIES = "Too many tries. Wait a minute and try again.";
 
-export type Session = { status: "checking" } | { status: "signed-in" } | { status: "signed-out"; message?: string };
+/** Each sign-in begins a session with a new id, so whatever belongs to an earlier one can tell it's over. */
+export type Session =
+  { status: "checking" } | { status: "signed-in"; id: number } | { status: "signed-out"; message?: string };
 
-const SIGNED_IN: Session = { status: "signed-in" };
 const SIGNED_OUT: Session = { status: "signed-out" };
 
 /** npm start and Render build in Supabase's settings, and npm run dev never does (C9, W2). */
@@ -38,18 +34,28 @@ function savedToken(): string | null {
   }
 }
 
-function saveToken(token: string | null) {
+/** The local copy's token when storage is off or full. It lasts until the page is reloaded. */
+let unsavedToken: string | null = null;
+
+function keepToken(token: string | null) {
+  unsavedToken = null;
   try {
     if (token === null) localStorage.removeItem(SESSION_KEY);
     else localStorage.setItem(SESSION_KEY, token);
   } catch {
-    // Storage can be off. The session then lasts until the page is reloaded.
+    unsavedToken = token;
   }
 }
 
-let session: Session = supabase ? { status: "checking" } : savedToken() ? SIGNED_IN : SIGNED_OUT;
+let sessionsBegun = 0;
+
+function newSession(): Session {
+  sessionsBegun += 1;
+  return { status: "signed-in", id: sessionsBegun };
+}
+
+let session: Session = supabase ? { status: "checking" } : savedToken() ? newSession() : SIGNED_OUT;
 const listeners = new Set<() => void>();
-const endListeners = new Set<() => void>();
 
 function show(next: Session) {
   if (next === session) return;
@@ -57,9 +63,9 @@ function show(next: Session) {
   listeners.forEach((listener) => listener());
 }
 
-function end(next: Session) {
-  if (session.status === "signed-in") endListeners.forEach((listener) => listener());
-  show(next);
+/** Starts a session, unless one is already going, as when Supabase renews its token. */
+function begin() {
+  if (session.status !== "signed-in") show(newSession());
 }
 
 /** Signed in, signed out with any message to show, or still checking a saved session. */
@@ -73,41 +79,41 @@ export function useSession(): Session {
   );
 }
 
-/** Runs each time a session ends, before the sign-in screen shows. */
-export function onSessionEnd(listener: () => void) {
-  endListeners.add(listener);
-  return () => {
-    endListeners.delete(listener);
-  };
+/** The session as it is now, so a request can tell when its reply comes whether that session is still going. */
+export function currentSession(): Session {
+  return session;
 }
 
 /** Read for each request, so a sign-out in another tab shows on the next one (U5). */
 export async function currentToken(): Promise<string | null> {
-  if (!supabase) return savedToken();
+  if (!supabase) return unsavedToken ?? savedToken();
   const { data } = await supabase.auth.getSession();
   return data.session?.access_token ?? null;
+}
+
+/** Drops this browser's token, so a reload stays signed out. */
+async function forgetToken() {
+  if (supabase) await supabase.auth.signOut({ scope: "local" });
+  else keepToken(null);
 }
 
 /** Ends the session some other way than signing out, such as the backend refusing its token (U6). */
 export function endSession(message: string) {
   if (session.status !== "signed-in") return;
-  if (supabase) void supabase.auth.signOut({ scope: "local" });
-  else saveToken(null);
-  end({ status: "signed-out", message });
+  show({ status: "signed-out", message });
+  void forgetToken();
 }
 
 /** Signs out of this browser only, since each browser signs in separately (U4, U5). */
 export async function signOut() {
-  end(SIGNED_OUT);
-  if (supabase) await supabase.auth.signOut({ scope: "local" });
-  else saveToken(null);
+  show(SIGNED_OUT);
+  await forgetToken();
 }
 
-/** The local copy: signs in as one of its made-up teammates (U13). */
-export async function signInAs(userId: string) {
-  const { token } = await api<{ token: string }>("/local/sign-in", { method: "POST", body: { user_id: userId } });
-  saveToken(token);
-  show(SIGNED_IN);
+/** The local copy: keeps the token its sign-in route gave for a made-up teammate (U13). */
+export function signInWithToken(token: string) {
+  keepToken(token);
+  begin();
 }
 
 function signInMessage(error: AuthError) {
@@ -121,7 +127,7 @@ export async function signInWithPassword(email: string, password: string): Promi
   if (!supabase) throw new Error("The local copy signs in without a password.");
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return signInMessage(error);
-  show(SIGNED_IN);
+  begin();
 }
 
 /**
@@ -130,17 +136,18 @@ export async function signInWithPassword(email: string, password: string): Promi
  * session, so an ending this tab didn't ask for gets U6's message.
  */
 function followSupabase(signedIn: boolean) {
-  if (signedIn) show(SIGNED_IN);
-  else if (session.status === "signed-in") end({ status: "signed-out", message: SESSION_ENDED });
+  if (signedIn) begin();
+  else if (session.status === "signed-in") show({ status: "signed-out", message: SESSION_ENDED });
   else if (session.status === "checking") show(SIGNED_OUT);
 }
 
 /** The local copy's other tabs signing in or out, which this tab follows. */
 function followOtherTabs(event: StorageEvent) {
   if (event.key !== null && event.key !== SESSION_KEY) return;
-  // Whatever this tab had read belongs to the session that just changed.
-  end(SIGNED_OUT);
-  if (savedToken()) show(SIGNED_IN);
+  // Someone else may have signed in, so this tab's session ends either way, and it goes by storage again.
+  unsavedToken = null;
+  show(SIGNED_OUT);
+  if (savedToken()) begin();
 }
 
 if (supabase) supabase.auth.onAuthStateChange((_event, saved) => followSupabase(saved !== null));

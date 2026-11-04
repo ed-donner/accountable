@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-// session.ts imports this file too, so what comes from it is only read inside functions.
-import { SESSION_ENDED, currentToken, endSession, isSharedApp } from "./session";
+import { SESSION_ENDED, currentSession, currentToken, endSession, isSharedApp } from "./session";
 
 export type ApiErrorKind = "fields" | "missing" | "connection" | "server" | "signed-out";
 
@@ -18,11 +17,9 @@ export class ApiError extends Error {
 }
 
 /** The shared app is reached over the internet, and the local copy runs on this computer (N5). */
-export function connectionMessage() {
-  return isSharedApp
-    ? "Can't reach Accountable. Check your internet connection."
-    : "Can't reach Accountable. Check that it's still running.";
-}
+export const CONNECTION_MESSAGE = isSharedApp
+  ? "Can't reach Accountable. Check your internet connection."
+  : "Can't reach Accountable. Check that it's still running.";
 
 let connectionLost = false;
 const listeners = new Set<() => void>();
@@ -68,7 +65,7 @@ type ErrorReply = { detail?: string; fields?: Record<string, string> };
 
 function loseConnection(): never {
   setConnectionLost(true);
-  throw new ApiError("connection", connectionMessage());
+  throw new ApiError("connection", CONNECTION_MESSAGE);
 }
 
 function headersFor(token: string | null, body: unknown): Record<string, string> {
@@ -125,10 +122,12 @@ function errorFor(status: number, { detail, fields }: ErrorReply) {
 }
 
 export async function api<T>(path: string, options: Options = {}): Promise<T> {
+  const sentIn = currentSession();
   const reply = await send(path, options);
   if (isFromDevServer(reply)) loseConnection();
   setConnectionLost(false);
-  if (reply.status === 401) endSession(SESSION_ENDED);
+  // Someone may have signed out and in again while the request was on its way (U6).
+  if (reply.status === 401 && currentSession() === sentIn) endSession(SESSION_ENDED);
   if (!reply.ok) throw errorFor(reply.status, await readErrorReply(reply));
   return (reply.status === 204 ? undefined : await reply.json()) as T;
 }

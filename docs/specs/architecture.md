@@ -40,6 +40,7 @@ In both, the browser talks to one address for pages and data, so the backend nee
 package.json, package-lock.json   root scripts, npm workspace for frontend/
 pyproject.toml, uv.lock           backend/accountable/ as an installable package, and the ruff, ty and coverage settings
 render.yaml                       the shared app's Render web service, with no secret values
+docs/INDEPENDENT_REVIEW.md        independent review of multi-user against week1day5-end, including code quality findings
 playwright.config.ts
 eslint.config.js, .prettierrc.json, .prettierignore, .gitleaks.toml   settings for npm run check
 lefthook.yml                      the git pre-commit hook
@@ -87,7 +88,9 @@ backend/tests/
 frontend/index.html               the page, with a short script that applies the saved theme before anything draws
 frontend/src/
   main.tsx, App.tsx, styles.css   styles.css holds every color, as light and dark tokens
-  lib/                            fetch client, session, money and date formatting, useToday, validation, the saved theme
+  test-utils.tsx, test-setup.ts   the unit tests' helpers, and test-supabase.ts, which stands in for Supabase's client
+  lib/                            fetch client, session, query defaults, money and date formatting, useToday, validation,
+                                  the saved theme
   components/                     Shell, SignIn, UserMenu, DataTable, RecordPicker, ConfirmDelete, LoadFailed, Chip and others
   crm/
     queries.ts, deals.ts, Timeline.tsx, Search.tsx and others

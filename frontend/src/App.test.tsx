@@ -1,7 +1,7 @@
 import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { App, queryClient } from "./App";
+import { App } from "./App";
 import { THEME_KEY } from "./lib/theme";
 import { META, mockApi, startSignedIn, user, type Call } from "./test-utils";
 
@@ -23,7 +23,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  queryClient.clear();
 });
 
 /** Goes to an address the way the browser's back and forward buttons do. */

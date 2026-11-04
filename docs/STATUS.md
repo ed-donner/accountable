@@ -94,6 +94,28 @@ Done on the `multi-user` branch, before its design. The spec had grown past 850 
 
 Two fixes followed. The spec and this file said ui-check runs on the session's model, but its file sets Sonnet, and both now say Sonnet. And `e2e/mode.spec.ts`'s "switching keeps what's on screen" failed once in `npm run check`: it scrolled the page straight after typing, and if the table hadn't drawn yet, the page was too short to scroll and stayed at 0. Holding back the organizations reply for 1.5 seconds made it fail the same way every time. It now waits for the first row before it scrolls, and passes with the delay in place.
 
+## Independent review of multi-user
+
+On 2026-11-04, the branch was reviewed against `week1day5-end`, with an emphasis on code quality and readability. `docs/INDEPENDENT_REVIEW.md` records four Important findings, reproduced with temporary tests outside the repository: a late 401 ending a newer session, a pending move restoring cached data after sign-out, ArrowDown failing to retry an open search error, and local sign-in losing its token when storage writes fail. It also records four non-blocking maintainability recommendations. The review itself changed no application code. `npm run check -- --failures-only` passed all 2,868 existing tests and the code checks in 3m 56s.
+
+The fixes that followed. Each new test was run against the code with its fix taken out, and failed there.
+
+1. **A late 401 could sign out a newer session.** Fixed: each sign-in begins a session with a new id, and `api()` ends the session only if the one the request went out in is still going.
+2. **A pending move could put the last session's deals back.** Worse than reported: with a move pending at sign-out, the next person's first move showed the previous person's deals, because the move's saved list outlived the cleared cache. Fixed: `SignedIn` gives each session its own query cache, keyed by the session's id, in place of one cache emptied at sign-out. A late reply now lands in the old cache, which nothing reads. `queryDefaults` moved from `App.tsx` to `lib/queryDefaults.ts`, so `SignedIn` can use it without importing `App.tsx`.
+3. **ArrowDown didn't retry with the error showing.** Fixed: ArrowDown always opens the list and tries a failed search again, and a held-down key joins the try already on its way.
+4. **Local sign-in lost its token when storage refused it.** Fixed: `session.ts` keeps the token itself when storage can't, until the page is reloaded. Storage stays where each request reads the token, so another tab's sign-out still shows on the next request.
+
+Nits:
+
+1. **The import cycle:** fixed. `session.ts` no longer imports `api.ts`. The sign-in screen asks the local sign-in route for the token and hands it to `signInWithToken()`. `connectionMessage()` is a constant again, `CONNECTION_MESSAGE`.
+2. **Typed authorship helpers:** not changed. The helpers are short and named for what they do, and a type for the row would have to describe SQLAlchemy rows, whose columns the type checkers can't see, so it would promise more than it checks.
+3. **One Supabase stand-in:** fixed. `frontend/src/test-supabase.ts` replaces the four that differed, and its saved session and events agree, as the real client's do.
+4. **The organization query:** fixed. Both halves of the union name every column, and the linked contacts and deals each have a small conversion function.
+
+`main.test.tsx` now imports `App.tsx` up front. `test-utils.tsx` used to load the whole app by importing `queryDefaults` from it, and without that the test paid the app's loading time itself and showed in the slow-test list.
+
+`npm run check` passes, with 2,878 tests.
+
 ## Sign-in, search and a user menu: design
 
 On the `multi-user` branch, `docs/spec.md`, the area files and `docs/TECH_STACK.md` now describe Accountable with sign-in, search and the user menu in it, as it will be once the branch merges. Three area files are new: `sign-in.md`, `search.md` and `deploy.md`.

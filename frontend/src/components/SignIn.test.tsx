@@ -1,37 +1,19 @@
 import { AuthApiError } from "@supabase/supabase-js";
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { queryDefaults } from "../App";
 import { api } from "../lib/api";
-import { endSession } from "../lib/session";
+import { signOut } from "../lib/session";
 import { mockApi, startSignedIn, user } from "../test-utils";
 import { SignedIn as LocalSignedIn } from "./SignIn";
 
-type Saved = { access_token: string } | null;
-type Listener = (event: string, saved: Saved) => void;
-
-/** Stands in for Supabase's client, which these tests never reach. */
-const supabase = vi.hoisted(() => {
-  const state = { listeners: [] as Listener[] };
-  const emit = (event: string, saved: Saved) => state.listeners.forEach((listener) => listener(event, saved));
-  const auth = {
-    onAuthStateChange: (listener: Listener) => {
-      state.listeners.push(listener);
-      return { data: { subscription: { unsubscribe: () => undefined } } };
-    },
-    getSession: async () => ({ data: { session: null }, error: null }),
-    signInWithPassword: async (): Promise<{ error: unknown }> => ({ error: null }),
-    signOut: async () => ({ error: null }),
-  };
-  return { state, emit, auth };
-});
+const supabase = await vi.hoisted(async () => (await import("../test-supabase")).fakeSupabase());
 
 vi.mock("@supabase/supabase-js", async (original) => ({
   ...(await original<typeof import("@supabase/supabase-js")>()),
-  createClient: () => ({ auth: supabase.auth }),
+  createClient: () => supabase.client,
 }));
 
 const TEAMMATES = [
@@ -50,17 +32,11 @@ async function loadSharedApp() {
 }
 
 function renderSignedIn(SignedIn: typeof LocalSignedIn, children: ReactNode = <p>The app</p>) {
-  const client = new QueryClient({ defaultOptions: queryDefaults });
-  render(
-    <QueryClientProvider client={client}>
-      <SignedIn>{children}</SignedIn>
-    </QueryClientProvider>,
-  );
-  return client;
+  render(<SignedIn>{children}</SignedIn>);
 }
 
 beforeEach(() => {
-  supabase.state.listeners = [];
+  supabase.reset();
 });
 
 afterEach(() => {
@@ -72,7 +48,7 @@ afterEach(() => {
 describe("the shared app's sign-in", () => {
   async function openSignIn() {
     renderSignedIn(await loadSharedApp());
-    act(() => supabase.emit("INITIAL_SESSION", null));
+    act(() => supabase.load(null));
     return vi.spyOn(supabase.auth, "signInWithPassword");
   }
 
@@ -135,10 +111,10 @@ describe("the shared app's sign-in", () => {
 
   it("says the session has ended when Supabase ends it", async () => {
     renderSignedIn(await loadSharedApp());
-    act(() => supabase.emit("INITIAL_SESSION", { access_token: "supabase-token" }));
+    act(() => supabase.load({ access_token: "supabase-token" }));
     expect(screen.getByText("The app")).toBeTruthy();
 
-    act(() => supabase.emit("SIGNED_OUT", null));
+    act(() => supabase.end());
 
     expect(screen.getByRole("alert").textContent).toBe("Your session has ended. Sign in again.");
     expect(screen.getByLabelText("Email")).toBeTruthy();
@@ -227,8 +203,8 @@ describe("the local copy's sign-in", () => {
 
 describe("SignedIn", () => {
   function Deals() {
-    useQuery({ queryKey: ["deals"], queryFn: () => api("/deals") });
-    return <p>The deals</p>;
+    const deals = useQuery({ queryKey: ["deals"], queryFn: () => api<{ name: string }[]>("/deals") });
+    return <p>{deals.data ? deals.data.map((deal) => deal.name).join(", ") : "Loading the deals"}</p>;
   }
 
   it("shows the app straight away with a saved session", async () => {
@@ -250,15 +226,18 @@ describe("SignedIn", () => {
     expect(await screen.findByText("Alex Rivera")).toBeTruthy();
   });
 
-  it("empties the query cache when a session ends", async () => {
-    startSignedIn();
-    mockApi({ "GET /local/teammates": TEAMMATES });
-    const client = renderSignedIn(LocalSignedIn);
-    client.setQueryData(["organizations"], [{ id: 1, name: "Harbor & Pine" }]);
+  it("shows nothing read in one session to whoever signs in next", async () => {
+    startSignedIn("alex-token");
+    mockApi({ "GET /deals": [{ name: "Alex's deal" }], "GET /local/teammates": TEAMMATES });
+    renderSignedIn(LocalSignedIn, <Deals />);
+    expect(await screen.findByText("Alex's deal")).toBeTruthy();
 
-    act(() => endSession("Your session has ended. Sign in again."));
-
-    expect(client.getQueryData(["organizations"])).toBeUndefined();
+    await act(() => signOut());
     expect(await screen.findByText("Alex Rivera")).toBeTruthy();
+    vi.stubGlobal("fetch", () => new Promise(() => undefined));
+    act(() => startSignedIn("dana-token"));
+
+    expect(screen.getByText("Loading the deals")).toBeTruthy();
+    expect(screen.queryByText("Alex's deal")).toBeNull();
   });
 });

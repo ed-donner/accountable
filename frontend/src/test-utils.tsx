@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
 
-import { queryDefaults } from "./App";
+import { queryDefaults } from "./lib/queryDefaults";
 import { STAGES } from "./crm/deals";
 import type { Stage } from "./crm/queries";
 import { SESSION_KEY } from "./lib/session";

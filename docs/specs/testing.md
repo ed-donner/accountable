@@ -35,14 +35,15 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 
 **Frontend (Vitest):** money and date formatting, including dates near midnight, expected revenue and board totals using the same cases as the backend, the deal form's stage behavior, the table's search and sort, and every page, chart and the pipeline board as a user sees them, with the API stood in for by `mockApi` in `src/test-utils.tsx`. The board's tests give jsdom a plain layout, because jsdom lays nothing out, and move cards with the keyboard and the pointer. Also:
 
-- Both sign-in screens, with Supabase's client stood in for the shared app's: each message in U2, a session that ends (U6), and signing out emptying the query cache (U5)
+- Both sign-in screens, with Supabase's client stood in for the shared app's by `src/test-supabase.ts`, whose saved session and events agree as the real client's do: each message in U2, a session that ends (U6), and nothing read in one session showing to whoever signs in next (U5)
+- Sessions: a refusal arriving after someone has signed out and in again leaves the new session alone, a token storage can't keep still goes with each request, and a pipeline move still on its way at sign-out, whether it goes through or fails, leaves the next person's deals and their own moves alone
 - The menu, and the theme: each choice, the saved choice, one that can't be read, and System following the device as it changes, with the browser's `prefers-color-scheme` stood in
-- The search box: the pause before searching, an older reply arriving late, the groups, "See all", the keyboard, each message in K7, and telling screen readers whether its results are open
+- The search box: the pause before searching, an older reply arriving late, the groups, "See all", the keyboard, each message in K7, trying a failed search again with a click or the down arrow, and telling screen readers whether its results are open
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
 
 **Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value. It also fails if the dark block sets a token that `@theme` doesn't have, so a misspelled one can't go unnoticed.
 
-**Unit coverage:** `npm test` fails if the unit tests cover less than 80% of the app code. For `frontend/src` that's lines, statements, functions and branches, leaving out the tests and their helpers, `test-setup.ts` and `test-utils.tsx`. For `backend/accountable` it's lines and branches together. The end-to-end tests don't count towards it.
+**Unit coverage:** `npm test` fails if the unit tests cover less than 80% of the app code. For `frontend/src` that's lines, statements, functions and branches, leaving out the tests, `test-setup.ts` and `test-utils.tsx`. For `backend/accountable` it's lines and branches together. The end-to-end tests don't count towards it.
 
 **Code checks:** `npm run check` runs these alongside the type checks and unit tests, then the browser tests, and fails if any of them fail. Warnings fail it too.
 

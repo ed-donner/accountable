@@ -1,13 +1,17 @@
 import { QueryClient, QueryClientProvider, type InfiniteData } from "@tanstack/react-query";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { queryDefaults } from "../App";
-import { META, mockApi, type Call } from "../test-utils";
+import { SignedIn } from "../components/SignIn";
+import { queryDefaults } from "../lib/queryDefaults";
+import { signOut } from "../lib/session";
+import { META, mockApi, startSignedIn, user, type Call } from "../test-utils";
 import {
   useDashboard,
+  useDeals,
+  useMeta,
   useMoveDeal,
   useTickFollowUp,
   type Dashboard,
@@ -16,15 +20,11 @@ import {
   type Timeline,
 } from "./queries";
 
-// Supabase's client is never reached. This stand-in is enough for the shared app to be built and send a token.
+const supabase = await vi.hoisted(async () => (await import("../test-supabase")).fakeSupabase());
+
 vi.mock("@supabase/supabase-js", async (original) => ({
   ...(await original<typeof import("@supabase/supabase-js")>()),
-  createClient: () => ({
-    auth: {
-      onAuthStateChange: () => undefined,
-      getSession: async () => ({ data: { session: { access_token: "shared-token" } } }),
-    },
-  }),
+  createClient: () => supabase.client,
 }));
 
 function deal(id: number, stage: Stage = "new"): Deal {
@@ -240,6 +240,107 @@ describe("a move still finishing after the board has gone", () => {
 
     await waitFor(() => expect(failure).toHaveBeenCalledOnce());
     expect(client.getQueryData<Deal[]>(["deals"])?.find((item) => item.id === 1)?.stage).toBe("new");
+  });
+});
+
+describe("a move still on its way when its session ends", () => {
+  type Reply = { status: number; body: unknown };
+
+  function answer({ status, body }: Reply) {
+    return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  }
+
+  /** The local copy, showing everyone whatever deals the test sets, and holding each move's reply until it's sent. */
+  function standInBackend() {
+    const backend = { deals: [] as Deal[], replyToMove: new Map<number, (reply: Reply) => void>() };
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+      const path = url.replace(/^\/api/, "");
+      const move = /^\/deals\/(\d+)\/move$/.exec(path);
+      if (move && init.method === "POST") {
+        return new Promise<Response>((resolve) =>
+          backend.replyToMove.set(Number(move[1]), (reply) => resolve(answer(reply))),
+        );
+      }
+      const replies: Record<string, unknown> = { "/meta": META, "/deals": backend.deals, "/local/teammates": [] };
+      return answer(path in replies ? { status: 200, body: replies[path] } : { status: 404, body: {} });
+    });
+    return backend;
+  }
+
+  function Board() {
+    useMeta();
+    const deals = useDeals();
+    const move = useMoveDeal();
+    if (!deals.data) return <p>Loading the deals</p>;
+    return (
+      <>
+        <p data-testid="deals">{deals.data.map((item) => `${item.name}: ${item.stage}`).join(", ")}</p>
+        {deals.data.map((item) => (
+          <button key={item.id} onClick={() => move.mutate({ dealId: item.id, stage: "won", beforeDealId: null })}>
+            Win {item.name}
+          </button>
+        ))}
+      </>
+    );
+  }
+
+  function shown() {
+    return screen.getByTestId("deals").textContent;
+  }
+
+  /** Alex wins a deal and signs out before the reply comes, and Dana signs in and sees her own deals. */
+  async function changeHandsDuringAMove() {
+    const backend = standInBackend();
+    backend.deals = [deal(1), deal(2)];
+    startSignedIn("alex-token");
+    render(
+      <SignedIn>
+        <Board />
+      </SignedIn>,
+    );
+    await user().click(await screen.findByRole("button", { name: "Win Deal 1" }));
+    expect(shown()).toContain("Deal 1: won");
+
+    await act(() => signOut());
+    backend.deals = [deal(3)];
+    act(() => startSignedIn("dana-token"));
+    await waitFor(() => expect(shown()).toBe("Deal 3: new"));
+    return backend;
+  }
+
+  /** Lets a reply's handlers finish, and anything they changed show. */
+  async function settle() {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  }
+
+  it("leaves the next person's deals alone when it goes through", async () => {
+    const success = vi.spyOn(toast, "success");
+    const backend = await changeHandsDuringAMove();
+
+    act(() => backend.replyToMove.get(1)!({ status: 200, body: moved(1, "won") }));
+    await waitFor(() => expect(success).toHaveBeenCalledOnce());
+    await settle();
+
+    expect(shown()).toBe("Deal 3: new");
+  });
+
+  it("leaves the next person's deals alone when it fails", async () => {
+    const failure = vi.spyOn(toast, "error");
+    const backend = await changeHandsDuringAMove();
+
+    act(() => backend.replyToMove.get(1)!({ status: 500, body: { detail: "Something went wrong." } }));
+    await waitFor(() => expect(failure).toHaveBeenCalledOnce());
+    await settle();
+
+    expect(shown()).toBe("Deal 3: new");
+  });
+
+  it("leaves the next person's own moves alone", async () => {
+    await changeHandsDuringAMove();
+
+    await user().click(screen.getByRole("button", { name: "Win Deal 3" }));
+
+    expect(shown()).toBe("Deal 3: won");
   });
 });
 

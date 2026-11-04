@@ -2,15 +2,16 @@ import { QueryClient, onlineManager } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { queryDefaults } from "../App";
 import { startSignedIn } from "../test-utils";
-import { ApiError, api, connectionMessage, isConnectionLost, onReconnect } from "./api";
-import { SESSION_KEY, onSessionEnd, useSession } from "./session";
+import { ApiError, CONNECTION_MESSAGE, api, isConnectionLost, onReconnect } from "./api";
+import { queryDefaults } from "./queryDefaults";
+import { SESSION_KEY, signInWithToken, signOut, useSession } from "./session";
 
-// Supabase's client is never reached. These stand-ins are enough for it to be built.
+const supabase = await vi.hoisted(async () => (await import("../test-supabase")).fakeSupabase());
+
 vi.mock("@supabase/supabase-js", async (original) => ({
   ...(await original<typeof import("@supabase/supabase-js")>()),
-  createClient: () => ({ auth: { onAuthStateChange: () => undefined } }),
+  createClient: () => supabase.client,
 }));
 
 function reply(status: number, body?: unknown, contentType = "application/json") {
@@ -139,26 +140,58 @@ describe("signing in", () => {
     expect(fetchMock.mock.calls[1][1].headers).toEqual({});
   });
 
+  it("sends the token even when storage couldn't keep it", async () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+    });
+    const { result } = renderHook(useSession);
+    act(() => signInWithToken("unsaved"));
+    const fetchMock = stubFetch();
+
+    await api("/deals");
+
+    expect(result.current.status).toBe("signed-in");
+    expect(fetchMock.mock.calls[0][1].headers).toEqual({ Authorization: "Bearer unsaved" });
+  });
+
   it("ends the session when the backend refuses the token", async () => {
     startSignedIn("expired");
-    const ended = vi.fn();
-    const stop = onSessionEnd(ended);
     const { result } = renderHook(useSession);
     stubFetch(401, { detail: "Sign in to use Accountable." });
 
     const error = await act(() => failure("/deals"));
 
     expect(error.kind).toBe("signed-out");
-    expect(ended).toHaveBeenCalledOnce();
     expect(result.current).toEqual({ status: "signed-out", message: "Your session has ended. Sign in again." });
     expect(localStorage.getItem(SESSION_KEY)).toBeNull();
-    stop();
+  });
+
+  it("leaves a newer session alone when a refusal from before it arrives late", async () => {
+    startSignedIn("old-token");
+    const { result } = renderHook(useSession);
+    let refuse = () => {};
+    vi.stubGlobal(
+      "fetch",
+      () => new Promise<Response>((resolve) => (refuse = () => resolve(reply(401, { detail: "Expired" })))),
+    );
+    const late = failure("/deals");
+
+    await act(() => signOut());
+    act(() => signInWithToken("new-token"));
+    await act(async () => {
+      refuse();
+      await late;
+    });
+
+    expect((await late).kind).toBe("signed-out");
+    expect(result.current.status).toBe("signed-in");
+    expect(localStorage.getItem(SESSION_KEY)).toBe("new-token");
   });
 });
 
 describe("the connection message", () => {
   it("says to check Accountable is running in the local copy", () => {
-    expect(connectionMessage()).toBe("Can't reach Accountable. Check that it's still running.");
+    expect(CONNECTION_MESSAGE).toBe("Can't reach Accountable. Check that it's still running.");
   });
 
   it("says to check the internet in the shared app", async () => {
@@ -166,7 +199,7 @@ describe("the connection message", () => {
     vi.stubEnv("VITE_SUPABASE_URL", "https://team.supabase.co");
     vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
     const shared = await import("./api");
-    expect(shared.connectionMessage()).toBe("Can't reach Accountable. Check your internet connection.");
+    expect(shared.CONNECTION_MESSAGE).toBe("Can't reach Accountable. Check your internet connection.");
   });
 });
 

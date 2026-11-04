@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider, type DefaultOptions } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
@@ -17,14 +16,6 @@ import { Pipeline } from "./crm/pages/Pipeline";
 import { useMeta } from "./crm/queries";
 import { Search } from "./crm/Search";
 import { applyTheme, savedTheme } from "./lib/theme";
-
-// The local copy runs with no internet, so the browser reporting it's offline must not pause anything.
-export const queryDefaults: DefaultOptions = {
-  queries: { networkMode: "always", retry: false, refetchOnWindowFocus: true },
-  mutations: { networkMode: "always" },
-};
-
-export const queryClient = new QueryClient({ defaultOptions: queryDefaults });
 
 function AppShell() {
   useMeta(); // Fetched early, because it never changes and forms need it straight away.
@@ -52,12 +43,11 @@ export function App() {
   // index.html has already put the saved theme's mode on the page. This keeps System following the device.
   useEffect(() => applyTheme(savedTheme()), []);
 
+  // The router is made once, outside SignedIn, so signing in opens the address the app was opened at.
+  // SignedIn gives each session its own query cache.
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* The router is made once, outside SignedIn, so signing in opens the address the app was opened at. */}
-      <SignedIn>
-        <RouterProvider router={router} />
-      </SignedIn>
-    </QueryClientProvider>
+    <SignedIn>
+      <RouterProvider router={router} />
+    </SignedIn>
   );
 }

@@ -279,6 +279,36 @@ describe("a failed search", () => {
     expect(optionNames()).toContain("Harbor & PineLogistics");
   });
 
+  it("tries again when the down arrow is pressed with the message still showing", async () => {
+    let fail = true;
+    const calls = mockApi({ "GET /search?q=harb": () => (fail ? { status: 500, body: {} } : { body: HARB }) });
+    const box = openSearch();
+    const keys = typist();
+    await keys.type(box, "harb");
+    await wait(PAUSE_MS);
+    expect(screen.getByRole("status").textContent).toBe("Couldn't search. Try again.");
+
+    fail = false;
+    await keys.keyboard("{ArrowDown}");
+    await wait(0);
+    expect(searches(calls)).toHaveLength(2);
+    expect(optionNames()).toContain("Harbor & PineLogistics");
+  });
+
+  it("tries again when the down arrow is pressed after the connection was lost", async () => {
+    vi.stubGlobal("fetch", () => Promise.reject(new TypeError("Failed to fetch")));
+    const box = openSearch();
+    const keys = typist();
+    await keys.type(box, "harb");
+    await wait(PAUSE_MS);
+
+    const calls = mockApi({ "GET /search?q=harb": HARB });
+    await keys.keyboard("{ArrowDown}");
+    await wait(0);
+    expect(searches(calls)).toEqual(["/search?q=harb"]);
+    expect(optionNames()).toContain("Harbor & PineLogistics");
+  });
+
   it("adds no message of its own when the connection is lost, which the top of the page reports", async () => {
     vi.stubGlobal("fetch", () => Promise.reject(new TypeError("Failed to fetch")));
     const box = openSearch();

@@ -193,17 +193,20 @@ export function Search() {
     navigate(path);
   }
 
+  /** Opens the list, and tries a failed search again (K7). */
   function reopen() {
     if (text.trim() === "") return;
     setOpen(true);
-    if (search.isError) void search.refetch();
+    // A held-down arrow key repeats, and each press joins the try already on its way.
+    if (search.isError) void search.refetch({ cancelRefetch: false });
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Escape") {
       if (open) setOpen(false);
       else type("");
-    } else if (event.key === "ArrowDown" && !open) {
+    } else if (event.key === "ArrowDown") {
+      // cmdk moves through the results as well.
       reopen();
     }
   }

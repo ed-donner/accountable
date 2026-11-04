@@ -13,7 +13,7 @@ _If you're looking at this in VS Code or Cursor, right-click `README.md` in the 
 - `docs/`: the documents for Accountable, such as what we build and the tech stack it uses.
 - `course/`: your guides. [course/SETUP.md](course/SETUP.md) installs the tools, and [course/coding_agents/](course/coding_agents/) has the steps for each coding agent.
 - `course/for_agents/`: guides for your coding agent, so it can help you with the course.
-- `course/instructions/`: extra instructions for some days, such as the review policy for Week 1 Day 3 and every prompt for Week 1 Days 4 and 5.
+- `course/instructions/`: extra instructions for some days, such as the review policy for Week 1 Day 3, every prompt for Week 1 Days 4 and 5, and the worktree demo for Week 2 Day 1.
 - `AGENTS.md`: the instructions your coding agent reads at the start of each session.
 - `community_contributions/`: work shared by students, added by pull request.
 
@@ -54,6 +54,7 @@ You can follow the whole course with your own build. On each day that we work on
 | `git checkout week1day2-end` | My setup from Week 1 Day 2 in Claude Code: permissions, the Playwright MCP server, the brand skill and the frontend-design plugin |
 | `git checkout week1day3-end` | My build from Week 1 Day 3 in Claude Code: the MVP of the sales CRM, with its documents and tests |
 | `git checkout week1day4-end` | My build from Week 1 Day 4 in Claude Code: the harness (my coding standards, `npm run check`, hooks and CI) and dark mode. Install gitleaks first, as the Day 4 instructions show, because its commit hook needs it |
+| `git checkout week1day5-end` | My build from Week 1 Day 5 in Claude Code: the reviewer and ui-check subagents, then sign-in with Supabase, search and the user menu, ready to deploy to Render. To run it against Supabase or deploy it, you need your own Supabase project and `.env`, as the Day 5 instructions show |
 
 Commit your own changes before you switch branches.
 
@@ -79,3 +80,9 @@ I'd love to see what you build! Please share it with a pull request to `communit
 **Day 3: Anthropic AI-SDLC.** Build the MVP of Accountable, a sales CRM for one person, and take it through each stage of Anthropic's AI-native SDLC on a branch: Plan, Design, Build, Test, Deploy and Maintain. Fork the repo at the start of the day and share the documents you wrote in a pull request at the end. My build: `git checkout week1day3-end`, then `npm run dev`.
 
 **Day 4: Harness engineering.** Add a harness to Accountable: your coding standards, `npm run check`, hooks for git and your coding agent, and CI on GitHub. Then add dark mode through the six stages, with the harness in place. Every prompt is in [course/instructions/week1day4.md](course/instructions/week1day4.md). My build: install gitleaks as the instructions show, then `git checkout week1day4-end` and `npm run dev`.
+
+**Day 5: Subagents and Agent Teams.** Add two subagents, a code reviewer and a UI checker. Then take one change through the six stages: sign-in and a shared database on Supabase, search, and a user menu, ending with the app live on Render. I build it with an agent team on camera, as a demo. Every prompt is in [course/instructions/week1day5.md](course/instructions/week1day5.md). My build: `git checkout week1day5-end` and `npm run dev`, which runs it on your computer with sample data and no Supabase. To run it against Supabase or deploy it, first set up your own Supabase project and write your `.env`, as the Day 5 instructions show.
+
+### Week 2: Positioned for the industry of the future
+
+**Day 1: AI SDLC in Industry.** No code today: how the AI SDLC lifecycles work for teams, with AWS's AI-DLC v2 in the most detail. At the end I demo git worktrees, and the steps are in [course/instructions/week2day1.md](course/instructions/week2day1.md) if you'd like to follow along.

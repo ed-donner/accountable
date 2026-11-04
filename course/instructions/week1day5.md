@@ -23,19 +23,19 @@ git checkout -b subagents
 
 ### Create two subagents
 
-The reviewer runs on Sonnet, so that a different model from your session's checks the work. If your session already runs Sonnet, change "Sonnet" to "Haiku" in the prompt.
+The reviewer runs on Sonnet, so that a different model from your session's checks the work. If your session already runs Sonnet, change the reviewer's "Sonnet" to "Haiku" in the prompt. ui-check runs on Sonnet too. On a larger model, checking every page can take up to 40 minutes.
 
 ```
 Create two project subagents for this coding agent:
 - reviewer: reviews the changes on a branch with docs/REVIEW.md and reports its findings by severity. It reads files and runs commands that only read, such as git diff, git log, git show and grep, and it never changes anything. It runs on Sonnet.
-- ui-check: checks the running app in the browser with the Playwright MCP server. It opens each page, takes a screenshot, checks it against the brand skill and docs/spec.md, and reports anything off-brand or broken. It saves its screenshots in .playwright-mcp/, which git ignores, and it doesn't change any code.
+- ui-check: checks the running app in the browser with the Playwright MCP server. It opens each page, takes a screenshot, checks it against the brand skill and docs/spec.md, and reports anything off-brand or broken. It saves its screenshots in .playwright-mcp/, which git ignores, and it doesn't change any code. It runs on Sonnet.
 Leave the commits to me.
 ```
 
 Your coding agent loads new subagents when it starts, so restart it (in Claude Code, type `/exit`, then `claude`). Then try them:
 
 ```
-Start the app, ask ui-check to look at the dashboard and the pipeline, and ask reviewer to review the last commit on main. Then stop the app.
+Start the app, ask ui-check to look at the dashboard and the pipeline, and ask reviewer to review the commit "Deploy: harness improved". Then stop the app.
 ```
 
 ```
@@ -69,9 +69,9 @@ git checkout -b multi-user
 
 Supabase holds the database and the sign-in. Its free plan is enough.
 
-1. Sign up at https://supabase.com and create a new project. Save the database password it shows you.
-2. Click **Connect** at the top of the project, choose **Session pooler** and copy the connection string. Put your database password in place of `[YOUR-PASSWORD]`.
-3. In the same **Connect** dialog, choose your framework under **App Frameworks** to see the **Project URL** and the **publishable key**, starting `sb_publishable_`, and copy both. The key is also in **Settings**, under **API Keys**.
+1. Sign up at https://supabase.com and create a new project. Use only letters and numbers in the database password, since symbols such as `@` and `#` break the connection string. Save the password. Pick the region nearest you. I chose East US (North Virginia). Leave the **Security options** as they are.
+2. Click **Connect** at the top of the project, choose **Session pooler** and copy the connection string. Put your database password in place of `[YOUR-PASSWORD]`, square brackets included.
+3. In the same **Connect** dialog, choose your framework under **App Frameworks** to see the **Project URL** and the **publishable key**, starting `sb_publishable_`, and copy both. The key is also in **Settings**, under **API Keys**. Copy only the values. The names the dialog puts in front of them, such as `VITE_SUPABASE_URL`, aren't the ones `.env` uses.
 4. In **Authentication**, open **Users**, click **Add user** and then **Create new user**. Enter your email and a password, leave **Auto confirm user?** ticked and click **Create user**.
 5. Turn off sign-ups, so that nobody else can make an account: in **Authentication**, open **Sign In / Providers** and turn off **Allow new users to sign up**. Click **Save changes**.
 6. Create a file called `.env` in the `accountable` folder with these three lines, using your own values. Your agent's hook stops it from touching `.env`, so you write this file yourself. Git ignores it.
@@ -81,6 +81,29 @@ DATABASE_URL=postgresql://postgres.abcdefghijklmnopqrst:your-database-password@a
 SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key
 ```
+
+7. Check your `.env` with this script. It tests the three settings, connects to the database and makes sure sign-ups are off. It doesn't print your password or key.
+
+```
+uv run course/check_supabase.py
+```
+
+It ends with "All good. Your .env is ready." or lists what to fix.
+
+### Connect your agent to Supabase, read-only
+
+Supabase's MCP server lets your agent look at your project. Connect it read-only and to this one project, so your agent can read the database but can't change it. Changes to the database go through the app's migrations, which are in git.
+
+1. Find your project's ref, the part of `SUPABASE_URL` before `.supabase.co`.
+2. In the terminal, in the `accountable` folder, run this with your own ref in place of `abcdefghijklmnopqrst`. Claude Code keeps the server for this folder on your computer only, so your project ref stays out of git.
+
+```
+claude mcp add --transport http supabase "https://mcp.supabase.com/mcp?project_ref=abcdefghijklmnopqrst&read_only=true"
+```
+
+3. Restart Claude Code (`/exit`, then `claude`). Type `/mcp`, choose **supabase**, then **Authenticate**, and sign in to Supabase in the browser.
+
+With another coding agent, use the same address. Supabase's guide shows how to add it to each one: https://supabase.com/docs/guides/getting-started/mcp
 
 ### Plan
 
@@ -200,6 +223,12 @@ Run `npm run check` yourself. Then try the app two ways:
 - `npm run dev` runs it on this computer with the sample data, and you sign in as one of the made-up teammates.
 - `npm start` runs it the way Render will, against your Supabase project. Sign in as the user you added and go through the success criteria in the intent. Press Ctrl+C to stop it.
 
+Once `npm start` has run, your tables are in Supabase. Have your agent check them:
+
+```
+Use the Supabase MCP server to check the live database: list its tables, confirm that row-level security is on for every table, and run Supabase's security advisors. Report only.
+```
+
 ```
 git add .
 git commit -m "Test: checks and ui-check"
@@ -215,16 +244,10 @@ Start a fresh session, then:
 Use the reviewer subagent to review this branch against main. Report only, skip style.
 ```
 
-If you have Codex as well, a second review from a different company's model can catch what the first missed. Run this in the terminal, when nothing else is running the tests. It takes several minutes:
+Then, in the same session, have your agent fix the Important findings:
 
 ```
-codex exec -s read-only "Review this branch against main with docs/REVIEW.md. Report only, skip style."
-```
-
-Then, in the same session as the review, have your agent fix the Important findings. If you ran Codex, paste its report where the brackets are, or leave that sentence out:
-
-```
-Fix the Important findings from the review. Codex found these too: [paste Codex's report]. Run npm run check when you're done. Leave the commits to me.
+Fix the Important findings from the review. Run npm run check when you're done. Leave the commits to me.
 ```
 
 Then open `render.yaml` and check that its `region` is the Render region nearest your Supabase project: `oregon`, `ohio`, `virginia`, `frankfurt` or `singapore`. Render can't change it later.
@@ -243,6 +266,28 @@ Follow docs/IMPROVE.md for this change. Leave the commits to me.
 ```
 git add .
 git commit -m "Deploy: harness improved"
+```
+
+If you have Codex as well, a second review from a different company's model can catch what the first missed. Open a second terminal window in the `accountable` folder and run `codex`. Then give it this prompt, at a time when nothing else is running the tests. It takes several minutes:
+
+```
+Review this branch against main with docs/REVIEW.md. Write your findings to docs/INDEPENDENT_REVIEW.md and don't change anything else. Skip style.
+```
+
+Then, back in your coding agent's session:
+
+```
+Fix the Important findings in docs/INDEPENDENT_REVIEW.md. Run npm run check when you're done. Leave the commits to me.
+```
+
+```
+git add .
+git commit -m "Deploy: independent review"
+```
+
+Then push the branch to your fork:
+
+```
 git push fork multi-user
 ```
 

@@ -133,7 +133,7 @@ Plain business English, short labels, no exclamation marks.
 |---|---|
 | Buttons | Add deal, Save deal, Delete deal, Log activity |
 | Menu button, for screen readers | Menu for Alex Rivera |
-| Menu | Theme. Light. Dark. System. Sign out. |
+| Menu | Theme. Light. Dark. System. Company settings. Sign out. |
 | Sign-in | Sign in. Email. Password. |
 | Sign-in failed | That email and password don't match. |
 | Sign-in service unreachable | Can't reach the sign-in service. Check your internet connection. |
@@ -141,12 +141,15 @@ Plain business English, short labels, no exclamation marks.
 | Session ended | Your session has ended. Sign in again. |
 | Local copy's sign-in | This is a local copy with made-up data. Choose who to sign in as. |
 | Who added and changed | Added by Alex Rivera on Oct 12, 2026. Last changed by Dana Whitfield on Oct 30, 2026. |
+| Company settings page | Company settings. Company. Tax. Quotes and invoices. Save settings. |
+| No company name saved | No company name yet. Enter one below. |
+| Prefix hint | Up to 10 letters, digits and hyphens. |
 | Search, for screen readers | Search organizations, contacts and deals |
 | No search matches | No organizations, contacts or deals match "harbour". |
 | Search failed | Couldn't search. Try again. |
 | More search results | See all 12 contacts |
-| Messages | Deal saved. Deal deleted. |
-| Errors | Enter a name. Choose an organization. Enter your email. |
+| Messages | Deal saved. Deal deleted. Settings saved. |
+| Errors | Enter a name. Choose an organization. Enter your email. Enter a rate from 0 to 100%. Clashes with the quote prefix. Neither can start with the other, ignoring capitals. |
 | Empty table | No deals yet. Add the first one. |
 | Empty funnel | Deals will show here once you've added some. |
 | Empty follow-ups | No follow-ups due. |
@@ -166,7 +169,7 @@ Money always carries its currency, as in `$48,000`. Dates read `Oct 31, 2026`, a
 - **Mockup 3, Deal wall:** the style of the pipeline board.
 - **A top-down sales funnel** in place of Mockup 2's funnel bars, in the style common in sales CRMs.
 
-Organizations, Contacts, Deals and the record pages aren't in the mockup, and follow [Screens](records.md#screens) with the same shell, colors and type. Nor are the sign-in screen, the search results and the menu, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results) and [shell.md](shell.md#shell). The mockup's top bar has no search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
+Organizations, Contacts, Deals and the record pages aren't in the mockup, and follow [Screens](records.md#screens) with the same shell, colors and type. Nor are the sign-in screen, the search results, the menu and the Company settings page, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell) and [settings.md](settings.md#company-settings-page). The mockup's top bar has no search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
 
 The mockups show light mode only. Dark mode follows the dark values in [Color tokens](#color-tokens), and `docs/changes/dark-mode/` holds screenshots of the dashboard and the pipeline in both modes, at 1440 by 900 with the sample data.
 

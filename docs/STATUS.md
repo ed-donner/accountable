@@ -288,6 +288,10 @@ Proved twice with the new code, between this checkout and a worktree in `.claude
 
 The speed figures were the same in every run, alone or shared: the dashboard's data in 24 to 26ms, the top bar's search in 178 to 181ms, and the worst task in each drag at a median of 70 to 79ms.
 
+## Company settings: design
+
+On the `company-settings` branch, `docs/spec.md` and the area files now describe Accountable with the company settings in it, as it will be once the branch merges. One area file is new: `settings.md`, with B1 to B14. The intent is in `docs/changes/company-settings/intent.md`. Nothing is built yet, and the plan comes next. When it's built, the steps below for clearing the sample data in Supabase also need to reset the company settings to the blank defaults, in the same transaction (C11).
+
 ## Running Accountable
 
 Accountable runs two ways:

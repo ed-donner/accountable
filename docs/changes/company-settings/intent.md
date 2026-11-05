@@ -24,7 +24,7 @@ A Settings page, opened from the menu under your initials, holds the company's d
 ## Decisions
 
 - **Databases that already exist:** the team's Supabase database and a local copy's existing file don't get the made-up company, because its name could end up on the team's real invoices. They start with blank settings apart from the defaults: payment terms of 30 days, QT- and INV- as the prefixes, Sales tax as the label and a rate of 0. Until someone saves a company name, the page asks for one, and it shows no one as having changed the settings.
-- **Seed and empty:** `npm run seed` puts the made-up company's settings back. `npm run empty`, and the steps in `docs/STATUS.md` for clearing the sample data in Supabase, leave the settings alone, because they're the business's details, not records.
+- **Seed, empty and clearing:** `npm run seed` puts the made-up company's settings back. `npm run empty` leaves the settings alone, because they're the business's details, not records, and it only touches the local copy. The steps in `docs/STATUS.md` for clearing the sample data in Supabase reset the settings to the blank defaults, so a made-up company never stays on the team's real app.
 
 ## Not in this change
 

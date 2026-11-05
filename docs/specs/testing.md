@@ -31,6 +31,8 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Names and initials, including no display name, a one-word name and a name changed in Supabase
 - Search: part of a name, any case, accented letters, `%` and `_`, spaces at the ends, the order, the limit of 5 and the counts
 - Today follows `TZ`
+- The company settings through `GET` and `PATCH /settings`: each rule and message in B4, at and past each limit, including a tax rate of 150% and payment terms of 400 days, the cases in `shared/settings-cases.json`, prefixes that clash either way round and in any capitals, the checks made against what's already saved, a rate kept exact, who last changed them, and a save that changes nothing leaving that alone
+- The migration that adds the company settings, run on a database that already has records, gives the defaults in B13 with no one recorded. A new database gets the sample company in B12, `npm run seed` puts it back over changed settings, and `npm run empty` leaves the settings as they were
 - The built app: an unknown address gets the page, an unknown `/api` address gets a JSON 404, and nothing outside `frontend/dist` can be reached
 
 **Frontend (Vitest):** money and date formatting, including dates near midnight, expected revenue and board totals using the same cases as the backend, the deal form's stage behavior, the table's search and sort, and every page, chart and the pipeline board as a user sees them, with the API stood in for by `mockApi` in `src/test-utils.tsx`. The board's tests give jsdom a plain layout, because jsdom lays nothing out, and move cards with the keyboard and the pointer. Also:
@@ -40,6 +42,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - The menu, and the theme: each choice, the saved choice, one that can't be read, and System following the device as it changes, with the browser's `prefers-color-scheme` stood in
 - The search box: the pause before searching, an older reply arriving late, the groups, "See all", the keyboard, each message in K7, trying a failed search again with a click or the down arrow, and telling screen readers whether its results are open
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
+- The Company settings page: opening it from the menu, each message beside its field, the cases in `shared/settings-cases.json`, the ask for a company name, who last changed the settings, a failed read showing no form, a failed save keeping what was typed, and a teammate's save arriving while someone is typing
 
 **Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value. It also fails if the dark block sets a token that `@theme` doesn't have, so a misspelled one can't go unnoticed.
 
@@ -93,6 +96,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 | The menu and the theme | N7, L1 to L4 | `e2e/menu.spec.ts`, `frontend/src/lib/theme.test.ts`, `frontend/src/components/UserMenu.test.tsx` |
 | Signing in and out, and who added | U1, U4 to U7, U13 to U15, R6, A7, S2 | `e2e/sign-in.spec.ts`, `e2e/records.spec.ts`, `e2e/activities.spec.ts` |
 | Search | K1 to K8 | `e2e/search.spec.ts`, `backend/tests/test_search.py`, `frontend/src/crm/Search.test.tsx` |
+| Company settings | B1 to B14 | `e2e/settings.spec.ts`, `backend/tests/test_company_settings.py`, `frontend/src/company/SettingsPage.test.tsx`, `frontend/src/company/settings.test.ts` |
 | Look and brand | Visual design, L5 | By hand, against the design reference and the dark mode screenshots |
 | Layout, console, keyboard, Chrome | N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
 | Speed at the limits | Q1 | `e2e/stress.spec.ts` |
@@ -104,4 +108,4 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 
 **By hand:** tests can't settle everything. The app is also used in Chrome at 1440 by 900 and 1280 by 720 the way a salesperson would, including with an emptied database, after a restart and with the network off, and each screen is compared with the design reference, in light mode and dark mode. The project owner checks that someone with no instructions can answer the five questions from the dashboard (H9), and has the final say, including on how it looks. Passing tests is necessary, but it isn't enough.
 
-The shared app is checked by hand too, because no test touches Supabase. The project owner runs `npm start` against an empty Supabase database, which proves that every migration runs from empty on Postgres and that the startup check for row-level security passes. Then they sign in as their Supabase user, and go through the change's success criteria: a wrong password, signing out, who added each record, search and the theme. Once `npm start` has built the tables, the coding agent uses the Supabase MCP server to confirm that row-level security is on for every table and to run Supabase's security advisors, reporting only. After the first deploy, the same checks run on the `onrender.com` address.
+The shared app is checked by hand too, because no test touches Supabase. The project owner runs `npm start` against an empty Supabase database, which proves that every migration runs from empty on Postgres and that the startup check for row-level security passes. Then they sign in as their Supabase user, and go through the change's success criteria, such as a wrong password, signing out, who added each record, search, the theme and the company settings. For the company settings, that includes running the clearing steps in `docs/STATUS.md`, which should leave no records and the Company settings page asking for a company name, with no one shown as having changed the settings. Once `npm start` has built the tables, the coding agent uses the Supabase MCP server to confirm that row-level security is on for every table and to run Supabase's security advisors, reporting only. After the first deploy, the same checks run on the `onrender.com` address.

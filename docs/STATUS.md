@@ -298,6 +298,8 @@ On the `products` branch, `docs/spec.md` and the area files now describe Account
 - **Q1** now includes 500 products, so the stress run covers the Products table.
 - **For the build:** the run instructions below still describe search without products, and the SQL under Clear the sample data needs `products` added once the table exists.
 
+The build plan is in `docs/changes/products/plan.md`, in four phases. First, search moves to the top level with no visible change. Then come products on the backend, products on the frontend, and the end-to-end tests. It ends with the build. The plan adds three things the spec doesn't say yet, which the build puts in the spec: a top-level `sample.py` for what both areas' sample data share, `name_key` normalized as well as casefolded, and field messages chosen by area.
+
 ## Running Accountable
 
 Accountable runs two ways:

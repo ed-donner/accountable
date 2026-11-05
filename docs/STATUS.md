@@ -526,6 +526,37 @@ ui-check looked at the Bills table under each filter, a bill's page overdue, unp
 
 Of its three nits, one is fixed. The due dates in an organization's Bills panel started a few pixels apart from row to row, because "Dec 1, 2026" is shorter than "Oct 31, 2026". The date now takes the width of the longest one, as the total and the chip already had fixed widths, and stays on one line. That's in the Bills panel's screen in `bills.md`. The panel's test in `e2e/bills.spec.ts` now gives two bills due dates of different lengths and checks they start at the same place. It failed by 7px before the fix. The other two are left as they are, at the owner's word: a dark-mode dashboard screenshot caught the revenue line's draw-in partway through, and the Mark paid dialog's label "Paid on" is the spec's.
 
+## Bills: review
+
+The reviewer subagent reviewed the branch against `main`, leaving out style. It found nothing Important, so there was nothing to fix, and `npm run check` passed afterwards: 4,296 tests in 7m 49s, with another test run busy. Two nits are open, for later:
+
+1. **The Add form's due date at the calendar's end:** `dueDateFor` in `BillForm.tsx` adds 30 days with no limit, where the API's `due_date_for` stops at 9999-12-31. A bill dated in the last 30 days of 9999 would get a filled-in due date that the API refuses. The API's own default is right.
+2. **`BillUpdate` defaults `notes` and `paid_on` to `None`**, where its other fields default to `MISSING`. That's safe because `edit_bill` reads only the fields that were sent, and the CRM's update models do the same. A caller that dumped the whole model would clear both.
+
+The review left part of the change unread: the charts, the `DataTable`, `RecordLayout` and `FormDialog` changes, the end-to-end specs and most test bodies. A second pass over those, under the reviewer's new instructions below, hasn't been run.
+
+## Bills: harness improved
+
+`docs/IMPROVE.md` was followed after the review, which had nothing to fix. This run used the review, the owner's messages, the Stop hook's results, the failed and stopped tool calls and the agents' shell commands from the branch's three sessions and two subagents. It searched the sessions of every earlier change, in all four copies of the repo, and of `quotes` and `invoices`, for the same mistakes. The owner corrected nothing. They said "Leave the commits to me" three times, and no agent committed. The Stop hook ran 12 times and never failed. The build ran a bare `python3` once, which the uv hook stopped, and a `sleep 240`, which Claude Code stopped. It ran the app and a throwaway Postgres on scratch data, stopped both by process ID and checked their ports, used git only to read, and broke code only from its own copies.
+
+Three mistakes had happened more than once:
+
+- **A review that leaves part of the change unread:** on `products`, the reviewer left the end-to-end tests, the table rewrite and the search move unread, which was in Seen once. Here, with no command stopped, it made 8 calls and left the charts, the `DataTable`, `RecordLayout` and `FormDialog` changes, the end-to-end specs and most test bodies unread. A `company-settings` review in another copy of the repo skimmed the tests by name. Each said what it skipped. `reviewer.md` now says to read the diff of every file in `--stat`, in parts if it's long, to use Read when the hook stops a command, and to go back through the list before the report. The report now has a Not read line, and `testing.md` says so.
+- **A test count the plan didn't list:** a new section changes the number of top bar links that five test files state. The `company-settings` merge, this branch's plan and the plan for `quotes`, built alongside, all missed the one in `e2e/settings.spec.ts`, and each time only the full `npm run check` found it. `AGENTS.md` now says to search all the tests for what a change alters, and list each one in the plan. Whether five tests should each state the count is for the owner to judge against STANDARDS.md's "Avoid brittle tests", once the three branches have merged.
+- **Shell commands written for bash:** the shell is zsh. In the sessions of every change since `mvp`, 39 tool calls failed for one of three reasons. `echo =====` stopped the whole command line. A glob that matched nothing stopped a `for` loop or a `grep --include=*.ts`. Or a command kept in a variable wasn't found. Here the design session lost one command's output, the build lost six calls to psql through `$P`, and this run hit all three. Nobody had mentioned it. `AGENTS.md` now says how zsh differs, as tried in this shell. A hook could catch the `=` word but not the glob or the variable, so it's a rule.
+
+One mistake seen once is now in `docs/IMPROVE.md`: the form and the API differing on the due date's default. "A review cut short" came out of Seen once, because it's a rule now. `docs/IMPROVE.md` now covers:
+
+- reading what a review says it didn't read
+- where subagents' logs are, and where their types are recorded
+- grouping failed tool results across all the session folders
+- searching the sessions of branches built alongside
+- leaving alone a mistake that a hook or Claude Code already stops, unless it did harm first
+
+**For the merge:** `quotes` changes `.claude/agents/ui-check.md` and `invoices` has an uncommitted change to it. This branch doesn't touch that file, but all three add to this one. The tests that count the sections will need the merged count, nine once all three are in.
+
+`npm run check` passes: 4,296 tests in 6m 21s.
+
 ## Running Accountable
 
 Accountable runs two ways:

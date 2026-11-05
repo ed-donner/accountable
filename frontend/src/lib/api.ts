@@ -121,7 +121,8 @@ function errorFor(status: number, { detail, fields }: ErrorReply) {
   return new ApiError("server", detail ?? "Something went wrong.");
 }
 
-export async function api<T>(path: string, options: Options = {}): Promise<T> {
+/** The backend's reply, once it has passed the checks every reply gets, or the error it gave. */
+async function receive(path: string, options: Options): Promise<Response> {
   const sentIn = currentSession();
   const reply = await send(path, options);
   if (isFromDevServer(reply)) loseConnection();
@@ -129,5 +130,25 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
   // Someone may have signed out and in again while the request was on its way (U6).
   if (reply.status === 401 && currentSession() === sentIn) endSession(SESSION_ENDED);
   if (!reply.ok) throw errorFor(reply.status, await readErrorReply(reply));
+  return reply;
+}
+
+export async function api<T>(path: string, options: Options = {}): Promise<T> {
+  const reply = await receive(path, options);
   return (reply.status === 204 ? undefined : await reply.json()) as T;
+}
+
+/**
+ * Saves a file the backend makes, such as a PDF, under this name. A plain link can't
+ * fetch it, because the token goes in a header, never a cookie. Its errors are api()'s.
+ */
+export async function download(path: string, filename: string): Promise<void> {
+  const reply = await receive(path, {});
+  const address = URL.createObjectURL(await reply.blob());
+  const link = document.createElement("a");
+  link.href = address;
+  link.download = filename;
+  link.click();
+  // Let go of the file once the click has handed it to the browser.
+  setTimeout(() => URL.revokeObjectURL(address));
 }

@@ -1,22 +1,17 @@
 import { Area, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recharts";
 
+import { AXIS_TEXT as CHART_AXIS_TEXT, niceTop } from "../../components/charts/axes";
+import { ChartTooltip } from "../../components/charts/ChartTooltip";
+import { useSize } from "../../components/charts/useSize";
 import { money, shortMoney } from "../../lib/money";
 import type { Dashboard } from "../queries";
-import { ChartTooltip } from "./ChartTooltip";
-import { MONEY_LABEL, REVENUE_MARGIN, moneyLabelOnFill, revenueEdges, revenueY, useSize } from "./geometry";
+import { MONEY_LABEL, REVENUE_MARGIN, moneyLabelOnFill, revenueEdges, revenueY } from "./geometry";
 import { MonthsTable } from "./MonthsTable";
 
-const AXIS_TEXT = { fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 500 };
+const AXIS_TEXT = { ...CHART_AXIS_TEXT, fontWeight: 500 };
 // Text on the Sea Green fill is Midnight in both modes, because Sea Mist can't be read on it.
 const ON_FILL = "var(--color-midnight)";
 const MONTH_TEXT = { ...AXIS_TEXT, fill: ON_FILL };
-
-function niceTop(value: number) {
-  const power = 10 ** Math.floor(Math.log10(value));
-  const scaled = value / power;
-  const step = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 2.5 ? 2.5 : scaled <= 5 ? 5 : 10;
-  return step * power;
-}
 
 type Row = {
   x: number;

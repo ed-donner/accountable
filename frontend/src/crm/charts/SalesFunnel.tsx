@@ -1,10 +1,11 @@
 import { Funnel, FunnelChart, Tooltip } from "recharts";
 
+import { ChartTooltip } from "../../components/charts/ChartTooltip";
+import { useSize } from "../../components/charts/useSize";
 import { money } from "../../lib/money";
 import { STAGE_NAMES } from "../deals";
 import type { Dashboard, Stage } from "../queries";
-import { ChartTooltip } from "./ChartTooltip";
-import { FUNNEL_ROUND as ROUND, FUNNEL_SIDE as SIDE, funnelWidths, useSize } from "./geometry";
+import { FUNNEL_ROUND as ROUND, FUNNEL_SIDE as SIDE, funnelWidths } from "./geometry";
 import { STAGE_COLORS } from "./stageColors";
 
 const GAP = 2;

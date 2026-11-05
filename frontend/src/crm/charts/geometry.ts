@@ -1,21 +1,3 @@
-import { useEffect, useRef, useState } from "react";
-
-export function useSize() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    if (!ref.current) return;
-    const observer = new ResizeObserver(([entry]) => {
-      setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-    });
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  return { ref, size };
-}
-
 export const FUNNEL_SIDE = 196; // Room to the right for the values and percentages.
 export const FUNNEL_ROUND = 6; // Rounded corners come from a stroke this wide with rounded joins.
 const NARROWEST = 100; // Keeps a small stage wide enough for its name.

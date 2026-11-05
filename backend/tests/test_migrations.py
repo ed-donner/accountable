@@ -3,7 +3,8 @@ from datetime import date, datetime
 
 import pytest
 from accountable import db
-from accountable.company.tables import company_settings
+from accountable.company import documents
+from accountable.company.tables import company_settings, number_counters
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.products.tables import products
 from accountable.users import users
@@ -92,6 +93,14 @@ def test_product_names_have_a_unique_index(database):
         tuple(index["column_names"]): index["unique"] for index in inspect(db.engine()).get_indexes(products.name)
     }
     assert unique[("name_key",)]
+
+
+def test_each_kind_of_document_has_one_counter(database):
+    unique = {
+        tuple(index["column_names"]): index["unique"]
+        for index in inspect(db.engine()).get_indexes(number_counters.name)
+    }
+    assert unique[("kind",)]
 
 
 def test_every_foreign_key_has_an_index(database):
@@ -409,6 +418,32 @@ def test_upgrading_from_before_the_settings_keeps_every_row_and_adds_the_blank_s
     assert settings == BLANK_SETTINGS
     with db.reading() as conn:
         assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+
+
+@pytest.fixture
+def database_from_before_the_counters(tmp_path, monkeypatch):
+    path = tmp_path / "before-counters.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    fill_at(path, "0005")
+    yield path
+    db.dispose()
+
+
+def test_upgrading_from_before_the_counters_keeps_every_row_and_starts_each_count_at_1(
+    database_from_before_the_counters,
+):
+    before = everything()
+    assert "number_counters" not in inspect(db.engine()).get_table_names()
+    db.dispose()
+
+    assert db.prepare_database(nothing) is False
+
+    assert all(before.values())
+    assert everything() == before
+    with db.writing() as conn:
+        assert conn.execute(select(func.count()).select_from(number_counters)).scalar_one() == 0
+        assert documents.take_number(conn, "quote") == "QT-0001"
 
 
 def test_a_new_database_starts_with_the_blank_settings_before_the_sample_data(database):

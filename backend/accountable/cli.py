@@ -10,6 +10,9 @@ leaves the settings alone, because they're the business's details, not records (
 They only ever touch the local copy. npm run seed and npm run empty already leave
 the shared app's settings out, and refusing here as well means no slip in a script
 can wipe the team's data.
+
+Every area's tables are imported here, so the wipe reaches them all. A later area's
+tables come in with its sample data, and its records join RECORDS.
 """
 
 import argparse
@@ -20,16 +23,26 @@ from sqlalchemy import Connection, delete, func, select
 
 from accountable import db, users
 from accountable.company import sample_data as company_sample_data
+from accountable.company import tables as company_tables
 from accountable.crm import sample_data as crm_sample_data
-from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
+from accountable.crm import tables as crm_tables
 from accountable.products import sample_data as products_sample_data
-from accountable.products.tables import products
+from accountable.products import tables as products_tables
+
+# What seed and empty say they'll delete, area by area, in this order (C4).
+RECORDS = (*crm_tables.RECORDS, *products_tables.RECORDS)
+
+# What they leave: the people, so there's still someone to sign in as, and the company
+# settings, which seed writes the sample company over and empty leaves as they are (C4).
+KEPT = (users.users, company_tables.company_settings)
 
 
 def fill_sample(conn: Connection) -> None:
     """Every area's sample data, dated from today in the team's zone. The shared app's first start uses this too.
 
     The sample company's settings come with it, so only a new database or a seed ever gets them (B12, B13).
+    Each area goes in after the ones its sample records point at, and an area whose sample
+    documents use the company's tax rate or prefixes goes after the company.
     """
     today = db.local_today()
     crm_sample_data.fill(conn, today)
@@ -38,10 +51,7 @@ def fill_sample(conn: Connection) -> None:
 
 
 def _counts(conn: Connection) -> dict[str, int]:
-    return {
-        table.name: conn.execute(select(func.count()).select_from(table)).scalar_one()
-        for table in (organizations, contacts, deals, activities, products)
-    }
+    return {table.name: conn.execute(select(func.count()).select_from(table)).scalar_one() for table in RECORDS}
 
 
 def _plural(count: int, name: str) -> str:
@@ -55,8 +65,13 @@ def _reaches_the_shared_app() -> bool:
 
 
 def _wipe(conn: Connection) -> None:
-    for table in (activities, stage_changes, deals, contacts, organizations, products):
-        conn.execute(delete(table))
+    """Every row of every table but the kept ones, each table before those it points at.
+
+    That includes the counters that number quotes and invoices, so each count starts again at 1 (B15).
+    """
+    for table in reversed(db.metadata.sorted_tables):
+        if table not in KEPT:
+            conn.execute(delete(table))
 
 
 def _confirmed() -> bool:

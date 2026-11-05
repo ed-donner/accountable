@@ -427,6 +427,57 @@ The review's third point, that no test overlaps two saves to prove the read and 
 
 `npm run check` passes: 3,659 tests in 4m 17s, of which 2,276 backend, 1,102 frontend, 272 end-to-end and 9 speed.
 
+## Prepare: shared code for quotes, invoices and bills
+
+Done on the `prepare` branch, before three developers build quotes, invoices and bills side by side. It makes once what two or more of them would each have made or changed in shared code. The PDFs and the dashboard's Money section stay with the features, to be brought together after the merges. The app does what it did, apart from the top bar below 1536px wide, which the owner asked to change.
+
+- **Imports between areas go one way:** a later area may import the CRM's and the products' tables and the CRM's stage rules on the backend, and their `queries.ts` and the CRM's `deals.ts` on the frontend, and any area may import `company/`. The CRM and products never import a later area, and later areas never import each other. `test_layout.py` now reads imports with `ast`, so it can tell `crm.tables` from `crm.routers`.
+- **One list of areas in `main.py`:** each area's routers, field messages, search kinds and holds, so a later area joins with one entry. A field error gets the messages of the area its route starts with, and `test_layout.py` checks no two areas' routes start with the same word.
+- **Held records (D4):** an area says which of its columns hold a deal or an organization, as a `Hold` in `holds.py`. The CRM's delete routes read every area's holds from the app, refuse a held record with a 409, and list what holds it in `delete-impact`'s new `held_by`, always empty for now. Its dialog then says what holds it and offers only Close.
+- **Panels and sections (R7, H10):** `App.tsx` hands the deal and organization pages the panels later areas add, and the dashboard the sections, each list empty for now. None of the Money section is built.
+- **The top bar (N1):** `App.tsx` gives the shell its sections. Below 1536px wide the links drop their icons and have 8px either side rather than 12px, so nine fit at every width from 1280px. At 1440, the design reference's width, they now show their labels alone.
+- **Quote and invoice numbers (B15):** `number_counters`, from migration `0006`, and `take_number` in `company/documents.py`, with `current_settings` for the details and tax. `npm run seed`, `npm run empty` and the clearing steps start each count again at 1.
+- **Sums (B16, B17):** `company/tax.py` and `company/tax.ts`, with `shared/totals-cases.json`. Quantities are whole numbers from 1 to a million, and a subtotal is at most $1 trillion.
+- **Seed and empty:** the wipe takes every table but the people's and the settings' from the metadata, each before the tables it points at, so a later area's tables are wiped without anyone listing them. Each area's `tables.py` gives the records the message counts, as `RECORDS`.
+- **Downloads:** `download()` in `lib/api.ts`, for the PDFs, with the token in its header.
+- **Charts:** `ChartTooltip`, `useSize`, the axes' text and `niceTop` moved to `components/charts/`, and the 12 months to `months.py`.
+- **Status chips:** `visual-design.md` agrees each document status's chip, all from tones `Chip.tsx` already has.
+
+Where the build settled something:
+
+- **The icons start at 1536px, not 1440.** Measured in Chrome with three links added in the page for Quotes, Invoices and Bills, and the widest date, Nov 30, 2026. At 1280 with a 15px scrollbar, nine leave 29px to spare at 8px padding, and none at 10px. At 1440, nine with icons and 12px would need 1,466px of bar where the bar has 1,385, 81px over, so on the owner's say the icons start at 1536px. There, nine need 1,485px: with no scrollbar they leave 12px to spare, and with a 15px scrollbar the menu button sits 15px from the bar's end rather than 18px, with nothing running over. Between 1280 and 1535 they have more room the wider the window, up to 284px. `quality.spec.ts`'s check that the top bar stays inside itself at 1280 will catch an overflow as soon as the sections merge.
+- **The tax sums go through BigInt in the browser.** Two cases in the shared file, found by search, are half cents on a subtotal past $900 million where plain JavaScript numbers give a cent less.
+- **Routes outside any area,** such as `/api/search`, now get no area's field messages, where they used to get the CRM's. None of their fields is one the CRM's messages name, so every message is the same.
+- **`cli.fill_sample`** still calls each area's fill in turn, with a comment on the order, because the company's fill takes the moment and the others the day.
+- **The frontend layout test** at first checked only who imports the CRM and the products, so the CRM importing a later area went unnoticed. A check of what the first areas import was added after a made-up later area showed it.
+- **Migrations:** each feature's migration will be the next after `0006`, so the second and third merges renumber theirs, which `test_the_migrations_have_one_head` makes sure of.
+- **On Postgres:** a throwaway Postgres 16, built from the migrations' Postgres SQL, made `number_counters` with row-level security on and the unique index on `kind`, and the clearing steps below, run on it with a record, a product, both counts and a person in it, left only the person, no counts and the blank settings.
+
+Each new check was shown to fail on code broken for it, from a copy of the file put back after: the hold check left out of the deal delete, the counters kept by seed and empty, Python's `round()` and tax line by line on both sides, two areas sharing a route's start, one count for both kinds, a held dialog still offering Delete, the panels and sections not drawn, a download that keeps its file, the icons at every width, and made-up later areas on both sides importing what they mustn't.
+
+`npm run check` passes: 3,800 tests in 4m 28s, of which 2,355 backend, 1,163 frontend, 273 end-to-end and 9 speed.
+
+## Prepare: test runs take turns
+
+Done on the `prepare` branch, so that three or four agents, each in its own worktree, can each run `npm run check` or `npm run check:quick` when they finish a piece of work. Until now every run started its checks straight away, waiting only for another run's speed tests, and shared the workers out between the runs that were busy. Three at once got 2 workers each, next to three sets of unit tests, and the owner saw tests time out on a 10-core Mac.
+
+- **Two turns:** a run waits for a turn before its checks and holds it through its end-to-end tests, by listening on the turn's port, 24113 or 24114. They come after every worker's ports, so no port from before moved. `TURNS` in `scripts/test-plan.mjs` is 2.
+- **A queue:** each waiting run says on its slot's port when it started waiting, and tries for a turn only when fewer runs are ahead of it than turns are free. So runs go first come, first served, whatever their slots, and the port settles two tries at the same moment.
+- **Speed tests first:** a run that has finished its end-to-end tests says so on its slot's port, then gives back its turn. Waiting runs don't take it until every run at that stage has had its speed tests. Without that, a run waiting for the speed tests' turn could lose the turn it gave back to a waiting run, and wait out that run's whole check.
+- **Saying so:** a waiting run prints why, such as "Waiting for a turn. 2 test runs at a time can go on this computer, and 1 other test run is ahead of this one.", once the reason has lasted two looks, a quarter of a second apart. The trial below printed "2 other test runs are ahead" and then, a moment later, "this one is next", because the other two had joined the queue a few milliseconds earlier and were taking the free turns. Once its turn comes it prints how long it waited.
+- **The Stop hook** now has 30 minutes rather than Claude Code's default of 10, in `.claude/settings.json`, because its `npm run check:quick` can wait behind two runs of `npm run check`.
+- **`AGENTS.md`** says to let a waiting run wait, and to start `npm run check` in the background or with the longest timeout a shell tool allows, because the wait can outlast the tool's limit.
+
+Proved by starting `npm run check` in three new worktrees in `.claude/worktrees/` at the same moment, with a script sampling every quarter of a second what each run said on its slot's port and who held the turns. It never saw more than two runs busy or more than two turns held. All three passed every test, 3,806 each:
+
+- **The first two** took the turns at once, had 3 workers each and passed in 6m 36s and 7m 01s. Their end-to-end tests ended two seconds apart, and their speed tests went one after the other.
+- **The third** printed "Waiting for a turn. 2 test runs at a time can go on this computer, and this one is next.", then "Waiting for the speed tests of another test run on this computer." once the first two reached theirs, and didn't take either turn they gave back. It got a turn after 7m 01s, had all 6 workers to itself, and passed in 10m 59s, of which its end-to-end tests took 2m 24s, where the first two's took 4m 42s and 4m 44s.
+- **The speed figures** were the same whether a run had shared the machine or not: the dashboard's data in 23 to 25ms, the top bar's search in 195 to 196ms, and the worst task in each drag at a median of 70 to 75ms, with none over 184ms.
+
+A trial the same way, before the change to when a waiting run speaks, also passed in all three, in 6m 24s, 6m 50s and 10m 39s. That was where the early "2 other test runs are ahead" line turned up.
+
+Each new check in `scripts/test-runs.test.mjs` was shown to fail on a copy of `test-runs.mjs` broken for it, put back after: no queue order, free turns counted without the busy runs, no turn ports, the speed tests first only while their port is held, none of the speed tests first, and every reason printed at once. Several of them rely on timing, so the file was run 13 times on the working code and passed every time, and the two breaks most open to chance were tried again: the speed tests' place failed six times in six, and every reason printed at once three times in three.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -530,11 +581,11 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change and product. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change and product, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
 begin;
-truncate table activities, stage_changes, deals, contacts, organizations, products;
+truncate table activities, stage_changes, deals, contacts, organizations, products, number_counters;
 update company_settings set
   company_name = default, address = default, email = default, phone = default,
   tax_label = default, tax_rate = default, payment_terms_days = default,
@@ -568,7 +619,7 @@ Accountable has only been used on a Mac. It's built to work the same on Windows 
 
 The end-to-end tests run side by side, using a number of workers chosen from your computer's cores and memory, so a smaller computer runs fewer at once and takes longer. To set the number yourself, for example while the computer is busy, run `ACCOUNTABLE_TEST_WORKERS=2 npm test`. The speed tests always run last and alone, so their timings are fair.
 
-You can run the tests in several worktrees at once, with nothing to set. Each run uses ports no other run is using, the runs share the workers between them, and each run's speed tests wait until the others have finished their checks and end-to-end tests, printing a line while they wait. So two runs together take longer than one, but both get a fair result.
+You can run the tests in several worktrees at once, with nothing to set. Each run uses ports no other run is using. No more than two go at once: the rest wait for a turn, in the order they started waiting, printing a line that says so and how many runs are ahead. The two going share the workers, and each run's speed tests wait until the others have finished their checks and end-to-end tests. So runs together take longer than one alone, but each gets a fair result.
 
 To run some of the end-to-end tests on their own, such as one file, use `npm run e2e -- e2e/settings.spec.ts`. Playwright's own options work after the file, such as `-g "a save"` to pick tests by name.
 

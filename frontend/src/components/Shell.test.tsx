@@ -5,9 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { queryDefaults } from "../lib/queryDefaults";
 import { mockApi, user } from "../test-utils";
-import { Shell } from "./Shell";
+import { Shell, type Section } from "./Shell";
 
-const SECTIONS = ["Dashboard", "Organizations", "Contacts", "Deals", "Pipeline", "Products"];
+const PATHS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products"];
+const LABELS = ["Dashboard", "Organizations", "Contacts", "Deals", "Pipeline", "Products"];
+const SECTIONS: Section[] = PATHS.map((to, place) => ({
+  to,
+  label: LABELS[place],
+  icon: <svg aria-hidden="true" data-testid={`${LABELS[place]} icon`} />,
+}));
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 9, 31, 12, 0) });
@@ -24,7 +30,7 @@ function openAt(path: string) {
     <QueryClientProvider client={new QueryClient({ defaultOptions: queryDefaults })}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route element={<Shell search={<input aria-label="The search box" />} />}>
+          <Route element={<Shell sections={SECTIONS} search={<input aria-label="The search box" />} />}>
             <Route path="/" element={<p>The dashboard page</p>} />
             <Route path="/organizations" element={<p>The organizations page</p>} />
             <Route path="/contacts" element={<p>The contacts page</p>} />
@@ -61,25 +67,13 @@ function currentSections() {
 }
 
 describe("the top bar", () => {
-  it("links to the six sections, in order, Products last", () => {
+  it("links to the sections it's given, in their order, each with its icon before its label", () => {
     openAt("/");
     const links = sections().getAllByRole("link");
-    expect(links.map((link) => link.textContent)).toEqual(SECTIONS);
-    expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "/",
-      "/organizations",
-      "/contacts",
-      "/deals",
-      "/pipeline",
-      "/products",
-    ]);
-  });
-
-  it("gives every section an icon of the same size, hidden from screen readers", () => {
-    openAt("/");
-    for (const link of sections().getAllByRole("link")) {
-      const icon = link.querySelector("svg")!;
-      expect([icon.getAttribute("width"), icon.getAttribute("aria-hidden")], link.textContent!).toEqual(["17", "true"]);
+    expect(links.map((link) => link.textContent)).toEqual(LABELS);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(PATHS);
+    for (const link of links) {
+      expect(within(link).getByTestId(`${link.textContent} icon`)).toBeTruthy();
     }
   });
 

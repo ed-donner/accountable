@@ -1,45 +1,71 @@
+import { Package } from "lucide-react";
 import { useEffect } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
 import { SettingsPage } from "./company/SettingsPage";
+import { Icon } from "./components/Icon";
 import { MissingRecord } from "./components/MissingRecord";
+import type { RecordPanel } from "./components/RecordLayout";
 import { Search } from "./components/Search";
-import { Shell } from "./components/Shell";
+import { Shell, type Section } from "./components/Shell";
 import { SignedIn } from "./components/SignIn";
 import { Contact } from "./crm/pages/Contact";
-import { Dashboard } from "./crm/pages/Dashboard";
+import { Dashboard, type DashboardSection } from "./crm/pages/Dashboard";
 import { Contacts } from "./crm/pages/Contacts";
 import { Deal } from "./crm/pages/Deal";
 import { Deals } from "./crm/pages/Deals";
 import { Organization } from "./crm/pages/Organization";
 import { Organizations } from "./crm/pages/Organizations";
 import { Pipeline } from "./crm/pages/Pipeline";
-import { useMeta } from "./crm/queries";
+import { useMeta, type DealDetail, type OrganizationDetail } from "./crm/queries";
 import { crmSearchGroups } from "./crm/searchGroups";
 import { applyTheme, savedTheme } from "./lib/theme";
 import { Product } from "./products/pages/Product";
 import { Products } from "./products/pages/Products";
 import { productsSearchGroups } from "./products/searchGroups";
 
+const ICON_SIZE = 17;
+
+// The top bar's sections, area by area. The design reference has icons for the CRM's.
+// Products takes lucide's, drawn as Icon draws its own.
+const SECTIONS: Section[] = [
+  { to: "/", label: "Dashboard", icon: <Icon name="dashboard" size={ICON_SIZE} /> },
+  { to: "/organizations", label: "Organizations", icon: <Icon name="organizations" size={ICON_SIZE} /> },
+  { to: "/contacts", label: "Contacts", icon: <Icon name="contacts" size={ICON_SIZE} /> },
+  { to: "/deals", label: "Deals", icon: <Icon name="deals" size={ICON_SIZE} /> },
+  { to: "/pipeline", label: "Pipeline", icon: <Icon name="pipeline" size={ICON_SIZE} /> },
+  {
+    to: "/products",
+    label: "Products",
+    icon: <Package size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
+  },
+];
+
 const SEARCH_GROUPS = [...crmSearchGroups, ...productsSearchGroups];
+
+// What later areas add to the CRM's pages, such as a deal's quotes, an organization's bills
+// or a section of the dashboard. None do yet.
+const DEAL_PANELS: RecordPanel<DealDetail>[] = [];
+const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [];
+const DASHBOARD_SECTIONS: DashboardSection[] = [];
 
 function AppShell() {
   useMeta(); // Fetched early, because it never changes and forms need it straight away.
-  return <Shell search={<Search groups={SEARCH_GROUPS} />} />;
+  return <Shell sections={SECTIONS} search={<Search groups={SEARCH_GROUPS} />} />;
 }
 
 const router = createBrowserRouter([
   {
     element: <AppShell />,
     children: [
-      { path: "/", element: <Dashboard /> },
+      { path: "/", element: <Dashboard sections={DASHBOARD_SECTIONS} /> },
       { path: "/organizations", element: <Organizations /> },
-      { path: "/organizations/:id", element: <Organization /> },
+      { path: "/organizations/:id", element: <Organization panels={ORGANIZATION_PANELS} /> },
       { path: "/contacts", element: <Contacts /> },
       { path: "/contacts/:id", element: <Contact /> },
       { path: "/deals", element: <Deals /> },
-      { path: "/deals/:id", element: <Deal /> },
+      { path: "/deals/:id", element: <Deal panels={DEAL_PANELS} /> },
       { path: "/pipeline", element: <Pipeline /> },
       { path: "/products", element: <Products /> },
       { path: "/products/:id", element: <Product /> },

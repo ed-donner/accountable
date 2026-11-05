@@ -1,5 +1,5 @@
 import { format, parseISO, subMonths } from "date-fns";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Chip } from "../../components/Chip";
@@ -208,7 +208,25 @@ function RecentActivity({ data }: { data: Figures }) {
   );
 }
 
-export function Dashboard() {
+/**
+ * A section another area adds below the dashboard's own, such as what customers owe.
+ * App.tsx hands the sections over, so the dashboard never names that area.
+ */
+export type DashboardSection = { name: string; Section: ComponentType };
+
+export function Dashboard({ sections = [] }: { sections?: DashboardSection[] }) {
+  return (
+    <>
+      <SalesAndFollowUps />
+      {sections.map(({ name, Section }) => (
+        <Section key={name} />
+      ))}
+    </>
+  );
+}
+
+/** The dashboard's own figures, charts and lists, filling the window below the top bar. */
+function SalesAndFollowUps() {
   const dashboard = useDashboard();
   const data = dashboard.data;
   const today = data ? parseISO(data.today) : new Date();

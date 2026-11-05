@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { startSignedIn } from "../test-utils";
-import { ApiError, CONNECTION_MESSAGE, api, isConnectionLost, onReconnect } from "./api";
+import { ApiError, CONNECTION_MESSAGE, api, download, isConnectionLost, onReconnect } from "./api";
 import { queryDefaults } from "./queryDefaults";
 import { SESSION_KEY, signInWithToken, signOut, useSession } from "./session";
 
@@ -186,6 +186,56 @@ describe("signing in", () => {
     expect((await late).kind).toBe("signed-out");
     expect(result.current.status).toBe("signed-in");
     expect(localStorage.getItem(SESSION_KEY)).toBe("new-token");
+  });
+});
+
+describe("downloading a file", () => {
+  function stubFileUrls() {
+    const made = vi.fn<(file: Blob) => string>(() => "blob:the-file");
+    const released = vi.fn<(address: string) => void>();
+    vi.stubGlobal("URL", { ...URL, createObjectURL: made, revokeObjectURL: released });
+    return { made, released };
+  }
+
+  it("saves the reply under the name given, with the token sent as for any request", async () => {
+    startSignedIn("abc");
+    const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(
+      async () => new Response("%PDF-1.7", { status: 200, headers: { "content-type": "application/pdf" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { made, released } = stubFileUrls();
+    const clicked: { href: string; download: string }[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push({ href: this.getAttribute("href") ?? "", download: this.download });
+    });
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+
+    try {
+      await download("/quotes/3/pdf", "QT-0003.pdf");
+      expect(fetchMock.mock.calls).toEqual([["/api/quotes/3/pdf", expect.objectContaining({ method: "GET" })]]);
+      expect(fetchMock.mock.calls[0][1].headers).toEqual({ Authorization: "Bearer abc" });
+      expect(await made.mock.calls[0][0].text()).toBe("%PDF-1.7");
+      expect(clicked).toEqual([{ href: "blob:the-file", download: "QT-0003.pdf" }]);
+      expect(released).not.toHaveBeenCalled();
+      vi.runAllTimers();
+      expect(released).toHaveBeenCalledWith("blob:the-file");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives the same errors as any other request, and saves nothing", async () => {
+    stubFetch(404, { detail: "Quote not found" });
+    const { made } = stubFileUrls();
+    await expect(download("/quotes/3/pdf", "QT-0003.pdf")).rejects.toMatchObject({
+      kind: "missing",
+      message: "Quote not found",
+    });
+    vi.stubGlobal("fetch", async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await expect(download("/quotes/3/pdf", "QT-0003.pdf")).rejects.toMatchObject({ kind: "connection" });
+    expect(made).not.toHaveBeenCalled();
   });
 });
 

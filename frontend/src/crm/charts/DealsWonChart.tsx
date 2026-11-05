@@ -10,12 +10,13 @@ import {
   type BarShapeProps,
 } from "recharts";
 
+import { AXIS_TEXT as CHART_AXIS_TEXT } from "../../components/charts/axes";
+import { ChartTooltip } from "../../components/charts/ChartTooltip";
+import { useSize } from "../../components/charts/useSize";
 import { plural } from "../../lib/words";
 import type { Dashboard } from "../queries";
-import { ChartTooltip } from "./ChartTooltip";
-import { useSize } from "./geometry";
 
-const AXIS_TEXT = { fill: "var(--color-muted)", fontSize: 12, fontFamily: "var(--font-mono)" };
+const AXIS_TEXT = { ...CHART_AXIS_TEXT, fill: "var(--color-muted)" };
 const MARGIN = { top: 32, right: 6, bottom: 24, left: 26 };
 
 type Month = Dashboard["months"][number];

@@ -16,7 +16,7 @@ from sqlalchemy import (
     update,
 )
 
-from accountable import api, db, who
+from accountable import api, db, holds, who
 from accountable.auth import CurrentUser
 from accountable.crm import rules, schemas, timeline
 from accountable.crm.tables import contacts, deals, organizations
@@ -162,14 +162,15 @@ def edit_organization(
 
 
 @router.delete("/{organization_id}", status_code=204)
-def delete_organization(organization_id: api.PathId) -> None:
+def delete_organization(organization_id: api.PathId, holders: holds.Holds) -> None:
     with db.writing() as conn:
         _get(conn, organization_id)
+        holds.refuse_if_held(conn, holders, organizations, organization_id, "organization")
         conn.execute(delete(organizations).where(organizations.c.id == organization_id))
 
 
 @router.get("/{organization_id}/delete-impact")
-def organization_impact(organization_id: api.PathId) -> schemas.OrganizationImpact:
+def organization_impact(organization_id: api.PathId, holders: holds.Holds) -> schemas.OrganizationImpact:
     with db.reading() as conn:
         _get(conn, organization_id)
         return schemas.OrganizationImpact(
@@ -179,6 +180,7 @@ def organization_impact(organization_id: api.PathId) -> schemas.OrganizationImpa
             deals=conn.execute(
                 select(func.count()).select_from(deals).where(deals.c.organization_id == organization_id)
             ).scalar_one(),
+            held_by=holds.holding(conn, holders, organizations, organization_id),
         )
 
 

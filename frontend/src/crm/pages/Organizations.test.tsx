@@ -149,7 +149,7 @@ describe("adding, editing and deleting from the organizations table", () => {
 
   it("Delete asks first, then deletes that organization", async () => {
     const calls = await showOrganizations(ORGANIZATIONS, {
-      "GET /organizations/1/delete-impact": { contacts: 3, deals: 2 },
+      "GET /organizations/1/delete-impact": { contacts: 3, deals: 2, held_by: [] },
       "DELETE /organizations/1": () => ({ status: 204, body: null }),
     });
     await user().click(await screen.findByRole("button", { name: "Delete Harbor & Pine" }));

@@ -44,6 +44,19 @@ for (const size of SIZES) {
   });
 }
 
+test("the top bar's sections show their icons from 1536px wide, and only their labels below", async ({ page }) => {
+  await page.setViewportSize({ width: 1536, height: 900 });
+  await page.goto("/");
+  const links = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
+  await expect(links).toHaveCount(6);
+  for (const link of await links.all()) await expect(link.locator("svg")).toBeVisible();
+
+  for (const width of [1535, 1440, 1280]) {
+    await page.setViewportSize({ width, height: 720 });
+    for (const link of await links.all()) await expect(link.locator("svg"), `${width}px`).toBeHidden();
+  }
+});
+
 test("a walk through every screen and main action logs no console errors", async ({ page, request }) => {
   const { deal, contact, organization } = await addLinkedDeal(request, "Walked");
   for (const path of SECTIONS) {

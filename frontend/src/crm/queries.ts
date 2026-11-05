@@ -12,7 +12,7 @@ import { useEffect } from "react";
 import { api } from "../lib/api";
 import { todayIso } from "../lib/dates";
 import { useNotify } from "../lib/notify";
-import { useWrite, type Authorship, type Person } from "../lib/records";
+import { useWrite, type Authorship, type Holding, type Person } from "../lib/records";
 import { isSharedApp } from "../lib/session";
 import { useToday } from "../lib/useToday";
 import { applyMove, moveMessage, type Move } from "./deals";
@@ -124,9 +124,9 @@ export type Dashboard = {
 
 export type RecordKind = "organizations" | "contacts" | "deals";
 
-export type OrganizationImpact = { contacts: number; deals: number };
+export type OrganizationImpact = { contacts: number; deals: number; held_by: Holding[] };
 export type ContactImpact = { deals: number; activities: number };
-export type DealImpact = { activities: number; stage_changes: number; won: boolean; value: number };
+export type DealImpact = { activities: number; stage_changes: number; won: boolean; value: number; held_by: Holding[] };
 
 export function useMeta() {
   return useQuery({ queryKey: ["meta"], queryFn: () => api<Meta>("/meta"), staleTime: Infinity });

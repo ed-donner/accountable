@@ -7,8 +7,11 @@ export const READY = "All test servers are up.";
 
 export const MAX_WORKERS = 64;
 
-/** The most runs of npm test, npm run check and check:quick this computer can have going at once, such as one in each worktree. */
+/** The most runs of npm test, npm run check and check:quick this computer can have at once, going or waiting, such as one in each worktree. */
 export const MAX_RUNS = 16;
+
+/** The most runs that go at once. The rest wait their turn, because three at once overload a 10-core Mac and its tests time out. */
+export const TURNS = 2;
 
 // Measured on 10 cores: the time stops falling at 6 workers, and 8 to 12 are slower,
 // because each worker is a browser, a backend and a Vite server.
@@ -22,13 +25,19 @@ const GB_SET_ASIDE = 4;
 const FIRST_PORT = 20000;
 const PORTS_PER_WORKER = 4;
 
-/** The ports the runs on this computer share it through: one for the speed tests' turn, then one for each run's slot. */
+const FIRST_WORKER_PORT = FIRST_PORT + 1 + MAX_RUNS;
+// After every worker's ports, so that none of the ports from before there were turns moved.
+const FIRST_TURN_PORT = FIRST_WORKER_PORT + MAX_RUNS * MAX_WORKERS * PORTS_PER_WORKER;
+
+/**
+ * The ports the runs on this computer share it through: one for the speed tests' turn, one for
+ * each run's slot, and one for each turn to go.
+ */
 export const RUN_PORTS = {
   speedTurn: FIRST_PORT,
   slots: Array.from({ length: MAX_RUNS }, (_, slot) => FIRST_PORT + 1 + slot),
+  turns: Array.from({ length: TURNS }, (_, turn) => FIRST_TURN_PORT + turn),
 };
-
-const FIRST_WORKER_PORT = FIRST_PORT + 1 + MAX_RUNS;
 
 /**
  * Starts from cores and memory, so a smaller machine gets fewer workers rather than failures,

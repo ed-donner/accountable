@@ -1,4 +1,3 @@
-import { Package } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, Outlet } from "react-router";
 import { Toaster } from "sonner";
@@ -6,45 +5,35 @@ import { Toaster } from "sonner";
 import { formatDate } from "../lib/dates";
 import { useToday } from "../lib/useToday";
 import { ConnectionMessage } from "./ConnectionMessage";
-import { Icon } from "./Icon";
 import { UserMenu } from "./UserMenu";
 
-const ICON_SIZE = 17;
+/** A section of the app, as the top bar links to it. Its icon is 17px, as Icon draws its own. */
+export type Section = { to: string; label: string; icon: ReactNode };
 
-// The design reference has icons for the first five. Products takes lucide's, drawn as Icon draws its own.
-const SECTIONS: { to: string; label: string; icon: ReactNode }[] = [
-  { to: "/", label: "Dashboard", icon: <Icon name="dashboard" size={ICON_SIZE} /> },
-  { to: "/organizations", label: "Organizations", icon: <Icon name="organizations" size={ICON_SIZE} /> },
-  { to: "/contacts", label: "Contacts", icon: <Icon name="contacts" size={ICON_SIZE} /> },
-  { to: "/deals", label: "Deals", icon: <Icon name="deals" size={ICON_SIZE} /> },
-  { to: "/pipeline", label: "Pipeline", icon: <Icon name="pipeline" size={ICON_SIZE} /> },
-  {
-    to: "/products",
-    label: "Products",
-    icon: <Package size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
-  },
-];
-
-/** The top bar and the page under it. The search box comes from App.tsx, because it knows about records. */
-export function Shell({ search }: { search: ReactNode }) {
+/**
+ * The top bar and the page under it. The sections and the search box come from App.tsx,
+ * because they know about each area. Below 1536px wide the links drop their icons and
+ * close up, so nine sections fit at every width from 1280px, even beside the widest date (N1).
+ */
+export function Shell({ sections, search }: { sections: Section[]; search: ReactNode }) {
   const today = useToday();
   return (
     <div className="flex min-h-screen flex-col">
       <header className="mx-5 mt-3 flex h-14 flex-none items-center gap-7 rounded-panel bg-panel pr-[18px] pl-5">
         <div className="text-[19px] leading-6 font-semibold">Accountable</div>
         <nav aria-label="Sections" className="flex gap-0.5">
-          {SECTIONS.map(({ to, label, icon }) => (
+          {sections.map(({ to, label, icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === "/"}
               className={({ isActive }) =>
-                `flex h-9 items-center gap-[7px] rounded-control px-3 font-medium ${
+                `flex h-9 items-center gap-[7px] rounded-control px-2 font-medium min-[1536px]:px-3 ${
                   isActive ? "bg-sea-green font-semibold text-midnight" : "hover:bg-page"
                 }`
               }
             >
-              {icon}
+              <span className="contents max-[1536px]:hidden">{icon}</span>
               {label}
             </NavLink>
           ))}

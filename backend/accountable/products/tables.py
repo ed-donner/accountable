@@ -20,6 +20,9 @@ products = Table(
     **TABLE_OPTIONS,
 )
 
+# The price list's records, which npm run seed and npm run empty count before they delete them (C4).
+RECORDS = (products,)
+
 
 # The most bytes a key can have and still go in the unique index on Postgres, which
 # refuses an entry over 2,704 bytes, its own few included: 2,690 was the most it took,

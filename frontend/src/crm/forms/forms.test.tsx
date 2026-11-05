@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
@@ -353,7 +353,7 @@ const DELETES: DeleteCase[] = [
     name: "organization",
     dialog: (onClose) => <DeleteOrganization id={1} name="Harbor & Pine" onClose={onClose} />,
     impact: "GET /organizations/1/delete-impact",
-    counts: { contacts: 1, deals: 2 },
+    counts: { contacts: 1, deals: 2, held_by: [] },
     confirm: "Delete organization",
     route: "DELETE /organizations/1",
   },
@@ -369,7 +369,7 @@ const DELETES: DeleteCase[] = [
     name: "deal",
     dialog: (onClose) => <DeleteDeal id={5} name="Annual support" onClose={onClose} />,
     impact: "GET /deals/5/delete-impact",
-    counts: { activities: 1, stage_changes: 2, won: false, value: 100 },
+    counts: { activities: 1, stage_changes: 2, won: false, value: 100, held_by: [] },
     confirm: "Delete deal",
     route: "DELETE /deals/5",
   },
@@ -434,3 +434,49 @@ describe.each(DELETES.filter((item) => item.impact))(
     });
   },
 );
+
+const HELD = [
+  {
+    name: "organization",
+    dialog: (onClose: () => void) => <DeleteOrganization id={1} name="Harbor & Pine" onClose={onClose} />,
+    impact: "GET /organizations/1/delete-impact",
+    counts: { contacts: 1, deals: 2, held_by: [{ noun: "bill", count: 3 }] },
+    title: "Harbor & Pine can't be deleted",
+    says: "This organization has 3 bills, so it can't be deleted.",
+    confirm: "Delete organization",
+  },
+  {
+    name: "deal",
+    dialog: (onClose: () => void) => <DeleteDeal id={5} name="Annual support" onClose={onClose} />,
+    impact: "GET /deals/5/delete-impact",
+    counts: {
+      activities: 1,
+      stage_changes: 2,
+      won: true,
+      value: 100,
+      held_by: [
+        { noun: "quote", count: 2 },
+        { noun: "invoice", count: 1 },
+      ],
+    },
+    title: "Annual support can't be deleted",
+    says: "This deal has 2 quotes and 1 invoice, so it can't be deleted.",
+    confirm: "Delete deal",
+  },
+];
+
+describe.each(HELD)("the $name delete dialog, when another area's records hold it", (held) => {
+  it("says what holds it and offers only Close", async () => {
+    const calls = mockApi({ [held.impact]: held.counts });
+    const onClose = vi.fn();
+    renderApp(held.dialog(onClose));
+    const dialog = within(await screen.findByRole("alertdialog", { name: held.title }));
+    expect(await dialog.findByText(held.says)).toBeTruthy();
+    expect(dialog.queryByRole("button", { name: held.confirm })).toBeNull();
+
+    await user().click(dialog.getByRole("button", { name: "Close" }));
+
+    expect(onClose).toHaveBeenCalled();
+    expect(calls.filter((call) => call.method === "DELETE")).toEqual([]);
+  });
+});

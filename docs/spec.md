@@ -37,7 +37,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - **Activity:** a note, call or email that happened, or needs to happen, with a contact or a deal, with an optional follow-up date.
 - **Product:** something the business sells, with a unique name, a description and a unit price in dollars and cents. It's archived rather than deleted once it's no longer sold.
 
-**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms and the prefixes for quote and invoice numbers. Quotes and invoices come later, so nothing uses the settings yet.
+**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms and the prefixes for quote and invoice numbers. Quotes and invoices come later, so nothing uses the settings yet. What they'll share is ready for them: the counter that numbers them and the sums for their totals ([B15 to B17](specs/settings.md#for-quotes-and-invoices)).
 
 **Not in Accountable yet:**
 
@@ -48,7 +48,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - A warning when two people edit the same record, or the company settings, at once. The last save wins.
 - A history of every change. Each record keeps who added it and who last changed it, and the company settings keep who last changed them, nothing in between.
 - A layout for phones
-- Quotes and invoices, and so a counter for their numbers. The company settings hold only the prefixes.
+- Quotes, invoices and bills. The counter for quote and invoice numbers and the sums for their totals are ready, but nothing uses them yet.
 - A company logo
 - Personal settings. The theme belongs to the browser (L2), and the company settings to the team.
 - AI features
@@ -93,6 +93,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 | Tax rate | The sales tax as a percentage, from 0 to 100 with up to three decimal places, such as 8.875% |
 | Payment terms | How many days customers have to pay, from 0 to 365 |
 | Number prefix | The start of a quote's or an invoice's number, such as QT- or INV- |
+| Held record | A deal or an organization that a record in another area points at, such as an invoice on the deal. It can't be deleted (D4). Nothing holds one yet. |
 
 | Stage | Usual probability |
 |---|---|
@@ -121,13 +122,13 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [shell.md](specs/shell.md) | The top bar, addresses, missing pages, the connection message, failed reads, the menu, the theme, and the shell's screen | N1 to N7, L1 to L5 |
 | [sign-in.md](specs/sign-in.md) | Signing in and out, names and initials, who added and changed each record, the local copy's made-up teammates, and the sign-in screen | U1 to U16 |
 | [search.md](specs/search.md) | The top bar's search, and its screen | K1 to K8 |
-| [records.md](specs/records.md) | Organizations, contacts and deals: the tables, adding and editing, deleting, the record pages, and their screens | T1 to T10, F1 to F12, D1 to D3, R1 to R6 |
+| [records.md](specs/records.md) | Organizations, contacts and deals: the tables, adding and editing, deleting, held records, the record pages and the panels other areas add to them, and their screens | T1 to T10, F1 to F12, D1 to D4, R1 to R7 |
 | [deals.md](specs/deals.md) | Stage changes, the pipeline board and its screen | S1 to S9, P1 to P11 |
 | [activities.md](specs/activities.md) | Activities, follow-ups and timelines | A1 to A7 |
 | [products.md](specs/products.md) | The price list: unit prices in dollars and cents, unique names, archiving and restoring, the product page, and their screens | G1 to G12 |
-| [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, and its screen | H1 to H9 |
+| [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, the sections other areas add below them, and its screen | H1 to H10 |
 | [running.md](specs/running.md) | The local copy and the shared app, sample data, keeping data, and the commands and first run | M1 to M7, C1 to C11 |
-| [settings.md](specs/settings.md) | The company settings: the page, each field's rules, saving, who last changed them, the sample company and the defaults, and the page's screen | B1 to B14 |
+| [settings.md](specs/settings.md) | The company settings: the page, each field's rules, saving, who last changed them, the sample company and the defaults, the numbers and sums quotes and invoices will use, and the page's screen | B1 to B17 |
 | [deploy.md](specs/deploy.md) | The shared app on Render: `render.yaml`, building, starting, settings and the free plans' limits | W1 to W9 |
 
 **Across every area**

@@ -8,6 +8,9 @@
 // 3. The speed tests, alone, because their timings need a quiet machine. They wait
 //    until no other run on this computer is busy, and other runs wait for them.
 //
+// No more than two runs on this computer go at once, and the rest wait their turn before
+// stage 1, because more overload it.
+//
 // The database path and the slot, which says which ports this run's servers use, are
 // chosen here, once, because Playwright reads its config again in every worker: a path
 // made there would differ between the servers and the resets.
@@ -18,8 +21,8 @@ import { availableParallelism, tmpdir, totalmem } from "node:os";
 import path from "node:path";
 
 import { ROOT, localEnv, setup, start, stop } from "./setup.mjs";
-import { chooseWorkers, workerPorts } from "./test-plan.mjs";
-import { readPlaywright, readPytest, readVitest, summarize } from "./test-report.mjs";
+import { TURNS, chooseWorkers, workerPorts } from "./test-plan.mjs";
+import { duration, readPlaywright, readPytest, readVitest, summarize } from "./test-report.mjs";
 import { joinTestRuns } from "./test-runs.mjs";
 
 const node = process.execPath;
@@ -163,9 +166,7 @@ async function runEndToEnd(thisRun, env, report, text, args = []) {
   const sharing = otherRuns > 0 ? `, sharing this computer with ${plural(otherRuns, "other test run")}` : "";
   console.log(`\nEnd-to-end tests, on ${plural(workers, "worker")}${sharing}\n`);
   const layer = browserLayer("End-to-end", "main", workers, report, text);
-  const endToEnd = await run({ ...layer, args: [...layer.args, ...args] }, env);
-  thisRun.stopBusy();
-  return endToEnd;
+  return run({ ...layer, args: [...layer.args, ...args] }, env);
 }
 
 /** The end-to-end tests, then the speed tests once the machine is quiet. */
@@ -183,9 +184,31 @@ async function runBrowserTests(thisRun, env, report, text) {
   return [endToEnd, speed];
 }
 
+function whyWaiting({ waitingFor, ahead }) {
+  if (waitingFor === "speed tests") return "Waiting for the speed tests of another test run on this computer.";
+  const place =
+    ahead === 0
+      ? "this one is next"
+      : `${plural(ahead, "other test run")} ${ahead === 1 ? "is" : "are"} ahead of this one`;
+  return `Waiting for a turn. ${TURNS} test runs at a time can go on this computer, and ${place}.`;
+}
+
+/** Waits for this run's turn, saying why each time the reason changes, and how long it waited once it has the turn. */
+async function waitForTurn(thisRun) {
+  const began = performance.now();
+  let waited = false;
+  await thisRun
+    .takeTurn((reason) => {
+      waited = true;
+      console.log(`\n${whyWaiting(reason)}`);
+    })
+    .catch((error) => stop(error.message));
+  if (waited) console.log(`\nGot a turn after waiting ${duration(performance.now() - began)}.\n`);
+}
+
 /**
  * Takes a slot, makes the temporary folder and the environment every layer runs in, and
- * waits its turn to get busy. mostWorkers is the most this run could have, and their ports
+ * waits for a turn. mostWorkers is the most this run could have, and their ports
  * have to be free in the slot it takes.
  */
 async function startRun(mostWorkers) {
@@ -208,7 +231,7 @@ async function startRun(mostWorkers) {
     ACCOUNTABLE_VITE_CACHE: path.join(ROOT, "node_modules", ".vite-test"),
   };
 
-  await thisRun.startBusy(() => console.log("\nWaiting for the speed tests of another test run on this computer.\n"));
+  await waitForTurn(thisRun);
   return { startedAt, thisRun, folder, report, text, env };
 }
 

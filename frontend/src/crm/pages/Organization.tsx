@@ -5,12 +5,14 @@ import { LoadFailed } from "../../components/LoadFailed";
 import { MissingRecord } from "../../components/MissingRecord";
 import {
   AddedAndChanged,
+  AddedPanels,
   Detail,
   LinkedList,
   NONE,
   RecordColumns,
   RecordHeader,
   SidePanel,
+  type RecordPanel,
 } from "../../components/RecordLayout";
 import { ApiError } from "../../lib/api";
 import { money } from "../../lib/money";
@@ -19,17 +21,20 @@ import { ContactForm } from "../forms/ContactForm";
 import { DealForm } from "../forms/DealForm";
 import { DeleteOrganization } from "../forms/DeleteDialogs";
 import { OrganizationForm } from "../forms/OrganizationForm";
-import { useOrganization } from "../queries";
+import { useOrganization, type OrganizationDetail } from "../queries";
 import { StageChip, StatusChip } from "../StageChip";
 import { Timeline } from "../Timeline";
 
-export function Organization() {
+type Panels = { panels?: RecordPanel<OrganizationDetail>[] };
+
+/** An organization's page, with any panels other areas add, such as its bills (R1). */
+export function Organization({ panels = [] }: Panels) {
   const id = recordId(useParams().id);
   if (id === null) return <MissingRecord word="organization" to="/organizations" section="Organizations" />;
-  return <OrganizationRecord id={id} />;
+  return <OrganizationRecord id={id} panels={panels} />;
 }
 
-function OrganizationRecord({ id }: { id: number }) {
+function OrganizationRecord({ id, panels }: { id: number; panels: RecordPanel<OrganizationDetail>[] }) {
   const navigate = useNavigate();
   const organization = useOrganization(id);
   const [dialog, setDialog] = useState<"edit" | "delete" | "contact" | "deal" | null>(null);
@@ -103,6 +108,7 @@ function OrganizationRecord({ id }: { id: number }) {
                 }))}
               />
             </SidePanel>
+            <AddedPanels panels={panels} record={record} />
           </>
         }
       >

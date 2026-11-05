@@ -506,7 +506,7 @@ Built on the `quotes` branch from `docs/changes/quotes/plan.md`, in its four pha
 
 ## Quotes: review
 
-The reviewer subagent reviewed the branch against `main`, leaving out style. It found nothing Important and no nits. It read the backend in full and `Quote.tsx`, but left the rest of the frontend, the end-to-end specs and the test bodies unread. Its log shows it never opened `plan.md` and saw only the start of `intent.md`, though its report names both (see the harness run below). So the page behavior in Q19, Q28 and Q34 hasn't been reviewed. **Still to do:** run the reviewer again on the part it left unread.
+The reviewer subagent reviewed the branch against `main`, leaving out style. It found nothing Important and no nits. It read the backend in full and `Quote.tsx`, but left the rest of the frontend, the end-to-end specs and the test bodies unread. Its log shows it never opened `plan.md` and saw only the start of `intent.md`, though its report names both (see the harness run below). So the page behavior in Q19, Q28 and Q34 wasn't reviewed. The independent review, below, read the whole change, the frontend included, and found five Important problems there.
 
 `npm run check` passed afterwards: 4,464 tests in 13m 44s, of which 2,910 backend, 1,259 frontend, 283 end-to-end and 12 speed. It took longer than usual because it waited behind the bills and invoices worktrees' runs.
 
@@ -527,6 +527,20 @@ Two mistakes seen once are now in `docs/IMPROVE.md`, both found by ui-check: a q
 **For the merge:** `bills` and this branch both change `.claude/agents/reviewer.md`, `AGENTS.md`, `docs/IMPROVE.md`, this file and the reviewer's line in `docs/specs/testing.md`. Keep both sides: bills' paragraph on reading the whole change and its "Not read:" line in the report, with this branch's lines on one file per call and saved outputs, and both branches' sentences in the reviewer's line in `testing.md`. Both take out products' Seen once entry, and each adds entries at the end of Seen once.
 
 Checked: the Playwright MCP server starts with `--isolated` and lists its tools, and the reviewer's hook lets `git diff --merge-base main -- <path>` through and still stops `--output`. No ui-check has run on the new setting yet. `npm run check` passes: 4,464 tests in 8m 40s. Another worktree's run was going at the same time, and the summary listed unit tests as taking a second or more, up to 3.7s, with the note that says so under them. This run changed no app code or tests, and the run before it, on the same code, listed two.
+
+## Quotes: independent review fixes
+
+`docs/changes/quotes/independent-review.md` found five Important problems, all on the frontend, and no nits. All five are fixed. Each has a new test that failed on the code before its fix, at the point the review describes: the first save's test, for one, found a quantity of `1` where `25` had been typed.
+
+1. **A teammate's send threw away what was typed (Q19, Q21).** When a fresh read found the draft sent, the page swapped the form for the sent quote, so unsaved changes went, including those kept after a refused save. The page now keeps the form while it holds unsaved changes. It shows the quote's new status chip in place of the buttons, and a notice with the API's words, "QT-0004 has been sent, so it can't be changed. Copy it to make a new draft.", with Show the sent quote, which drops what was typed. Enter saves nothing there. With nothing unsaved, the sent quote shows at once, as before. The refused-save test now also reads the quote again, sent, as coming back to the window does.
+2. **The first save dropped what was typed meanwhile (Q19).** The new draft's page kept the typing, but then opened the saved draft's page, which started from the reply. The first save now hands what was typed, with the saved lines' ids and the box being typed in, to that page in the address's state. The page takes it once, still to be saved, and clears it, so a reload doesn't bring it back. The new test types during a held POST, then checks the box on the saved page, its focus, and the next save's body.
+3. **An archived product's refusal was never shown (Q11, F2).** It came back for `lines.N.product_id`, a field the form holds but has no box for, so `showSaveError` set it where nothing displayed it. It now shows under the line's name. The test adds the product through the picker, so the form has the shape it really has.
+4. **Accept went ahead when the deal's other quotes couldn't be read (Q22, N6).** A failed read counted as no other quotes, so the dialog left out quotes it would decline. The dialog now says "Checking this deal's other quotes…" until they're read. If the read fails, it says "Couldn't check this deal's other quotes, so it can't be accepted right now." with Try again, and Accept quote stays off.
+5. **Failed reads looked like empty pickers (F11, N6).** New quote's dialog now closes and says "Couldn't open the form. Try again." when the deals can't be read, through the same `useCloseIfUnreadable` the CRM's forms use. Add product's list says "Couldn't load this." with Try again, and the lines stay as they are.
+
+`quotes.md` describes each in Q8, Q11, Q19, Q21, Q22 and the quote page's screen, and `testing.md` lists the new tests. `LineBoxes` went past ESLint's complexity limit with the new message, so the line's name, Remove and the message are now `LineHeading`.
+
+`npm run check` passes: 4,471 tests in 7m 01s, of which 2,910 backend, 1,266 frontend, 283 end-to-end and 12 speed. One unit test took a second or more, an existing one in `DataTable.test.tsx` at 1.1s, while another worktree's run was busy.
 
 ## Running Accountable
 

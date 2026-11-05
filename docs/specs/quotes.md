@@ -17,13 +17,13 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ### Adding a quote
 
-- **Q8.** New quote, on an open deal's Quotes panel or beside the Quotes section's title, opens the page for a new draft. From the Quotes section it first asks which deal, in a dialog with a searchable picker that lists open deals only, as in F3 but with no offer to add one. A closed deal's panel has no New quote, and says "Quotes can be added while the deal is open."
+- **Q8.** New quote, on an open deal's Quotes panel or beside the Quotes section's title, opens the page for a new draft. From the Quotes section it first asks which deal, in a dialog with a searchable picker that lists open deals only, as in F3 but with no offer to add one. If the deals can't be read, the dialog closes and says so, as F11 has it. A closed deal's panel has no New quote, and says "Quotes can be added while the deal is open."
 - **Q9.** Nothing is saved, and no number is taken, until Save quote. Leaving the page before then drops the new draft, as leaving the Company settings page drops what's typed (B10). The first save takes the quote's number (B15), so a draft nobody saved never uses up a number, and sets the quote's date to today. Its valid-until date starts 30 days after that, such as Dec 5, 2026 for a quote dated Nov 5, 2026, and can be changed while it's a draft. It can't be before the quote's date, with "Choose a date on or after the quote's date" beside it, and sending needs it to be today or later (Q20).
 - **Q10.** A quote can be added or copied (Q25) only while its deal is open. A deal that closes some other way, such as being dragged to Lost, keeps its quotes as they are, and they can still be declined.
 
 ### Lines
 
-- **Q11.** Add product opens a searchable list of the active products, each with its unit price (G3), and adds the one chosen as a new line at the end, with the product's name, description and unit price, and a quantity of 1. Archived products aren't in the list, and the backend refuses a new line for one with "This product is archived. Choose another." A product can be on more than one line.
+- **Q11.** Add product opens a searchable list of the active products, each with its unit price (G3), and adds the one chosen as a new line at the end, with the product's name, description and unit price, and a quantity of 1. Archived products aren't in the list, and the backend refuses a new line for one with "This product is archived. Choose another." That refusal shows under the line's name, because a line has no box for its product. A product can be on more than one line. If the price list can't be read, the list says "Couldn't load this." with Try again, and the lines stay as they are (N6).
 - **Q12.** While the quote is a draft, a line's description, quantity and unit price can be changed, and a line can be removed. Its name stays the product's. Lines keep the order they were added in.
 - **Q13.** A line keeps the product's name as it was when the line was added, and the description and price it has on the quote, so a later change to the product, or archiving it, never changes a quote. The backend takes a new line's name from the product, never from the request.
 
@@ -47,7 +47,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ### Saving and sending
 
-- **Q19.** Save quote saves the form, once however quickly it's pressed (F10), and shows "Quote saved." Errors show beside their fields (F2), a line's beside that line's box. If the save fails, the page keeps what was typed and says so. A save that changes nothing doesn't count as a change (U10). While someone is typing, a teammate's newer save to the same draft doesn't overwrite what they've typed, as on the Company settings page (B10), and the last save wins. Leaving the page drops anything not yet saved, as there.
+- **Q19.** Save quote saves the form, once however quickly it's pressed (F10), and shows "Quote saved." Errors show beside their fields (F2), a line's beside that line's box. If the save fails, the page keeps what was typed and says so. Anything typed while a save is on its way stays, still to be saved. On a new draft it carries over to the page the first save opens, with the box being typed in still focused. A save that changes nothing doesn't count as a change (U10). While someone is typing, a teammate's newer save to the same draft doesn't overwrite what they've typed, as on the Company settings page (B10), and the last save wins. Leaving the page drops anything not yet saved, as there.
 - **Q20.** Mark as sent, on a draft, asks first: "Mark QT-0004 as sent? It can't be changed after this. To change it later, copy it to a new draft." It saves anything typed first, then sends, so what's sent is what's on screen. Sending fixes the company's details (Q30), the tax (Q17) and Prepared for (Q18) on the quote, records the day it was sent, and shows "Quote sent." It's refused, leaving the quote a draft with what was typed saved, when:
 
 | When | Message |
@@ -58,11 +58,11 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 | The valid-until date is before today | Choose a valid-until date from today on. (beside the date) |
 | No company name is saved (B14) | Add the company's name in Company settings first. |
 
-- **Q21.** Only a draft can be changed. A sent, accepted or declined quote's page shows the quote with no form, and the API refuses any change to its valid-until date or its lines with a 409: "QT-0004 has been sent, so it can't be changed. Copy it to make a new draft.", with accepted or declined in place of sent. A teammate's save to a draft that was sent while they were editing it is refused with the same words, and what they typed stays on screen.
+- **Q21.** Only a draft can be changed. A sent, accepted or declined quote's page shows the quote with no form, and the API refuses any change to its valid-until date or its lines with a 409: "QT-0004 has been sent, so it can't be changed. Copy it to make a new draft.", with accepted or declined in place of sent. A teammate's save to a draft that was sent while they were editing it is refused with the same words, and what they typed stays on screen. It stays when the page reads the quote again, too. If a draft is sent, accepted or declined while something typed on its page is unsaved, the page keeps the form with what was typed, shows the quote's new status chip in place of its buttons, and puts a notice under the title with the same words and Show the sent quote, or the accepted or declined one. That button drops what was typed and shows the quote as it now is. Nothing typed there can be saved, by Enter either. With nothing unsaved, the page shows the quote as it now is straight away.
 
 ### Accepting and declining
 
-- **Q22.** Accept, on a sent quote, expired or not, asks first, naming everything it will change, such as "Accept QT-0004? Harbor & Pine renewal will move to Won with a value of $48,001, and QT-0003 will be marked declined. This can't be undone." Accepting does all of this in one save, so a failure leaves nothing done:
+- **Q22.** Accept, on a sent quote, expired or not, asks first, naming everything it will change, such as "Accept QT-0004? Harbor & Pine renewal will move to Won with a value of $48,001, and QT-0003 will be marked declined. This can't be undone." So the dialog waits until it has read the deal's other quotes, saying "Checking this deal's other quotes…" meanwhile. If they can't be read, it says "Couldn't check this deal's other quotes, so it can't be accepted right now." with Try again, and Accept quote stays off (N6). Accepting does all of this in one save, so a failure leaves nothing done:
   - It marks the quote accepted, and records the day.
   - It moves the deal to Won by S1, as dragging its card there does: a probability of 100%, a close date of today, the main contact made a customer, a stage-change entry on the timelines with whoever accepted as who moved it (S2), and the deal at the top of the Won column (S9).
   - It sets the deal's value to the quote's value in whole dollars, to the nearest dollar with halves rounding up, so a subtotal of $48,000.50 makes the deal worth $48,001.
@@ -138,7 +138,7 @@ The page title is the quote's number in JetBrains Mono at the page title size, w
 | Sent or expired | Accept | Decline, Copy to new draft, Download PDF |
 | Accepted or declined | | Copy to new draft, Download PDF |
 
-Copy to new draft shows only while the deal is open (Q25). A new draft has Save quote alone. The main button is Sea Green with Midnight text, and the others are secondary buttons in the page color.
+Copy to new draft shows only while the deal is open (Q25). A new draft has Save quote alone. A draft that stopped being one while something typed was unsaved (Q21) has no buttons, only its new status chip, with its notice under the title in a panel, the words at its start and Show the sent quote as a secondary button at its end, as the notice for a page that couldn't refresh has its Try again. The main button is Sea Green with Midnight text, and the others are secondary buttons in the page color.
 
 Below, two columns of panels on the page background, as on the record pages:
 

@@ -15,6 +15,7 @@ import {
   totals,
 } from "../company/tax";
 import { Field, messageId } from "../components/Field";
+import { LoadFailed } from "../components/LoadFailed";
 import { parsePrice, price, priceText } from "../lib/money";
 import { useProducts, type Product } from "../products/queries";
 import type { Company, PreparedFor, QuoteLine, QuoteRequest } from "./queries";
@@ -126,32 +127,59 @@ function contentOf(quote: Saved) {
   return JSON.stringify([quote.valid_until, quote.lines]);
 }
 
-/**
- * Taking a reply redraws the lines' boxes, so the box being typed in gets its focus back, with the
- * caret where it was. The boxes are named by their places, which a save doesn't change.
- */
-function keepingFocus(take: () => void) {
+/** The box being typed in, by its id, and where the caret is in it. */
+type Focus = { id: string; start: number | null; end: number | null };
+
+function focusNow(): Focus | null {
   const focused = document.activeElement;
-  take();
-  if (!(focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement) || !focused.id) return;
-  const { id, selectionStart, selectionEnd } = focused;
+  if (!(focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement) || !focused.id) return null;
+  return { id: focused.id, start: focused.selectionStart, end: focused.selectionEnd };
+}
+
+/** Gives the box its focus back, with the caret where it was, once the boxes are drawn again. */
+function refocus(focus: Focus | null) {
+  if (!focus) return;
   setTimeout(() => {
-    const box = document.getElementById(id);
+    const box = document.getElementById(focus.id);
     if (!(box instanceof HTMLInputElement || box instanceof HTMLTextAreaElement) || box === document.activeElement)
       return;
     box.focus();
-    if (box.type !== "date") box.setSelectionRange(selectionStart, selectionEnd);
+    if (box.type !== "date") box.setSelectionRange(focus.start, focus.end);
   });
+}
+
+/**
+ * Taking a reply redraws the lines' boxes, so the box being typed in gets its focus back. The boxes
+ * are named by their places, which a save doesn't change.
+ */
+function keepingFocus(take: () => void) {
+  const focus = focusNow();
+  take();
+  refocus(focus);
+}
+
+/**
+ * What was typed while a new draft's first save was on its way, which the saved draft's page takes
+ * on, still to be saved (Q19). keys are the saved lines' keys, in the saved quote's order.
+ */
+export type Carried = { keys: string[]; values: QuoteValues; focus: Focus | null };
+
+function keepTyped(form: UseFormReturn<QuoteValues>, values: QuoteValues) {
+  form.setValue("valid_until", values.valid_until, { shouldDirty: true });
+  form.setValue("lines", values.lines, { shouldDirty: true });
 }
 
 /**
  * The form for a draft. A newer reply, such as a teammate's save, fills it only while nothing has
  * been typed since it was filled or saved, as on the Company settings page (Q19, B10). takeSaved
- * fills it from the page's own save.
+ * fills it from the page's own save, and carried is what a new draft's page typed during its first.
  */
-export function useQuoteForm(quote: Saved, quoteDate: string) {
+export function useQuoteForm(quote: Saved, quoteDate: string, carried: Carried | null = null) {
   const schema = useMemo(() => schemaFor(quoteDate), [quoteDate]);
-  const form = useForm<QuoteValues>({ resolver: zodResolver(schema), defaultValues: toForm(quote) });
+  const form = useForm<QuoteValues>({
+    resolver: zodResolver(schema),
+    defaultValues: toForm(quote, carried?.keys),
+  });
   const shown = useRef(contentOf(quote));
   const { isDirty } = form.formState;
   const { reset } = form;
@@ -163,31 +191,34 @@ export function useQuoteForm(quote: Saved, quoteDate: string) {
     keepingFocus(() => reset(toForm(quote)));
   }, [quote, isDirty, reset]);
 
+  useEffect(() => {
+    if (!carried) return;
+    keepTyped(form, carried.values);
+    refocus(carried.focus);
+  }, [carried, form]);
+
   /**
    * After a save, the form takes the saved quote. Anything typed while the save was on its way
    * stays, still to be saved, and a line the save added keeps its box with the id it now has.
+   * Returns what was kept, or null if nothing was typed meanwhile.
    */
   const takeSaved = useCallback(
-    (sent: QuoteValues, saved: Saved) => {
+    (sent: QuoteValues, saved: Saved): Carried | null => {
       shown.current = contentOf(saved);
       // A copy, because getValues() shares the lines with the form, which the reset below replaces.
       const typed = structuredClone(form.getValues());
-      keepingFocus(() => {
-        form.reset(
-          toForm(
-            saved,
-            sent.lines.map((line) => line.key),
-          ),
-        );
-        if (JSON.stringify(typed) === JSON.stringify(sent)) return;
-        const ids = new Map(sent.lines.map((line, index) => [line.key, saved.lines[index]?.id ?? null]));
-        form.setValue("valid_until", typed.valid_until, { shouldDirty: true });
-        form.setValue(
-          "lines",
-          typed.lines.map((line) => ({ ...line, line_id: line.line_id ?? ids.get(line.key) ?? null })),
-          { shouldDirty: true },
-        );
-      });
+      const keys = sent.lines.map((line) => line.key);
+      const focus = focusNow();
+      form.reset(toForm(saved, keys));
+      refocus(focus);
+      if (JSON.stringify(typed) === JSON.stringify(sent)) return null;
+      const ids = new Map(sent.lines.map((line, index) => [line.key, saved.lines[index]?.id ?? null]));
+      const values = {
+        valid_until: typed.valid_until,
+        lines: typed.lines.map((line) => ({ ...line, line_id: line.line_id ?? ids.get(line.key) ?? null })),
+      };
+      keepTyped(form, values);
+      return { keys, values, focus };
     },
     [form],
   );
@@ -253,18 +284,36 @@ export function QuoteForm({ form, id, onSubmit }: FormProps) {
 
 type LineBoxesProps = { form: UseFormReturn<QuoteValues>; index: number; name: string; onRemove: () => void };
 
-function LineBoxes({ form, index, name, onRemove }: LineBoxesProps) {
-  const { register, control } = form;
-  const errors = form.formState.errors.lines?.[index];
-  const box = `quote-line-${index}`;
+/**
+ * The line's name and its Remove button. The line's product has no box, so a refusal of it, such
+ * as an archived product's, goes under its name (Q11, Q19).
+ */
+function LineHeading({ form, index, name, onRemove }: LineBoxesProps) {
+  const refused = form.formState.errors.lines?.[index]?.product_id?.message;
   return (
-    <li className="flex flex-col gap-2">
+    <>
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 pt-1.5 font-semibold break-words">{name}</p>
         <button type="button" className="icon-btn flex-none" aria-label={`Remove ${name}`} onClick={onRemove}>
           <X size={16} aria-hidden="true" />
         </button>
       </div>
+      {refused && (
+        <p role="alert" className="text-[13px] leading-[18px] text-raspberry-text">
+          {refused}
+        </p>
+      )}
+    </>
+  );
+}
+
+function LineBoxes({ form, index, name, onRemove }: LineBoxesProps) {
+  const { register, control } = form;
+  const errors = form.formState.errors.lines?.[index];
+  const box = `quote-line-${index}`;
+  return (
+    <li className="flex flex-col gap-2">
+      <LineHeading form={form} index={index} name={name} onRemove={onRemove} />
       <Field label="Description" htmlFor={`${box}-description`} error={errors?.description?.message}>
         <textarea
           id={`${box}-description`}
@@ -375,6 +424,7 @@ function AddProduct({ onAdd }: { onAdd: (product: Product) => void }) {
             {products.data && matches.length === 0 && (
               <p className="px-2.5 py-1.5 text-[13px] text-muted">No active products match.</p>
             )}
+            {!products.data && <LoadFailed error={products.error} onRetry={() => products.refetch()} />}
           </Command.List>
         </Command>
       </Popover.Content>

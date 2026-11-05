@@ -229,11 +229,50 @@ describe("saving a draft", () => {
 
   it("keeps what was typed and shows the words when a teammate sent it meanwhile (Q21)", async () => {
     const words = "QT-0004 has been sent, so it can't be changed. Copy it to make a new draft.";
-    await showQuote(DRAFT, { "PATCH /quotes/4": () => ({ status: 409, body: { detail: words } }) });
+    const held = await showQuote(DRAFT, {
+      "PATCH /quotes/4": () => {
+        held.replace(SENT);
+        return { status: 409, body: { detail: words } };
+      },
+    });
     await retype(quantityBox(), "20");
     await user().click(screen.getByRole("button", { name: "Save quote" }));
     expect(await screen.findByText(words)).toBeTruthy();
     expect(quantityBox().value).toBe("20");
+
+    // Coming back to the window reads the quote again, now sent.
+    await act(() => held.client.invalidateQueries());
+    expect(await screen.findByRole("button", { name: "Show the sent quote" })).toBeTruthy();
+    expect(quantityBox().value).toBe("20");
+  });
+
+  it("keeps what was typed when a teammate's send arrives, and saves none of it (Q19, Q21)", async () => {
+    const { calls, replace, client } = await showQuote(DRAFT);
+    await retype(quantityBox(), "20");
+    replace(SENT);
+    await act(() => client.invalidateQueries());
+
+    expect(
+      await screen.findByText("QT-0004 has been sent, so it can't be changed. Copy it to make a new draft."),
+    ).toBeTruthy();
+    expect(quantityBox().value).toBe("20");
+    expect(header().getByText("Sent")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Save quote" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mark as sent" })).toBeNull();
+    await user().type(quantityBox(), "{Enter}");
+    expect(writes(calls)).toEqual([]);
+
+    await user().click(screen.getByRole("button", { name: "Show the sent quote" }));
+    await waitFor(() => expect(buttonNames()).toEqual(["Accept", "Decline", "Copy to new draft", "Download PDF"]));
+    expect(quantityBox()).toBeNull();
+  });
+
+  it("shows a teammate's send at once when nothing is typed (Q21)", async () => {
+    const { replace, client } = await showQuote(DRAFT);
+    replace(SENT);
+    await act(() => client.invalidateQueries());
+    await waitFor(() => expect(buttonNames()).toContain("Accept"));
+    expect(screen.queryByRole("button", { name: "Show the sent quote" })).toBeNull();
   });
 
   it("takes a teammate's newer save while nothing is typed, and leaves a changed form alone (B10)", async () => {
@@ -318,6 +357,31 @@ describe("Accept", () => {
       ),
     ).toBeTruthy();
     expect(writes(calls)).toEqual(["POST /quotes/4/accept"]);
+  });
+
+  it("won't go ahead while the deal's other quotes can't be read, and tries again (Q22, N6)", async () => {
+    let failing = true;
+    const other = { ...SENT, id: 3, number: "QT-0003" };
+    const { calls } = await showQuote(SENT, {
+      "GET /quotes?deal_id=12": () =>
+        failing ? { status: 500, body: { detail: "Something went wrong." } } : { body: [row(SENT), row(other)] },
+    });
+    await user().click(header().getByRole("button", { name: "Accept" }));
+    const dialog = within(screen.getByRole("alertdialog"));
+    expect(
+      await dialog.findByText(/^Couldn't check this deal's other quotes, so it can't be accepted right now\./),
+    ).toBeTruthy();
+    expect(dialog.getByRole("button", { name: "Accept quote" }).hasAttribute("disabled")).toBe(true);
+
+    failing = false;
+    await user().click(dialog.getByRole("button", { name: "Try again" }));
+    expect(
+      await dialog.findByText(
+        "Harbor & Pine renewal will move to Won with a value of $5,760, and QT-0003 will be marked declined. This can't be undone.",
+      ),
+    ).toBeTruthy();
+    expect(dialog.getByRole("button", { name: "Accept quote" }).hasAttribute("disabled")).toBe(false);
+    expect(writes(calls)).toEqual([]);
   });
 });
 
@@ -420,6 +484,36 @@ describe("a new draft", () => {
       deal_id: 12,
       valid_until: "2026-12-05",
       lines: [],
+    });
+  });
+
+  it("keeps what's typed while its first save is on its way, still to be saved, on the page it opens (Q19)", async () => {
+    const saved: QuoteDetail = { ...DRAFT, lines: [{ ...DRAFT.lines[0], quantity: 1, amount_cents: 48000 }] };
+    const product = { id: 1, name: "Standard license", description: null, unit_price_cents: 48000, active: true };
+    const calls = mockApi({
+      "GET /quotes/new/12": START,
+      "GET /products": [product],
+      "POST /quotes": () => ({ status: 201, body: saved }),
+      "GET /quotes/4": saved,
+      "GET /quotes?deal_id=12": [],
+      "PATCH /quotes/4": saved,
+    });
+    show("/quotes/new?deal=12");
+    await user().click(await screen.findByRole("button", { name: "Add product" }));
+    await user().click(await screen.findByRole("option", { name: /^Standard license/ }));
+    const release = holdSaves();
+    await user().click(screen.getByRole("button", { name: "Save quote" }));
+    await retype(quantityBox(), "25");
+    release();
+
+    expect(await screen.findByRole("heading", { level: 1, name: "QT-0004" })).toBeTruthy();
+    expect(quantityBox().value).toBe("25");
+    await waitFor(() => expect(document.activeElement).toBe(quantityBox()));
+    await user().click(screen.getByRole("button", { name: "Save quote" }));
+    await waitFor(() => expect(writes(calls)).toEqual(["POST /quotes", "PATCH /quotes/4"]));
+    expect(calls.find((call) => call.method === "PATCH")!.body).toEqual({
+      valid_until: "2026-12-05",
+      lines: [{ id: 31, description: null, quantity: 25, unit_price_cents: 48000 }],
     });
   });
 

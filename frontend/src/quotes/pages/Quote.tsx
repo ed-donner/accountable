@@ -1,7 +1,7 @@
 import { addDays, format, parseISO } from "date-fns";
 import { Copy, Download } from "lucide-react";
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { LoadFailed } from "../../components/LoadFailed";
 import { MissingRecord } from "../../components/MissingRecord";
@@ -28,7 +28,7 @@ import {
   type NewQuote,
   type QuoteDetail,
 } from "../queries";
-import { LivePreview, QuoteForm, toRequest, useQuoteForm } from "../QuoteForm";
+import { LivePreview, QuoteForm, toForm, toRequest, useQuoteForm, type Carried } from "../QuoteForm";
 import { QuoteDocument } from "../QuoteDocument";
 import { acceptedMessage, shownStatus } from "../status";
 import { QuoteStatusChip } from "../StatusChip";
@@ -54,11 +54,18 @@ export function NewDraft() {
 
 function QuoteRecord({ id }: { id: number }) {
   const quote = useQuote(id);
+  // Whether the draft's form holds changes not yet saved, which a teammate sending the quote mustn't throw away (Q21).
+  const [unsaved, setUnsaved] = useState(false);
   if (quote.error instanceof ApiError && quote.error.kind === "missing") {
     return <MissingRecord word="quote" to="/quotes" section="Quotes" />;
   }
   if (!quote.data) return <LoadFailed onPage error={quote.error} onRetry={() => quote.refetch()} />;
-  const page = quote.data.status === "draft" ? <DraftQuote quote={quote.data} /> : <FixedQuote quote={quote.data} />;
+  const page =
+    quote.data.status === "draft" || unsaved ? (
+      <DraftQuote quote={quote.data} onUnsaved={setUnsaved} />
+    ) : (
+      <FixedQuote quote={quote.data} />
+    );
   return (
     <>
       <LoadFailed onPage keeping error={quote.error} onRetry={() => quote.refetch()} />
@@ -93,7 +100,7 @@ function ClosedDeal({ deal }: { deal: DealLink }) {
   );
 }
 
-type HeaderProps = { title: string; number?: boolean; chip?: ReactNode; deal: DealLink; children: ReactNode };
+type HeaderProps = { title: string; number?: boolean; chip?: ReactNode; deal: DealLink; children?: ReactNode };
 
 /** The quote's number in JetBrains Mono, or "New quote", its chip, its deal under it, and its buttons. */
 function QuoteHeader({ title, number, chip, deal, children }: HeaderProps) {
@@ -170,14 +177,14 @@ function useSaveForm(
   const notify = useNotify();
   const saving = useRef(false);
 
-  async function saveForm(): Promise<QuoteDetail | null> {
+  /** The saved quote and anything typed while the save was on its way, or null if it wasn't saved. */
+  async function saveForm(): Promise<{ saved: QuoteDetail; typed: Carried | null } | null> {
     if (!(await form.trigger(undefined, { shouldFocus: true }))) return null;
     // A copy, because getValues() shares the lines with the form, which go on changing as they're typed in.
     const sent = structuredClone(form.getValues());
     try {
       const saved = await save.mutateAsync(toRequest(sent));
-      takeSaved(sent, saved);
-      return saved;
+      return { saved, typed: takeSaved(sent, saved) };
     } catch (error) {
       showSaveError(error, { setError: form.setError, getValues: form.getValues, notify });
       return null;
@@ -185,15 +192,18 @@ function useSaveForm(
   }
 
   /** Save quote, by its button or Enter in a one-line box. */
-  async function submit(event: FormEvent<HTMLFormElement>, onSaved?: (saved: QuoteDetail) => void) {
+  async function submit(
+    event: FormEvent<HTMLFormElement>,
+    onSaved?: (saved: QuoteDetail, typed: Carried | null) => void,
+  ) {
     event.preventDefault();
     if (saving.current) return;
     saving.current = true;
     try {
-      const saved = await saveForm();
-      if (saved) {
+      const result = await saveForm();
+      if (result) {
         notify.success("Quote saved.");
-        onSaved?.(saved);
+        onSaved?.(result.saved, result.typed);
       }
     } finally {
       saving.current = false;
@@ -232,7 +242,10 @@ function NewDraftForm({ start }: { start: NewQuote }) {
             <QuoteForm
               form={form}
               id={FORM_ID}
-              onSubmit={(event) => submit(event, (saved) => navigate(`/quotes/${saved.id}`, { replace: true }))}
+              onSubmit={(event) =>
+                // The saved draft's page takes on anything typed while the save was on its way (Q19).
+                submit(event, (saved, typed) => navigate(`/quotes/${saved.id}`, { replace: true, state: typed }))
+              }
             />
           </>
         }
@@ -301,14 +314,95 @@ function CommonButtons({ quote, saveFirst }: CommonProps) {
   );
 }
 
-function DraftQuote({ quote }: { quote: QuoteDetail }) {
-  const quoteForm = useQuoteForm(quote, quote.quote_date);
+type DraftHeaderProps = {
+  quote: QuoteDetail;
+  pending: boolean;
+  saveFirst: () => Promise<boolean>;
+  onAsk: (dialog: Dialog) => void;
+};
+
+function DraftHeader({ quote, pending, saveFirst, onAsk }: DraftHeaderProps) {
+  return (
+    <QuoteHeader title={quote.number} number chip={<QuoteStatusChip status="draft" onPage />} deal={quote.deal}>
+      <button type="submit" form={FORM_ID} className="btn btn-primary" disabled={pending}>
+        Save quote
+      </button>
+      <button type="button" className={SECONDARY} onClick={() => onAsk("send")}>
+        Mark as sent
+      </button>
+      <button type="button" className={SECONDARY} onClick={() => onAsk("decline")}>
+        Decline
+      </button>
+      <CommonButtons quote={quote} saveFirst={saveFirst} />
+    </QuoteHeader>
+  );
+}
+
+/**
+ * The header and a notice for a draft that a teammate sent, accepted or declined while something
+ * typed here was still unsaved. What was typed stays on screen, with nothing to save it (Q21).
+ */
+function ChangedMeanwhile({ quote, onLetGo }: { quote: QuoteDetail; onLetGo: () => void }) {
+  const today = useToday();
+  return (
+    <>
+      <QuoteHeader
+        title={quote.number}
+        number
+        chip={<QuoteStatusChip status={shownStatus(quote, today)} onPage />}
+        deal={quote.deal}
+      />
+      <div role="alert" className="panel mx-5 mb-2.5 flex flex-none items-center justify-between gap-3 py-2 pr-2 pl-4">
+        <p>
+          {quote.number} has been {quote.status}, so it can&apos;t be changed. Copy it to make a new draft.
+        </p>
+        <button type="button" className="btn btn-secondary flex-none" onClick={onLetGo}>
+          Show the {quote.status} quote
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** What a new draft's first save handed to this page in the address's state, if it opened it. */
+function carriedFrom(state: unknown): Carried | null {
+  return state !== null && typeof state === "object" && "values" in state ? (state as Carried) : null;
+}
+
+async function saveNothing(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+}
+
+type DraftProps = {
+  quote: QuoteDetail;
+  /** Says whether the form holds changes not yet saved. */
+  onUnsaved: (unsaved: boolean) => void;
+};
+
+/**
+ * A draft, its form beside its live preview. If the quote stops being a draft while something
+ * typed here is unsaved, such as when a teammate sends it, the form stays until it's let go (Q21).
+ */
+function DraftQuote({ quote, onUnsaved }: DraftProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const carried = carriedFrom(location.state);
+  const quoteForm = useQuoteForm(quote, quote.quote_date, carried);
   const { form } = quoteForm;
+  const { isDirty } = form.formState;
   const { saveForm, submit, pending } = useSaveForm(quoteForm, { id: quote.id });
   const send = useSendQuote();
   const decline = useDeclineQuote();
   const notify = useNotify();
   const [dialog, setDialog] = useState<Dialog>(null);
+  const fixed = quote.status !== "draft";
+
+  useEffect(() => onUnsaved(isDirty), [isDirty, onUnsaved]);
+
+  // Taken once, so coming back to this address later doesn't bring back what has since been saved.
+  useEffect(() => {
+    if (carried) navigate(location.pathname, { replace: true, state: null });
+  }, [carried, location.pathname, navigate]);
 
   /** Mark as sent and Download PDF save a changed draft first, so what's sent is what's on screen. */
   async function saveIfChanged() {
@@ -339,23 +433,16 @@ function DraftQuote({ quote }: { quote: QuoteDetail }) {
 
   return (
     <>
-      <QuoteHeader title={quote.number} number chip={<QuoteStatusChip status="draft" onPage />} deal={quote.deal}>
-        <button type="submit" form={FORM_ID} className="btn btn-primary" disabled={pending}>
-          Save quote
-        </button>
-        <button type="button" className={SECONDARY} onClick={() => setDialog("send")}>
-          Mark as sent
-        </button>
-        <button type="button" className={SECONDARY} onClick={() => setDialog("decline")}>
-          Decline
-        </button>
-        <CommonButtons quote={quote} saveFirst={saveIfChanged} />
-      </QuoteHeader>
+      {fixed ? (
+        <ChangedMeanwhile quote={quote} onLetGo={() => form.reset(toForm(quote))} />
+      ) : (
+        <DraftHeader quote={quote} pending={pending} saveFirst={saveIfChanged} onAsk={setDialog} />
+      )}
       <QuoteColumns
         side={
           <>
             <DetailsPanel quote={quote} />
-            <QuoteForm form={form} id={FORM_ID} onSubmit={(event) => submit(event)} />
+            <QuoteForm form={form} id={FORM_ID} onSubmit={fixed ? saveNothing : (event) => submit(event)} />
           </>
         }
         preview={
@@ -370,7 +457,7 @@ function DraftQuote({ quote }: { quote: QuoteDetail }) {
           />
         }
       />
-      {dialog === "send" && (
+      {!fixed && dialog === "send" && (
         <SendDialog
           number={quote.number}
           pending={pending || send.isPending}
@@ -378,7 +465,7 @@ function DraftQuote({ quote }: { quote: QuoteDetail }) {
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog === "decline" && (
+      {!fixed && dialog === "decline" && (
         <DeclineDialog
           number={quote.number}
           pending={decline.isPending}
@@ -400,9 +487,10 @@ function FixedQuote({ quote }: { quote: QuoteDetail }) {
   const notify = useNotify();
   const [dialog, setDialog] = useState<Dialog>(null);
   const waiting = quote.status === "sent";
-  const declining = (dealQuotes.data ?? [])
-    .filter((other) => other.status === "sent" && other.id !== quote.id)
-    .map((other) => other.number);
+  // Unknown until read, so Accept's dialog never leaves out a quote it would decline (Q22, N6).
+  const declining =
+    dealQuotes.data?.filter((other) => other.status === "sent" && other.id !== quote.id).map((other) => other.number) ??
+    null;
 
   async function act(run: () => Promise<string>) {
     try {
@@ -451,7 +539,9 @@ function FixedQuote({ quote }: { quote: QuoteDetail }) {
           deal={quote.deal.name}
           subtotalCents={quote.subtotal_cents}
           declining={declining}
-          pending={accept.isPending || dealQuotes.isPending}
+          readFailed={dealQuotes.isError}
+          onRetry={() => dealQuotes.refetch()}
+          pending={accept.isPending}
           onConfirm={() => act(async () => acceptedMessage(await accept.mutateAsync(quote.id)))}
           onClose={() => setDialog(null)}
         />

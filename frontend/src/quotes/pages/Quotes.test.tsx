@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Deal } from "../../crm/queries";
@@ -49,7 +50,7 @@ function Address() {
   return <output data-testid="address">{location.pathname + location.search}</output>;
 }
 
-function show(rows: QuoteRow[], address = "/quotes", deals: Partial<Deal>[] = []) {
+function show(rows: QuoteRow[], address = "/quotes", deals: Partial<Deal>[] | (() => unknown) = []) {
   mockApi({ "GET /quotes": rows, "GET /deals": deals });
   const client = new QueryClient({ defaultOptions: queryDefaults });
   render(
@@ -228,5 +229,13 @@ describe("New quote", () => {
     await user().click(dialog.getByRole("button", { name: "Continue" }));
     expect(dialog.getByText("Choose an open deal")).toBeTruthy();
     expect(address()).toBe("/quotes");
+  });
+
+  it("closes and says so when the deals can't be read, rather than offering none (F11)", async () => {
+    const failure = vi.spyOn(toast, "error");
+    show(ROWS, "/quotes", () => ({ status: 500, body: { detail: "Something went wrong." } }));
+    await user().click(await screen.findByRole("button", { name: "New quote" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "New quote" })).toBeNull());
+    expect(failure).toHaveBeenCalledWith("Couldn't open the form. Try again.", expect.anything());
   });
 });

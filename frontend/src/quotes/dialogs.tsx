@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 
 import { Confirm } from "../components/Confirm";
@@ -7,13 +7,18 @@ import { FormDialog } from "../components/FormDialog";
 import { RecordPicker } from "../components/RecordPicker";
 import { isOpen } from "../crm/deals";
 import { useDeals } from "../crm/queries";
+import { useCloseIfUnreadable } from "../lib/useCloseIfUnreadable";
 import { acceptChanges } from "./status";
 
 const CHOOSE_A_DEAL = "Choose an open deal";
 
-/** New quote, from the Quotes section, asks which open deal first, with no offer to add one (Q8). */
+/**
+ * New quote, from the Quotes section, asks which open deal first, with no offer to add one (Q8).
+ * If the deals can't be read it closes and says so, rather than offering none (F11).
+ */
 export function NewQuoteDialog({ onClose }: { onClose: () => void }) {
   const deals = useDeals();
+  useCloseIfUnreadable([deals], onClose);
   const navigate = useNavigate();
   const [deal, setDeal] = useState<number | null>(null);
   const [error, setError] = useState<string | undefined>();
@@ -68,18 +73,50 @@ export function SendDialog({ number, pending, ...actions }: AskFirst) {
   );
 }
 
-type AcceptProps = AskFirst & { deal: string; subtotalCents: number; declining: string[] };
+type AcceptProps = AskFirst & {
+  deal: string;
+  subtotalCents: number;
+  /** The deal's other sent quotes, which accepting declines, or null until they've been read. */
+  declining: string[] | null;
+  /** They couldn't be read. */
+  readFailed: boolean;
+  onRetry: () => void;
+};
 
-/** Accept names everything it will change on the deal (Q22). */
-export function AcceptDialog({ number, deal, subtotalCents, declining, pending, ...actions }: AcceptProps) {
+/**
+ * Accept names everything it will change on the deal, so it waits until it knows which of the
+ * deal's quotes it will decline, and won't go ahead if they can't be read (Q22, N6).
+ */
+export function AcceptDialog({
+  number,
+  deal,
+  subtotalCents,
+  declining,
+  readFailed,
+  onRetry,
+  pending,
+  ...actions
+}: AcceptProps) {
+  let message: ReactNode = "Checking this deal's other quotes…";
+  if (declining) message = acceptChanges(deal, subtotalCents, declining);
+  else if (readFailed) {
+    message = (
+      <>
+        Couldn&apos;t check this deal&apos;s other quotes, so it can&apos;t be accepted right now.{" "}
+        <button type="button" className="link" onClick={onRetry}>
+          Try again
+        </button>
+      </>
+    );
+  }
   return (
     <Confirm
       {...actions}
       tone="primary"
       title={`Accept ${number}?`}
-      message={acceptChanges(deal, subtotalCents, declining)}
+      message={message}
       confirmLabel="Accept quote"
-      disabled={pending}
+      disabled={pending || declining === null}
     />
   );
 }

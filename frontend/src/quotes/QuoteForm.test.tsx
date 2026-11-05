@@ -71,8 +71,8 @@ function Harness({ lines }: { lines: QuoteLine[] }) {
   );
 }
 
-function show(lines: QuoteLine[] = [], saved: unknown = { body: {} }): Call[] {
-  const calls = mockApi({ "GET /products": PRODUCTS, "PATCH /quotes/4": () => saved });
+function show(lines: QuoteLine[] = [], saved: unknown = { body: {} }, products: unknown = PRODUCTS): Call[] {
+  const calls = mockApi({ "GET /products": products, "PATCH /quotes/4": () => saved });
   const client = new QueryClient({ defaultOptions: queryDefaults });
   render(
     <QueryClientProvider client={client}>
@@ -149,6 +149,21 @@ describe("adding a product", () => {
     await addProduct("Standard license");
     await addProduct("Standard license");
     expect(screen.getAllByRole("button", { name: "Remove Standard license" })).toHaveLength(2);
+  });
+
+  it("says so when the price list can't be read, and tries again, keeping the lines (N6)", async () => {
+    let failing = true;
+    show([line(1, 3, 100)], undefined, () =>
+      failing ? { status: 500, body: { detail: "Something went wrong." } } : { body: PRODUCTS },
+    );
+    await user().click(screen.getByRole("button", { name: "Add product" }));
+    expect(await screen.findByText("Couldn't load this.")).toBeTruthy();
+    expect(screen.queryByRole("option")).toBeNull();
+
+    failing = false;
+    await user().click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findAllByRole("option")).toHaveLength(3);
+    expect(boxes(0).quantity.value).toBe("3");
   });
 });
 
@@ -239,5 +254,18 @@ describe("the backend's refusal", () => {
     expect(boxes(2).quantity.getAttribute("aria-invalid")).toBe("true");
     expect(boxes(2).quantity.getAttribute("aria-describedby")).toBe(message.id);
     expect(boxes(1).quantity.getAttribute("aria-invalid")).toBe("false");
+  });
+
+  it("puts an archived product's refusal beside its line, which has no box for the product (Q11, Q19)", async () => {
+    const archived = "This product is archived. Choose another.";
+    show([line(1, 1, 100)], {
+      status: 422,
+      body: { detail: "Check the form.", fields: { "lines.1.product_id": archived } },
+    });
+    await addProduct("Extra user seat");
+    await user().click(screen.getByRole("button", { name: "Save quote" }));
+    const [first, added] = theForm().getAllByRole("listitem");
+    expect(await within(added).findByText(archived)).toBeTruthy();
+    expect(within(first).queryByText(archived)).toBeNull();
   });
 });

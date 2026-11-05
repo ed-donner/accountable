@@ -65,9 +65,10 @@ scripts/
   test-report.mjs                 turns what each test runner wrote into the summary that ends npm test
   agent-check-on-stop.mjs         the coding agent's hook that runs npm run check:quick when it finishes a turn
   agent-guard-env.mjs             the coding agent's hook that stops any edit to .env
+  agent-guard-uv.mjs              the coding agent's hook that stops python and pip run without uv
   agent-guard-read-only.mjs       the reviewer's hook that lets its shell run only commands that read
   agent-guard-playwright-folder.mjs   ui-check's hook that keeps the files it saves in .playwright-mcp/
-  agent-hooks.mjs                 what those four hooks decide
+  agent-hooks.mjs                 what those five hooks decide
   setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-runs.test.mjs, test-report.test.mjs, agent-hooks.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, routers, and the built frontend in the shared app

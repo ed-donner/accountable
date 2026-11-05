@@ -45,6 +45,29 @@ export function envGuardReply({ tool_name: toolName, tool_input: toolInput = {} 
   return reason ? deny(reason) : null;
 }
 
+const UV_REASON =
+  "This project runs Python through uv, so the project's own Python and packages are used: uv run python, " +
+  "uv run --no-sync python - <<'EOF' for a script, and uv add for a package. A bare python, python3 or pip " +
+  "runs whichever one the computer finds first.";
+
+// A heredoc's body is text, not commands, so a line in it may start with python.
+const HEREDOC_BODY = /<<-?[ \t]*(['"]?)(\w+)\1([^\n]*)\n[\s\S]*?\n[ \t]*\2[ \t]*(?=\n|$)/g;
+const QUOTED = /'[^']*'|"(?:\\.|[^"\\])*"/g;
+// python, python3, python3.12, pip or pip3 where a command starts, after any NAME=value settings.
+const BARE_PYTHON = /(?:^|[;&|(\n])[ \t]*(?:\w+=\S*[ \t]+)*(?:python(?:3(?:\.\d+)?)?|pip3?)(?=[ \t\n;&|)]|$)/;
+
+/** True if a shell command line runs python or pip itself, rather than through uv run. */
+export function runsBarePython(line) {
+  const commands = line.replace(HEREDOC_BODY, "$3").replace(QUOTED, "''");
+  return BARE_PYTHON.test(commands);
+}
+
+/** The coding agent's PreToolUse hook for the shell: null lets a command go ahead, unless it skips uv. */
+export function uvGuardReply({ tool_name: toolName, tool_input: toolInput = {} }) {
+  if (toolName !== "Bash" || !runsBarePython(toolInput.command ?? "")) return null;
+  return deny(UV_REASON);
+}
+
 // Commands that only read, each with the flags that would let it write a file or run another program.
 const READ_ONLY_COMMANDS = new Map([
   ["cat", null],
@@ -81,13 +104,17 @@ const READ_ONLY_GIT = new Set([
 ]);
 // git branch with these alone lists branches. Anything else could create, rename or delete one.
 const BRANCH_LISTING = new Set(["--show-current", "-a", "--all", "-r", "--remotes", "-v", "-vv", "--list"]);
+// sed -n printing one range of lines, such as 40,100p. sed's other commands and flags can
+// write a file (w, -i) or run a program (e), so sed is let through in this form alone.
+const PRINTED_LINES = /^(\d+|\$)(,(\d+|\$))?p$/;
 
 const READ_ONLY_REASON =
   "The reviewer only reads, so its shell runs only commands that read: " +
   `${[...READ_ONLY_COMMANDS.keys()].join(", ")}, with git limited to ${[...READ_ONLY_GIT].join(", ")} ` +
-  "and branch to list branches. They can be joined with |, && or ;, and send output to /dev/null. " +
-  "Redirects into a file, $( ) and backticks are stopped, so run each command on its own and use what it " +
-  "printed in the next. The Read, Grep and Glob tools work too.";
+  "and branch to list branches, and sed only as sed -n 40,100p to print a range of lines. They can be " +
+  "joined with |, && or ;, and send output to /dev/null. Redirects into a file, $( ) and backticks are " +
+  "stopped, so run each command on its own and use what it printed in the next. The Read tool reads " +
+  "any part of a file too, with its offset and limit.";
 
 // The pieces of a shell command line, tried in this order at each point.
 const SHELL_PIECES = new RegExp(
@@ -134,7 +161,12 @@ function gitReadsOnly(args) {
   return READ_ONLY_GIT.has(subcommand);
 }
 
+function sedReadsOnly([quiet, lines, ...files]) {
+  return quiet === "-n" && PRINTED_LINES.test(lines ?? "") && files.every((file) => !file.startsWith("-"));
+}
+
 function commandReadsOnly([name, ...args]) {
+  if (name === "sed") return sedReadsOnly(args);
   if (!READ_ONLY_COMMANDS.has(name)) return false;
   const writingFlags = READ_ONLY_COMMANDS.get(name);
   if (writingFlags && args.some((arg) => writingFlags.test(arg))) return false;

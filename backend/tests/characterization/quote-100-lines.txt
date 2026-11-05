@@ -4,234 +4,562 @@ Plainsong Systems
 Brooklyn, NY 11201
 accounts@plainsong.example
 (718) 555-0142
-Quote Draft
-Number QT-0001
-Date Oct 31, 2026
-Valid until Nov 30, 2026
+Quote
+DRAFT
+Number
+QT-0001
+Date
+Oct 31, 2026
+Valid until
+Nov 30, 2026
 Prepared for
 Harbor & Pine
 Sam Carter
 sam@harbor.example
-Item Qty Unit price Amount
-Product 001 1 $49.51 $49.51
+Description
+Qty
+Unit price
+Amount
+Product 001
 Seat 1
-Product 002 2 $49.52 $99.04
+1
+$49.51
+$49.51
+Product 002
 Seat 2
-Product 003 3 $49.53 $148.59
+2
+$49.52
+$99.04
+Product 003
 Seat 3
-Product 004 4 $49.54 $198.16
+3
+$49.53
+$148.59
+Product 004
 Seat 4
-Product 005 5 $49.55 $247.75
+4
+$49.54
+$198.16
+Product 005
 Seat 5
-Product 006 6 $49.56 $297.36
+5
+$49.55
+$247.75
+Product 006
 Seat 6
-Product 007 7 $49.57 $346.99
+6
+$49.56
+$297.36
+Product 007
 Seat 7
-Product 008 8 $49.58 $396.64
+7
+$49.57
+$346.99
+Product 008
 Seat 8
-Product 009 9 $49.59 $446.31
+8
+$49.58
+$396.64
+Product 009
 Seat 9
-Product 010 10 $49.60 $496.00
+9
+$49.59
+$446.31
+Product 010
 Seat 10
-Product 011 11 $49.61 $545.71
+10
+$49.60
+$496.00
+Product 011
 Seat 11
-Product 012 12 $49.62 $595.44
-Seat 12
-QT-0001 Page 1 of 7
+11
+$49.61
+$545.71
+QT-0001, page 1 of 7
 --- page 2 ---
-Item Qty Unit price Amount
-Product 013 13 $49.63 $645.19
+Description
+Qty
+Unit price
+Amount
+Product 012
+Seat 12
+12
+$49.62
+$595.44
+Product 013
 Seat 13
-Product 014 14 $49.64 $694.96
+13
+$49.63
+$645.19
+Product 014
 Seat 14
-Product 015 15 $49.65 $744.75
+14
+$49.64
+$694.96
+Product 015
 Seat 15
-Product 016 16 $49.66 $794.56
+15
+$49.65
+$744.75
+Product 016
 Seat 16
-Product 017 17 $49.67 $844.39
+16
+$49.66
+$794.56
+Product 017
 Seat 17
-Product 018 18 $49.68 $894.24
+17
+$49.67
+$844.39
+Product 018
 Seat 18
-Product 019 19 $49.69 $944.11
+18
+$49.68
+$894.24
+Product 019
 Seat 19
-Product 020 20 $49.70 $994.00
+19
+$49.69
+$944.11
+Product 020
 Seat 20
-Product 021 21 $49.71 $1,043.91
+20
+$49.70
+$994.00
+Product 021
 Seat 21
-Product 022 22 $49.72 $1,093.84
+21
+$49.71
+$1,043.91
+Product 022
 Seat 22
-Product 023 23 $49.73 $1,143.79
+22
+$49.72
+$1,093.84
+Product 023
 Seat 23
-Product 024 24 $49.74 $1,193.76
+23
+$49.73
+$1,143.79
+Product 024
 Seat 24
-Product 025 25 $49.75 $1,243.75
+24
+$49.74
+$1,193.76
+Product 025
 Seat 25
-Product 026 26 $49.76 $1,293.76
+25
+$49.75
+$1,243.75
+Product 026
 Seat 26
-Product 027 27 $49.77 $1,343.79
+26
+$49.76
+$1,293.76
+Product 027
 Seat 27
-Product 028 28 $49.78 $1,393.84
+27
+$49.77
+$1,343.79
+Product 028
 Seat 28
-Product 029 29 $49.79 $1,443.91
-Seat 29
-QT-0001 Page 2 of 7
+28
+$49.78
+$1,393.84
+QT-0001, page 2 of 7
 --- page 3 ---
-Item Qty Unit price Amount
-Product 030 30 $49.80 $1,494.00
+Description
+Qty
+Unit price
+Amount
+Product 029
+Seat 29
+29
+$49.79
+$1,443.91
+Product 030
 Seat 30
-Product 031 31 $49.81 $1,544.11
+30
+$49.80
+$1,494.00
+Product 031
 Seat 31
-Product 032 32 $49.82 $1,594.24
+31
+$49.81
+$1,544.11
+Product 032
 Seat 32
-Product 033 33 $49.83 $1,644.39
+32
+$49.82
+$1,594.24
+Product 033
 Seat 33
-Product 034 34 $49.84 $1,694.56
+33
+$49.83
+$1,644.39
+Product 034
 Seat 34
-Product 035 35 $49.85 $1,744.75
+34
+$49.84
+$1,694.56
+Product 035
 Seat 35
-Product 036 36 $49.86 $1,794.96
+35
+$49.85
+$1,744.75
+Product 036
 Seat 36
-Product 037 37 $49.87 $1,845.19
+36
+$49.86
+$1,794.96
+Product 037
 Seat 37
-Product 038 38 $49.88 $1,895.44
+37
+$49.87
+$1,845.19
+Product 038
 Seat 38
-Product 039 39 $49.89 $1,945.71
+38
+$49.88
+$1,895.44
+Product 039
 Seat 39
-Product 040 40 $49.90 $1,996.00
+39
+$49.89
+$1,945.71
+Product 040
 Seat 40
-Product 041 41 $49.91 $2,046.31
+40
+$49.90
+$1,996.00
+Product 041
 Seat 41
-Product 042 42 $49.92 $2,096.64
+41
+$49.91
+$2,046.31
+Product 042
 Seat 42
-Product 043 43 $49.93 $2,146.99
+42
+$49.92
+$2,096.64
+Product 043
 Seat 43
-Product 044 44 $49.94 $2,197.36
+43
+$49.93
+$2,146.99
+Product 044
 Seat 44
-Product 045 45 $49.95 $2,247.75
+44
+$49.94
+$2,197.36
+Product 045
 Seat 45
-Product 046 46 $49.96 $2,298.16
-Seat 46
-QT-0001 Page 3 of 7
+45
+$49.95
+$2,247.75
+QT-0001, page 3 of 7
 --- page 4 ---
-Item Qty Unit price Amount
-Product 047 47 $49.97 $2,348.59
+Description
+Qty
+Unit price
+Amount
+Product 046
+Seat 46
+46
+$49.96
+$2,298.16
+Product 047
 Seat 47
-Product 048 48 $49.98 $2,399.04
+47
+$49.97
+$2,348.59
+Product 048
 Seat 48
-Product 049 49 $49.99 $2,449.51
+48
+$49.98
+$2,399.04
+Product 049
 Seat 49
-Product 050 50 $50.00 $2,500.00
+49
+$49.99
+$2,449.51
+Product 050
 Seat 50
-Product 051 51 $50.01 $2,550.51
+50
+$50.00
+$2,500.00
+Product 051
 Seat 51
-Product 052 52 $50.02 $2,601.04
+51
+$50.01
+$2,550.51
+Product 052
 Seat 52
-Product 053 53 $50.03 $2,651.59
+52
+$50.02
+$2,601.04
+Product 053
 Seat 53
-Product 054 54 $50.04 $2,702.16
+53
+$50.03
+$2,651.59
+Product 054
 Seat 54
-Product 055 55 $50.05 $2,752.75
+54
+$50.04
+$2,702.16
+Product 055
 Seat 55
-Product 056 56 $50.06 $2,803.36
+55
+$50.05
+$2,752.75
+Product 056
 Seat 56
-Product 057 57 $50.07 $2,853.99
+56
+$50.06
+$2,803.36
+Product 057
 Seat 57
-Product 058 58 $50.08 $2,904.64
+57
+$50.07
+$2,853.99
+Product 058
 Seat 58
-Product 059 59 $50.09 $2,955.31
+58
+$50.08
+$2,904.64
+Product 059
 Seat 59
-Product 060 60 $50.10 $3,006.00
+59
+$50.09
+$2,955.31
+Product 060
 Seat 60
-Product 061 61 $50.11 $3,056.71
+60
+$50.10
+$3,006.00
+Product 061
 Seat 61
-Product 062 62 $50.12 $3,107.44
+61
+$50.11
+$3,056.71
+Product 062
 Seat 62
-Product 063 63 $50.13 $3,158.19
-Seat 63
-QT-0001 Page 4 of 7
+62
+$50.12
+$3,107.44
+QT-0001, page 4 of 7
 --- page 5 ---
-Item Qty Unit price Amount
-Product 064 64 $50.14 $3,208.96
+Description
+Qty
+Unit price
+Amount
+Product 063
+Seat 63
+63
+$50.13
+$3,158.19
+Product 064
 Seat 64
-Product 065 65 $50.15 $3,259.75
+64
+$50.14
+$3,208.96
+Product 065
 Seat 65
-Product 066 66 $50.16 $3,310.56
+65
+$50.15
+$3,259.75
+Product 066
 Seat 66
-Product 067 67 $50.17 $3,361.39
+66
+$50.16
+$3,310.56
+Product 067
 Seat 67
-Product 068 68 $50.18 $3,412.24
+67
+$50.17
+$3,361.39
+Product 068
 Seat 68
-Product 069 69 $50.19 $3,463.11
+68
+$50.18
+$3,412.24
+Product 069
 Seat 69
-Product 070 70 $50.20 $3,514.00
+69
+$50.19
+$3,463.11
+Product 070
 Seat 70
-Product 071 71 $50.21 $3,564.91
+70
+$50.20
+$3,514.00
+Product 071
 Seat 71
-Product 072 72 $50.22 $3,615.84
+71
+$50.21
+$3,564.91
+Product 072
 Seat 72
-Product 073 73 $50.23 $3,666.79
+72
+$50.22
+$3,615.84
+Product 073
 Seat 73
-Product 074 74 $50.24 $3,717.76
+73
+$50.23
+$3,666.79
+Product 074
 Seat 74
-Product 075 75 $50.25 $3,768.75
+74
+$50.24
+$3,717.76
+Product 075
 Seat 75
-Product 076 76 $50.26 $3,819.76
+75
+$50.25
+$3,768.75
+Product 076
 Seat 76
-Product 077 77 $50.27 $3,870.79
+76
+$50.26
+$3,819.76
+Product 077
 Seat 77
-Product 078 78 $50.28 $3,921.84
+77
+$50.27
+$3,870.79
+Product 078
 Seat 78
-Product 079 79 $50.29 $3,972.91
+78
+$50.28
+$3,921.84
+Product 079
 Seat 79
-Product 080 80 $50.30 $4,024.00
-Seat 80
-QT-0001 Page 5 of 7
+79
+$50.29
+$3,972.91
+QT-0001, page 5 of 7
 --- page 6 ---
-Item Qty Unit price Amount
-Product 081 81 $50.31 $4,075.11
+Description
+Qty
+Unit price
+Amount
+Product 080
+Seat 80
+80
+$50.30
+$4,024.00
+Product 081
 Seat 81
-Product 082 82 $50.32 $4,126.24
+81
+$50.31
+$4,075.11
+Product 082
 Seat 82
-Product 083 83 $50.33 $4,177.39
+82
+$50.32
+$4,126.24
+Product 083
 Seat 83
-Product 084 84 $50.34 $4,228.56
+83
+$50.33
+$4,177.39
+Product 084
 Seat 84
-Product 085 85 $50.35 $4,279.75
+84
+$50.34
+$4,228.56
+Product 085
 Seat 85
-Product 086 86 $50.36 $4,330.96
+85
+$50.35
+$4,279.75
+Product 086
 Seat 86
-Product 087 87 $50.37 $4,382.19
+86
+$50.36
+$4,330.96
+Product 087
 Seat 87
-Product 088 88 $50.38 $4,433.44
+87
+$50.37
+$4,382.19
+Product 088
 Seat 88
-Product 089 89 $50.39 $4,484.71
+88
+$50.38
+$4,433.44
+Product 089
 Seat 89
-Product 090 90 $50.40 $4,536.00
+89
+$50.39
+$4,484.71
+Product 090
 Seat 90
-Product 091 91 $50.41 $4,587.31
+90
+$50.40
+$4,536.00
+Product 091
 Seat 91
-Product 092 92 $50.42 $4,638.64
+91
+$50.41
+$4,587.31
+Product 092
 Seat 92
-Product 093 93 $50.43 $4,689.99
+92
+$50.42
+$4,638.64
+Product 093
 Seat 93
-Product 094 94 $50.44 $4,741.36
+93
+$50.43
+$4,689.99
+Product 094
 Seat 94
-Product 095 95 $50.45 $4,792.75
+94
+$50.44
+$4,741.36
+Product 095
 Seat 95
-Product 096 96 $50.46 $4,844.16
+95
+$50.45
+$4,792.75
+Product 096
 Seat 96
-Product 097 97 $50.47 $4,895.59
-Seat 97
-QT-0001 Page 6 of 7
+96
+$50.46
+$4,844.16
+QT-0001, page 6 of 7
 --- page 7 ---
-Item Qty Unit price Amount
-Product 098 98 $50.48 $4,947.04
+Description
+Qty
+Unit price
+Amount
+Product 097
+Seat 97
+97
+$50.47
+$4,895.59
+Product 098
 Seat 98
-Product 099 99 $50.49 $4,998.51
+98
+$50.48
+$4,947.04
+Product 099
 Seat 99
-Product 100 100 $50.50 $5,050.00
+99
+$50.49
+$4,998.51
+Product 100
 Seat 100
-Subtotal $253,358.50
-Sales tax (8.875%) $22,485.57
-Total $275,844.07
-QT-0001 Page 7 of 7
+100
+$50.50
+$5,050.00
+Subtotal
+$253,358.50
+Sales tax (8.875%)
+$22,485.57
+Total
+$275,844.07
+QT-0001, page 7 of 7

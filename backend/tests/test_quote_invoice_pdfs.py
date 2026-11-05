@@ -201,8 +201,8 @@ def test_a_sent_quote_and_the_draft_it_was(billing, open_deal):
     ok(billing.api.post(f"{path}/send", json={}))
     sent = read_back(download(billing.api, path).content)
     assert sent == recorded("quote-sent")
-    # The draft differs only in the chip beside its title.
-    assert draft == [page.replace("\nQuote\n", "\nQuote Draft\n", 1) for page in sent]
+    # The draft differs only in the DRAFT mark under its title.
+    assert draft == [page.replace("\nQuote\n", "\nQuote\nDRAFT\n", 1) for page in sent]
 
 
 def test_a_quote_with_only_a_company_name_and_nobody_to_prepare_it_for(billing, make):
@@ -271,7 +271,7 @@ def images_per_page(reader: PdfReader) -> list[int]:
     return [len(dictionary(page["/Resources"]).get("/XObject", {})) for page in reader.pages]
 
 
-def test_a_quote_pdf_is_letter_sized_named_by_its_number_and_has_no_logo(billing, open_deal):
+def test_a_quote_pdf_is_letter_sized_named_by_its_number_and_draws_the_logo(billing, open_deal):
     ok(billing.api.patch("/api/settings", json={"logo": a_logo()}))
     quote = three_line_quote(billing, open_deal)
     reply = download(billing.api, f"/api/quotes/{quote['id']}")
@@ -279,9 +279,14 @@ def test_a_quote_pdf_is_letter_sized_named_by_its_number_and_has_no_logo(billing
     assert reply.headers["content-disposition"] == 'attachment; filename="QT-0001.pdf"'
     reader = PdfReader(io.BytesIO(reply.content))
     assert [(page.mediabox.width, page.mediabox.height) for page in reader.pages] == [(612, 792)]
-    assert font_names(reader) == {"InstrumentSans", "InstrumentSansSemiBold", "JetBrainsMono", "JetBrainsMonoMedium"}
-    assert images_per_page(reader) == [0]
-    assert reader.metadata is not None and reader.metadata.title is None
+    assert font_names(reader) == {
+        "InstrumentSans-Regular",
+        "InstrumentSans-SemiBold",
+        "JetBrainsMono-Regular",
+        "JetBrainsMono-Medium",
+    }
+    assert images_per_page(reader) == [1]
+    assert reader.metadata is not None and reader.metadata.title == "QT-0001"
 
 
 def test_an_invoice_pdf_is_letter_sized_named_and_titled_by_its_number_and_the_same_file_each_time(billing):

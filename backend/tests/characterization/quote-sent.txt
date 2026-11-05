@@ -5,21 +5,39 @@ Brooklyn, NY 11201
 accounts@plainsong.example
 (718) 555-0142
 Quote
-Number QT-0001
-Date Oct 31, 2026
-Valid until Nov 30, 2026
+Number
+QT-0001
+Date
+Oct 31, 2026
+Valid until
+Nov 30, 2026
 Prepared for
 Harbor & Pine
 Sam Carter
 sam@harbor.example
-Item Qty Unit price Amount
-Annual support plan 12 $480.00 $5,760.00
+Description
+Qty
+Unit price
+Amount
+Annual support plan
 One named user, with every module.
-Training day 2 $1,250.00 $2,500.00
+12
+$480.00
+$5,760.00
+Training day
 Up to 12 people
 at the customer's site
-Pro license 3 $49.50 $148.50
-Subtotal $8,408.50
-Sales tax (8.875%) $746.25
-Total $9,154.75
-QT-0001 Page 1 of 1
+2
+$1,250.00
+$2,500.00
+Pro license
+3
+$49.50
+$148.50
+Subtotal
+$8,408.50
+Sales tax (8.875%)
+$746.25
+Total
+$9,154.75
+QT-0001, page 1 of 1

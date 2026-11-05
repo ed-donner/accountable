@@ -1,12 +1,13 @@
-"""Where everything goes on each page of an invoice (V24, V26 to V28), from shared/invoice-designs.json.
+"""Where everything goes on each page of a quote or an invoice (V24, V26 to V28, Q31), from
+shared/document-designs.json, in the design, accent color and logo Company settings have.
 
-frontend/src/invoices/layout.ts does the same, step for step, from the same JSON and the same
-widths in shared/invoice-fonts.json, so the preview and the PDF break lines and turn pages at
-the same places. Both run the cases in shared/invoice-layout-cases.json. Text is measured
+frontend/src/company/layout.ts does the same, step for step, from the same JSON and the same
+widths in shared/document-fonts.json, so the preview and the PDF break lines and turn pages at
+the same places. Both run the cases in shared/document-layout-cases.json. Text is measured
 from those widths alone, never by the browser or ReportLab.
 
 A layout is a list of pages, each a list of items in points from the top left of the page:
-text, at its baseline, a block of color, or the logo. pdf.py and InvoicePreview.tsx draw the
+text, at its baseline, a block of color, or the logo. pdf.py and the pages' previews draw the
 items and decide nothing. A text's angle turns it counterclockwise about its point.
 """
 
@@ -16,22 +17,23 @@ from collections.abc import Sequence
 from typing import Any
 
 from accountable import db
-from accountable.invoices import fonts
+from accountable.company import fonts
 
-DESIGNS = json.loads((db.ROOT / "shared" / "invoice-designs.json").read_text())
+DESIGNS = json.loads((db.ROOT / "shared" / "document-designs.json").read_text())
 FONTS = fonts.read()["fonts"]
 
 Item = dict[str, Any]
 Page = list[Item]
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+KINDS = DESIGNS["kinds"]
 MARKS = {"paid": "PAID", "overdue": "OVERDUE", "void": "VOID", "draft": "DRAFT"}
 # A character no font has, such as one typed into a draft and not yet refused, is measured as "?".
 STAND_IN = "?"
 TOTALS_GAP = 12
 
 
-# Words and figures as invoices write them
+# Words and figures as quotes and invoices write them
 
 
 def money(cents: int) -> str:
@@ -112,22 +114,22 @@ def baseline(line_top: float, line_height: float, size: float) -> float:
 # Colors and items
 
 
-def color(name: str, invoice: dict[str, Any]) -> str:
+def color(name: str, document: dict[str, Any]) -> str:
     if name == "accent":
-        return invoice["accent"]
+        return document["accent"]
     if name == "mark":
-        return DESIGNS["colors"][invoice["mark"]]
+        return DESIGNS["colors"][document["mark"]]
     return DESIGNS["colors"][name]
 
 
-def text_item(text: str, x: float, y: float, style: dict[str, Any], anchor: str, invoice: dict[str, Any]) -> Item:
+def text_item(text: str, x: float, y: float, style: dict[str, Any], anchor: str, document: dict[str, Any]) -> Item:
     return {
         "kind": "text",
         "x": x,
         "y": y,
         "font": style["font"],
         "size": style["size"],
-        "color": color(style["color"], invoice),
+        "color": color(style["color"], document),
         "anchor": anchor,
         "text": text,
     }
@@ -140,62 +142,78 @@ def block_item(x: float, y: float, width: float, height: float, fill: str, radiu
 # The first page's blocks
 
 
-def field(name: str, invoice: dict[str, Any]) -> str | None:
-    company = invoice["company"]
+def field(name: str, document: dict[str, Any]) -> str | None:
+    company = document["company"]
     values = {
         "company_name": company["name"],
         "company_address": company["address"],
         "company_email": company["email"],
         "company_phone": company["phone"],
-        "bill_to": invoice["bill_to"],
-        "number": invoice["number"] or "Draft",
-        "issue_date": day(invoice["issue_date"]),
-        "due_date": day(invoice["due_date"]),
-        "mark": MARKS.get(invoice["mark"] or ""),
-        "balance_due": money(balance_due(invoice)),
+        "recipient": document["recipient"],
+        "number": document["number"] or "Draft",
+        "date": day(document["date"]) if document["date"] else None,
+        "end_date": day(document["end_date"]) if document["end_date"] else None,
+        "mark": MARKS.get(document["mark"] or ""),
+        "amount_due": money(amount_due(document)),
     }
     return values[name]
 
 
-def balance_due(invoice: dict[str, Any]) -> int:
-    return 0 if invoice["mark"] == "void" else invoice["total_cents"] - invoice["paid_cents"]
+def amount_due(document: dict[str, Any]) -> int:
+    """What's still to pay: an invoice's balance, nothing on a void one, and a quote's total."""
+    return 0 if document["mark"] == "void" else document["total_cents"] - document["paid_cents"]
 
 
-def _backing(block: dict[str, Any], line: str, row: dict[str, Any], line_top: float, invoice: dict[str, Any]) -> Item:
+def word(name: str, document: dict[str, Any]) -> str:
+    """One of the document's own words, such as Invoice or Quote for its title."""
+    return KINDS[document["kind"]]["words"][name]
+
+
+def block_row_text(row: dict[str, Any], document: dict[str, Any]) -> str | None:
+    """A row's text: one of the document's own words or a field's value. A heading over a blank
+    field is left out where its kind says so, as a quote's Prepared for is (Q18)."""
+    if "word" not in row:
+        return field(row["field"], document)
+    if "heads" in row and not field(row["heads"], document) and not KINDS[document["kind"]]["heading_when_blank"]:
+        return None
+    return word(row["word"], document)
+
+
+def _backing(block: dict[str, Any], line: str, row: dict[str, Any], line_top: float, document: dict[str, Any]) -> Item:
     backing = block["backing"]
     width = width_of(line, row["font"], row["size"]) + 2 * backing["padding_x"]
     height = row["size"] + 2 * backing["padding_y"]
     x = block["x"] - backing["padding_x"] if block["anchor"] == "start" else block["x"] - width + backing["padding_x"]
     top = line_top + (row["line_height"] - height) / 2
-    return block_item(x, top, width, height, color(backing["color"], invoice), backing["radius"])
+    return block_item(x, top, width, height, color(backing["color"], document), backing["radius"])
 
 
-def _text_block(block: dict[str, Any], top: float, invoice: dict[str, Any]) -> tuple[Page, float]:
+def _text_block(block: dict[str, Any], top: float, document: dict[str, Any]) -> tuple[Page, float]:
     items: Page = []
     cursor = top
     for row in block["rows"]:
-        text = row.get("text") or field(row["field"], invoice)
+        text = block_row_text(row, document)
         if not text:
             continue
         for line in wrap(text, row["font"], row["size"], block["width"]):
             if line and "backing" in block:
-                items.append(_backing(block, line, row, cursor, invoice))
+                items.append(_backing(block, line, row, cursor, document))
             if line:
                 y = baseline(cursor, row["line_height"], row["size"])
-                items.append(text_item(line, block["x"], y, row, block["anchor"], invoice))
+                items.append(text_item(line, block["x"], y, row, block["anchor"], document))
             cursor += row["line_height"]
     return items, cursor
 
 
-def _pairs(block: dict[str, Any], top: float, invoice: dict[str, Any]) -> tuple[Page, float]:
+def _pairs(block: dict[str, Any], top: float, document: dict[str, Any]) -> tuple[Page, float]:
     items: Page = []
     cursor = top
     label, value = block["label"], block["value"]
     for row in block["rows"]:
-        shown = field(row["field"], invoice)
+        shown = field(row["field"], document)
         y = baseline(cursor, block["line_height"], max(label["size"], value["size"]))
-        items.append(text_item(row["label"], block["x"], y, label, "start", invoice))
-        items.append(text_item(shown or "", block["x"] + block["width"], y, value, "end", invoice))
+        items.append(text_item(word(row["word"], document), block["x"], y, label, "start", document))
+        items.append(text_item(shown or "", block["x"] + block["width"], y, value, "end", document))
         cursor += block["line_height"]
     return items, cursor
 
@@ -208,17 +226,17 @@ def logo_size(logo: dict[str, int]) -> tuple[float, float]:
     return logo["width"] * box_height / logo["height"], box_height
 
 
-def _logo(block: dict[str, Any], top: float, invoice: dict[str, Any]) -> tuple[Page, float]:
+def _logo(block: dict[str, Any], top: float, document: dict[str, Any]) -> tuple[Page, float]:
     """With no logo, its space is left out, so what's placed below it takes its place (B22)."""
-    if invoice["logo"] is None:
+    if document["logo"] is None:
         return [], top
-    width, height = logo_size(invoice["logo"])
+    width, height = logo_size(document["logo"])
     x = block["x"] if block["align"] == "start" else block["x"] + DESIGNS["logo"]["width"] - width
     return [{"kind": "logo", "x": x, "y": top, "width": width, "height": height}], top + height
 
 
-def _fill(block: dict[str, Any], top: float, invoice: dict[str, Any]) -> tuple[Page, float]:
-    fill = color(block["color"], invoice)
+def _fill(block: dict[str, Any], top: float, document: dict[str, Any]) -> tuple[Page, float]:
+    fill = color(block["color"], document)
     return [block_item(block["x"], top, block["width"], block["height"], fill, block["radius"])], top + block["height"]
 
 
@@ -230,12 +248,12 @@ def below(placed: dict[str, tuple[float, float, bool]], ids: Sequence[str], gap:
     return max(bottom + gap if drawn else top for top, bottom, drawn in (placed[name] for name in ids))
 
 
-def _first_page(design: dict[str, Any], invoice: dict[str, Any]) -> tuple[Page, dict[str, tuple[float, float, bool]]]:
+def _first_page(design: dict[str, Any], document: dict[str, Any]) -> tuple[Page, dict[str, tuple[float, float, bool]]]:
     items: Page = []
     placed: dict[str, tuple[float, float, bool]] = {}
     for block in design["blocks"]:
         top = block["y"] if "y" in block else below(placed, block["below"], block["gap"])
-        drawn, bottom = DRAW[block["kind"]](block, top, invoice)
+        drawn, bottom = DRAW[block["kind"]](block, top, document)
         placed[block["id"]] = (top, bottom, bool(drawn))
         items.extend(drawn)
     return items, placed
@@ -271,15 +289,15 @@ def _columns(table: dict[str, Any], lines: list[dict[str, Any]]) -> dict[str, fl
     }
 
 
-def _heading(table: dict[str, Any], columns: dict[str, float], top: float, invoice: dict[str, Any]) -> Page:
+def _heading(table: dict[str, Any], columns: dict[str, float], top: float, document: dict[str, Any]) -> Page:
     style = table["heading"]
     y = baseline(top, style["height"], style["size"])
     description, qty, unit, amount = table["labels"]
     return [
-        text_item(description, columns["left"], y, style, "start", invoice),
-        text_item(qty, columns["qty"], y, style, "end", invoice),
-        text_item(unit, columns["unit"], y, style, "end", invoice),
-        text_item(amount, columns["amount"], y, style, "end", invoice),
+        text_item(description, columns["left"], y, style, "start", document),
+        text_item(qty, columns["qty"], y, style, "end", document),
+        text_item(unit, columns["unit"], y, style, "end", document),
+        text_item(amount, columns["amount"], y, style, "end", document),
     ]
 
 
@@ -316,7 +334,7 @@ def _row_items(
     texts: RowText,
     top: float,
     index: int,
-    invoice: dict[str, Any],
+    document: dict[str, Any],
 ) -> Page:
     """A row, or the part of one on this page. Its figures sit beside its first line, so a
     later part of a row too tall for one page is given no line, and has none."""
@@ -327,7 +345,7 @@ def _row_items(
         height = _height(table, texts)
         items.append(
             block_item(
-                columns["left"] - table["inset"], top, width, height, color(stripe["color"], invoice), stripe["radius"]
+                columns["left"] - table["inset"], top, width, height, color(stripe["color"], document), stripe["radius"]
             )
         )
     cursor = top + table["padding"]
@@ -335,37 +353,37 @@ def _row_items(
     for style, text in texts:
         if text:
             y = baseline(cursor, style["line_height"], style["size"])
-            items.append(text_item(text, columns["left"], y, style, "start", invoice))
+            items.append(text_item(text, columns["left"], y, style, "start", document))
         cursor += style["line_height"]
     if line is None:
         return items
     figures = table["figures"]
     amount = line["quantity"] * line["unit_price_cents"]
-    items.append(text_item(quantity(line["quantity"]), columns["qty"], first, figures, "end", invoice))
-    items.append(text_item(money(line["unit_price_cents"]), columns["unit"], first, figures, "end", invoice))
-    items.append(text_item(money(amount), columns["amount"], first, figures, "end", invoice))
+    items.append(text_item(quantity(line["quantity"]), columns["qty"], first, figures, "end", document))
+    items.append(text_item(money(line["unit_price_cents"]), columns["unit"], first, figures, "end", document))
+    items.append(text_item(money(amount), columns["amount"], first, figures, "end", document))
     return items
 
 
 # The totals
 
 
-def _totals_rows(invoice: dict[str, Any]) -> list[tuple[str, int, bool]]:
+def _totals_rows(document: dict[str, Any]) -> list[tuple[str, int, bool]]:
     """Each row's label, figure and whether it's the total. Once anything is paid, Paid and Balance due follow (V27)."""
     rows = [
-        ("Subtotal", invoice["subtotal_cents"], False),
-        (tax_text(invoice["tax_label"], invoice["tax_rate"]), invoice["tax_cents"], False),
-        ("Total", invoice["total_cents"], True),
+        ("Subtotal", document["subtotal_cents"], False),
+        (tax_text(document["tax_label"], document["tax_rate"]), document["tax_cents"], False),
+        ("Total", document["total_cents"], True),
     ]
-    if invoice["paid_cents"] > 0:
-        rows += [("Paid", invoice["paid_cents"], False), ("Balance due", balance_due(invoice), False)]
+    if document["paid_cents"] > 0:
+        rows += [("Paid", document["paid_cents"], False), ("Balance due", amount_due(document), False)]
     return rows
 
 
-def _totals(design: dict[str, Any], invoice: dict[str, Any]) -> tuple[float, Any]:
+def _totals(design: dict[str, Any], document: dict[str, Any]) -> tuple[float, Any]:
     """The totals' height, and a function that places them at a top, so they're kept together."""
     totals = design["totals"]
-    rows = _totals_rows(invoice)
+    rows = _totals_rows(document)
 
     def styles(is_total: bool) -> tuple[dict[str, Any], dict[str, Any], float]:
         chosen = totals["total"] if is_total else totals
@@ -395,16 +413,16 @@ def _totals(design: dict[str, Any], invoice: dict[str, Any]) -> tuple[float, Any
                         cursor,
                         width,
                         len(texts) * line_height,
-                        color(fill["color"], invoice),
+                        color(fill["color"], document),
                         fill["radius"],
                     )
                 )
             first = baseline(cursor, line_height, label_style["size"])
             for text in texts:
                 y = baseline(cursor, line_height, label_style["size"])
-                items.append(text_item(text, totals["x"], y, label_style, "start", invoice))
+                items.append(text_item(text, totals["x"], y, label_style, "start", document))
                 cursor += line_height
-            items.append(text_item(value, totals["right"], first, value_style, "end", invoice))
+            items.append(text_item(value, totals["right"], first, value_style, "end", document))
         return items
 
     return height, place
@@ -417,9 +435,9 @@ class _Pages:
     """The pages as the lines fill them, with the headings over each page's first row (V26)."""
 
     def __init__(
-        self, table: dict[str, Any], columns: dict[str, float], invoice: dict[str, Any], first: Page, top: float
+        self, table: dict[str, Any], columns: dict[str, float], document: dict[str, Any], first: Page, top: float
     ):
-        self.table, self.columns, self.invoice = table, columns, invoice
+        self.table, self.columns, self.document = table, columns, document
         self.pages, self.cursor, self.headed = [first], top, False
 
     def room(self) -> float:
@@ -437,13 +455,13 @@ class _Pages:
 
     def head(self) -> None:
         if not self.headed:
-            self.pages[-1].extend(_heading(self.table, self.columns, self.cursor, self.invoice))
+            self.pages[-1].extend(_heading(self.table, self.columns, self.cursor, self.document))
             self.cursor += self.table["heading"]["height"]
             self.headed = True
 
     def place(self, line: dict[str, Any] | None, texts: RowText, index: int) -> None:
         self.head()
-        self.pages[-1].extend(_row_items(self.table, self.columns, line, texts, self.cursor, index, self.invoice))
+        self.pages[-1].extend(_row_items(self.table, self.columns, line, texts, self.cursor, index, self.document))
         self.cursor += _height(self.table, texts)
 
     def place_whole(self, line: dict[str, Any], texts: RowText, index: int) -> None:
@@ -467,14 +485,14 @@ class _Pages:
                 self.turn()
 
 
-def _flow(design: dict[str, Any], invoice: dict[str, Any], first: Page, top: float) -> list[Page]:
+def _flow(design: dict[str, Any], document: dict[str, Any], first: Page, top: float) -> list[Page]:
     """The lines from the top given, onto new pages as they fill, then the totals, kept together
     (V26). Each row is kept whole, unless it's taller than a page on its own."""
     page = DESIGNS["page"]
     table = design["table"]
-    lines = invoice["lines"]
+    lines = document["lines"]
     columns = _columns(table, lines)
-    flow = _Pages(table, columns, invoice, first, top)
+    flow = _Pages(table, columns, document, first, top)
     whole_page = page["bottom"] - page["top"] - table["heading"]["height"]
     for index, line in enumerate(lines):
         texts = _row_text(table, columns, line)
@@ -483,7 +501,7 @@ def _flow(design: dict[str, Any], invoice: dict[str, Any], first: Page, top: flo
         else:
             flow.place_in_parts(line, texts, index)
     flow.head()
-    height, place = _totals(design, invoice)
+    height, place = _totals(design, document)
     flow.cursor += design["totals"]["gap"]
     if flow.cursor + height > page["bottom"]:
         flow.turn()
@@ -491,25 +509,26 @@ def _flow(design: dict[str, Any], invoice: dict[str, Any], first: Page, top: flo
     return flow.pages
 
 
-def _footer_and_watermark(pages: list[Page], invoice: dict[str, Any]) -> None:
+def _footer_and_watermark(pages: list[Page], document: dict[str, Any]) -> None:
     """Each page ends with the number and the page, and a void invoice has VOID across every page (V26, V27)."""
     footer = DESIGNS["page"]["footer"]
     watermark = DESIGNS["watermark"]
     for number, items in enumerate(pages, start=1):
-        said = f"{invoice['number'] or 'Draft'}, page {number} of {len(pages)}"
-        items.append(text_item(said, footer["x"], footer["y"], footer, "start", invoice))
-        if invoice["mark"] == "void":
-            mark = text_item(watermark["text"], watermark["x"], watermark["y"], watermark, "middle", invoice)
+        said = f"{document['number'] or 'Draft'}, page {number} of {len(pages)}"
+        items.append(text_item(said, footer["x"], footer["y"], footer, "start", document))
+        if document["mark"] == "void":
+            mark = text_item(watermark["text"], watermark["x"], watermark["y"], watermark, "middle", document)
             items.append({**mark, "angle": watermark["angle"], "opacity": watermark["opacity"]})
 
 
-def lay_out(invoice: dict[str, Any]) -> list[Page]:
-    """An invoice's pages, from its plain values: the design, the accent color, the logo's size in
-    pixels or None, the company's details, the number or None for a draft, the issue and due dates
-    as ISO dates, the Bill to, the lines, the figures in cents, the tax label and rate, and the mark."""
-    design = DESIGNS["designs"][invoice["design"]]
-    first, placed = _first_page(design, invoice)
+def lay_out(document: dict[str, Any]) -> list[Page]:
+    """A quote's or an invoice's pages, from its plain values: its kind, the design, the accent color,
+    the logo's size in pixels or None, the company's details, the number or None for a draft, its
+    date and its due or valid-until date as ISO dates, who it's for, the lines, the figures in cents,
+    the tax label and rate, and the mark."""
+    design = DESIGNS["designs"][document["design"]]
+    first, placed = _first_page(design, document)
     top = below(placed, design["table"]["below"], design["table"]["gap"])
-    pages = _flow(design, invoice, first, top)
-    _footer_and_watermark(pages, invoice)
+    pages = _flow(design, document, first, top)
+    _footer_and_watermark(pages, document)
     return pages

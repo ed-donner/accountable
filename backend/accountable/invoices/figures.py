@@ -5,11 +5,9 @@ Worked out from what's stored, never kept, so the page, the table and the dashbo
 and an invoice moves into Overdue, and along the groups of How late, as the days pass (V31).
 """
 
-from collections.abc import Iterable
 from datetime import date
 from typing import Literal
 
-from accountable.company import tax
 from accountable.invoices.tables import DRAFT, VOID
 
 ShowsAs = Literal["draft", "issued", "part_paid", "overdue", "paid", "void"]
@@ -59,11 +57,6 @@ def late_group(due_date: date, today: date) -> LateGroup:
         if late <= last_day:
             return group
     return "over_90"
-
-
-def draft_totals(lines: Iterable[tax.Line], rate: int) -> tax.Totals:
-    """A draft's figures, from its lines as saved, at the settings' rate as it is now (V7)."""
-    return tax.totals(lines, rate)
 
 
 def bill_to(organization: str | None, contact: str | None, email: str | None) -> str | None:

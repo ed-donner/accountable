@@ -1,7 +1,7 @@
-import fonts from "../../../shared/invoice-fonts.json";
+import fonts from "../../../shared/document-fonts.json";
 
 // Which characters invoices can show, and the words for those they can't (V9, V10), as
-// invoices/characters.py says them, from the same table in shared/invoice-fonts.json.
+// company/characters.py says them, from the same table in shared/document-fonts.json.
 
 /** Every character the invoice's five fonts share, and the line break, which the layout keeps. */
 const SHOWN = new Set([...fonts.characters, "\n"]);

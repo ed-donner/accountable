@@ -96,7 +96,7 @@ An invoice due today isn't overdue, as a deal due today isn't late. Days late is
 
 ### Designs
 
-- **V28.** There are three designs, Classic, Banner and Ledger, chosen in Company settings ([B18](settings.md#documents)). Each is distinct, professional and easy to read in print, and each holds the same things: the logo and the company's name, address, email and phone, the word Invoice, the number, the issue date and the due date, the Bill to, the lines, each with its name, its description under it, its quantity, unit price and amount, then the subtotal, the tax with its label and rate, such as "Sales tax (8.875%)", and the total.
+- **V28.** There are three designs, Classic, Banner and Ledger, chosen in Company settings ([B18](settings.md#documents)). Each is distinct, professional and easy to read in print, and each holds the same things: the logo and the company's name, address, email and phone, the word Invoice, the number, the issue date and the due date, the Bill to, the lines, each with its name, its description under it, its quantity, unit price and amount, then the subtotal, the tax with its label and rate, such as "Sales tax (8.875%)", and the total. Quotes are drawn in the same three designs, with their own words in the invoice's places, such as Quote for Invoice and Prepared for for Bill to ([Quote document](quotes.md#quote-document)).
 
 | Design | How it looks |
 |---|---|
@@ -106,7 +106,7 @@ An invoice due today isn't overdue, as a deal due today isn't late. Days late is
 
 All three set their words in Instrument Sans and their figures in JetBrains Mono, as the app does, with Ledger's headings in Instrument Serif. The PDF carries the fonts with it, so it looks the same on any computer. The logo fits inside 2 inches by 0.75 inches, keeping its shape, never stretched or cut off. None has a gradient or a line along one edge, and rows are separated by space or tints.
 
-The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, in both of the app's modes. PAID is green, `#047A5B`, OVERDUE red, `#D23E62`, and VOID and DRAFT the muted ink. Every color on the page stands at least 4.5:1 against white, the accent color included (B20). These colors come from the designs' own description, which the preview and the PDF both read, not from the app's tokens.
+The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, in both of the app's modes. PAID is green, `#047A5B`, OVERDUE red, `#D23E62`, and VOID and DRAFT the muted ink. Every color on the page stands at least 4.5:1 against white, the accent color included (B20). These colors come from the designs' own description, which the previews and the PDFs of quotes and invoices all read, not from the app's tokens.
 
 ## Money on the dashboard
 

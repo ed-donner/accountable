@@ -1,16 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import cases from "../../../shared/invoice-layout-cases.json";
-import type { SampleLook } from "../company/documentPreview";
-import { InvoicePreview, SampleInvoice } from "./InvoicePreview";
-import type { InvoiceValues } from "./layout";
+import cases from "../../../shared/document-layout-cases.json";
+import { DocumentDrawing } from "./DocumentDrawing";
+import type { DocumentValues } from "./layout";
 
-const SHORT = cases.cases[0].invoice as InvoiceValues;
+const SHORT = cases.cases[0].document as DocumentValues;
 const LOGO = "data:image/png;base64,iVBORw0KGgo=";
 
-function drawn(invoice: InvoiceValues, logoUrl: string | null = LOGO) {
-  const { container } = render(<InvoicePreview invoice={invoice} logoUrl={logoUrl} />);
+function drawn(values: DocumentValues, logoUrl: string | null = LOGO) {
+  const { container } = render(<DocumentDrawing values={values} logoUrl={logoUrl} />);
   return container;
 }
 
@@ -18,7 +17,7 @@ function textIn(container: HTMLElement, text: string) {
   return [...container.querySelectorAll("text")].filter((element) => element.textContent === text);
 }
 
-describe("the invoice preview", () => {
+describe("a quote or an invoice drawn", () => {
   it.each(["classic", "banner", "ledger"] as const)("draws %s in its accent color with the logo", (design) => {
     const container = drawn({ ...SHORT, design, accent: "#107FA4" });
     const accented = [...container.querySelectorAll("text, rect")].filter(
@@ -59,49 +58,28 @@ describe("the invoice preview", () => {
   });
 
   it("shows markup typed into the Bill to as the text it is, with no element made from it", () => {
-    const container = drawn({ ...SHORT, bill_to: "<b>Acme</b> & Co\n<script>alert(1)</script>" });
+    const container = drawn({ ...SHORT, recipient: "<b>Acme</b> & Co\n<script>alert(1)</script>" });
     expect(textIn(container, "<b>Acme</b> & Co")).toHaveLength(1);
     expect(container.querySelector("b, script")).toBeNull();
   });
 
   it("keeps a run of spaces, with no kerning or ligatures, as the PDF draws it", () => {
-    const [line] = textIn(drawn({ ...SHORT, bill_to: "Harbor   &   Pine" }), "Harbor   &   Pine");
+    const [line] = textIn(drawn({ ...SHORT, recipient: "Harbor   &   Pine" }), "Harbor   &   Pine");
     expect(line.getAttribute("xml:space")).toBe("preserve");
     expect(line.style.fontKerning).toBe("none");
   });
 
   it("draws every page, one under another, each saying which it is", () => {
-    const hundred = cases.cases.find((item) => item.name === "100 lines over several pages")!.invoice as InvoiceValues;
-    render(<InvoicePreview invoice={hundred} logoUrl={null} />);
+    const hundred = cases.cases.find((item) => item.name === "100 lines over several pages")!
+      .document as DocumentValues;
+    render(<DocumentDrawing values={hundred} logoUrl={null} />);
     expect(screen.getAllByRole("img").map((page) => page.getAttribute("aria-label"))).toEqual(
       [1, 2, 3, 4, 5].map((number) => `Invoice preview, page ${number} of 5`),
     );
   });
-});
 
-const LOOK: SampleLook = {
-  design: "ledger",
-  accent: "#0E6B6B",
-  logo: { url: LOGO, width: 600, height: 200 },
-  company: { name: "Plainsong Systems", address: "48 Orchard Row", email: "", phone: "" },
-  taxLabel: "VAT",
-  taxRate: "20",
-  invoicePrefix: "BILL-",
-  paymentTermsDays: 14,
-};
-
-describe("the sample invoice", () => {
-  it("draws the first page in the look given, with the page's company, prefix and rate", () => {
-    const { container } = render(<SampleInvoice look={LOOK} />);
-    expect(screen.getAllByRole("img")).toHaveLength(1);
-    for (const text of ["Plainsong Systems", "BILL-0042", "VAT (20%)", "Harbor & Pine"]) {
-      expect(textIn(container, text)).toHaveLength(1);
-    }
-    expect(container.querySelector("image")).not.toBeNull();
-  });
-
-  it("names the company something while no name is typed", () => {
-    const { container } = render(<SampleInvoice look={{ ...LOOK, company: { ...LOOK.company, name: " " } }} />);
-    expect(textIn(container, "Your company")).toHaveLength(1);
+  it("names a quote's pages as a quote's", () => {
+    render(<DocumentDrawing values={{ ...SHORT, kind: "quote" }} logoUrl={null} />);
+    expect(screen.getByRole("img").getAttribute("aria-label")).toBe("Quote preview, page 1 of 1");
   });
 });

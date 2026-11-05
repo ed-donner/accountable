@@ -7,6 +7,8 @@ from pydantic import MISSING, AfterValidator, BaseModel, Field
 
 from accountable import api
 from accountable.company import tax
+from accountable.company.documents import Company
+from accountable.company.lines import Line
 from accountable.who import Authorship
 
 Status = Literal["draft", "sent", "accepted", "declined"]
@@ -89,31 +91,12 @@ class QuoteUpdate(api.Request):
     lines: Lines | MISSING = MISSING
 
 
-class Company(BaseModel):
-    """The company's details on a quote: fixed on it once it's sent or declined, or the settings' on a draft (Q30)."""
-
-    name: str | None
-    address: str | None
-    email: str | None
-    phone: str | None
-
-
 class PreparedFor(BaseModel):
     """Who the quote is for: fixed once it's sent or declined, or the deal's on a draft (Q18)."""
 
     organization: str | None
     contact: str | None
     email: str | None
-
-
-class Line(BaseModel):
-    id: int
-    product_id: int
-    name: str
-    description: str | None
-    quantity: int
-    unit_price_cents: int
-    amount_cents: int
 
 
 class QuoteDocument(BaseModel):

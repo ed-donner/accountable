@@ -4,9 +4,9 @@ import json
 
 import pytest
 from accountable import db
-from accountable.invoices import layout
+from accountable.company import layout
 
-CASES = json.loads((db.ROOT / "shared" / "invoice-layout-cases.json").read_text())["cases"]
+CASES = json.loads((db.ROOT / "shared" / "document-layout-cases.json").read_text())["cases"]
 PAGE = layout.DESIGNS["page"]
 BY_NAME = {case["name"]: case for case in CASES}
 
@@ -17,7 +17,7 @@ def texts(pages: list[layout.Page]) -> list[list[str]]:
 
 @pytest.mark.parametrize("case", CASES, ids=[case["name"] for case in CASES])
 def test_each_case_gives_its_lines_on_its_pages(case):
-    assert texts(layout.lay_out(case["invoice"])) == case["pages"]
+    assert texts(layout.lay_out(case["document"])) == case["pages"]
 
 
 def horizontal_extent(item: layout.Item) -> tuple[float, float]:
@@ -31,7 +31,7 @@ def horizontal_extent(item: layout.Item) -> tuple[float, float]:
 @pytest.mark.parametrize("case", CASES, ids=[case["name"] for case in CASES])
 def test_every_item_stays_inside_the_pages_margins(case):
     footer = PAGE["footer"]
-    for page in layout.lay_out(case["invoice"]):
+    for page in layout.lay_out(case["document"]):
         for item in page:
             left, right = horizontal_extent(item)
             if item["kind"] == "block":
@@ -43,7 +43,7 @@ def test_every_item_stays_inside_the_pages_margins(case):
 
 
 def test_the_void_mark_is_on_every_page():
-    invoice = {**BY_NAME["100 lines over several pages"]["invoice"], "mark": "void"}
+    invoice = {**BY_NAME["100 lines over several pages"]["document"], "mark": "void"}
     pages = layout.lay_out(invoice)
     assert len(pages) > 1
     for page in pages:
@@ -52,7 +52,7 @@ def test_the_void_mark_is_on_every_page():
 
 
 def test_100_lines_carry_on_with_their_headings_and_the_page_at_the_foot():
-    pages = texts(layout.lay_out(BY_NAME["100 lines over several pages"]["invoice"]))
+    pages = texts(layout.lay_out(BY_NAME["100 lines over several pages"]["document"]))
     assert len(pages) == 5
     for number, page in enumerate(pages, start=1):
         assert page[-1] == f"INV-0042, page {number} of 5"
@@ -64,7 +64,7 @@ def test_100_lines_carry_on_with_their_headings_and_the_page_at_the_foot():
 @pytest.mark.parametrize("design", ["Classic", "Banner", "Ledger"])
 def test_a_line_taller_than_a_page_carries_on_with_its_figures_beside_its_first_part(design):
     """A description of up to 1,000 characters can run past a page, so it carries on to the next (V8, V26)."""
-    first, second = texts(layout.lay_out(BY_NAME[f"a line taller than a page, in {design}"]["invoice"]))
+    first, second = texts(layout.lay_out(BY_NAME[f"a line taller than a page, in {design}"]["document"]))
     assert first[first.index("Hardware bundle") + 1] == "Item 01"
     assert [text for text in first + second if text.startswith("Item ")] == [f"Item {n:02d}" for n in range(1, 61)]
     assert second[:4] == ["Description", "Qty", "Unit price", "Amount"]
@@ -74,7 +74,9 @@ def test_a_line_taller_than_a_page_carries_on_with_its_figures_beside_its_first_
 
 
 def test_totals_that_dont_fit_move_together_to_a_new_page_with_no_headings():
-    last = texts(layout.lay_out(BY_NAME["totals that don't fit after the last line move to a new page"]["invoice"]))[-1]
+    last = texts(layout.lay_out(BY_NAME["totals that don't fit after the last line move to a new page"]["document"]))[
+        -1
+    ]
     assert last[:2] == ["Subtotal", "$452.85"]
     assert "Description" not in last
 
@@ -84,7 +86,7 @@ def test_totals_that_dont_fit_move_together_to_a_new_page_with_no_headings():
     "logo", [{"width": 600, "height": 200}, {"width": 100, "height": 400}, {"width": 2000, "height": 1}]
 )
 def test_each_design_fits_the_logo_inside_2_by_0_75_inches_keeping_its_shape(design, logo):
-    invoice = {**BY_NAME["a short invoice in Classic"]["invoice"], "design": design, "logo": logo}
+    invoice = {**BY_NAME["a short invoice in Classic"]["document"], "design": design, "logo": logo}
     [placed] = [item for item in layout.lay_out(invoice)[0] if item["kind"] == "logo"]
     assert placed["width"] <= 144 and placed["height"] <= 54
     assert max(placed["width"] / 144, placed["height"] / 54) == pytest.approx(1)
@@ -93,7 +95,7 @@ def test_each_design_fits_the_logo_inside_2_by_0_75_inches_keeping_its_shape(des
 
 @pytest.mark.parametrize("design", ["classic", "banner", "ledger"])
 def test_with_no_logo_its_space_is_left_out(design):
-    invoice = BY_NAME["a short invoice in Classic"]["invoice"]
+    invoice = BY_NAME["a short invoice in Classic"]["document"]
     with_logo = layout.lay_out({**invoice, "design": design})[0]
     without = layout.lay_out({**invoice, "design": design, "logo": None})[0]
     assert not [item for item in without if item["kind"] == "logo"]
@@ -109,7 +111,7 @@ def test_with_no_logo_its_space_is_left_out(design):
 
 
 def test_a_paid_overdue_or_void_invoice_has_its_mark_in_its_own_color():
-    invoice = BY_NAME["a short invoice in Classic"]["invoice"]
+    invoice = BY_NAME["a short invoice in Classic"]["document"]
     for mark, color in [("paid", "#047A5B"), ("overdue", "#D23E62"), ("void", "#5B6970"), ("draft", "#5B6970")]:
         page = layout.lay_out({**invoice, "mark": mark})[0]
         [shown] = [item for item in page if item.get("text") == mark.upper() and "angle" not in item]
@@ -121,7 +123,7 @@ def test_a_paid_overdue_or_void_invoice_has_its_mark_in_its_own_color():
 def test_the_accent_color_is_used_and_every_color_reads_on_white(design):
     from accountable.company.schemas import contrast_with_white
 
-    invoice = {**BY_NAME["a short invoice in Classic"]["invoice"], "design": design, "accent": "#767676"}
+    invoice = {**BY_NAME["a short invoice in Classic"]["document"], "design": design, "accent": "#767676"}
     colors = {item["color"] for item in layout.lay_out(invoice)[0] if item["kind"] == "text"}
     assert "#767676" in colors
     for color in colors - {"#FFFFFF"}:

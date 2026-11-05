@@ -1,13 +1,13 @@
 """Which characters invoices can show, and the words for those they can't (V9, V10).
 
 A character the invoice's fonts can't draw would print as a blank box, so a draft that has
-one isn't saved. The set is shared/invoice-fonts.json's, which invoices/characters.ts reads
+one isn't saved. The set is shared/document-fonts.json's, which company/characters.ts reads
 too, so the page and the backend refuse the same ones.
 """
 
 import unicodedata
 
-from accountable.invoices import fonts
+from accountable.company import fonts
 
 SHOWN = frozenset(fonts.read()["characters"]) | {"\n"}
 """Every character the five fonts share, and the line break, which the layout keeps."""
@@ -20,6 +20,12 @@ def unprintable(text: str | None) -> list[str]:
         if character not in SHOWN and character not in found:
             found.append(character)
     return found
+
+
+def printable(text: str | None) -> str | None:
+    """The text with each character the fonts can't draw left out, as a quote's PDF leaves it
+    blank (Q31). Invoices refuse such characters before they're saved, so theirs never have any."""
+    return None if text is None else "".join(character for character in text if character in SHOWN)
 
 
 def _named(character: str) -> str:

@@ -6,22 +6,23 @@ check and the write (Q21). Every amount is worked out here from the lines, never
 request (Q15). Quotes are never deleted, so there's no delete route, and DELETE gets a 405 (Q26).
 """
 
-from dataclasses import dataclass
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import MISSING
-from sqlalchemy import Connection, Row, bindparam, delete, insert, select, update
+from sqlalchemy import Connection, Row, insert, select, update
 
 from accountable import api, db, who
 from accountable.auth import CurrentUser
-from accountable.company import tax
-from accountable.company.documents import current_settings, take_number
+from accountable.company import pdf, tax
+from accountable.company.documents import current_logo, current_settings, take_number
+from accountable.company.lines import LineToSave, same_lines, write_lines
 from accountable.crm import rules
 from accountable.crm.tables import deals, organizations
 from accountable.products.tables import products
-from accountable.quotes import document, pdf, schemas
+from accountable.quotes import document, schemas
 from accountable.quotes.tables import quote_lines, quotes
 
 router = APIRouter(prefix="/quotes")
@@ -69,26 +70,14 @@ def _check_valid_until(valid_until: date, quote_date: date) -> None:
         raise api.FieldError({"valid_until": schemas.BEFORE_THE_QUOTE_DATE})
 
 
-@dataclass(frozen=True)
-class _Line:
-    """A line as it'll be saved: a kept one with its id, or a new one with none yet."""
-
-    id: int | None
-    product_id: int
-    name: str
-    description: str | None
-    quantity: int
-    unit_price_cents: int
-
-
-def _lines_to_save(conn: Connection, quote_id: int | None, sent: list[schemas.LineIn]) -> list[_Line]:
+def _lines_to_save(conn: Connection, quote_id: int | None, sent: list[schemas.LineIn]) -> list[LineToSave]:
     """The lines as sent, each kept line with its own product and name, and each new one with its
     product's name, which has to be an active product (Q11, Q13). Refuses beside each bad line."""
     current = {row.id: row for row in document.lines_of(conn, quote_id)} if quote_id is not None else {}
     wanted = {line.product_id for line in sent if line.id is None and line.product_id is not None}
     found = {row.id: row for row in conn.execute(select(products).where(products.c.id.in_(wanted)))}
     problems: dict[str, str] = {}
-    lines: list[_Line] = []
+    lines: list[LineToSave] = []
     for place, line in enumerate(sent):
         if line.id is not None:
             kept = current.pop(line.id, None)
@@ -104,56 +93,29 @@ def _lines_to_save(conn: Connection, quote_id: int | None, sent: list[schemas.Li
                 )
                 continue
             product_id, name = product.id, product.name
-        lines.append(_Line(line.id, product_id, name, line.description, line.quantity, line.unit_price_cents))
+        lines.append(LineToSave(line.id, product_id, name, line.description, line.quantity, line.unit_price_cents))
     if problems:
         raise api.FieldError(problems)
     return lines
 
 
-def _subtotal(lines: list[_Line]) -> int:
+def _subtotal(lines: list[LineToSave]) -> int:
     """The lines' amounts added up, refused past $1 trillion before anything is written (Q14, B17)."""
-    subtotal = tax.totals(lines, 0).subtotal_cents
+    subtotal = tax.subtotal(lines)
     if subtotal > tax.MAX_SUBTOTAL_CENTS:
         raise api.FieldError({"lines": tax.SUBTOTAL_MESSAGE})
     return subtotal
 
 
-def _same_lines(current: list[Row], lines: list[_Line]) -> bool:
-    def saved(line: Any) -> tuple:
-        return (line.id, line.description, line.quantity, line.unit_price_cents)
-
-    return [saved(row) for row in current] == [saved(line) for line in lines]
-
-
-def _write_lines(conn: Connection, quote_id: int, lines: list[_Line], now: datetime) -> None:
-    """Removes the lines left out, saves the kept ones in their new places, and adds the new ones,
-    each at the save's own moment. Kept lines keep their ids, so a form still holding them can save again."""
-    kept = [line.id for line in lines if line.id is not None]
-    conn.execute(delete(quote_lines).where(quote_lines.c.quote_id == quote_id, quote_lines.c.id.not_in(kept)))
-    values = [
-        {
-            "position": place,
-            "description": line.description,
-            "quantity": line.quantity,
-            "unit_price_cents": line.unit_price_cents,
-            "updated_at": now,
-        }
-        for place, line in enumerate(lines, start=1)
-    ]
-    kept_values = [{**value, "line_id": line.id} for value, line in zip(values, lines, strict=True) if line.id]
-    if kept_values:
-        conn.execute(update(quote_lines).where(quote_lines.c.id == bindparam("line_id")), kept_values)
-    added = [
-        {**value, "quote_id": quote_id, "product_id": line.product_id, "name": line.name, "created_at": now}
-        for value, line in zip(values, lines, strict=True)
-        if line.id is None
-    ]
-    if added:
-        conn.execute(insert(quote_lines), added)
-
-
 def _add(
-    conn: Connection, deal_id: int, valid_until: date, lines: list[_Line], *, user: str, today: date, now: datetime
+    conn: Connection,
+    deal_id: int,
+    valid_until: date,
+    lines: list[LineToSave],
+    *,
+    user: str,
+    today: date,
+    now: datetime,
 ) -> int:
     """A new draft, which takes its number in this same save, so a save that fails gives it back (B15)."""
     subtotal = _subtotal(lines)
@@ -170,7 +132,7 @@ def _add(
         )
         .returning(quotes.c.id)
     ).scalar_one()
-    _write_lines(conn, quote_id, lines, now)
+    write_lines(conn, quote_lines.c.quote_id, quote_id, lines, now)
     return quote_id
 
 
@@ -201,8 +163,8 @@ def list_quotes(deal_id: OptionalId = None, organization_id: OptionalId = None) 
 
 
 def _row(row: Row, rate: int) -> schemas.QuoteRow:
-    tax_cents = tax.tax_on(row.subtotal_cents, rate)
-    return schemas.QuoteRow(**row._mapping, tax_cents=tax_cents, total_cents=row.subtotal_cents + tax_cents)
+    sums = tax.on_subtotal(row.subtotal_cents, rate)
+    return schemas.QuoteRow(**row._mapping, tax_cents=sums.tax_cents, total_cents=sums.total_cents)
 
 
 @router.get("/new/{deal_id}")
@@ -246,9 +208,9 @@ def save_quote(quote_id: api.PathId, body: schemas.QuoteUpdate, user: CurrentUse
         if body.lines is not MISSING:
             lines = _lines_to_save(conn, quote_id, body.lines)
             fields["subtotal_cents"] = _subtotal(lines)
-            lines_changed = not _same_lines(document.lines_of(conn, quote_id), lines)
+            lines_changed = not same_lines(document.lines_of(conn, quote_id), lines)
             if lines_changed:
-                _write_lines(conn, quote_id, lines, now)
+                write_lines(conn, quote_lines.c.quote_id, quote_id, lines, now)
         altered = who.alterations(fields, quote)
         if altered or lines_changed:
             conn.execute(update(quotes).where(quotes.c.id == quote_id).values(**altered, **who.changed(user, now)))
@@ -341,26 +303,21 @@ def copy_quote(quote_id: api.PathId, user: CurrentUser, today: api.Today, now: a
     with db.writing() as conn:
         original = _get(conn, quote_id)
         _refuse_if_closed(original.deal_stage, schemas.DEAL_CLOSED_FOR_NEW)
-        lines = [
-            _Line(None, row.product_id, row.name, row.description, row.quantity, row.unit_price_cents)
-            for row in document.lines_of(conn, quote_id)
-        ]
+        lines = [replace(LineToSave.saved(row), id=None) for row in document.lines_of(conn, quote_id)]
         copy_id = _add(conn, original.deal_id, today + VALID_FOR, lines, user=user, today=today, now=now)
         return _detail(conn, _get(conn, copy_id))
 
 
 @router.get("/{quote_id}/pdf")
 def quote_pdf(quote_id: api.PathId) -> Response:
-    """Made now, from the quote as saved (Q30). The number is the prefix's letters, digits and
-    hyphens and its figures (B4), so it's safe in the header as it is."""
+    """Made now, from the quote as saved, in the design, accent color and logo Company settings
+    have at this moment, as an invoice's is (Q30, Q31)."""
     with db.reading() as conn:
         quote = _get(conn, quote_id)
         doc = document.document(conn, quote)
+        logo = current_logo(conn)
+        look = pdf.look(current_settings(conn), logo)
     draft = quote.status == "draft"
     if draft and doc.company.name is None:
         raise HTTPException(409, schemas.NO_COMPANY_NAME)
-    return Response(
-        content=pdf.quote_pdf(doc, draft=draft),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{doc.number}.pdf"'},
-    )
+    return pdf.download(document.layout_values(doc, look, draft=draft), logo)

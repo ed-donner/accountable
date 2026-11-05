@@ -1,5 +1,5 @@
 {
-  "about": "How each invoice design looks (V24 to V28), read by backend/accountable/invoices/layout.py and frontend/src/invoices/layout.ts, which lay an invoice out from it the same way. Points from the top left of a US Letter page. A color is a name in colors, accent, mark (the mark's own color), or {\"accent_tint\": strength in hundredths}. A text row's baseline sits at its line's top plus (line height + 0.7 x size) / 2. A block placed below others starts at the lowest of their bottoms plus its gap, where a block with nothing in it counts its top and no gap.",
+  "about": "How each design of a quote or an invoice looks (V24 to V28), read by backend/accountable/company/layout.py and frontend/src/company/layout.ts, which lay a document out from it the same way. kinds gives each kind of document its own words, which a row names by word, and says whether a heading shows over a blank field it heads. Points from the top left of a US Letter page. A color is a name in colors, accent, mark (the mark's own color), or {\"accent_tint\": strength in hundredths}. A text row's baseline sits at its line's top plus (line height + 0.7 x size) / 2. A block placed below others starts at the lowest of their bottoms plus its gap, where a block with nothing in it counts its top and no gap.",
   "page": {
     "width": 612,
     "height": 792,
@@ -31,6 +31,30 @@
     "x": 306,
     "y": 448
   },
+  "kinds": {
+    "invoice": {
+      "words": {
+        "title": "Invoice",
+        "number": "Number",
+        "date": "Issued",
+        "end_date": "Due",
+        "recipient": "Bill to",
+        "amount_due": "Balance due"
+      },
+      "heading_when_blank": true
+    },
+    "quote": {
+      "words": {
+        "title": "Quote",
+        "number": "Number",
+        "date": "Date",
+        "end_date": "Valid until",
+        "recipient": "Prepared for",
+        "amount_due": "Total"
+      },
+      "heading_when_blank": false
+    }
+  },
   "designs": {
     "classic": {
       "blocks": [
@@ -57,7 +81,7 @@
           "y": 44,
           "width": 220,
           "anchor": "end",
-          "rows": [{ "text": "Invoice", "font": "sans_semibold", "size": 28, "color": "accent", "line_height": 36 }]
+          "rows": [{ "word": "title", "font": "sans_semibold", "size": 28, "color": "accent", "line_height": 36 }]
         },
         {
           "id": "mark",
@@ -80,13 +104,13 @@
           "label": { "font": "sans", "size": 9.5, "color": "muted" },
           "value": { "font": "mono", "size": 9.5, "color": "ink" },
           "rows": [
-            { "label": "Number", "field": "number" },
-            { "label": "Issued", "field": "issue_date" },
-            { "label": "Due", "field": "due_date" }
+            { "word": "number", "field": "number" },
+            { "word": "date", "field": "date" },
+            { "word": "end_date", "field": "end_date" }
           ]
         },
         {
-          "id": "bill_to",
+          "id": "recipient",
           "kind": "text",
           "x": 48,
           "below": ["company", "dates"],
@@ -94,13 +118,20 @@
           "width": 280,
           "anchor": "start",
           "rows": [
-            { "text": "Bill to", "font": "sans_semibold", "size": 9.5, "color": "accent", "line_height": 16 },
-            { "field": "bill_to", "font": "sans", "size": 10, "color": "ink", "line_height": 14 }
+            {
+              "word": "recipient",
+              "heads": "recipient",
+              "font": "sans_semibold",
+              "size": 9.5,
+              "color": "accent",
+              "line_height": 16
+            },
+            { "field": "recipient", "font": "sans", "size": 10, "color": "ink", "line_height": 14 }
           ]
         }
       ],
       "table": {
-        "below": ["bill_to"],
+        "below": ["recipient"],
         "gap": 28,
         "inset": 0,
         "column_gap": 16,
@@ -138,7 +169,7 @@
           "width": 300,
           "anchor": "start",
           "rows": [
-            { "text": "Invoice", "font": "sans_semibold", "size": 30, "color": "white", "line_height": 38 },
+            { "word": "title", "font": "sans_semibold", "size": 30, "color": "white", "line_height": 38 },
             { "field": "number", "font": "mono_medium", "size": 13, "color": "white", "line_height": 20 }
           ]
         },
@@ -152,8 +183,8 @@
           "label": { "font": "sans", "size": 9, "color": "white" },
           "value": { "font": "mono", "size": 9, "color": "white" },
           "rows": [
-            { "label": "Issued", "field": "issue_date" },
-            { "label": "Due", "field": "due_date" }
+            { "word": "date", "field": "date" },
+            { "word": "end_date", "field": "end_date" }
           ]
         },
         {
@@ -164,8 +195,8 @@
           "width": 240,
           "anchor": "end",
           "rows": [
-            { "text": "Balance due", "font": "sans", "size": 10, "color": "white", "line_height": 16 },
-            { "field": "balance_due", "font": "mono_medium", "size": 22, "color": "white", "line_height": 30 }
+            { "word": "amount_due", "font": "sans", "size": 10, "color": "white", "line_height": 16 },
+            { "field": "amount_due", "font": "mono_medium", "size": 22, "color": "white", "line_height": 30 }
           ]
         },
         {
@@ -196,20 +227,27 @@
           ]
         },
         {
-          "id": "bill_to",
+          "id": "recipient",
           "kind": "text",
           "x": 330,
           "y": 176,
           "width": 234,
           "anchor": "start",
           "rows": [
-            { "text": "Bill to", "font": "sans_semibold", "size": 9.5, "color": "accent", "line_height": 16 },
-            { "field": "bill_to", "font": "sans", "size": 10, "color": "ink", "line_height": 14 }
+            {
+              "word": "recipient",
+              "heads": "recipient",
+              "font": "sans_semibold",
+              "size": 9.5,
+              "color": "accent",
+              "line_height": 16
+            },
+            { "field": "recipient", "font": "sans", "size": 10, "color": "ink", "line_height": 14 }
           ]
         }
       ],
       "table": {
-        "below": ["company", "bill_to"],
+        "below": ["company", "recipient"],
         "gap": 30,
         "inset": 0,
         "column_gap": 16,
@@ -270,7 +308,7 @@
           "gap": 26,
           "width": 280,
           "anchor": "start",
-          "rows": [{ "text": "Invoice", "font": "serif", "size": 26, "color": "accent", "line_height": 32 }]
+          "rows": [{ "word": "title", "font": "serif", "size": 26, "color": "accent", "line_height": 32 }]
         },
         {
           "id": "mark",
@@ -293,13 +331,13 @@
           "label": { "font": "sans", "size": 9.5, "color": "muted" },
           "value": { "font": "mono", "size": 9.5, "color": "ink" },
           "rows": [
-            { "label": "Number", "field": "number" },
-            { "label": "Issued", "field": "issue_date" },
-            { "label": "Due", "field": "due_date" }
+            { "word": "number", "field": "number" },
+            { "word": "date", "field": "date" },
+            { "word": "end_date", "field": "end_date" }
           ]
         },
         {
-          "id": "bill_to",
+          "id": "recipient",
           "kind": "text",
           "x": 48,
           "below": ["title", "mark"],
@@ -307,13 +345,20 @@
           "width": 280,
           "anchor": "start",
           "rows": [
-            { "text": "Bill to", "font": "serif", "size": 13, "color": "ink", "line_height": 18 },
-            { "field": "bill_to", "font": "sans", "size": 10, "color": "ink", "line_height": 14 }
+            {
+              "word": "recipient",
+              "heads": "recipient",
+              "font": "serif",
+              "size": 13,
+              "color": "ink",
+              "line_height": 18
+            },
+            { "field": "recipient", "font": "sans", "size": 10, "color": "ink", "line_height": 14 }
           ]
         }
       ],
       "table": {
-        "below": ["bill_to", "dates"],
+        "below": ["recipient", "dates"],
         "gap": 28,
         "inset": 8,
         "column_gap": 16,

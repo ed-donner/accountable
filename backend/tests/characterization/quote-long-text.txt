@@ -4,27 +4,42 @@ Plainsong Systems
 Brooklyn, NY 11201
 accounts@plainsong.example
 (718) 555-0142
-Quote Draft
-Number QT-0001
-Date Oct 31, 2026
-Valid until Nov 30, 2026
+Quote
+DRAFT
+Number
+QT-0001
+Date
+Oct 31, 2026
+Valid until
+Nov 30, 2026
 Prepared for
 Harbor & Pine
 Sam Carter
 sam@harbor.example
-Item Qty Unit price Amount
-Implementation services for the
-warehouse rollout, including data
-migration, two rounds of user acceptance
-testing and go-live support
-1 $0.00 $0.00
-Covers the discovery workshops, the
-configuration of every site and the training of
-each shift lead, with a named consultant on call
-through the first month after go-live.
+Description
+Qty
+Unit price
+Amount
+Implementation services for the warehouse
+rollout, including data migration, two rounds of
+user acceptance testing and go-live support
+Covers the discovery workshops, the configuration of
+every site and the training of each shift lead, with a
+named consultant on call through the first month
+after go-live.
 Travel is billed separately.
-Enterprise platform 1,000,000 $1,000,000.00 $1,000,000,000,000.00
-Subtotal $1,000,000,000,000.00
-Sales tax (100%) $1,000,000,000,000.00
-Total $2,000,000,000,000.00
-QT-0001 Page 1 of 1
+1
+$0.00
+$0.00
+Enterprise platform
+1,000,000
+$1,000,000.00
+$1,000,000,000,000.00
+Subtotal
+$1,000,000,000,000.00
+Sales tax
+(100%)
+$1,000,000,000,000.00
+Total
+$2,000,000,000,000.00
+QT-0001, page 1 of 1

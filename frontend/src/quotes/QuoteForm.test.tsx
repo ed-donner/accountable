@@ -60,6 +60,7 @@ function Harness({ lines }: { lines: QuoteLine[] }) {
       </button>
       <LivePreview
         control={form.control}
+        look={{ design: "classic", accent: "#0E6B6B", logo: null, logoUrl: null }}
         number="QT-0004"
         quoteDate="2026-11-05"
         company={SETTINGS.company}

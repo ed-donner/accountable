@@ -6,6 +6,8 @@ const webPort = Number(process.env.ACCOUNTABLE_WEB_PORT ?? 5173);
 const apiPort = Number(process.env.ACCOUNTABLE_API_PORT ?? 8765);
 // The tests set their own cache so they can't disturb a running copy.
 const cacheDir = process.env.ACCOUNTABLE_VITE_CACHE ?? "node_modules/.vite";
+// The tests turn it off, so a file saved during a run can't reload a page mid-test.
+const watchFiles = process.env.ACCOUNTABLE_VITE_WATCH !== "off";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -20,6 +22,8 @@ export default defineConfig({
     cors: false,
     fs: { allow: [".", "../node_modules", cacheDir] },
     proxy: { "/api": `http://127.0.0.1:${apiPort}` },
+    // null watches nothing: pages get the code as it was when first asked for.
+    ...(watchFiles ? {} : { watch: null }),
   },
   // Listed up front, or Vite finds them during a first visit and reloads the page.
   optimizeDeps: {

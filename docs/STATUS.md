@@ -520,7 +520,7 @@ Each new check of a race or a limit was shown to fail on code broken for it, fro
 
 By hand, on a scratch database, in Chrome: the Invoices table, a draft's page, issued, part-paid, overdue, paid and void invoices, the panels, the Money section and the Documents panel, at 1440 by 900 and 1280 by 720, in light and dark mode. A draft was changed, asked about on leaving, issued, and became INV-0031 after the sample's 30. Each design, with the sample logo and in `#073B4C` or `#0E6B6B` and in `#767676`, the lightest accent allowed, was downloaded as a PDF and put beside its preview: the same lines on the same pages, the same mark, the logo in the same place. All three still read in greyscale, as a black and white printer gives them. The console logged no errors or warnings.
 
-One end-to-end run failed two of the menu's theme tests, because I edited a source file while its Vite servers were watching the files: Vite's reload then asks for the page's script under a new address, which the test's hold doesn't catch. With nothing changing they passed eight times in eight, and with a file changing through the run they failed eight times in eight.
+One end-to-end run failed two of the menu's theme tests, because I edited a source file while its Vite servers were watching the files: Vite's reload then asks for the page's script under a new address, which the test's hold doesn't catch. With nothing changing they passed eight times in eight, and with a file changing through the run they failed eight times in eight. The tests' Vite servers no longer watch the files, so that can't happen now (Invoices: harness improved, below).
 
 `npm run check` passes: 4,938 tests in 6m 24s, of which 3,249 backend, 1,387 frontend, 290 end-to-end and 12 speed. Backend unit coverage is 99%. At the Q1 limits, the Invoices table opened in 177ms, the Money section's data arrived in 8ms and a PDF downloaded in 23ms, each the median of five.
 
@@ -529,9 +529,44 @@ ui-check went through every page this change adds or changes, signed in, in both
 - **An organization's Invoices panel** cut a long deal name short, such as "Service c...", because the number, the deal's name and the chip shared one line. The name now sits on a line of its own under the number, and the spec says so. The panel's test was shown to fail on the old layout.
 - **The logo's tile** had a 1px ring, where the spec says a white tile and panels have no outline. It's gone.
 
-Its other nits aren't from this change: 401s logged before sign-in, which the app's handling of an ended session already gave, now with the Money section's read among them; the top bar's active link a pixel wider; a teammate with no display name shown by email, as U8 says; and the revenue chart drawing in.
+Its other nits aren't from this change: 401s logged before sign-in, which the app's handling of an ended session already gave, now with the Money section's read among them (`quotes` found they come from an old token kept in Playwright MCP's browser profile, and its `.mcp.json` fixes it); the top bar's active link a pixel wider; a teammate with no display name shown by email, as U8 says; and the revenue chart drawing in.
 
 Still for the project owner, on the shared app, since no test touches Supabase: run `npm start` against the team's database, which runs migration `0007` on it, then take an invoice from draft to paid with a logo, download its PDF and see it as a second teammate; run the new clearing steps on a project that still has the sample data and check the invoices, payments and logo are gone and the settings are at their defaults. With the owner's go-ahead, the coding agent can then use the Supabase MCP server to confirm row-level security is on for `company_logo`, `invoices`, `invoice_lines` and `payments`, and run the security advisors.
+
+## Invoices: review
+
+The reviewer subagent reviewed the branch against `main`, leaving out style. It found nothing Important, so there was nothing to fix. Four nits are open, for later:
+
+1. **Issue refusals come one at a time:** `_refuse_what_cant_be_issued` in `invoices/routers/invoices.py` reports the first problem it finds, so a draft with three shows the next only once the first is fixed. V10 doesn't ask for them all at once.
+2. **Money written out twice:** `dollars()` in `invoices/routers/payments.py` repeats `money()` in `invoices/layout.py`, and V15's message depends on it.
+3. **Deleting a payment doesn't look at the invoice's status.** That's safe only because a void invoice can't hold a payment: `void_invoice` refuses one that has any, under the same lock.
+4. **Pillow's pixel limit is set for the whole process** in `company/logo.py`. The logo is the only image read today.
+
+A fifth, that it couldn't confirm the shared layout cases cover a word wider than its column, 100 lines and a draft, is answered: `shared/invoice-layout-cases.json` has a case for each.
+
+The review left part of the change unread, and its log shows more than its report says:
+
+- **`docs/STANDARDS.md` was never opened.** The one command that printed it also printed `intent.md` and `docs/specs/invoices.md`, so Claude Code showed only its first 2KB, the start of `intent.md`, and saved the rest to a file the reviewer didn't open. Its report says it read the rules and checked the diff against them.
+- **`plan.md`** was read to line 120 of 407, and `intent.md` only in part.
+- **The frontend:** it read `queries.ts`, `files.ts` and `lib/api.ts`, and none of `layout.ts`, the pages or the React and end-to-end tests, as its report says.
+
+**Still to do:** run the reviewer again on what it left unread: the frontend and the tests, against `docs/STANDARDS.md` and the whole of `plan.md`.
+
+## Invoices: harness improved
+
+`docs/IMPROVE.md` was followed after the review. The review's nits and the part it left unread are still open, above. This run used the review and its log, the owner's messages, the Stop hook's results, the failed and stopped tool calls and the agents' shell commands, from the branch's three sessions and two subagents. It searched the sessions of every earlier change, in all four copies of the repo, and of `quotes` and `bills`, for the same mistakes. The owner corrected nothing: "No, leave Company settings as it is" answered a question the design had asked. They said "Leave the commits to me" three times, and no agent committed. The Stop hook ran 9 times in the design and build and never failed. The build ran the app three times, each on a temporary database, stopped it by its process ID and checked its ports. It used git only to read, and broke code only from its own copies, put back after. Claude Code stopped a `sleep 120`, and a `sed` its safety check took for a removal, with no harm done.
+
+It also looked at the harness changes on `bills`, in `6f083b9`, and `quotes`, in `e3fac07`. Between them they already fix what went wrong with this review, so this run doesn't repeat it: the reviewer reads every file in `--stat`, one per call, opens any output Claude Code saved to a file, and lists what it didn't read, and `AGENTS.md` says to run it again on that. Three more of their fixes came up here too: an unquoted `=====` stopped one of this run's commands in zsh, the build's first full check found the count of sections in `settings.spec.ts` and `menu.spec.ts` still at six, and ui-check logged the 401s that quotes' `.mcp.json` change explains.
+
+One mistake had happened more than once:
+
+- **A file saved during an end-to-end run:** the tests' Vite servers watched the files, so a save reloaded pages in the middle of tests. On `multi-user`, a teammate's save reloaded the page in "with reduced motion set, nothing animates", and the failure was put down to that and left. Here, the build edited `Invoice.tsx` while `npm run check` ran, and two tests in `menu.spec.ts` failed, because the reloaded page asked for its script at a new address the test wasn't holding. A run of those tests while `InvoiceChip.tsx` changed every two seconds, from a copy put back after, failed 8 of 8 before the fix and passed 8 of 8 after. Each test run now sets `ACCOUNTABLE_VITE_WATCH=off`, and `frontend/vite.config.ts` then gives Vite `server.watch: null`, so the servers watch nothing and serve each file as it was first asked for. `npm run dev` still reloads on a save. The new `scripts/vite-watch.test.mjs` checks it in about 0.3 seconds. It failed with the setting taken out of a copy of the config, put back after, and passed ten times in ten.
+
+Two mistakes seen once are now in `docs/IMPROVE.md`: the test report read by guesswork, and requirement ids renumbered in the design. `docs/IMPROVE.md` now says to search earlier sessions for the reason an agent gave a failed test, as well as for the test. The build's notes above on the theme tests and the 401s are brought up to date.
+
+**For the merge:** `bills` and `quotes` both change `docs/IMPROVE.md`, this file, `.claude/agents/reviewer.md`, `AGENTS.md` and `docs/specs/testing.md`, and this branch changes `docs/IMPROVE.md`, this file, `docs/specs/testing.md` and `docs/specs/architecture.md`, so keep every side. This branch leaves products' Seen once entry "a review cut short" in place and the other two take it out, so it goes. This branch's entries go at the end of Seen once, with theirs.
+
+`npm run check` passes: 4,939 tests in 6m 26s, the new one being `vite-watch.test.mjs`. The end-to-end tests took 247s on 2 workers, because other runs had the machine busy, where the build's runs took 182 to 223s on 6.
 
 ## Running Accountable
 

@@ -74,7 +74,8 @@ scripts/
   agent-guard-read-only.mjs       the reviewer's hook that lets its shell run only commands that read
   agent-guard-playwright-folder.mjs   ui-check's hook that keeps the files it saves in .playwright-mcp/
   agent-hooks.mjs                 what those five hooks decide
-  setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-runs.test.mjs, test-report.test.mjs, agent-hooks.test.mjs
+  setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-runs.test.mjs, test-report.test.mjs, agent-hooks.test.mjs,
+  vite-watch.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, the list of areas
                                   with each one's routes, messages, search kinds and holds, and the built frontend in

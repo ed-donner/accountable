@@ -208,7 +208,9 @@ class InvoiceDetail(InvoiceRow, Authorship):
 
 
 class Sum(BaseModel):
-    cents: int
+    """Invoices' totals are at most $2 trillion each, and 46 of them can pass 2**53 cents."""
+
+    cents: api.CentsSum
     count: int
 
 

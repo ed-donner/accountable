@@ -2,6 +2,7 @@ import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 
 import type { Stage } from "../crm/queries";
 import { api } from "../lib/api";
+import type { CentsSum } from "../lib/money";
 import { useDeleteRecord, useWrite, type Authorship, type Person } from "../lib/records";
 import { useToday } from "../lib/useToday";
 
@@ -68,7 +69,7 @@ export type InvoiceDetail = InvoiceRow &
     voided_at: string | null;
   };
 
-export type MoneySum = { cents: number; count: number };
+export type MoneySum = { cents: CentsSum; count: number };
 export type LateGroup = "not_due" | "1_30" | "31_60" | "61_90" | "over_90";
 export type Money = {
   owed: MoneySum;

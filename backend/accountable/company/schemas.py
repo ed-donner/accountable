@@ -19,6 +19,13 @@ QUOTE_PREFIX_BLANK_MESSAGE = "Enter a prefix, such as QT-"
 INVOICE_PREFIX_BLANK_MESSAGE = "Enter a prefix, such as INV-"
 PREFIX_CHARACTERS_MESSAGE = "Use up to 10 letters, digits and hyphens"
 CLASH_MESSAGE = "Clashes with the quote prefix. Neither can start with the other, ignoring capitals"
+
+
+def taken_clash_message(kind: str, number: str) -> str:
+    """B6's words for a new prefix that a number the other kind has already taken starts with."""
+    return f"Clashes with {kind} {number}, which starts with it, ignoring capitals"
+
+
 DESIGN_MESSAGE = "Choose a design"
 ACCENT_FORMAT_MESSAGE = "Enter a color as # and six hex digits, such as #0E6B6B"
 ACCENT_LIGHT_MESSAGE = "Too light to read on white. Choose a darker color"

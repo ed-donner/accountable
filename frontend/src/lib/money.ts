@@ -9,6 +9,12 @@ export function shortMoney(value: number): string {
   return `$${value}`;
 }
 
+/**
+ * A sum of amounts in whole cents, as digits, such as "9200000000000001". Each amount fits a
+ * JavaScript number exactly, but a sum of many can pass 2^53 cents, so it's read as a BigInt.
+ */
+export type CentsSum = string;
+
 /** The most a price can be: $1 trillion in cents, the backend's limit (G3). */
 export const MAX_CENTS = 100_000_000_000_000;
 

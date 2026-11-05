@@ -3,6 +3,7 @@
 from sqlalchemy import BigInteger, Column, Date, DateTime, ForeignKey, Index, Integer, Table, Text
 
 from accountable import who
+from accountable.company.documents import Numbered
 from accountable.crm.tables import deals, organizations
 from accountable.db import TABLE_OPTIONS, metadata, utc_now
 from accountable.holds import Hold
@@ -87,3 +88,4 @@ RECORDS = (invoices, payments)
 
 # Every invoice holds its deal, drafts included, and an issued one the organization it was issued to (V21).
 HOLDS = (Hold(invoices.c.deal_id, "invoice"), Hold(invoices.c.organization_id, "invoice"))
+NUMBERED = (Numbered("invoice", invoices.c.number),)

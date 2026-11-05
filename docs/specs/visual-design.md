@@ -104,7 +104,7 @@ Quotes, invoices and bills show their status in chips, in these tones, agreed ah
 
 | Status | Chip | Used by |
 |---|---|---|
-| Draft | Quiet: the page color with muted ink, as on a follow-up's Done chip, or the panel color where the chip sits on the page, as beside a quote's number, so its shape shows | Quotes, invoices |
+| Draft | Quiet: the page color with muted ink, as on a follow-up's Done chip, or the panel color where the chip sits on the page, as beside a quote's number or a draft invoice's title, or on a table row under the pointer, which takes the page color, so its shape shows | Quotes, invoices |
 | Sent, Issued, Unpaid | Small chip, Information: waiting on someone | Quotes, invoices, bills |
 | Part paid | Marigold | Invoices |
 | Accepted, Paid | Sea Green | Quotes, invoices, bills |

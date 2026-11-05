@@ -262,6 +262,16 @@ A third review of the `mvp` branch against `main` using `docs/REVIEW.md` found t
 
 `npm test` now runs 1,368 tests.
 
+## Shared code out of crm/
+
+Done on the `prepare` branch, ahead of business areas beside the CRM, such as products, settings and invoices. The code any area needs moved out of `crm/` to the top level, on both sides, so a new area never imports `crm/`. The app does the same as before.
+
+- **Backend:** `who.py` moved up from `crm/`, and now also gives a table its four who-and-when columns, which were in `crm/tables.py`, and holds the `Authorship` reply model. The new `api.py` has what was generic in `crm/schemas.py`: the base request model and its check on text a database can't store, `FieldError`, the 422 messages, and the field types for names, emails, websites, ids, dollars, paging, today and now. The CRM's own messages stay in `crm/schemas.py`, and `main.py` hands them to the error handler, so each later area keeps its own. The made-up teammates moved from `crm/sample_data.py` to `users.py`, because any area's sample records are put down to them.
+- **Frontend:** `crm/RecordLayout.tsx` is now `components/RecordLayout.tsx`. `crm/forms/server-errors.ts` is now `lib/saveErrors.ts`, with its test, and `useCloseIfUnreadable.ts` moved to `lib/`. The picker check `link()` joined `lib/validate.ts`. The new `lib/records.ts` has the `Person` and `Authorship` types and the hooks that save a record and delete one, which were in `crm/queries.ts`.
+- **Layout tests:** `frontend/src/layout.test.ts` now checks every file outside `crm/` but `App.tsx`, not only `components/` and `lib/`, so a later area's folder is covered too, as the backend's test already did. The backend's test also checks that it found `main.py`, so it can't pass by looking in the wrong place. Both were shown to fail on a made-up area that imports `crm/`.
+
+Left in `crm/`: the dates the sample data uses, the chart helpers and the delete dialogs' shared code, because no other area needs them yet. `docs/INDEPENDENT_REVIEW.md` still links to `crm/who.py`, as a record of the code it reviewed.
+
 ## Running Accountable
 
 Accountable runs two ways:

@@ -2,15 +2,9 @@ import { toast } from "sonner";
 
 import { ConfirmDelete } from "../../components/ConfirmDelete";
 import { money } from "../../lib/money";
+import { useDeleteImpact, useDeleteRecord } from "../../lib/records";
 import { plural } from "../../lib/words";
-import {
-  useDeleteActivity,
-  useDeleteImpact,
-  useDeleteRecord,
-  type ContactImpact,
-  type DealImpact,
-  type OrganizationImpact,
-} from "../queries";
+import { useDeleteActivity, type ContactImpact, type DealImpact, type OrganizationImpact } from "../queries";
 
 const FINAL = "This can't be undone.";
 

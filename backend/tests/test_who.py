@@ -4,7 +4,6 @@ from datetime import timedelta
 
 import pytest
 from accountable import db, users
-from accountable.crm.sample_data import TEAMMATES
 from accountable.crm.tables import activities, contacts, deals, organizations
 from conftest import NOW, TODAY, insert_row
 from sqlalchemy import select
@@ -14,7 +13,7 @@ CONTACTS = "/api/contacts"
 DEALS = "/api/deals"
 ACTIVITIES = "/api/activities"
 
-ALEX, DANA, _THEO, ROBIN = TEAMMATES
+ALEX, DANA, _THEO, ROBIN = users.TEAMMATES
 LATER = NOW + timedelta(hours=2)
 NOW_TEXT = "2026-10-31T15:00:00Z"
 LATER_TEXT = "2026-10-31T17:00:00Z"

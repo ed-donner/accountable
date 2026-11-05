@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 // The backend checks these too and has the last word. Checking here as well
 // means ordinary mistakes never reach the network, or the browser's console.
 
@@ -30,4 +32,12 @@ export function isWebsite(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** A picker's value: required, unless a delete left the link blank. */
+export function link(blankAllowed: boolean, message: string) {
+  return z
+    .number()
+    .nullable()
+    .refine((id) => id !== null || blankAllowed, message);
 }

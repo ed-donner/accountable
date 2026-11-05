@@ -1,8 +1,8 @@
 import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "../../lib/api";
-import { showSaveError } from "./server-errors";
+import { ApiError } from "./api";
+import { showSaveError } from "./saveErrors";
 
 function form() {
   const parts = { setError: vi.fn(), getValues: vi.fn(() => ({ name: "Acme", website: "" })) };

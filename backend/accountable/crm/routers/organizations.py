@@ -16,9 +16,9 @@ from sqlalchemy import (
     update,
 )
 
-from accountable import db
+from accountable import api, db, who
 from accountable.auth import CurrentUser
-from accountable.crm import rules, schemas, timeline, who
+from accountable.crm import rules, schemas, timeline
 from accountable.crm.tables import contacts, deals, organizations
 
 router = APIRouter(prefix="/organizations")
@@ -131,9 +131,7 @@ def list_organizations() -> list[schemas.OrganizationRow]:
 
 
 @router.post("", status_code=201)
-def add_organization(
-    body: schemas.OrganizationCreate, user: CurrentUser, now: schemas.Now
-) -> schemas.OrganizationDetail:
+def add_organization(body: schemas.OrganizationCreate, user: CurrentUser, now: api.Now) -> schemas.OrganizationDetail:
     with db.writing() as conn:
         new_id = conn.execute(
             insert(organizations).values(**body.model_dump(), **who.added(user, now)).returning(organizations.c.id)
@@ -142,14 +140,14 @@ def add_organization(
 
 
 @router.get("/{organization_id}")
-def get_organization(organization_id: schemas.PathId) -> schemas.OrganizationDetail:
+def get_organization(organization_id: api.PathId) -> schemas.OrganizationDetail:
     with db.reading() as conn:
         return _detail(conn, organization_id)
 
 
 @router.patch("/{organization_id}")
 def edit_organization(
-    organization_id: schemas.PathId, body: schemas.OrganizationUpdate, user: CurrentUser, now: schemas.Now
+    organization_id: api.PathId, body: schemas.OrganizationUpdate, user: CurrentUser, now: api.Now
 ) -> schemas.OrganizationDetail:
     fields = body.model_dump(exclude_unset=True)
     with db.writing() as conn:
@@ -164,14 +162,14 @@ def edit_organization(
 
 
 @router.delete("/{organization_id}", status_code=204)
-def delete_organization(organization_id: schemas.PathId) -> None:
+def delete_organization(organization_id: api.PathId) -> None:
     with db.writing() as conn:
         _get(conn, organization_id)
         conn.execute(delete(organizations).where(organizations.c.id == organization_id))
 
 
 @router.get("/{organization_id}/delete-impact")
-def organization_impact(organization_id: schemas.PathId) -> schemas.OrganizationImpact:
+def organization_impact(organization_id: api.PathId) -> schemas.OrganizationImpact:
     with db.reading() as conn:
         _get(conn, organization_id)
         return schemas.OrganizationImpact(
@@ -186,9 +184,9 @@ def organization_impact(organization_id: schemas.PathId) -> schemas.Organization
 
 @router.get("/{organization_id}/timeline")
 def organization_timeline(
-    organization_id: schemas.PathId,
-    limit: schemas.PageLimit = timeline.DEFAULT_LIMIT,
-    offset: schemas.PageOffset = 0,
+    organization_id: api.PathId,
+    limit: api.PageLimit = timeline.DEFAULT_LIMIT,
+    offset: api.PageOffset = 0,
 ) -> schemas.Timeline:
     with db.reading() as conn:
         page = timeline.for_organization(conn, organization_id, limit, offset)

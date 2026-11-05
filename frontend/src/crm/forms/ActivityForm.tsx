@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { Field } from "../../components/Field";
 import { FormDialog } from "../../components/FormDialog";
+import { showSaveError } from "../../lib/saveErrors";
 import { capitalize } from "../../lib/words";
 import {
   useAddActivity,
@@ -15,7 +16,6 @@ import {
   type ActivityValues,
   type TimelineEntry,
 } from "../queries";
-import { showSaveError } from "./server-errors";
 
 const TYPES: ActivityType[] = ["note", "call", "email"];
 

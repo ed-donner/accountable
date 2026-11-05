@@ -7,13 +7,12 @@ import { z } from "zod";
 import { Field } from "../../components/Field";
 import { FormDialog } from "../../components/FormDialog";
 import { RecordPicker } from "../../components/RecordPicker";
-import { EMAIL_MESSAGE, isEmail } from "../../lib/validate";
+import { showSaveError } from "../../lib/saveErrors";
+import { useCloseIfUnreadable } from "../../lib/useCloseIfUnreadable";
+import { EMAIL_MESSAGE, isEmail, link } from "../../lib/validate";
 import { capitalize } from "../../lib/words";
 import { useOrganizations, useSaveContact, type Contact, type ContactDetail, type Status } from "../queries";
-import { link } from "./links";
 import { OrganizationForm } from "./OrganizationForm";
-import { showSaveError } from "./server-errors";
-import { useCloseIfUnreadable } from "./useCloseIfUnreadable";
 
 const STATUSES: Status[] = ["lead", "qualified", "customer"];
 

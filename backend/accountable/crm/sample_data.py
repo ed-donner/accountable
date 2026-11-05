@@ -1,4 +1,4 @@
-"""Fictional sample records and teammates, dated from a given day so a fresh copy always looks current.
+"""Fictional sample records, dated from a given day so a fresh copy always looks current.
 
 Every deal is walked through rules.py with an explicit date, so its stage history
 can't contradict the rules. All names, addresses and websites are made up, and
@@ -12,39 +12,10 @@ from typing import Any
 
 from sqlalchemy import Connection, insert
 
-from accountable import users
-from accountable.crm import rules, who
+from accountable import who
+from accountable.crm import rules
 from accountable.crm.tables import activities, contacts, organizations
-
-
-@dataclass(frozen=True)
-class Teammate:
-    id: str
-    name: str | None
-    email: str
-
-
-# The local copy's made-up teammates (U13). The shared app has them too, as the
-# people the sample data is put down to, though nobody can sign in as them there.
-TEAMMATES = [
-    Teammate("teammate-alex-rivera", "Alex Rivera", "alex.rivera@accountable.example"),
-    Teammate("teammate-dana-whitfield", "Dana Whitfield", "dana.whitfield@accountable.example"),
-    Teammate("teammate-theo-brandt", "Theo Brandt", "theo.brandt@accountable.example"),
-    # No display name, so the email standing in for a name always has a case to show.
-    Teammate("teammate-robin", None, "robin@accountable.example"),
-]
-
-
-def add_missing_teammates(conn: Connection) -> None:
-    """Puts back any made-up teammate the users table lacks, so there's always someone to sign in as."""
-    for teammate in TEAMMATES:
-        users.remember(conn, teammate.id, teammate.name, teammate.email)
-
-
-def teammate(number: int) -> str:
-    """The teammate a numbered sample record is put down to, taking turns."""
-    return TEAMMATES[number % len(TEAMMATES)].id
-
+from accountable.users import add_missing_teammates, teammate
 
 # name, website slug, industry
 ORGANIZATIONS = [

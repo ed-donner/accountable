@@ -17,11 +17,13 @@ function code(folder: string) {
   return filesIn(path.join(SOURCE, folder)).filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file));
 }
 
-describe("the plan's layout rules", () => {
-  it.each(["components", "lib"])("%s holds only what any area could use", (folder) => {
-    for (const file of code(folder)) {
-      expect(readFileSync(file, "utf8"), file).not.toMatch(/from "[^"]*\/crm\//);
-    }
+describe("the layout rules", () => {
+  it("lets only App.tsx name crm/, so components/, lib/ and any later area never import it", () => {
+    const namingCrm = code(".")
+      .map((file) => path.relative(SOURCE, file))
+      .filter((file) => !file.startsWith("crm/") && !path.basename(file).startsWith("test-"))
+      .filter((file) => /from "[^"]*\/crm\//.test(readFileSync(path.join(SOURCE, file), "utf8")));
+    expect(namingCrm).toEqual(["App.tsx"]);
   });
 });
 

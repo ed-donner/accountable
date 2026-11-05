@@ -3,9 +3,9 @@ import { Pencil, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
-import { PageHeader } from "../components/PageHeader";
 import { formatDate } from "../lib/dates";
-import type { Authorship, Person } from "./queries";
+import type { Authorship, Person } from "../lib/records";
+import { PageHeader } from "./PageHeader";
 
 type HeaderProps = { title: string; chips?: ReactNode; onEdit: () => void; onDelete: () => void };
 

@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { Chip } from "../../components/Chip";
 import { LoadFailed } from "../../components/LoadFailed";
 import { MissingRecord } from "../../components/MissingRecord";
+import { AddedAndChanged, Detail, NONE, RecordColumns, RecordHeader, SidePanel } from "../../components/RecordLayout";
 import { ApiError } from "../../lib/api";
 import { formatDate } from "../../lib/dates";
 import { money } from "../../lib/money";
@@ -15,7 +16,6 @@ import { DeleteDeal } from "../forms/DeleteDialogs";
 import { useDeal } from "../queries";
 import { StageChip } from "../StageChip";
 import { Timeline } from "../Timeline";
-import { AddedAndChanged, Detail, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
 
 export function Deal() {
   const id = recordId(useParams().id);

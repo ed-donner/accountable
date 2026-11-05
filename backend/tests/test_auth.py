@@ -13,9 +13,8 @@ from contextlib import contextmanager
 
 import pytest
 from accountable import auth, db
-from accountable.crm.sample_data import TEAMMATES, add_missing_teammates
 from accountable.main import make_app
-from accountable.users import users
+from accountable.users import TEAMMATES, add_missing_teammates, users
 from conftest import (
     LOCAL,
     PROJECT,

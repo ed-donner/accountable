@@ -1,6 +1,5 @@
 import pytest
 from accountable import db, users
-from accountable.crm.sample_data import TEAMMATES
 from sqlalchemy import select
 
 ROBIN = "robin@accountable.example"
@@ -109,13 +108,13 @@ def test_remember_never_removes_anyone(database):
 
 
 def test_me_gives_the_signed_in_person(api):
-    alex = TEAMMATES[0]
+    alex = users.TEAMMATES[0]
     reply = api.get("/api/me")
     assert reply.status_code == 200
     assert reply.json() == {"id": alex.id, "name": "Alex Rivera", "email": alex.email, "initials": "AR"}
 
 
 def test_me_gives_the_email_as_the_name_of_someone_with_no_display_name(sign_in_as):
-    robin = next(teammate for teammate in TEAMMATES if teammate.name is None)
+    robin = next(teammate for teammate in users.TEAMMATES if teammate.name is None)
     reply = sign_in_as(robin.id).get("/api/me")
     assert reply.json() == {"id": robin.id, "name": robin.email, "email": robin.email, "initials": "R"}

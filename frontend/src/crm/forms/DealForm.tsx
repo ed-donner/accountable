@@ -8,6 +8,9 @@ import { Field } from "../../components/Field";
 import { FormDialog } from "../../components/FormDialog";
 import { RecordPicker, type PickerOption } from "../../components/RecordPicker";
 import { todayIso } from "../../lib/dates";
+import { showSaveError } from "../../lib/saveErrors";
+import { useCloseIfUnreadable } from "../../lib/useCloseIfUnreadable";
+import { link } from "../../lib/validate";
 import { STAGES, STAGE_NAMES, isOpen } from "../deals";
 import {
   useContacts,
@@ -22,9 +25,6 @@ import {
 } from "../queries";
 import { ContactForm } from "./ContactForm";
 import { OrganizationForm } from "./OrganizationForm";
-import { link } from "./links";
-import { showSaveError } from "./server-errors";
-import { useCloseIfUnreadable } from "./useCloseIfUnreadable";
 
 const VALUE_MESSAGE = "Enter a whole number of dollars, zero or more";
 const PROBABILITY_MESSAGE = "Enter a whole number from 0 to 100";

@@ -57,8 +57,8 @@ def _check_database_path() -> None:
 
 _check_database_path()
 
-from accountable import auth, db, settings
-from accountable.crm import rules, sample_data
+from accountable import auth, db, settings, users
+from accountable.crm import rules
 from accountable.crm.tables import activities, contacts, deals, organizations
 
 LOCAL = "http://localhost"
@@ -183,7 +183,7 @@ def local_app(database) -> Iterator[FastAPI]:
     from accountable.main import app
 
     with db.writing() as conn:
-        sample_data.add_missing_teammates(conn)
+        users.add_missing_teammates(conn)
     fixed_time(app)
     yield app
     app.dependency_overrides.clear()
@@ -192,7 +192,7 @@ def local_app(database) -> Iterator[FastAPI]:
 @pytest.fixture
 def api(local_app) -> TestClient:
     """The local copy's API on a fresh database, signed in as Alex Rivera, the first made-up teammate."""
-    token = local_token(local_app, sample_data.TEAMMATES[0].id)
+    token = local_token(local_app, users.TEAMMATES[0].id)
     return TestClient(local_app, base_url=LOCAL, headers=bearer(token), client=THIS_COMPUTER)
 
 
@@ -371,7 +371,7 @@ class Copy:
 
 def local_copy(app: FastAPI, supabase: StandInSupabase) -> Copy:
     """Its tokens are made the way the sign-in route makes them, then changed."""
-    claims = jwt.decode(local_token(app, sample_data.TEAMMATES[0].id), options={"verify_signature": False})
+    claims = jwt.decode(local_token(app, users.TEAMMATES[0].id), options={"verify_signature": False})
 
     def sign(*, elsewhere: bool = False, **changes: Any) -> str:
         key = secrets.token_bytes(64) if elsewhere else auth.local_key()

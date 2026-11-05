@@ -1,9 +1,11 @@
-"""The plan's layout rules, checked so they can't slip unnoticed."""
+"""The layout rules in docs/specs/architecture.md, checked so they can't slip unnoticed."""
 
 import re
 from pathlib import Path
 
 PACKAGE = Path(__file__).resolve().parents[1] / "accountable"
+# Where the app is put together. Everything else outside crm/, a later area's folder
+# included, gets what it needs from the top level.
 MAY_NAME_CRM = {"main.py", "cli.py", "migrations/env.py"}
 
 
@@ -19,6 +21,7 @@ def test_only_main_cli_and_the_migrations_name_crm():
         and re.search(r"accountable\.crm|import crm", path.read_text())
     }
     assert found <= MAY_NAME_CRM
+    assert "main.py" in found  # The check is looking in the right place.
 
 
 def test_db_never_imports_crm():

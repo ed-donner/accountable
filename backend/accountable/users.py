@@ -1,8 +1,10 @@
-"""The people who sign in: who they are and what they're called (U8, U9).
+"""The people who sign in: who they are and what they're called (U8, U9), and the made-up teammates (U13).
 
 Rows come from tokens, and are never deleted, so a removed person's records still
 show their name.
 """
+
+from dataclasses import dataclass
 
 from pydantic import BaseModel
 from sqlalchemy import Column, Connection, DateTime, Table, Text, insert, select, update
@@ -74,3 +76,32 @@ def remember(conn: Connection, id: str, name: str | None, email: str) -> bool:
         return False
     conn.execute(update(users).where(users.c.id == id).values(name=name, email=email))
     return True
+
+
+@dataclass(frozen=True)
+class Teammate:
+    id: str
+    name: str | None
+    email: str
+
+
+# The local copy's made-up teammates (U13). The shared app has them too, as the
+# people the sample data is put down to, though nobody can sign in as them there.
+TEAMMATES = [
+    Teammate("teammate-alex-rivera", "Alex Rivera", "alex.rivera@accountable.example"),
+    Teammate("teammate-dana-whitfield", "Dana Whitfield", "dana.whitfield@accountable.example"),
+    Teammate("teammate-theo-brandt", "Theo Brandt", "theo.brandt@accountable.example"),
+    # No display name, so the email standing in for a name always has a case to show.
+    Teammate("teammate-robin", None, "robin@accountable.example"),
+]
+
+
+def add_missing_teammates(conn: Connection) -> None:
+    """Puts back any made-up teammate the users table lacks, so there's always someone to sign in as."""
+    for teammate in TEAMMATES:
+        remember(conn, teammate.id, teammate.name, teammate.email)
+
+
+def teammate(number: int) -> str:
+    """The teammate a numbered sample record is put down to, taking turns."""
+    return TEAMMATES[number % len(TEAMMATES)].id

@@ -1,4 +1,5 @@
-"""Who added each record and who last changed it (U10), as saves record it and replies show it.
+"""Who added each record and who last changed it, and when (U10), for every area: the
+columns its tables keep, the values a save writes, and the names in replies.
 
 The person always comes from the token, through the routes' CurrentUser, never from
 the request body.
@@ -8,12 +9,33 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Select, Table
+from pydantic import BaseModel
+from sqlalchemy import Column, DateTime, ForeignKey, Select, Table
+from sqlalchemy.engine.default import DefaultExecutionContext
 
-from accountable.users import person, users
+from accountable.api import UtcTime
+from accountable.db import utc_now
+from accountable.users import Person, person, users
 
 _added_by = users.alias("added_by")
 _changed_by = users.alias("changed_by")
+
+
+def _same_as_created(context: DefaultExecutionContext):
+    return context.get_current_parameters()["created_at"]
+
+
+def columns() -> list[Column]:
+    """Every record's times, and who added it and who last changed it, blank on records from before sign-in (U12).
+
+    A new record's two times are one moment, so "changed" means updated_at differs.
+    """
+    return [
+        Column("created_at", DateTime, nullable=False, default=utc_now),
+        Column("updated_at", DateTime, nullable=False, default=_same_as_created, onupdate=utc_now),
+        Column("created_by", ForeignKey(users.c.id), index=True),
+        Column("updated_by", ForeignKey(users.c.id), index=True),
+    ]
 
 
 def added(user_id: str | None, now: datetime) -> dict[str, Any]:
@@ -55,3 +77,12 @@ def authorship(row: Any) -> dict[str, Any]:
         "updated_at": row.updated_at,
         "updated_by": person(row.updated_by, row.updated_by_name, row.updated_by_email),
     }
+
+
+class Authorship(BaseModel):
+    """Who added the record and who last changed it, and when. Nobody, on records from before sign-in."""
+
+    created_at: UtcTime
+    created_by: Person | None
+    updated_at: UtcTime
+    updated_by: Person | None

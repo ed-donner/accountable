@@ -1,7 +1,7 @@
 import type { FieldValues, Path, UseFormGetValues, UseFormSetError } from "react-hook-form";
 import { toast } from "sonner";
 
-import { ApiError } from "../../lib/api";
+import { ApiError } from "./api";
 
 type Form<T extends FieldValues> = { setError: UseFormSetError<T>; getValues: UseFormGetValues<T> };
 

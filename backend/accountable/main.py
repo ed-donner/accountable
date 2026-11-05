@@ -20,8 +20,8 @@ from starlette.exceptions import HTTPException
 from starlette.responses import Response
 from starlette.types import Scope
 
-from accountable import auth, cli, db, settings
-from accountable.crm import sample_data, schemas
+from accountable import api, auth, cli, db, settings, users
+from accountable.crm import schemas
 from accountable.crm.routers import activities, contacts, dashboard, deals, meta, organizations, search
 
 FRONTEND = db.ROOT / "frontend" / "dist"
@@ -42,7 +42,7 @@ def make_app(
     app.add_middleware(auth.RequireSignIn, open_paths=_local_sign_in_paths() if shared is None else ())
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts())
     app.exception_handler(RequestValidationError)(_invalid_request)
-    app.exception_handler(schemas.FieldError)(_invalid_field)
+    app.exception_handler(api.FieldError)(_invalid_field)
     app.exception_handler(Exception)(_unexpected_error)
 
     app.include_router(_signed_in_routes())
@@ -64,11 +64,11 @@ def _local_sign_in_paths() -> list[str]:
 
 
 def _signed_in_routes() -> APIRouter:
-    api = APIRouter(prefix="/api", dependencies=[Depends(auth.current_user)])
-    api.include_router(auth.router)
+    routes = APIRouter(prefix="/api", dependencies=[Depends(auth.current_user)])
+    routes.include_router(auth.router)
     for module in (meta, organizations, contacts, deals, activities, dashboard, search):
-        api.include_router(module.router)
-    return api
+        routes.include_router(module.router)
+    return routes
 
 
 def _lifespan(shared: settings.Shared | None) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
@@ -79,7 +79,7 @@ def _lifespan(shared: settings.Shared | None) -> Callable[[FastAPI], AbstractAsy
         if shared is None:
             # A database from before sign-in has nobody to sign in as.
             with db.writing() as conn:
-                sample_data.add_missing_teammates(conn)
+                users.add_missing_teammates(conn)
         yield
         db.dispose()
 
@@ -116,11 +116,11 @@ async def _json_only(request: Request, call_next):
 
 
 async def _invalid_request(request: Request, error: RequestValidationError):
-    fields = schemas.field_messages(error.errors())
+    fields = api.field_messages(error.errors(), schemas.FIELD_MESSAGES)
     return JSONResponse({"detail": "Check the form.", "fields": fields}, status_code=422)
 
 
-async def _invalid_field(request: Request, error: schemas.FieldError):
+async def _invalid_field(request: Request, error: api.FieldError):
     return JSONResponse({"detail": "Check the form.", "fields": error.fields}, status_code=422)
 
 

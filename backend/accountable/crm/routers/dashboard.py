@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter
 from sqlalchemy import Subquery, and_, case, func, select, union_all
 
-from accountable import db
+from accountable import api, db
 from accountable.crm import rules, schemas, timeline
 from accountable.crm.tables import activities, contacts, deals, stage_changes
 
@@ -118,7 +118,7 @@ def follow_ups(conn, today: date) -> schemas.FollowUps:
 
 
 @router.get("/dashboard")
-def dashboard(today: schemas.Today, now: schemas.Now) -> schemas.Dashboard:
+def dashboard(today: api.Today, now: api.Now) -> schemas.Dashboard:
     history = _furthest_in_history()
     with db.reading() as conn:
         all_deals = conn.execute(

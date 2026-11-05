@@ -2,7 +2,6 @@ import io
 
 import pytest
 from accountable import cli, db, users
-from accountable.crm import sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from sqlalchemy import func, select
 
@@ -109,14 +108,14 @@ def everyone() -> set[str]:
 @pytest.mark.parametrize("command", ["seed", "empty"])
 def test_the_teammates_and_everyone_else_who_signed_in_stay(with_records, command):
     with db.writing() as conn:
-        sample_data.add_missing_teammates(conn)
+        users.add_missing_teammates(conn)
         users.remember(conn, "someone-real", "Sam Real", "sam@company.example")
     before = everyone()
 
     assert cli.main([command, "--yes"]) == 0
 
     assert everyone() == before
-    assert {teammate.id for teammate in sample_data.TEAMMATES} <= before
+    assert {teammate.id for teammate in users.TEAMMATES} <= before
 
 
 @pytest.mark.parametrize("command", ["seed", "empty"])
@@ -137,7 +136,7 @@ def test_seed_before_the_first_start_builds_the_database(tmp_path, monkeypatch, 
     db.dispose()
     assert cli.main(["seed"]) == 0
     assert counts()["deals"] == 80
-    assert everyone() == {teammate.id for teammate in sample_data.TEAMMATES}
+    assert everyone() == {teammate.id for teammate in users.TEAMMATES}
     assert "Sample data added" in capsys.readouterr().out
     db.dispose()
 
@@ -149,5 +148,5 @@ def test_empty_before_the_first_start_leaves_an_empty_database(tmp_path, monkeyp
     assert cli.main(["empty"]) == 0
     assert path.exists()
     assert counts() == EMPTY
-    assert everyone() == {teammate.id for teammate in sample_data.TEAMMATES}
+    assert everyone() == {teammate.id for teammate in users.TEAMMATES}
     db.dispose()

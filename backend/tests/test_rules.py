@@ -1,13 +1,13 @@
 from datetime import date, timedelta
 
 import pytest
-from accountable import db
-from accountable.crm import rules, sample_data
+from accountable import db, users
+from accountable.crm import rules
 from accountable.crm.tables import stage_changes
 from conftest import NOW, TODAY
 from sqlalchemy import select
 
-DANA = sample_data.TEAMMATES[1].id
+DANA = users.TEAMMATES[1].id
 
 
 def move(deal_id: int, stage: str, *, by: str | None = None, **given):
@@ -18,7 +18,7 @@ def move(deal_id: int, stage: str, *, by: str | None = None, **given):
 @pytest.fixture
 def teammates(database):
     with db.writing() as conn:
-        sample_data.add_missing_teammates(conn)
+        users.add_missing_teammates(conn)
 
 
 def history(deal_id: int) -> list[tuple[str, str]]:

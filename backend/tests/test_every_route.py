@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 
 import pytest
 from accountable import db
-from accountable.crm import schemas
+from accountable.api import MAX_ID
 from accountable.crm.routers import dashboard
 from accountable.main import app
 from conftest import LOCAL, THIS_COMPUTER
@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 SIGNED_OUT = {"detail": "Sign in to use Accountable."}
-TOO_BIG = schemas.MAX_ID + 1
+TOO_BIG = MAX_ID + 1
 # What a website can send from a form or a plain fetch, with no permission asked first.
 SIMPLE_TYPES = ["text/plain", "application/x-www-form-urlencoded", "multipart/form-data"]
 OPEN_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "https://evil.example", "null"]
@@ -155,7 +155,7 @@ def test_an_id_that_cant_be_a_record_is_refused(client, method, path, value):
 
 @pytest.mark.parametrize("method, path", RECORD_ROUTES)
 def test_the_largest_possible_id_is_simply_missing(client, method, path):
-    assert client.request(method, with_id(path, schemas.MAX_ID), json={"stage": "new"}).status_code == 404
+    assert client.request(method, with_id(path, MAX_ID), json={"stage": "new"}).status_code == 404
 
 
 @pytest.mark.parametrize("method, path", WRITES)

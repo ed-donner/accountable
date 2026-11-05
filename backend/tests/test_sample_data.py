@@ -6,7 +6,7 @@ import pytest
 from accountable import db
 from accountable.crm import rules, sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
-from accountable.users import users
+from accountable.users import TEAMMATES, users
 from sqlalchemy import select
 
 DAYS = [date(2027, 1, 1), date(2027, 3, 1), date(2028, 2, 29), date(2027, 1, 31), date(2026, 10, 31), date(2026, 7, 14)]
@@ -209,7 +209,7 @@ def test_won_and_lost_columns_start_newest_first(seeded):
         assert dates == sorted(dates, reverse=True)
 
 
-TEAMMATE_IDS = {teammate.id for teammate in sample_data.TEAMMATES}
+TEAMMATE_IDS = {teammate.id for teammate in TEAMMATES}
 RECORDS = ("organizations", "contacts", "deals", "activities")
 
 
@@ -225,7 +225,7 @@ def test_the_four_made_up_teammates_with_robin_having_no_name(seeded):
 
 def test_no_teammate_shares_a_name_with_a_sample_contact(seeded):
     contact_words = {word for row in seeded["contacts"] for word in row.name.split()}
-    for teammate in sample_data.TEAMMATES:
+    for teammate in TEAMMATES:
         assert not set((teammate.name or "").split()) & contact_words, teammate.name
 
 

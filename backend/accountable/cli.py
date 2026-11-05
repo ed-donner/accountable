@@ -17,7 +17,7 @@ import sys
 
 from sqlalchemy import Connection, delete, func, select
 
-from accountable import db
+from accountable import db, users
 from accountable.crm import sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 
@@ -73,7 +73,7 @@ def main(arguments: list[str] | None = None) -> int:
         return 2
 
     # An empty database still has the made-up teammates, so there's someone to sign in as.
-    built = db.prepare_database(fill_sample if seeding else sample_data.add_missing_teammates)
+    built = db.prepare_database(fill_sample if seeding else users.add_missing_teammates)
     if built:
         print("Sample data added." if seeding else "Database emptied.")
         return 0

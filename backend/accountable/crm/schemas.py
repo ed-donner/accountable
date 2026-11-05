@@ -1,38 +1,20 @@
-"""Pydantic request and reply models, the request parameters the routes share, and the plain-English messages for bad input."""
+"""The CRM's request and reply models, and the messages for its fields."""
 
-import re
-from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime
-from typing import Annotated, Any, Literal
-from urllib.parse import urlsplit
+from typing import Annotated, Literal
 
-from fastapi import Depends, Path, Query
-from pydantic import (
-    MISSING,
-    AfterValidator,
-    BaseModel,
-    ConfigDict,
-    Field,
-    PlainSerializer,
-    StrictBool,
-    StrictInt,
-    field_validator,
-)
+from pydantic import MISSING, AfterValidator, BaseModel, Field, StrictBool, StrictInt
 
-from accountable import db
+from accountable import api
 from accountable.users import Person
+from accountable.who import Authorship
 
 Stage = Literal["new", "qualified", "proposal", "negotiation", "won", "lost"]
 Status = Literal["lead", "qualified", "customer"]
 ActivityType = Literal["note", "call", "email"]
 
-MAX_VALUE = 1_000_000_000_000
-# The largest id both databases can hold: Postgres's integer columns stop here,
-# well before SQLite's. A query given a bigger one crashes instead of finding nothing.
-MAX_ID = 2**31 - 1
-
 FIELD_MESSAGES = {
-    "name": "Enter a name",
+    "name": api.NAME_MESSAGE,
     "organization_id": "Choose an organization",
     "main_contact_id": "Choose a main contact",
     "stage": "Choose a stage",
@@ -47,78 +29,10 @@ FIELD_MESSAGES = {
 }
 
 
-class FieldError(Exception):
-    """A rule that needs the database to check, reported beside its field."""
-
-    def __init__(self, fields: dict[str, str]):
-        super().__init__("Check the form.")
-        self.fields = fields
-
-
-def field_messages(errors: Iterable[Mapping[str, Any]]) -> dict[str, str]:
-    fields: dict[str, str] = {}
-    for error in errors:
-        location = error["loc"]
-        field = str(location[1]) if len(location) > 1 else "body"
-        if error["type"] == "value_error":
-            fields.setdefault(field, str(error["ctx"]["error"]))
-        else:
-            fields.setdefault(field, FIELD_MESSAGES.get(field, "Check this field"))
-    return fields
-
-
-def _name(value: str) -> str:
-    value = value.strip()
-    if not value:
-        raise ValueError(FIELD_MESSAGES["name"])
-    return value
-
-
 def _description(value: str) -> str:
     value = value.strip()
     if not value:
         raise ValueError(FIELD_MESSAGES["description"])
-    return value
-
-
-def _blank_to_none(value: str | None) -> str | None:
-    if value is None:
-        return None
-    return value.strip() or None
-
-
-EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-
-def _email(value: str | None) -> str | None:
-    value = _blank_to_none(value)
-    if value is not None and not EMAIL.match(value):
-        raise ValueError("Enter a valid email address")
-    return value
-
-
-HAS_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:(?!\d)", re.IGNORECASE)
-WEBSITE_MESSAGE = "Enter a website address, such as https://example.com"
-
-
-def _website(value: str | None) -> str | None:
-    value = _blank_to_none(value)
-    if value is None:
-        return None
-    if not HAS_SCHEME.match(value):
-        value = f"https://{value}"
-    try:
-        parts = urlsplit(value)
-        port_is_fine = parts.port is None or parts.port >= 0  # Reading it is what checks it.
-    except ValueError as error:
-        raise ValueError(WEBSITE_MESSAGE) from error
-    if (
-        parts.scheme.lower() not in ("http", "https")
-        or not parts.hostname
-        or not port_is_fine
-        or re.search(r"\s", value)
-    ):
-        raise ValueError(WEBSITE_MESSAGE)
     return value
 
 
@@ -132,84 +46,26 @@ def _to_utc(value: datetime) -> datetime:
         raise ValueError(FIELD_MESSAGES["occurred_at"]) from error
 
 
-def _with_z(value: datetime) -> str:
-    """SQLite stores no zone, so without this the browser would read UTC as local."""
-    return value.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
-
-
-Name = Annotated[str, AfterValidator(_name)]
 Description = Annotated[str, AfterValidator(_description)]
-OptionalText = Annotated[str | None, AfterValidator(_blank_to_none)]
-Email = Annotated[str | None, AfterValidator(_email)]
-Website = Annotated[str | None, AfterValidator(_website)]
-Id = Annotated[int, Field(ge=1, le=MAX_ID)]
-PathId = Annotated[int, Path(ge=1, le=MAX_ID)]
-PageLimit = Annotated[int, Query(ge=1, le=500)]
-PageOffset = Annotated[int, Query(ge=0, le=MAX_ID)]
-# Asked for per request, so tests can fix them.
-Today = Annotated[date, Depends(db.local_today)]
-Now = Annotated[datetime, Depends(db.utc_now)]
-Dollars = Annotated[StrictInt, Field(ge=0, le=MAX_VALUE)]
 Probability = Annotated[StrictInt, Field(ge=0, le=100)]
 IncomingTime = Annotated[datetime, AfterValidator(_to_utc)]
-UtcTime = Annotated[datetime, PlainSerializer(_with_z, return_type=str)]
-
-
-class Request(BaseModel):
-    """What a form sends. In an update, MISSING marks a field that wasn't sent, which keeps its value.
-
-    Who added or changed a record comes from the token, so a body naming someone
-    has it ignored, like any other field a form doesn't send.
-    """
-
-    model_config = ConfigDict(extra="ignore")
-
-    @field_validator("*")
-    @classmethod
-    def _storable(cls, value: Any) -> Any:
-        if isinstance(value, str) and not _is_storable(value):
-            raise ValueError("Use plain text here")
-        return value
-
-
-def _is_storable(text: str) -> bool:
-    """JSON can carry text a database can't store, which would crash the save: a
-    character with no valid encoding, or a NUL, which Postgres refuses in text."""
-    if "\x00" in text:
-        return False
-    if text.isascii():
-        return True
-    try:
-        text.encode()
-    except UnicodeEncodeError:
-        return False
-    return True
-
-
-class Authorship(BaseModel):
-    """Who added the record and who last changed it, and when. Nobody, on records from before sign-in."""
-
-    created_at: UtcTime
-    created_by: Person | None
-    updated_at: UtcTime
-    updated_by: Person | None
 
 
 # Organizations
 
 
-class OrganizationCreate(Request):
-    name: Name
-    website: Website = None
-    industry: OptionalText = None
-    notes: OptionalText = None
+class OrganizationCreate(api.Request):
+    name: api.Name
+    website: api.Website = None
+    industry: api.OptionalText = None
+    notes: api.OptionalText = None
 
 
-class OrganizationUpdate(Request):
-    name: Name | MISSING = MISSING
-    website: Website = None
-    industry: OptionalText = None
-    notes: OptionalText = None
+class OrganizationUpdate(api.Request):
+    name: api.Name | MISSING = MISSING
+    website: api.Website = None
+    industry: api.OptionalText = None
+    notes: api.OptionalText = None
 
 
 class Organization(BaseModel):
@@ -224,7 +80,7 @@ class OrganizationRow(Organization):
     contact_count: int
     open_deal_count: int
     open_value: int
-    last_activity: UtcTime | None
+    last_activity: api.UtcTime | None
 
 
 class LinkedContact(BaseModel):
@@ -255,21 +111,21 @@ class OrganizationImpact(BaseModel):
 # Contacts
 
 
-class ContactCreate(Request):
-    name: Name
-    organization_id: Id
-    email: Email = None
-    phone: OptionalText = None
-    job_title: OptionalText = None
+class ContactCreate(api.Request):
+    name: api.Name
+    organization_id: api.Id
+    email: api.Email = None
+    phone: api.OptionalText = None
+    job_title: api.OptionalText = None
     status: Status = "lead"
 
 
-class ContactUpdate(Request):
-    name: Name | MISSING = MISSING
-    organization_id: Id | None = None
-    email: Email = None
-    phone: OptionalText = None
-    job_title: OptionalText = None
+class ContactUpdate(api.Request):
+    name: api.Name | MISSING = MISSING
+    organization_id: api.Id | None = None
+    email: api.Email = None
+    phone: api.OptionalText = None
+    job_title: api.OptionalText = None
     status: Status | MISSING = MISSING
 
 
@@ -285,7 +141,7 @@ class Contact(BaseModel):
 
 
 class ContactRow(Contact):
-    last_activity: UtcTime | None
+    last_activity: api.UtcTime | None
 
 
 class ContactDetail(Contact, Authorship):
@@ -300,29 +156,29 @@ class ContactImpact(BaseModel):
 # Deals
 
 
-class DealCreate(Request):
-    name: Name
-    organization_id: Id
-    main_contact_id: Id
+class DealCreate(api.Request):
+    name: api.Name
+    organization_id: api.Id
+    main_contact_id: api.Id
     stage: Stage = "new"
-    value: Dollars
+    value: api.Dollars
     probability: Probability | None = None
     close_date: date | None = None
 
 
-class DealUpdate(Request):
-    name: Name | MISSING = MISSING
-    organization_id: Id | None = None
-    main_contact_id: Id | None = None
+class DealUpdate(api.Request):
+    name: api.Name | MISSING = MISSING
+    organization_id: api.Id | None = None
+    main_contact_id: api.Id | None = None
     stage: Stage | MISSING = MISSING
-    value: Dollars | MISSING = MISSING
+    value: api.Dollars | MISSING = MISSING
     probability: Probability | MISSING = MISSING
     close_date: date | MISSING = MISSING
 
 
-class DealMove(Request):
+class DealMove(api.Request):
     stage: Stage
-    before_deal_id: Id | None = None
+    before_deal_id: api.Id | None = None
 
 
 class Deal(BaseModel):
@@ -364,17 +220,17 @@ class DealImpact(BaseModel):
 # Activities and timelines
 
 
-class ActivityCreate(Request):
+class ActivityCreate(api.Request):
     type: ActivityType = "note"
-    contact_id: Id | None = None
-    deal_id: Id | None = None
+    contact_id: api.Id | None = None
+    deal_id: api.Id | None = None
     description: Description
     occurred_at: IncomingTime | None = None
     follow_up_date: date | None = None
     follow_up_done: StrictBool = False
 
 
-class ActivityUpdate(Request):
+class ActivityUpdate(api.Request):
     type: ActivityType | MISSING = MISSING
     description: Description | MISSING = MISSING
     occurred_at: IncomingTime | MISSING = MISSING
@@ -388,7 +244,7 @@ class Activity(BaseModel):
     contact_id: int | None
     deal_id: int | None
     description: str
-    occurred_at: UtcTime
+    occurred_at: api.UtcTime
     follow_up_date: date | None
     follow_up_done: bool
 
@@ -402,7 +258,7 @@ class About(BaseModel):
 class TimelineEntry(BaseModel):
     kind: Literal["activity", "stage_change"]
     id: int
-    at: UtcTime
+    at: api.UtcTime
     type: str | None
     description: str
     follow_up_date: date | None

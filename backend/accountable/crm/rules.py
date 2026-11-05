@@ -11,7 +11,7 @@ from typing import Any
 
 from sqlalchemy import Connection, bindparam, func, insert, select, update
 
-from accountable.crm import who
+from accountable import who
 from accountable.crm.tables import contacts, deals, stage_changes
 
 STAGES = ["new", "qualified", "proposal", "negotiation", "won", "lost"]

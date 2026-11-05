@@ -5,9 +5,9 @@ import { z } from "zod";
 
 import { Field } from "../../components/Field";
 import { FormDialog } from "../../components/FormDialog";
+import { showSaveError } from "../../lib/saveErrors";
 import { WEBSITE_MESSAGE, isWebsite } from "../../lib/validate";
 import { useSaveOrganization, type Organization, type OrganizationDetail } from "../queries";
-import { showSaveError } from "./server-errors";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Enter a name"),

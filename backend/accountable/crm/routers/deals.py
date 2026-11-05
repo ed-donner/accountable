@@ -4,9 +4,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, func, select, update
 
-from accountable import db
+from accountable import api, db, who
 from accountable.auth import CurrentUser
-from accountable.crm import rules, schemas, timeline, who
+from accountable.crm import rules, schemas, timeline
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 
 router = APIRouter(prefix="/deals")
@@ -52,12 +52,12 @@ def _check_links(conn, fields: dict[str, Any], current: Any = None) -> None:
         found = chosen is None or conn.scalar(select(table.c.id).where(table.c.id == chosen)) is not None
         cleared = chosen is None and (current is None or getattr(current, field) is not None)
         if cleared or not found:
-            raise schemas.FieldError({field: schemas.FIELD_MESSAGES[field]})
+            raise api.FieldError({field: schemas.FIELD_MESSAGES[field]})
 
 
 def _check_close_date(stage: str, close_date: date | None, today: date) -> None:
     if stage in rules.CLOSED_STAGES and close_date is not None and close_date > today:
-        raise schemas.FieldError({"close_date": FUTURE_CLOSE})
+        raise api.FieldError({"close_date": FUTURE_CLOSE})
 
 
 @router.get("")
@@ -68,10 +68,10 @@ def list_deals() -> list[schemas.Deal]:
 
 
 @router.post("", status_code=201)
-def add_deal(body: schemas.DealCreate, user: CurrentUser, today: schemas.Today, now: schemas.Now) -> schemas.DealDetail:
+def add_deal(body: schemas.DealCreate, user: CurrentUser, today: api.Today, now: api.Now) -> schemas.DealDetail:
     values = body.model_dump()
     if values["close_date"] is None and values["stage"] in rules.OPEN_STAGES:
-        raise schemas.FieldError({"close_date": schemas.FIELD_MESSAGES["close_date"]})
+        raise api.FieldError({"close_date": schemas.FIELD_MESSAGES["close_date"]})
     _check_close_date(values["stage"], values["close_date"], today)
     with db.writing() as conn:
         _check_links(conn, values)
@@ -79,18 +79,18 @@ def add_deal(body: schemas.DealCreate, user: CurrentUser, today: schemas.Today, 
 
 
 @router.get("/{deal_id}")
-def get_deal(deal_id: schemas.PathId) -> schemas.DealDetail:
+def get_deal(deal_id: api.PathId) -> schemas.DealDetail:
     with db.reading() as conn:
         return _detail(_get(conn, deal_id))
 
 
 @router.patch("/{deal_id}")
 def edit_deal(
-    deal_id: schemas.PathId,
+    deal_id: api.PathId,
     body: schemas.DealUpdate,
     user: CurrentUser,
-    today: schemas.Today,
-    now: schemas.Now,
+    today: api.Today,
+    now: api.Now,
 ) -> schemas.DealDetail:
     fields = body.model_dump(exclude_unset=True)
     with db.writing() as conn:
@@ -116,11 +116,11 @@ def edit_deal(
 
 @router.post("/{deal_id}/move")
 def move_deal(
-    deal_id: schemas.PathId,
+    deal_id: api.PathId,
     body: schemas.DealMove,
     user: CurrentUser,
-    today: schemas.Today,
-    now: schemas.Now,
+    today: api.Today,
+    now: api.Now,
 ) -> schemas.MoveResult:
     with db.writing() as conn:
         _get(conn, deal_id)
@@ -135,14 +135,14 @@ def move_deal(
 
 
 @router.delete("/{deal_id}", status_code=204)
-def delete_deal(deal_id: schemas.PathId) -> None:
+def delete_deal(deal_id: api.PathId) -> None:
     with db.writing() as conn:
         _get(conn, deal_id)
         conn.execute(delete(deals).where(deals.c.id == deal_id))
 
 
 @router.get("/{deal_id}/delete-impact")
-def deal_impact(deal_id: schemas.PathId) -> schemas.DealImpact:
+def deal_impact(deal_id: api.PathId) -> schemas.DealImpact:
     with db.reading() as conn:
         row = _get(conn, deal_id)
         return schemas.DealImpact(
@@ -159,9 +159,9 @@ def deal_impact(deal_id: schemas.PathId) -> schemas.DealImpact:
 
 @router.get("/{deal_id}/timeline")
 def deal_timeline(
-    deal_id: schemas.PathId,
-    limit: schemas.PageLimit = timeline.DEFAULT_LIMIT,
-    offset: schemas.PageOffset = 0,
+    deal_id: api.PathId,
+    limit: api.PageLimit = timeline.DEFAULT_LIMIT,
+    offset: api.PageOffset = 0,
 ) -> schemas.Timeline:
     with db.reading() as conn:
         page = timeline.for_deal(conn, deal_id, limit, offset)

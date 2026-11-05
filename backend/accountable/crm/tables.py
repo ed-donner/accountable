@@ -12,31 +12,10 @@ from sqlalchemy import (
     Text,
     column,
 )
-from sqlalchemy.engine.default import DefaultExecutionContext
 
+from accountable import who
 from accountable.db import TABLE_OPTIONS, metadata, utc_now
 from accountable.users import users
-
-
-def _same_as_created(context: DefaultExecutionContext):
-    return context.get_current_parameters()["created_at"]
-
-
-def _times() -> list[Column]:
-    # A new record's two times are one moment, so "changed" means updated_at differs.
-    return [
-        Column("created_at", DateTime, nullable=False, default=utc_now),
-        Column("updated_at", DateTime, nullable=False, default=_same_as_created, onupdate=utc_now),
-    ]
-
-
-def _who() -> list[Column]:
-    """Who added the record and who last changed it, blank on records from before sign-in (U12)."""
-    return [
-        Column("created_by", ForeignKey(users.c.id), index=True),
-        Column("updated_by", ForeignKey(users.c.id), index=True),
-    ]
-
 
 organizations = Table(
     "organizations",
@@ -46,8 +25,7 @@ organizations = Table(
     Column("website", Text),
     Column("industry", Text),
     Column("notes", Text),
-    *_times(),
-    *_who(),
+    *who.columns(),
     **TABLE_OPTIONS,
 )
 
@@ -63,8 +41,7 @@ contacts = Table(
     Column("job_title", Text),
     Column("organization_id", ForeignKey("organizations.id", ondelete="SET NULL"), index=True),
     Column("status", Text, nullable=False, default="lead"),
-    *_times(),
-    *_who(),
+    *who.columns(),
     **TABLE_OPTIONS,
 )
 
@@ -80,8 +57,7 @@ deals = Table(
     Column("probability", Integer, nullable=False),
     Column("close_date", Date, nullable=False),
     Column("position", Integer, nullable=False),
-    *_times(),
-    *_who(),
+    *who.columns(),
     Index("ix_deals_stage_position", "stage", "position"),
     **TABLE_OPTIONS,
 )
@@ -97,8 +73,7 @@ activities = Table(
     Column("occurred_at", DateTime, nullable=False, index=True),
     Column("follow_up_date", Date, index=True),
     Column("follow_up_done", Boolean, nullable=False, default=False),
-    *_times(),
-    *_who(),
+    *who.columns(),
     CheckConstraint(column("contact_id").is_(None) != column("deal_id").is_(None), name="one_parent"),
     **TABLE_OPTIONS,
 )

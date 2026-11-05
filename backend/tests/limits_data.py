@@ -24,11 +24,12 @@ STAGE_SHARE = (
 
 def fill(conn: Connection, today: date) -> None:
     """Every record is put down to one of the made-up teammates, as in the sample data."""
-    from accountable.crm import rules, sample_data, who
+    from accountable import users, who
+    from accountable.crm import rules, sample_data
     from accountable.crm.tables import activities, contacts, organizations
 
     now = sample_data.moment(today - timedelta(days=1), 3)
-    sample_data.add_missing_teammates(conn)
+    users.add_missing_teammates(conn)
 
     organization_ids = conn.scalars(
         insert(organizations).returning(organizations.c.id, sort_by_parameter_order=True),
@@ -37,7 +38,7 @@ def fill(conn: Connection, today: date) -> None:
                 "name": f"Organization {number:03d} and Partners Holdings",
                 "website": f"https://org{number}.example",
                 "industry": f"Industry {number % 12}",
-                **who.added(sample_data.teammate(number), now),
+                **who.added(users.teammate(number), now),
             }
             for number in range(ORGANIZATIONS)
         ],
@@ -53,7 +54,7 @@ def fill(conn: Connection, today: date) -> None:
                 "job_title": f"Job title {number % 20}",
                 "organization_id": organization_ids[number % ORGANIZATIONS],
                 "status": ("lead", "qualified", "customer")[number % 3],
-                **who.added(sample_data.teammate(number), now),
+                **who.added(users.teammate(number), now),
             }
             for number in range(CONTACTS)
         ],
@@ -80,7 +81,7 @@ def fill(conn: Connection, today: date) -> None:
             },
             today=today,
             now=now,
-            user_id=sample_data.teammate(number),
+            user_id=users.teammate(number),
         )
         path = [
             step
@@ -94,7 +95,7 @@ def fill(conn: Connection, today: date) -> None:
                 step,
                 today=close if step == stage else today,
                 now=now,
-                user_id=sample_data.teammate(number + 1),
+                user_id=users.teammate(number + 1),
             )
         deal_ids.append(deal_id)
 
@@ -111,7 +112,7 @@ def fill(conn: Connection, today: date) -> None:
                 "occurred_at": now - timedelta(minutes=number * 37),
                 "follow_up_date": today + timedelta(days=number % 40 - 20) if waiting else None,
                 "follow_up_done": False,
-                **who.added(sample_data.teammate(number), now),
+                **who.added(users.teammate(number), now),
             }
         )
     conn.execute(insert(activities), rows)

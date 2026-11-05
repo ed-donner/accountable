@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import { api } from "../lib/api";
 import { todayIso } from "../lib/dates";
+import { useWrite, type Authorship, type Person } from "../lib/records";
 import { isSharedApp } from "../lib/session";
 import { useToday } from "../lib/useToday";
 import { applyMove, moveMessage, type Move } from "./deals";
@@ -28,17 +29,6 @@ export type Meta = {
 
 export type LinkedContact = { id: number; name: string; job_title: string | null; status: Status };
 export type LinkedDeal = { id: number; name: string; stage: Stage; value: number; close_date: string };
-
-/** A teammate, with the name already falling back to their email (U8). */
-export type Person = { id: string; name: string };
-
-/** Who added a record and who last changed it, and when. Nobody is recorded on records from before sign-in (U12). */
-export type Authorship = {
-  created_at: string;
-  created_by: Person | null;
-  updated_at: string;
-  updated_by: Person | null;
-};
 
 export type Organization = {
   id: number;
@@ -183,14 +173,6 @@ export function useDashboard() {
   return dashboard;
 }
 
-export function useDeleteImpact<T>(kind: RecordKind, id: number) {
-  return useQuery({
-    queryKey: [kind, id, "impact"],
-    queryFn: () => api<T>(`/${kind}/${id}/delete-impact`),
-    gcTime: 0,
-  });
-}
-
 const TIMELINE_PAGE = 50;
 
 /** One page at a time, so a timeline of any length can be read to the end. */
@@ -216,11 +198,6 @@ export function useTimeline(kind: RecordKind, id: number) {
   }, [shifted, refetch]);
 
   return timeline;
-}
-
-function useWrite<Input, Result>(write: (input: Input) => Promise<Result>) {
-  const client = useQueryClient();
-  return useMutation({ mutationFn: write, onSuccess: () => client.invalidateQueries() });
 }
 
 export type OrganizationValues = Pick<Organization, "name" | "website" | "industry" | "notes">;
@@ -275,21 +252,6 @@ export function useEditActivity(id: number) {
 
 export function useDeleteActivity() {
   return useWrite((id: number) => api<void>(`/activities/${id}`, { method: "DELETE" }));
-}
-
-/**
- * Leaves the deleted record's own queries alone, so a page that's about to close
- * doesn't refetch it and log a 404.
- */
-export function useDeleteRecord(kind: RecordKind, id: number) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: () => api<void>(`/${kind}/${id}`, { method: "DELETE" }),
-    onSuccess: () =>
-      client.invalidateQueries({
-        predicate: (query) => !(query.queryKey[0] === kind && query.queryKey[1] === id),
-      }),
-  });
 }
 
 const MOVE_KEY = ["move-deal"];

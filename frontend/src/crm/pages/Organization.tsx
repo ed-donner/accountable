@@ -3,6 +3,15 @@ import { useNavigate, useParams } from "react-router";
 
 import { LoadFailed } from "../../components/LoadFailed";
 import { MissingRecord } from "../../components/MissingRecord";
+import {
+  AddedAndChanged,
+  Detail,
+  LinkedList,
+  NONE,
+  RecordColumns,
+  RecordHeader,
+  SidePanel,
+} from "../../components/RecordLayout";
 import { ApiError } from "../../lib/api";
 import { money } from "../../lib/money";
 import { recordId } from "../../lib/validate";
@@ -13,7 +22,6 @@ import { OrganizationForm } from "../forms/OrganizationForm";
 import { useOrganization } from "../queries";
 import { StageChip, StatusChip } from "../StageChip";
 import { Timeline } from "../Timeline";
-import { AddedAndChanged, Detail, LinkedList, NONE, RecordColumns, RecordHeader, SidePanel } from "../RecordLayout";
 
 export function Organization() {
   const id = recordId(useParams().id);

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, func, insert, select, update
 
-from accountable import db
+from accountable import api, db, who
 from accountable.auth import CurrentUser
-from accountable.crm import schemas, timeline, who
+from accountable.crm import schemas, timeline
 from accountable.crm.tables import activities, contacts, deals, organizations
 
 router = APIRouter(prefix="/contacts")
@@ -57,7 +57,7 @@ def _detail(conn, contact_id: int) -> schemas.ContactDetail:
 def _check_organization(conn, organization_id: int) -> None:
     found = conn.scalar(select(organizations.c.id).where(organizations.c.id == organization_id))
     if found is None:
-        raise schemas.FieldError({"organization_id": schemas.FIELD_MESSAGES["organization_id"]})
+        raise api.FieldError({"organization_id": schemas.FIELD_MESSAGES["organization_id"]})
 
 
 @router.get("")
@@ -74,7 +74,7 @@ def list_contacts() -> list[schemas.ContactRow]:
 
 
 @router.post("", status_code=201)
-def add_contact(body: schemas.ContactCreate, user: CurrentUser, now: schemas.Now) -> schemas.ContactDetail:
+def add_contact(body: schemas.ContactCreate, user: CurrentUser, now: api.Now) -> schemas.ContactDetail:
     with db.writing() as conn:
         _check_organization(conn, body.organization_id)
         new_id = conn.execute(
@@ -84,14 +84,14 @@ def add_contact(body: schemas.ContactCreate, user: CurrentUser, now: schemas.Now
 
 
 @router.get("/{contact_id}")
-def get_contact(contact_id: schemas.PathId) -> schemas.ContactDetail:
+def get_contact(contact_id: api.PathId) -> schemas.ContactDetail:
     with db.reading() as conn:
         return _detail(conn, contact_id)
 
 
 @router.patch("/{contact_id}")
 def edit_contact(
-    contact_id: schemas.PathId, body: schemas.ContactUpdate, user: CurrentUser, now: schemas.Now
+    contact_id: api.PathId, body: schemas.ContactUpdate, user: CurrentUser, now: api.Now
 ) -> schemas.ContactDetail:
     fields = body.model_dump(exclude_unset=True)
     with db.writing() as conn:
@@ -101,7 +101,7 @@ def edit_contact(
             if chosen is not None:
                 _check_organization(conn, chosen)
             elif current.organization_id is not None:
-                raise schemas.FieldError({"organization_id": schemas.FIELD_MESSAGES["organization_id"]})
+                raise api.FieldError({"organization_id": schemas.FIELD_MESSAGES["organization_id"]})
         altered = who.alterations(fields, current)
         if altered:
             conn.execute(
@@ -111,14 +111,14 @@ def edit_contact(
 
 
 @router.delete("/{contact_id}", status_code=204)
-def delete_contact(contact_id: schemas.PathId) -> None:
+def delete_contact(contact_id: api.PathId) -> None:
     with db.writing() as conn:
         _get(conn, contact_id)
         conn.execute(delete(contacts).where(contacts.c.id == contact_id))
 
 
 @router.get("/{contact_id}/delete-impact")
-def contact_impact(contact_id: schemas.PathId) -> schemas.ContactImpact:
+def contact_impact(contact_id: api.PathId) -> schemas.ContactImpact:
     with db.reading() as conn:
         _get(conn, contact_id)
         return schemas.ContactImpact(
@@ -133,9 +133,9 @@ def contact_impact(contact_id: schemas.PathId) -> schemas.ContactImpact:
 
 @router.get("/{contact_id}/timeline")
 def contact_timeline(
-    contact_id: schemas.PathId,
-    limit: schemas.PageLimit = timeline.DEFAULT_LIMIT,
-    offset: schemas.PageOffset = 0,
+    contact_id: api.PathId,
+    limit: api.PageLimit = timeline.DEFAULT_LIMIT,
+    offset: api.PageOffset = 0,
 ) -> schemas.Timeline:
     with db.reading() as conn:
         page = timeline.for_contact(conn, contact_id, limit, offset)

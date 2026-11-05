@@ -114,6 +114,22 @@ def test_the_routes_were_found():
     assert ("PATCH", "/api/products/{product_id}") in ROUTES
     assert ("PATCH", "/api/products/{product_id}", "description") in BODY_TEXT
     assert not [path for method, path in ROUTES if method == "DELETE" and path.startswith("/api/products")]
+    for route in [
+        ("GET", "/api/quotes"),
+        ("POST", "/api/quotes"),
+        ("GET", "/api/quotes/new/{deal_id}"),
+        ("GET", "/api/quotes/{quote_id}"),
+        ("PATCH", "/api/quotes/{quote_id}"),
+        ("POST", "/api/quotes/{quote_id}/send"),
+        ("POST", "/api/quotes/{quote_id}/accept"),
+        ("POST", "/api/quotes/{quote_id}/decline"),
+        ("POST", "/api/quotes/{quote_id}/copy"),
+        ("GET", "/api/quotes/{quote_id}/pdf"),
+    ]:
+        assert route in ROUTES, route
+    assert ("POST", "/api/quotes", "valid_until") in BODY_TEXT
+    assert ("PATCH", "/api/quotes/{quote_id}", "valid_until") in BODY_TEXT
+    assert not [path for method, path in ROUTES if method == "DELETE" and path.startswith("/api/quotes")]
     assert ("DELETE", "/api/bills/{bill_id}") in RECORD_ROUTES
     assert ("PATCH", "/api/bills/{bill_id}", "paid_on") in BODY_TEXT
     assert ("POST", "/api/bills", "bill_number") in BODY_TEXT

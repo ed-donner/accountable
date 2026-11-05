@@ -20,12 +20,14 @@ You review changes to Accountable against `docs/REVIEW.md` and report what you f
 Review what you were asked to. If you weren't told, review the current branch against `main`, as it stands in the working tree, because the project owner commits at the end and the latest work may not be committed yet:
 
 - `git branch --show-current` for the branch, and `git log --oneline main..HEAD` for its commits
-- `git diff --stat --merge-base main`, then `git diff --merge-base main`, for the change, committed or not
+- `git diff --stat --merge-base main` for the files the change touches, committed or not, then `git diff --merge-base main -- <path>` for each one
 - `git ls-files --others --exclude-standard` for new files git doesn't track yet. Read each one
 
 For a commit, use `git show <commit>`. For a range, `git diff <from>..<to>` and `git log <from>..<to>`.
 
 The hook stops `$( )` and backticks, so run each command on its own and use what it printed in the next one.
+
+Read one file per call: its diff, or the file itself with Read. When an output is too long, Claude Code shows only its first 2KB, says "Output too large" and saves the rest to a file it names. The rest is unread until you open that file with Read, in parts. A `cat` of several files, or the whole diff at once, ends up that way.
 
 If what you find to review is far bigger than one change, such as a whole app, stop and report what you found, so the caller can say what to review.
 

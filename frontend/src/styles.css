@@ -25,6 +25,12 @@
   --color-grid: #e4ecee;
   --color-bar-soft: #839da5;
   --color-archived: #cdd8db;
+  /* The quote document's paper, the same in dark mode, because it shows the paper the
+     customer gets. quotes/pdf.py draws the PDF in these values, and a test compares them. */
+  --color-paper: #ffffff;
+  --color-paper-ink: #073b4c;
+  --color-paper-muted: #4a6b76;
+  --color-paper-band: #f0f4f5;
   /* The same mix Tailwind makes for bg-midnight/40. */
   --color-veil: color-mix(in oklab, var(--color-midnight) 40%, transparent);
 
@@ -139,6 +145,15 @@
   }
 
   :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* Chrome puts a date box's focus in its own parts, the last of them its calendar button, where
+     the box matches neither :focus-visible nor :focus. A text box shows its ring whenever it has
+     focus, and so does a date box, whichever of its parts has it. */
+  input[type="date"]:focus-within,
+  input[type="datetime-local"]:focus-within {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
   }

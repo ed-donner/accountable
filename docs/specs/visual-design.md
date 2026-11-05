@@ -36,6 +36,10 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Small chip, Alert | `#D23E62`, white text | Same | Late, Overdue and Lost chips, the connection message |
 | Late tint | `#FDECF1` | `#4B2436` | Late cards |
 | Archived chip | `#CDD8DB` Sea Mist, ink text | `#3B5862`, ink text | The Archived chip on products |
+| Paper | `#FFFFFF` | `#FFFFFF` | The quote document's sheet, in the preview and on the PDF |
+| Paper ink | `#073B4C` Midnight | `#073B4C` Midnight | Text on the quote document |
+| Paper muted ink | `#4A6B76` | `#4A6B76` | Secondary text on the quote document |
+| Paper band | `#F0F4F5` | `#F0F4F5` | The band behind the lines' column headings, and the Draft chip, on the quote document |
 | Veil | Midnight at 40% | Black at 50% | Behind dialogs |
 | Shadow | Midnight, 18% to 24% | Black, 40% to 50% | Dialogs, the menu, search results, picker lists, chart tooltips, messages, the dragged card |
 
@@ -47,6 +51,7 @@ Small text meets 4.5:1 in both modes, and anything that isn't text, such as the 
 | Muted ink on page, panel, raised | 5.19:1, 5.74:1, 5.74:1 | 7.28:1, 6.06:1, 5.00:1 |
 | Ink and muted ink on the late tint | 10.61:1, 5.05:1 | 9.00:1, 5.83:1 |
 | Ink on the archived chip | 8.30:1 | 5.24:1 |
+| Paper ink and paper muted ink on paper, and paper muted ink on the paper band | 12.08:1, 5.74:1, 5.19:1 | Same |
 | Sea Green text on page, panel | 4.81:1, 5.33:1 | 10.08:1, 8.39:1 |
 | Marigold text on page, panel | 4.86:1, 5.39:1 | 11.65:1, 9.69:1 |
 | Raspberry text on raised, where the forms are | 4.56:1 | 5.08:1 |
@@ -54,7 +59,7 @@ Small text meets 4.5:1 in both modes, and anything that isn't text, such as the 
 | Text on the Won fill | 8.30:1 | 8.30:1 |
 | Focus ring on page, panel, raised | 3.58:1, 3.96:1, 3.96:1 | 6.79:1, 5.65:1, 4.66:1 |
 
-In dark mode, each layer is 1.2:1 against the one beneath it, a little more than white panels on the light page at 1.11:1. Inputs keep the page color, so in a dialog they sit 1.46:1 darker than the dialog around them. The late tint is about as light as a panel and stands out by its color. The archived chip is a quiet grey in both modes, so it never reads as a stage or a warning. In dark mode it stands 1.79:1 against a panel and 2.15:1 against a row's hover, because the Line token's dark value would put ink on it at only 4.37:1.
+In dark mode, each layer is 1.2:1 against the one beneath it, a little more than white panels on the light page at 1.11:1. Inputs keep the page color, so in a dialog they sit 1.46:1 darker than the dialog around them. The late tint is about as light as a panel and stands out by its color. The paper tokens are the light mode's page, panel, ink and muted ink under their own names, with the same value in both modes, because the quote document shows the paper the customer gets, and the PDF uses the same values ([Quote document](quotes.md#quote-document)). It's the one thing on screen that dark mode leaves light (L3). Its total sits on Sea Green with Midnight text, as main buttons do. The archived chip is a quiet grey in both modes, so it never reads as a stage or a warning. In dark mode it stands 1.79:1 against a panel and 2.15:1 against a row's hover, because the Line token's dark value would put ink on it at only 4.37:1.
 
 The small chip shades are an agreed exception to the brand, for small chips only. White text on the brand's Cerulean and Raspberry is 3.96:1 and 3.62:1, below the usual 4.5:1 minimum for small text, and these slightly darker shades reach it at 4.57:1 and 4.56:1 and look almost the same. The pipeline band, the funnel, the pipeline's column headers and the delete buttons keep the exact brand colors, so small white text on their Cerulean and Raspberry fills stays at 3.96:1 and 3.62:1. These fills and their text are the same in both modes, so the same figures, and the same exception, hold in dark mode.
 
@@ -95,11 +100,11 @@ Bill categories are six, like the stages, and share the brand's five colors in t
 
 A category shows as a round swatch in its color beside its name in ink, in the Bills table, on a bill's page and in the charts' legend and tooltips, and as its color in the Money section's bars. It's never a filled chip: Office and Marketing chips would take the small chip shades of Unpaid and Overdue, and a bill's category and status sit in the same row. As with the stages, Sea Green, Marigold and Coral are below 3:1 on white, so the name always sits beside the swatch. Apart from Other, the colors are the same in both modes.
 
-Quotes, invoices and bills show their status in chips, in these tones, agreed ahead of them so the three areas match. Each tone is already in `Chip.tsx`, so none is new. Bills use Unpaid, Paid and Overdue:
+Quotes, invoices and bills show their status in chips, in these tones, agreed ahead of them so the three areas match. Each tone is already in `Chip.tsx`, so none is new. Quotes use Draft, Sent, Accepted, Expired and Declined, bills use Unpaid, Paid and Overdue, and invoices will use the rest:
 
 | Status | Chip | Used by |
 |---|---|---|
-| Draft | Quiet: the page color with muted ink, as on a follow-up's Done chip | Quotes, invoices |
+| Draft | Quiet: the page color with muted ink, as on a follow-up's Done chip, or the panel color where the chip sits on the page, as beside a quote's number, so its shape shows | Quotes, invoices |
 | Sent, Issued, Unpaid | Small chip, Information: waiting on someone | Quotes, invoices, bills |
 | Part paid | Marigold | Invoices |
 | Accepted, Paid | Sea Green | Quotes, invoices, bills |
@@ -120,14 +125,15 @@ The fonts are bundled through Fontsource, so nothing loads from outside the app'
 | Label, chip | Instrument Sans | 13/18 | 600 |
 | Dashboard summary line | Instrument Serif | 22/30 | 400 |
 | Revenue won figure | JetBrains Mono | 52/60 | 500 |
-| Other headline figures, including the Money section's, column totals, a product's price and a bill's total on their pages | JetBrains Mono | 24/30 | 500 |
+| Quote number as a page title | JetBrains Mono | 28/36 | 500 |
+| Other headline figures, including the Money section's, column totals, a product's price and a bill's total on their pages, the figures above the Quotes table | JetBrains Mono | 24/30 | 500 |
 | Board totals | JetBrains Mono | 20/26 | 500 |
 | Card value | JetBrains Mono | 19/26 | 500 |
 | Money, counts, dates in tables | JetBrains Mono | 13/20 | 400 |
 | Probability and date on cards | JetBrains Mono | 12/18 | 400 |
 | Chart axis | JetBrains Mono | 12/16 | 400 |
 
-Numbers are always in JetBrains Mono, so columns of figures line up. Instrument Serif appears in one place only: the dashboard's summary line.
+Numbers are always in JetBrains Mono, so columns of figures line up. The quote document sets its own sizes, in points, in [its screen](quotes.md#quote-document). Instrument Serif appears in one place only: the dashboard's summary line.
 
 ### Shapes
 
@@ -161,7 +167,7 @@ Plain business English, short labels, no exclamation marks.
 
 | Where | Text |
 |---|---|
-| Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore, Add bill, Save bill, Delete bill, Mark paid, Mark unpaid, Undo, Show all bills |
+| Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore, New quote, Save quote, Mark as sent, Accept, Decline, Copy to new draft, Download PDF, Add bill, Save bill, Delete bill, Mark paid, Mark unpaid, Undo, Show all bills |
 | Menu button, for screen readers | Menu for Alex Rivera |
 | Menu | Theme. Light. Dark. System. Company settings. Sign out. |
 | Sign-in | Sign in. Email. Password. |
@@ -178,7 +184,11 @@ Plain business English, short labels, no exclamation marks.
 | No search matches | No organizations, contacts, deals or products match "harbour". |
 | Search failed | Couldn't search. Try again. |
 | More search results | See all 12 contacts |
-| Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. Bill saved. Bill deleted. Bill marked paid. Bill marked unpaid. |
+| Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. Quote saved. Quote sent. Quote declined. Copied to QT-0012. Bill saved. Bill deleted. Bill marked paid. Bill marked unpaid. |
+| Quote accepted | Quote accepted. Harbor & Pine renewal is now Won at $48,001. Close date set to today. Sam Carter is now a customer. |
+| Quote dialogs | Mark QT-0004 as sent? It can't be changed after this. To change it later, copy it to a new draft. Accept QT-0004? Decline QT-0004? This can't be undone. |
+| Quote refused | QT-0004 has been sent, so it can't be changed. Copy it to make a new draft. This deal is closed, so its quotes can't be sent. Give the deal an organization before sending its quote. Add a line before sending the quote. Add the company's name in Company settings first. |
+| Quotes, empty | No quotes yet. Add the first one from an open deal. No expired quotes. Quotes can be added while the deal is open. |
 | Errors | Enter a name. Choose an organization. Enter your email. Enter a price in dollars and cents, such as 49.50. Enter a rate from 0 to 100%. Clashes with the quote prefix. Neither can start with the other, ignoring capitals. Choose a supplier. Enter the bill number. Keep the bill number to 50 characters or fewer. Choose a bill date. Choose a due date. Choose a category. Choose a paid date. Enter an amount in dollars and cents, such as 49.50. The due date can't be before the bill date. The paid date can't be in the future. The paid date can't be before the bill date. |
 | Product name taken | A product with this name already exists. An archived product has this name. Restore it or choose another. |
 | Bill number taken | This supplier already has a bill with this number. |
@@ -210,7 +220,7 @@ Money always carries its currency, as in `$48,000`. A product's price also carri
 - **Mockup 3, Deal wall:** the style of the pipeline board.
 - **A top-down sales funnel** in place of Mockup 2's funnel bars, in the style common in sales CRMs.
 
-Organizations, Contacts, Deals, Products, Bills, the record pages and the dashboard's Money section aren't in the mockup, and follow the screens in [records.md](records.md#screens), [products.md](products.md#screens) and [bills.md](bills.md#screens) with the same shell, colors and type. Nor are the sign-in screen, the search results, the menu and the Company settings page, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell) and [settings.md](settings.md#company-settings-page). The mockup's top bar has no Products or Bills section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
+Organizations, Contacts, Deals, Products, Quotes, Bills, the record pages and the dashboard's Money section aren't in the mockup, and follow the screens in [records.md](records.md#screens), [products.md](products.md#screens), [quotes.md](quotes.md#screens) and [bills.md](bills.md#screens) with the same shell, colors and type. Nor is the quote document, the preview and the PDF, which [quotes.md](quotes.md#quote-document) sets out. Nor are the sign-in screen, the search results, the menu and the Company settings page, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell) and [settings.md](settings.md#company-settings-page). The mockup's top bar has no Products, Quotes or Bills section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
 
 The mockups show light mode only. Dark mode follows the dark values in [Color tokens](#color-tokens), and `docs/changes/dark-mode/` holds screenshots of the dashboard and the pipeline in both modes, at 1440 by 900 with the sample data.
 

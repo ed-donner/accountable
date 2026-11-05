@@ -34,9 +34,9 @@ Everything fits on one screen at 1440 by 900 with no page scrolling, so what nee
 The revenue chart is the one bold thing on this screen: a large figure over a solid Sea Green area that runs to the panel's edges. Everything around it stays quiet.
 
 ```
-+-------------------------------------------------------------------------------------------------------------+
-| Accountable  [Dashboard]  Organizations  Contacts  Deals  Pipeline  Products  [Search ]  Oct 31, 2026  (AR) |
-+-------------------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------------------+
+| Accountable  [Dashboard]  Organizations  Contacts  Deals  Pipeline  Products  Quotes  [Search ]  Oct 31, 2026  (AR) |
++---------------------------------------------------------------------------------------------------------------------+
 Dashboard   6 follow-ups overdue and 5 deals running late.
 
 +---------------------------------------------------+ +-----------------------+

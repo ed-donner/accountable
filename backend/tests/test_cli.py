@@ -6,6 +6,8 @@ from accountable.company import documents
 from accountable.company.sample_data import SAMPLE_COMPANY
 from accountable.company.tables import company_settings
 from accountable.crm.tables import organizations
+from accountable.quotes.tables import quote_lines, quotes
+from conftest import TODAY, insert_row
 from sqlalchemy import func, select, update
 
 # Every table seed and empty delete from: all but the people and the company settings.
@@ -32,18 +34,36 @@ def with_records(make):
     contact = make.contact(organization_id=organization)
     deal = make.deal(organization_id=organization, main_contact_id=contact)
     make.activity(deal_id=deal)
-    make.product()
+    product = make.product()
     make.bill(organization)
-    take_number("quote")
+    with db.writing() as conn:
+        quote = insert_row(
+            conn,
+            quotes,
+            number=documents.take_number(conn, "quote"),
+            deal_id=deal,
+            quote_date=TODAY,
+            valid_until=TODAY,
+            subtotal_cents=4950,
+        )
+        insert_row(
+            conn,
+            quote_lines,
+            quote_id=quote,
+            position=1,
+            product_id=product,
+            name="Pro license",
+            quantity=1,
+            unit_price_cents=4950,
+        )
 
 
 EMPTY = {table.name: 0 for table in WIPED}
 
 
 def test_every_table_but_the_people_and_the_settings_is_wiped():
-    assert {"stage_changes", "products", "number_counters", "bills"} <= set(
-        EMPTY
-    )  # The check is looking in the right place.
+    # The check is looking in the right place.
+    assert {"stage_changes", "products", "number_counters", "quotes", "quote_lines", "bills"} <= set(EMPTY)
     assert {"users", "company_settings"}.isdisjoint(EMPTY)
 
 
@@ -51,7 +71,8 @@ def test_the_wipe_sees_every_areas_tables():
     """A table is in the metadata only once its module is imported, and the wipe goes by the metadata."""
     source = (db.ROOT / "backend" / "accountable" / "cli.py").read_text()
     areas = sorted(path.parent.name for path in (db.ROOT / "backend" / "accountable").glob("*/tables.py"))
-    assert {"bills", "company", "crm", "products"} <= set(areas)  # The check is looking in the right place.
+    # The check is looking in the right place.
+    assert {"bills", "company", "crm", "products", "quotes"} <= set(areas)
     for area in areas:
         assert f"from accountable.{area} import tables" in source, area
 
@@ -61,7 +82,7 @@ def test_shows_what_will_be_lost_and_needs_yes(with_records, monkeypatch, capsys
     answer(monkeypatch, "yes\n")
     assert cli.main([command]) == 0
     output = capsys.readouterr().out
-    assert "1 organization, 1 contact, 1 deal, 1 activity, 1 product, 1 bill." in output
+    assert "1 organization, 1 contact, 1 deal, 1 activity, 1 product, 1 quote, 1 bill." in output
     assert "can't be undone" in output
 
 
@@ -70,7 +91,8 @@ def test_counts_read_naturally_when_there_are_several(make, monkeypatch, capsys)
     make.organization()
     answer(monkeypatch, "no\n")
     cli.main(["empty"])
-    assert "2 organizations, 0 contacts, 0 deals, 0 activities, 0 products, 0 bills." in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "2 organizations, 0 contacts, 0 deals, 0 activities, 0 products, 0 quotes, 0 bills." in output
 
 
 def test_seed_replaces_everything_with_the_sample_data(with_records, monkeypatch):
@@ -83,8 +105,10 @@ def test_seed_replaces_everything_with_the_sample_data(with_records, monkeypatch
         after["deals"],
         after["activities"],
         after["products"],
+        after["quotes"],
         after["bills"],
-    ) == (30, 75, 80, 300, 12, 85)
+    ) == (30, 75, 80, 300, 12, 40, 85)
+    assert after["quote_lines"] > 100
 
 
 def test_empty_removes_every_record(with_records, monkeypatch):
@@ -93,15 +117,16 @@ def test_empty_removes_every_record(with_records, monkeypatch):
     assert counts() == EMPTY
 
 
-@pytest.mark.parametrize("command", ["seed", "empty"])
-def test_seed_and_empty_start_each_count_again_at_1(database, command):
+@pytest.mark.parametrize(("command", "next_quote"), [("seed", "QT-0041"), ("empty", "QT-0001")])
+def test_seed_and_empty_start_each_count_again_at_1(database, command, next_quote):
+    """Seed's 40 sample quotes then take the first 40 numbers (M8)."""
     for _ in range(3):
         take_number("quote")
     take_number("invoice")
 
     assert cli.main([command, "--yes"]) == 0
 
-    assert (take_number("quote"), take_number("invoice")) == ("QT-0001", "INV-0001")
+    assert (take_number("quote"), take_number("invoice")) == (next_quote, "INV-0001")
 
 
 @pytest.mark.parametrize("command", ["seed", "empty"])
@@ -180,7 +205,8 @@ def test_seed_before_the_first_start_builds_the_database(tmp_path, monkeypatch, 
     monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
     db.dispose()
     assert cli.main(["seed"]) == 0
-    assert (counts()["deals"], counts()["products"], counts()["bills"]) == (80, 12, 85)
+    after = counts()
+    assert (after["deals"], after["products"], after["quotes"], after["bills"]) == (80, 12, 40, 85)
     assert everyone() == {teammate.id for teammate in users.TEAMMATES}
     assert "Sample data added" in capsys.readouterr().out
     db.dispose()

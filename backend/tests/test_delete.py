@@ -4,6 +4,7 @@ import pytest
 from accountable import db, holds, main
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.holds import Hold
+from accountable.quotes.tables import quotes
 from conftest import NOW, TODAY
 from sqlalchemy import func, select
 
@@ -137,10 +138,43 @@ def held(local_app):
     local_app.dependency_overrides[holds.app_holds] = lambda: STAND_IN_HOLDS
 
 
-def test_the_only_hold_is_the_bills_on_their_suppliers():
-    given = [hold for area in main.AREAS for hold in area.holds]
-    assert [(hold.held, hold.noun) for hold in given] == [(organizations, "bill")]
-    assert main.app.state.holds == given
+def test_quotes_hold_deals_and_bills_hold_their_suppliers():
+    """Another area's holds join these, so this checks that both are there, not that they're the only holds."""
+    every = [hold for area in main.AREAS for hold in area.holds]
+    assert main.app.state.holds == every
+    given = [(hold.held, hold.noun) for hold in every]
+    assert (deals, "quote") in given
+    assert (organizations, "bill") in given
+
+
+def add_quote(api, deal: int) -> int:
+    reply = api.post("/api/quotes", json={"deal_id": deal})
+    assert reply.status_code == 201, reply.text
+    return reply.json()["id"]
+
+
+def test_a_deal_with_quotes_cant_be_deleted(api, make):
+    deal = make.deal()
+    for _ in range(2):
+        add_quote(api, deal)
+
+    assert api.get(f"/api/deals/{deal}/delete-impact").json()["held_by"] == [{"noun": "quote", "count": 2}]
+    refused = api.delete(f"/api/deals/{deal}")
+    assert (refused.status_code, refused.json()) == (409, {"detail": "This deal has 2 quotes, so it can't be deleted."})
+    assert api.get(f"/api/deals/{deal}").status_code == 200
+    assert count(quotes) == 2
+
+
+def test_an_organization_whose_deals_have_quotes_still_deletes_leaving_the_deals_and_quotes(api, make, deal_row):
+    organization = make.organization()
+    deal = make.deal(organization_id=organization)
+    quote = add_quote(api, deal)
+
+    assert api.get(f"/api/organizations/{organization}/delete-impact").json()["held_by"] == []
+    assert api.delete(f"/api/organizations/{organization}").status_code == 204
+
+    assert deal_row(deal).organization_id is None
+    assert api.get(f"/api/quotes/{quote}").json()["prepared_for"]["organization"] is None
 
 
 def test_a_hold_holds_the_table_its_link_points_at():

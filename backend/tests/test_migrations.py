@@ -8,6 +8,7 @@ from accountable.company import documents
 from accountable.company.tables import company_settings, number_counters
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.products.tables import products
+from accountable.quotes.tables import quote_lines, quotes
 from accountable.users import users
 from alembic import command, op
 from alembic.autogenerate import compare_metadata
@@ -88,6 +89,9 @@ def test_the_spec_indexes_exist(database):
     assert ("follow_up_date",) in indexes["activities"]
     assert ("deal_id",) in indexes["stage_changes"]
     assert ("changed_at",) in indexes["stage_changes"]
+    assert ("deal_id",) in indexes["quotes"]
+    assert ("quote_id", "position") in indexes["quote_lines"]
+    assert ("product_id",) in indexes["quote_lines"]
     assert ("due_date",) in indexes["bills"]
     assert ("bill_date",) in indexes["bills"]
 
@@ -112,6 +116,17 @@ def test_each_kind_of_document_has_one_counter(database):
     assert unique[("kind",)]
 
 
+def test_a_deal_has_one_accepted_quote_at_most(database):
+    """Unique for accepted quotes only, so a deal can have any number of the others (Q23)."""
+    [index] = [
+        index
+        for index in inspect(db.engine()).get_indexes(quotes.name)
+        if index["name"] == "ix_quotes_one_accepted_per_deal"
+    ]
+    assert (index["column_names"], index["unique"]) == (["deal_id"], 1)
+    assert str(index["dialect_options"]["sqlite_where"]) == "status = 'accepted'"
+
+
 def test_every_foreign_key_has_an_index(database):
     for name, built in live().items():
         indexed = set(built["indexes"].values())
@@ -123,20 +138,30 @@ def test_users_and_who_added_each_record_are_built(database):
     built = live()
     assert built["users"]["columns"]["id"] == ("TEXT", False)
     assert built["users"]["columns"]["email"] == ("TEXT", False)
-    for record in ("organizations", "contacts", "deals", "activities", "products", "bills"):
+    for record in ("organizations", "contacts", "deals", "activities", "products", "quotes", "bills"):
         assert (("created_by",), "users", None) in built[record]["foreign_keys"], record
         assert (("updated_by",), "users", None) in built[record]["foreign_keys"], record
     assert (("created_by",), "users", None) in built["stage_changes"]["foreign_keys"]
     assert built["deals"]["columns"]["value"] == ("BIGINT", False)
     assert built["products"]["columns"]["unit_price_cents"] == ("BIGINT", False)
+    assert built["quotes"]["columns"]["subtotal_cents"] == ("BIGINT", False)
+    assert built["quote_lines"]["columns"]["unit_price_cents"] == ("BIGINT", False)
     assert built["bills"]["columns"]["amount_cents"] == ("BIGINT", False)
     assert built["bills"]["columns"]["tax_cents"] == ("BIGINT", False)
+
+
+def test_a_quote_holds_its_deal_and_its_lines_go_with_it(database):
+    built = live()
+    assert (("deal_id",), "deals", None) in built["quotes"]["foreign_keys"]
+    assert (("quote_id",), "quotes", "CASCADE") in built["quote_lines"]["foreign_keys"]
+    assert (("product_id",), "products", None) in built["quote_lines"]["foreign_keys"]
 
 
 def test_the_check_constraints_match(database):
     actual, expected = live(), declared()
     assert actual["activities"]["checks"] == {"ck_activities_one_parent": "(contact_id IS NULL) != (deal_id IS NULL)"}
     assert actual["company_settings"]["checks"] == {"ck_company_settings_one_row": "id = 1"}
+    assert actual["quotes"]["checks"] == {"ck_quotes_status": "status IN ('draft', 'sent', 'accepted', 'declined')"}
     assert actual["bills"]["checks"] == {
         "ck_bills_category": "category IN ('software', 'contractors', 'travel', 'office', 'marketing', 'other')"
     }
@@ -511,6 +536,37 @@ def test_after_the_upgrade_the_database_keeps_bill_numbers_apart_and_holds_suppl
         assert conn.execute(select(func.count()).select_from(organizations)).scalar_one() == 1
 
 
+@pytest.fixture
+def database_from_before_quotes(tmp_path, monkeypatch):
+    """At 0007, with bills, as the team's database is when quotes arrive."""
+    path = tmp_path / "before-quotes.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    fill_at(path, "0007")
+    with db.writing() as conn:
+        documents.take_number(conn, "quote")
+        documents.take_number(conn, "quote")
+    db.dispose()
+    yield path
+    db.dispose()
+
+
+def test_upgrading_from_before_quotes_keeps_every_row_and_the_quotes_count(database_from_before_quotes):
+    before = everything()
+    assert "quotes" not in inspect(db.engine()).get_table_names()
+    db.dispose()
+
+    assert db.prepare_database(nothing) is False
+
+    assert all(before.values())
+    assert everything() == before
+    with db.writing() as conn:
+        for table in (quotes, quote_lines):
+            assert conn.execute(select(func.count()).select_from(table)).scalar_one() == 0
+        assert documents.take_number(conn, "quote") == "QT-0003"
+        assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+
+
 def test_a_new_database_starts_with_the_blank_settings_before_the_sample_data(database):
     [settings] = the_settings()
     assert {name: settings[name] for name in BLANK_SETTINGS} == BLANK_SETTINGS
@@ -527,7 +583,8 @@ def test_the_migrations_see_every_areas_tables():
     """A table is in the metadata only once its module is imported. Without its import, autogenerate would drop it."""
     env = (db.MIGRATIONS / "env.py").read_text()
     areas = sorted(path.parent.name for path in db.MIGRATIONS.parent.glob("*/tables.py"))
-    assert {"bills", "company", "crm", "products"} <= set(areas)  # The check is looking in the right place.
+    # The check is looking in the right place.
+    assert {"bills", "company", "crm", "products", "quotes"} <= set(areas)
     for area in areas:
         assert f"from accountable.{area} import tables" in env, area
 
@@ -559,12 +616,30 @@ def test_on_postgres_prices_are_64_bit(postgres_sql):
     assert "unit_price_cents BIGINT NOT NULL" in created[: created.index(";")]
 
 
+def created(postgres_sql: str, name: str) -> str:
+    """The CREATE TABLE statement for one table, as Postgres gets it."""
+    return postgres_sql[postgres_sql.index(f"CREATE TABLE {name} ") :].split(";")[0]
+
+
+def test_on_postgres_quote_amounts_are_64_bit(postgres_sql):
+    assert "subtotal_cents BIGINT NOT NULL" in created(postgres_sql, "quotes")
+    assert "unit_price_cents BIGINT NOT NULL" in created(postgres_sql, "quote_lines")
+
+
+def test_on_postgres_a_deal_has_one_accepted_quote_at_most(postgres_sql):
+    assert (
+        "CREATE UNIQUE INDEX ix_quotes_one_accepted_per_deal ON quotes (deal_id) WHERE status = 'accepted'"
+        in postgres_sql
+    )
+    assert "CONSTRAINT ck_quotes_status CHECK (status IN ('draft', 'sent', 'accepted', 'declined'))" in created(
+        postgres_sql, "quotes"
+    )
+
+
 def test_on_postgres_bill_amounts_are_64_bit(postgres_sql):
     """A bill's amount and tax each go up to $1 trillion in cents, as a price does (E4)."""
-    created = postgres_sql[postgres_sql.index("CREATE TABLE bills") :]
-    created = created[: created.index(";")]
-    assert "amount_cents BIGINT NOT NULL" in created
-    assert "tax_cents BIGINT NOT NULL" in created
+    assert "amount_cents BIGINT NOT NULL" in created(postgres_sql, "bills")
+    assert "tax_cents BIGINT NOT NULL" in created(postgres_sql, "bills")
 
 
 def test_on_postgres_every_table_gets_row_level_security(postgres_sql):

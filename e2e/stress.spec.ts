@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
 import { card, column, fillToLimits } from "./helpers";
@@ -51,6 +51,7 @@ for (const [name, path] of [
   ["Contacts", "/contacts"],
   ["Deals", "/deals"],
   ["Products", "/products"],
+  ["Quotes", "/quotes"],
   ["Bills", "/bills"],
 ]) {
   test(`${name} opens in under a second`, async ({ page }) => {
@@ -84,6 +85,63 @@ async function keystrokeTime(page: Page, text: string) {
     return performance.now() - start;
   }, text);
 }
+
+/** The limits data's 100-line draft (Q1). */
+async function longestQuote(request: APIRequestContext) {
+  const quotes: { id: number; number: string }[] = await (await request.get("/api/quotes")).json();
+  return quotes.find((quote) => quote.number === "QT-1000")!;
+}
+
+/** From a keystroke in a line's Quantity to the preview's new subtotal on screen. */
+async function previewKeystrokeTime(page: Page, box: string, text: string) {
+  return page.evaluate(
+    async ([id, value]) => {
+      const input = document.getElementById(id) as HTMLInputElement;
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      const preview = document.querySelector('[aria-label="Preview"]')!;
+      const before = preview.textContent;
+      const start = performance.now();
+      setValue.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      while (preview.textContent === before) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (performance.now() - start > 2000) break;
+      }
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      return performance.now() - start;
+    },
+    [box, text],
+  );
+}
+
+test("a 100-line quote's preview updates within 100ms of a keystroke", async ({ page, request }) => {
+  const quote = await longestQuote(request);
+  await page.goto(`/quotes/${quote.id}`);
+  await expect(page.locator("#quote-line-99-quantity")).toBeVisible();
+  const readings: number[] = [];
+  for (const text of ["7", "71", "712", "71", "7"])
+    readings.push(await previewKeystrokeTime(page, "quote-line-50-quantity", text));
+  console.log(`Preview keystroke: ${median(readings).toFixed(1)}ms`);
+  expect(median(readings)).toBeLessThan(100);
+});
+
+test("a 100-line quote's PDF downloads in under a second", async ({ page, request }) => {
+  const quote = await longestQuote(request);
+  await page.goto(`/quotes/${quote.id}`);
+  await expect(page.locator("#quote-line-99-quantity")).toBeVisible();
+  const readings: number[] = [];
+  for (let reading = 0; reading < 3; reading += 1) {
+    const start = Date.now();
+    const [file] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Download PDF" }).click(),
+    ]);
+    await file.path();
+    readings.push(Date.now() - start);
+  }
+  console.log(`100-line PDF: ${median(readings)}ms`);
+  expect(median(readings)).toBeLessThan(1000);
+});
 
 test("a search keystroke updates within 100ms", async ({ page }) => {
   await page.goto("/contacts");

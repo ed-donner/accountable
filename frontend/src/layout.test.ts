@@ -68,7 +68,7 @@ function appCode() {
 
 describe("the layout rules", () => {
   it("find every area", () => {
-    expect(AREAS).toEqual(["bills", "crm", "products"]);
+    expect(AREAS).toEqual(["bills", "crm", "products", "quotes"]);
   });
 
   it("read where each import leads", () => {
@@ -110,7 +110,8 @@ describe("the layout rules", () => {
   });
 
   it("never let a later area import another", () => {
-    expect(appCode().filter(isLaterArea)).toContain("bills/queries.ts"); // The check is looking in the right place.
+    // The check is looking in the right place.
+    expect(appCode().filter(isLaterArea)).toEqual(expect.arrayContaining(["bills/queries.ts", "quotes/queries.ts"]));
     const wrong = appCode()
       .filter(isLaterArea)
       .flatMap((file) => imported(file).map((target) => ({ file, target })))

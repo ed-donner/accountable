@@ -1,4 +1,4 @@
-import { Package, Receipt } from "lucide-react";
+import { FileText, Package, Receipt } from "lucide-react";
 import { useEffect } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
@@ -28,11 +28,14 @@ import { applyTheme, savedTheme } from "./lib/theme";
 import { Product } from "./products/pages/Product";
 import { Products } from "./products/pages/Products";
 import { productsSearchGroups } from "./products/searchGroups";
+import { NewDraft, Quote } from "./quotes/pages/Quote";
+import { Quotes } from "./quotes/pages/Quotes";
+import { dealQuotesPanel, organizationQuotesPanel } from "./quotes/panels";
 
 const ICON_SIZE = 17;
 
 // The top bar's sections, area by area. The design reference has icons for the CRM's.
-// Products and Bills take lucide's, drawn as Icon draws its own.
+// Products, Quotes and Bills take lucide's, drawn as Icon draws its own.
 const SECTIONS: Section[] = [
   { to: "/", label: "Dashboard", icon: <Icon name="dashboard" size={ICON_SIZE} /> },
   { to: "/organizations", label: "Organizations", icon: <Icon name="organizations" size={ICON_SIZE} /> },
@@ -45,6 +48,11 @@ const SECTIONS: Section[] = [
     icon: <Package size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
   },
   {
+    to: "/quotes",
+    label: "Quotes",
+    icon: <FileText size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
+  },
+  {
     to: "/bills",
     label: "Bills",
     icon: <Receipt size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
@@ -54,9 +62,12 @@ const SECTIONS: Section[] = [
 const SEARCH_GROUPS = [...crmSearchGroups, ...productsSearchGroups];
 
 // What later areas add to the CRM's pages, such as a deal's quotes, an organization's bills
-// or a section of the dashboard. Nothing adds to a deal's page yet.
-const DEAL_PANELS: RecordPanel<DealDetail>[] = [];
-const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [{ name: "bills", Panel: BillsPanel }];
+// or a section of the dashboard.
+const DEAL_PANELS: RecordPanel<DealDetail>[] = [dealQuotesPanel];
+const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [
+  organizationQuotesPanel,
+  { name: "bills", Panel: BillsPanel },
+];
 const DASHBOARD_SECTIONS: DashboardSection[] = [{ name: "money", Section: MoneySection }];
 
 function AppShell() {
@@ -78,6 +89,9 @@ const router = createBrowserRouter([
       { path: "/pipeline", element: <Pipeline /> },
       { path: "/products", element: <Products /> },
       { path: "/products/:id", element: <Product /> },
+      { path: "/quotes", element: <Quotes /> },
+      { path: "/quotes/new", element: <NewDraft /> },
+      { path: "/quotes/:id", element: <Quote /> },
       { path: "/bills", element: <Bills /> },
       { path: "/bills/:id", element: <Bill /> },
       { path: "/settings", element: <SettingsPage /> },

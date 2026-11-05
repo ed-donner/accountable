@@ -20,7 +20,7 @@ Each person's row is added the first time the backend sees their token, and upda
 
 **Who on every record**
 
-Organizations, contacts, deals, activities, products and bills each also have:
+Organizations, contacts, deals, activities, products, quotes and bills each also have:
 
 | Column | Type | Notes |
 |---|---|---|
@@ -94,7 +94,7 @@ Stage changes get their own table because they aren't activities: they have no t
 | unit_price_cents | 64-bit integer | whole US cents, 0 to 100,000,000,000,000, which is $1 trillion |
 | active | boolean | true by default, and false once archived |
 
-The products table belongs to the price list, not the CRM, so it's in `products/tables.py` ([Layout rules](architecture.md#layout-rules)). Nothing links to it yet.
+The products table belongs to the price list, not the CRM, so it's in `products/tables.py` ([Layout rules](architecture.md#layout-rules)). Quote lines link to it, for the product each was added from (Q13).
 
 **company_settings**
 
@@ -119,6 +119,38 @@ The table holds one row, with `id` 1. The migration that makes the table adds it
 | last_number | integer | the last number that kind has taken, so the next is one more (B15) |
 
 A kind's row is added when it takes its first number, so the migration adds none, and a kind with no row starts at 1. It belongs to `company/`, beside the prefixes, and `company/documents.py`'s `take_number` is the one thing that changes it. Seed, empty and the clearing steps delete its rows, as they delete the documents, so each count starts again at 1.
+
+**quotes**
+
+| Column | Type | Notes |
+|---|---|---|
+| number | text | such as QT-0004, taken in the save that adds the quote (B15, Q9). It never changes |
+| deal_id | foreign key | required, with no delete rule, so the quote holds its deal (D4, Q27) |
+| status | text | `draft`, `sent`, `accepted` or `declined`. Expired is worked out from `valid_until` and today, never saved (Q7) |
+| quote_date | date | today, when the quote was first saved |
+| valid_until | date | 30 days after `quote_date` unless changed while a draft |
+| subtotal_cents | 64-bit integer | the lines' amounts added up, 0 to 100,000,000,000,000, which is $1 trillion. The backend works it out from the lines at every save of them |
+| company_name, company_address, company_email, company_phone | text | the company's details from the settings, fixed when the quote is sent, or declined as a draft. Blank while a draft, which shows the settings' as they are (Q30) |
+| tax_label, tax_rate | text, integer | fixed when the quote is sent, or declined as a draft, with the rate in thousandths of a percent, as `company_settings` keeps it. Blank while a draft, whose tax follows the settings (Q17) |
+| prepared_for_organization, prepared_for_contact, prepared_for_email | text | fixed when the quote is sent, or declined as a draft. Blank while a draft, which follows its deal, and any can stay blank after (Q18) |
+| sent_on | date | the day it was sent, blank until then |
+| decided_on | date | the day it was accepted or declined, blank until then |
+
+A check constraint keeps `status` to the four. A unique index on `deal_id`, for accepted quotes only, makes sure a deal has at most one accepted quote, on both databases (Q23). Tax and totals aren't saved: the replies work them out from `subtotal_cents` and the rate, the quote's own once it's no longer a draft, or the settings' while it is. A draft's company details, tax and Prepared for come from the settings and the deal at each read, so nothing on a draft needs updating when they change.
+
+**quote_lines**
+
+| Column | Type | Notes |
+|---|---|---|
+| quote_id | foreign key | deleted with the quote, which only seed and empty do (Q26) |
+| position | integer | its place on the quote, from 1, in the order the lines were added (Q12) |
+| product_id | foreign key | the product it was added from. Products are never deleted, so it needs no delete rule |
+| name | text | the product's name when the line was added, taken from the products table, never from the request (Q13) |
+| description | text | optional, and can hold several lines |
+| quantity | integer | 1 to 1,000,000 (B17) |
+| unit_price_cents | 64-bit integer | whole US cents, 0 to 100,000,000,000,000, as a product's price is |
+
+A line's amount is worked out, never saved. A quote has at most 100 lines (Q14). The two tables belong to the quotes area, so they're in `quotes/tables.py` ([Layout rules](architecture.md#layout-rules)).
 
 **bills**
 
@@ -147,14 +179,14 @@ Notes:
 - **Migrations:** these run when the backend starts, all in one transaction, on both databases. On SQLite they run with foreign keys off, because SQLite makes most table changes by rebuilding the table, and dropping the old table with foreign keys on would run its delete rules, blanking links and deleting activities. Steps that only SQLite needs, such as those rebuilds, are skipped on Postgres, where Postgres can change a table in place. Every migration, the first ones included, runs from an empty database on both, so a new Supabase project gets the whole history.
 - **Row-level security:** on Postgres, the migrations turn on row-level security for every table, Alembic's version table included, with no policies ([Security](security.md#the-database)). SQLAlchemy has no way to say this, so it's the one place the migrations use raw SQL, and it runs only on Postgres.
 - **Row-level security check:** on Postgres, once the migrations have run, the backend reads Postgres's catalog through SQLAlchemy Core and refuses to start if any table in the `public` schema has row-level security off. It runs inside the migrations' transaction, so a start that fails it changes nothing. The message names each one, such as "Row-level security is off for these tables: notes. Turn it on in a migration." That catches a later migration that forgot, and a table added in Supabase's dashboard. The check lives in `db.py`.
-- **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)`, `stage_changes (changed_at)`, `bills (due_date)` and `bills (bill_date)`, and unique ones on `products (name_key)`, `number_counters (kind)` and `bills (organization_id, bill_number_key)`.
-- **Held records:** a later area's column that holds a deal or an organization (D4), such as `bills.organization_id`, is a foreign key with no delete rule, so the database refuses the delete too, should one ever get past the route's check.
+- **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)`, `stage_changes (changed_at)`, `quote_lines (quote_id, position)`, `bills (due_date)` and `bills (bill_date)`, and unique ones on `products (name_key)`, `number_counters (kind)`, `bills (organization_id, bill_number_key)` and, for accepted quotes only, `quotes (deal_id)`. SQLAlchemy writes the last as a partial index on both databases.
+- **Held records:** a later area's column that holds a deal or an organization (D4), such as `quotes.deal_id` or `bills.organization_id`, is a foreign key with no delete rule, so the database refuses the delete too, should one ever get past the route's check.
 - **Times:** stored in UTC with no time zone, on both databases, so the API always sends times with a `Z`. Otherwise the browser would read a UTC time as local.
 - **Unique product names:** the database refuses a second product with the same `name_key`, so two saves at once can't both get through, and the API turns that refusal into the message beside the name (G8), never a 500. The key is worked out in Python, so it's the same on both databases. An index on the database's own `lower(name)` would differ between them, because SQLite's `lower()` only knows the letters A to Z, and an index can't use the lowercase function `db.py` gives SQLite. Saves check the key first, inside the write lock, so the usual case never reaches the refusal. Postgres also refuses an index entry over 2,704 bytes, its own few included, and that refusal isn't a duplicate, so it would be a 500. A name has at most 200 characters (G2), and no character's key is more than 12 bytes, so a key is at most 2,400 bytes, inside the 2,690 Postgres 16 took (`INDEXED_KEY_BYTES` in `products/tables.py`).
 - **Unique bill numbers:** the database refuses a second bill from one supplier with the same `bill_number_key`, and the API turns that refusal into the message beside the bill number (E3), never a 500, as it does for product names. Saves check the key first, inside the write lock. A bill number has at most 50 characters, so its key fits Postgres's index with room to spare.
-- **Prices:** whole cents in a 64-bit integer, as `deals.value` is for whole dollars. The API takes `unit_price_cents` as a whole number and refuses anything else, so `49.5` is refused, not rounded. A bill's `amount_cents` and `tax_cents` are taken the same way. The browser holds whole numbers exactly up to about 9 quadrillion, far past the limit, and past a bill's largest total of $2 trillion. A sum of bills can pass that, from 46 bills at the most, so `GET /bills/dashboard` sends its sums as strings of digits, such as `"9200000000000001"`, which the browser reads as a BigInt.
+- **Prices:** whole cents in a 64-bit integer, as `deals.value` is for whole dollars, and so are a quote's line prices and subtotal. The API takes `unit_price_cents` as a whole number and refuses anything else, so `49.5` is refused, not rounded. A bill's `amount_cents` and `tax_cents` are taken the same way. The browser holds whole numbers exactly up to about 9 quadrillion, far past the limit, and past a bill's largest total of $2 trillion. A sum of bills can pass that, from 46 bills at the most, so `GET /bills/dashboard` sends its sums as strings of digits, such as `"9200000000000001"`, which the browser reads as a BigInt.
 - **Search:** case is ignored the same way on both databases (K2). SQLite's own `lower()` only knows the letters A to Z, so `db.py` gives SQLite a lowercase function that knows every language, and matching uses it on both sides of the comparison.
-- **Dates:** close dates, follow-up dates and a bill's three dates are plain dates. In the frontend, always read them with date-fns `parseISO`. `new Date("2026-10-31")` reads as UTC and shows the day before in US time zones.
+- **Dates:** close dates, follow-up dates, a quote's dates and a bill's three dates are plain dates. In the frontend, always read them with date-fns `parseISO`. `new Date("2026-10-31")` reads as UTC and shows the day before in US time zones.
 - **Probabilities:** the six usual probabilities live in one place in the backend. The frontend reads them from `GET /api/meta`.
 
 ## Backend rules
@@ -166,8 +198,9 @@ Notes:
 3. On Won or Lost, set the close date to today, unless this request gave one.
 4. On Won, set the main contact's status to customer, if there is a main contact.
 5. Put the deal at the top of the new column, unless this request gave a place.
+6. Set the value, if this request gave one, as accepting a quote does (Q22).
 
-The function takes today's date and the person making the change as arguments, so tests can fix them. It records that person on the `stage_changes` row, on the deal, and on the main contact if step 4 changes their status (U10). The backend's today is the date in the zone set by `TZ`, which `render.yaml` sets to the team's zone, or the computer's own zone without it, or with a value that isn't a zone name, which the computer's own clock then reads as it can.
+The function takes today's date and the person making the change as arguments, so tests can fix them. A later area changes a deal only through it, so accepting a quote passes the value rather than writing the deal itself. It records that person on the `stage_changes` row, on the deal, and on the main contact if step 4 changes their status (U10). The backend's today is the date in the zone set by `TZ`, which `render.yaml` sets to the team's zone, or the computer's own zone without it, or with a value that isn't a zone name, which the computer's own clock then reads as it can.
 
 Adding a deal at Won uses step 4 and writes no `stage_changes` row. Moving a card renumbers the target column in the same transaction. With a few hundred rows at most, this is simple and quick enough, and no fractional position scheme is needed. Renumbering leaves the other cards' `updated_at` and `updated_by` alone.
 
@@ -177,6 +210,15 @@ Saving the company settings reads the row, applies what was sent, checks the res
 
 A deal's and an organization's delete check what holds the record first, inside the delete's own transaction, under the write lock, so nothing can come to hold it between the check and the delete. Each area gives `main.py` its holds in `holds.py`'s terms: the column that points at the held record, and the word for one of its records, such as `invoice`. `main.py` puts every area's on the app, and the CRM's routes read them from there, so they never name another area. Those routes' delete-impact replies list what holds the record, kind by kind, and a delete of a held record gets a 409 in the dialog's words (D4).
 
+Quotes' saves each run in one transaction under the write lock, as every write does, and check the quote's status and its deal's stage inside it, so a teammate's send or a move on the board can't slip in between:
+
+- **Adding** checks the deal is open, then takes the number with `take_number` from `company/documents.py` and sets the date to today, so an add that fails gives its number back (B15). **Copying** does the same, with the original's lines.
+- **Saving the lines** takes them whole and in order. A line with an id keeps its product and name and takes the description, quantity and price sent. A line without one has to name an active product, and takes its name from the products table. A line left out is removed, and a line with another quote's id is refused. Then `totals()` in `company/tax.py` works out the subtotal from the lines as they'll be saved, and a subtotal past $1 trillion is refused before anything is written. A quote that isn't a draft is refused with a 409 first (Q21).
+- **Sending** checks Q20's conditions, then copies the company's details and the tax label and rate from `current_settings()`, and the deal's organization and main contact, onto the quote, as they are at that moment. **Declining** a draft copies them the same way, so only a draft follows the settings and the deal.
+- **Accepting** checks the quote is sent and the deal is open with no accepted quote, marks the quote accepted, marks the deal's other sent quotes declined, then calls the stage-change function above with Won and the quote's value in whole dollars, `(subtotal_cents + 50) // 100`, so halves round up as tax and expected revenue do. The deal, its contact and the declined quotes are put down to the person accepting.
+
+The PDF is made by `quotes/pdf.py` from the same reply `GET /quotes/{id}` gives, so it and the page show the same words and figures. It draws every value as text, with nothing read as markup (Q32), and embeds the fonts from `quotes/fonts/`.
+
 Saving a bill reads it, applies what was sent, checks the result against E3 to E6 and E9, and writes it, all in one transaction under the write lock, so a paid date is checked against a bill date changed in the same save, and a number against the supplier it will have. The paid date is checked against the backend's today. A bill added without a due date gets its bill date plus 30 days, or the calendar's last day for a bill dated in its last 30. A supplier that doesn't exist gets "Choose a supplier", checked before the database's foreign key could turn it into a 500. Every problem is given at once, each beside its field. A save sets `updated_by` and `updated_at` only if a value changed (U10). The total in every reply is `amount_cents` plus `tax_cents`, and a total sent in a request is ignored, as any unknown field is. The messages for its fields live in `bills/schemas.py`.
 
 The Money section's figures (E20 to E23) come from two queries, never one per bill, using the backend's today: one reads the unpaid bills, from which what we owe, what's overdue and what's due in the next 30 days are all worked out, and one reads the bills dated in the 12 months. Python folds those into months and categories, as the CRM's revenue chart does with `month_series`, because grouping by month in the database needs date functions that differ between SQLite and Postgres. At 1,000 bills that's a few hundred rows, well within Q1.
@@ -185,7 +227,7 @@ Every write takes one lock in `db.py`, because FastAPI runs requests on separate
 
 Last activity in the list replies comes from grouped queries, one for each kind of record, not one query per row, so the lists stay quick at the Q1 limits.
 
-Reset and empty delete rows inside a transaction and leave the file and tables in place. This is why they're safe while the app is running, and why an emptied database isn't treated as new. Reset also writes the sample company's settings over the settings row, and empty leaves the row alone (C4).
+Reset and empty delete rows inside a transaction and leave the file and tables in place. This is why they're safe while the app is running, and why an emptied database isn't treated as new. Reset also writes the sample company's settings over the settings row, and empty leaves the row alone (C4). Seed's sample quotes take their numbers through `take_number`, in the order they were made, so the next new quote carries on after them.
 
 ## API
 
@@ -216,6 +258,16 @@ All routes are under `/api` and use JSON. Every route needs a valid token in the
 | `GET /search?q=` | Up to 5 organizations, contacts, deals and active products whose names hold `q`, with a count for each kind (K1 to K5). `q` is 1 to 100 characters once the spaces at its ends are gone. |
 | `GET /settings` | The company settings, with who last changed them and when (B9) |
 | `PATCH /settings` | Change the settings sent. The checks apply to the settings as they'd be after the save (B5), so while no company name is saved, a save that leaves it out is refused. |
+| `GET /quotes` | Every quote, with its deal's name, the deal's organization, its status as saved, its dates, value, tax and total. `deal_id` or `organization_id` narrows it to one deal's quotes, or the quotes on one organization's deals, for the panels (Q36, Q37) |
+| `GET /quotes/new/{deal_id}` | What a new draft on the deal starts with, before it's saved: Prepared for, the tax label and rate, the company's details, and whether the deal is open (Q8, Q9) |
+| `POST /quotes` | Add a draft on an open deal, with its valid-until date and lines. Takes its number (B15) |
+| `GET /quotes/{id}` | One quote as its page and PDF show it: its lines with their amounts, the subtotal, tax and total, Prepared for, the tax label and rate, and the company's details, each as fixed on the quote, or as the settings and the deal have them now for a draft, and who added and last changed it |
+| `PATCH /quotes/{id}` | Change a draft's valid-until date or lines. Lines are sent whole, in order (Q12, Q13) |
+| `POST /quotes/{id}/send` | Mark a draft as sent (Q20) |
+| `POST /quotes/{id}/accept` | Accept a sent quote, moving its deal to Won (Q22). Returns the quote and what else changed, as the move does |
+| `POST /quotes/{id}/decline` | Decline a draft or a sent quote (Q24) |
+| `POST /quotes/{id}/copy` | Copy a quote to a new draft on the same open deal (Q25). Returns the new quote |
+| `GET /quotes/{id}/pdf` | The quote as a PDF, made at that moment (Q30), as `application/pdf`, with `Content-Disposition` naming the file after the number, such as `QT-0004.pdf` |
 | `GET /bills` | Every bill, each with its supplier's id and name and its `total_cents`. `?organization_id=` gives one organization's, for its Bills panel (E19) |
 | `POST /bills` | Add. Without `due_date`, it's 30 days after `bill_date` (E5). With `paid_on`, it's added paid |
 | `GET /bills/{id}` | One bill, with its supplier's id and name and its `total_cents` |
@@ -236,11 +288,11 @@ Signing in to the shared app goes from the browser straight to Supabase Auth, so
 
 Each area's routes start with words of its own after `/api`, such as `/api/products` or `/api/settings`, never another area's, so `main.py` can give a field error the messages of the area whose route it reached. A later area's lists for a deal or an organization go under its own words, such as `/api/bills?organization_id=7`, not under `/api/organizations`. Routes that belong to no area, such as `/api/search`, have messages of their own or none.
 
-Products have no delete route, so `DELETE /products/{id}` gets a 405 (G9). A product's name that's taken gets a 422 with a message beside `name`, like any other field (G2).
+Products have no delete route, so `DELETE /products/{id}` gets a 405 (G9). Nor do quotes, so `DELETE /quotes/{id}` gets a 405 too (Q26). Sending, accepting, declining and copying take no fields, so their body is `{}`, because every POST has to be JSON. A change a quote's status doesn't allow, such as editing a sent quote or accepting a draft, gets a 409 with Q20's, Q21's or Q23's words, such as `{"detail": "QT-0004 has been sent, so it can't be changed. Copy it to make a new draft."}`, and a refusal that belongs beside a field, such as a valid-until date in the past, gets a 422 with the message beside it, a line's as `lines.2.quantity`. A product's name that's taken gets a 422 with a message beside `name`, like any other field (G2).
 
 A bill number the supplier already has gets a 422 with a message beside `bill_number` (E3). Bills have no `delete-impact` route, because nothing is deleted with a bill or left pointing at one. A bill's category travels as its lowercase word, such as `software`, and its dates as `YYYY-MM-DD`. Replies don't say whether a bill is overdue: the page works that out from `due_date`, `paid_on` and its own today, so it changes when the day does (E8).
 
-The single-record replies for organizations, contacts, deals, products and bills carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way, and the company settings carry `updated_by` and `updated_at`, with `updated_by` null until someone saves them, and again after the clearing steps. Names follow U8. A record counts as changed since it was added when its `updated_at` differs from its `created_at`, so an add sets both from one moment, and the changes the app makes around a save, such as renumbering a column, leave the other records' `updated_at` alone as well as their `updated_by` (U10, R6). Records from before sign-in, with no one recorded, can have their two times a moment apart, so on those the record pages treat a difference under a second as no change.
+The single-record replies for organizations, contacts, deals, products, quotes and bills carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way, and the company settings carry `updated_by` and `updated_at`, with `updated_by` null until someone saves them, and again after the clearing steps. Names follow U8. A record counts as changed since it was added when its `updated_at` differs from its `created_at`, so an add sets both from one moment, and the changes the app makes around a save, such as renumbering a column, leave the other records' `updated_at` alone as well as their `updated_by` (U10, R6). Records from before sign-in, with no one recorded, can have their two times a moment apart, so on those the record pages treat a difference under a second as no change.
 
 The tax rate travels as text in replies, such as `"8.875"`, without trailing zeros, so nothing on the way can round it (B7). Requests can send it as text or as a number, and the backend checks it from its digits. Python's JSON reader would make a number with a point a float, which loses digits past about the 16th, so the settings' routes use `api.ExactNumbersRoute`, which reads such a number as a `Decimal` with every digit sent. No other route uses it, so every other area's bodies are read as before.
 

@@ -7,16 +7,19 @@ import {
   addBill,
   addLinkedDeal,
   addOrganization,
+  addQuote,
   card,
   column,
   dropAtEnd,
+  findProduct,
   isoDay,
   resetToSampleData,
+  sendQuote,
 } from "./helpers";
 
 test.beforeAll(resetToSampleData);
 
-const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/bills"];
+const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/quotes", "/bills"];
 const SIZES = [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
@@ -24,13 +27,24 @@ const SIZES = [
 
 async function recordPaths(request: APIRequestContext) {
   const get = async (route: string) => (await (await request.get(`/api${route}`)).json())[0].id;
+  const quotes: { id: number; status: string }[] = await (await request.get("/api/quotes")).json();
   return [
     `/organizations/${await get("/organizations")}`,
     `/contacts/${await get("/contacts")}`,
     `/deals/${await get("/deals")}`,
     `/products/${await get("/products")}`,
+    `/quotes/${quotes[quotes.length - 1].id}`,
+    `/quotes/${quotes.find((quote) => quote.status === "draft")!.id}`,
     `/bills/${await get("/bills")}`,
   ];
+}
+
+/** A draft on a deal of its own, with two lines from the sample price list. */
+async function addDraft(request: APIRequestContext, name: string) {
+  const { deal } = await addLinkedDeal(request, name, { stage: "proposal" });
+  const product = await findProduct(request, "Standard license, per user per year");
+  const line = { product_id: product.id, quantity: 2, unit_price_cents: product.unit_price_cents };
+  return addQuote(request, deal.id, [line, line]);
 }
 
 function sidewaysOverflow(page: Page) {
@@ -60,7 +74,7 @@ test("the top bar's sections show their icons from 1536px wide, and only their l
   await page.setViewportSize({ width: 1536, height: 900 });
   await page.goto("/");
   const links = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
-  await expect(links).toHaveCount(7);
+  await expect(links).toHaveCount(8);
   for (const link of await links.all()) await expect(link.locator("svg")).toBeVisible();
 
   for (const width of [1535, 1440, 1280]) {
@@ -110,6 +124,36 @@ test("a walk through every screen and main action logs no console errors", async
   await expect(column(page, "lost").locator('[data-deal="Walked"]')).toBeVisible();
   await page.waitForLoadState("networkidle");
 
+  // A quote: a draft saved, each of its dialogs opened, and a sent one's Accept.
+  const draft = await addDraft(request, "Quoted");
+  await page.goto(`/quotes/${draft.id}`);
+  await page.locator("#quote-line-0-quantity").fill("3");
+  const quoteSaved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" && new URL(response.url()).pathname === `/api/quotes/${draft.id}`,
+  );
+  await page.getByRole("button", { name: "Save quote" }).click();
+  expect((await quoteSaved).ok()).toBe(true);
+  await expect(page.getByText("Quote saved.")).toBeVisible();
+  for (const [button, asks] of [
+    ["Mark as sent", "as sent?"],
+    ["Decline", "Decline "],
+  ]) {
+    await page.getByRole("button", { name: button, exact: true }).click();
+    await expect(page.getByRole("alertdialog")).toContainText(asks);
+    await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  }
+  await sendQuote(request, draft.id);
+  await page.goto(`/quotes/${draft.id}`);
+  await page.getByRole("button", { name: "Accept", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("will move to Won");
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+  await page.goto("/quotes");
+  await page.getByRole("button", { name: "New quote" }).click();
+  await expect(page.getByRole("dialog", { name: "New quote" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
   // A save with nothing changed, which leaves the settings as they were.
   await openSettings(page);
   const saved = page.waitForResponse(
@@ -149,7 +193,8 @@ async function tabThrough(page: Page, presses: number) {
 test("every control can be reached by Tab and shows a focus ring", async ({ page }) => {
   await page.goto("/organizations");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  const table = await tabThrough(page, 22);
+  // Past the eight sections, the search box, the menu, Add, the table's search and its headings.
+  const table = await tabThrough(page, 23);
   for (const name of [
     "A Dashboard",
     "A Deals",
@@ -168,19 +213,19 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
 
   await page.goto("/");
   await expect(page.getByTestId("follow-up").first()).toBeVisible();
-  const dashboard = await tabThrough(page, 20);
+  const dashboard = await tabThrough(page, 21);
   expect([...dashboard].some((name) => name.startsWith("INPUT Mark "))).toBe(true);
   expect([...dashboard]).toContain("A Open the pipeline");
 
   await page.goto("/pipeline");
   await expect(page.locator("[data-deal]").first()).toBeVisible();
-  const board = await tabThrough(page, 14);
+  const board = await tabThrough(page, 15);
   expect([...board].some((name) => name.startsWith("BUTTON Add deal to "))).toBe(true);
   expect([...board].some((name) => name.startsWith("A $"))).toBe(true);
 
   await page.goto("/products");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  const products = await tabThrough(page, 19);
+  const products = await tabThrough(page, 20);
   for (const name of ["BUTTON Add product", "INPUT Search products", "INPUT Show archived (2)", "BUTTON Unit price"]) {
     expect([...products], name).toContain(name);
   }
@@ -188,7 +233,7 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
 
   await page.goto("/bills");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  const bills = await tabThrough(page, 26);
+  const bills = await tabThrough(page, 27);
   for (const name of ["BUTTON Add bill", "INPUT Search bills", "BUTTON Total"]) {
     expect([...bills], name).toContain(name);
   }
@@ -199,6 +244,24 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
     ).toBe(true);
   }
   expect([...bills].some((name) => name.startsWith("BUTTON Mark paid bill "))).toBe(true);
+});
+
+test("a draft quote's form can be tabbed through, with a focus ring on each control", async ({ page, request }) => {
+  const draft = await addDraft(request, "Tabbed");
+  await page.goto(`/quotes/${draft.id}`);
+  await expect(page.getByLabel("Valid until")).toBeVisible();
+  await page.getByRole("button", { name: "Download PDF" }).focus();
+  const reached = await tabThrough(page, 18);
+  for (const name of [
+    "INPUT Valid until",
+    "BUTTON Remove Standard license, per user per year",
+    "TEXTAREA Description",
+    "INPUT Quantity",
+    "INPUT Unit price",
+    "BUTTON Add product",
+  ]) {
+    expect([...reached], name).toContain(name);
+  }
 });
 
 /** How many lines each element's text takes up. */
@@ -227,7 +290,7 @@ test("the top bar stays on one line at 1280 by 720, even with the widest date", 
 
   expect((await bar.boundingBox())!.height).toBe(56);
   expect(await linesOf(bar.getByRole("navigation", { name: "Sections" }).getByRole("link"))).toEqual([
-    1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
   ]);
   const date = bar.getByText("Nov 30, 2026");
   expect(await linesOf(date)).toEqual([1]);

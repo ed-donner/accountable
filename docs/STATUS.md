@@ -336,6 +336,15 @@ The reviewer subagent reviewed the branch against `main`, leaving out style. It 
 
 A fourth, that a 5,000-digit tax rate gets an odd message, was dropped: Python's JSON parser refuses it first, and FastAPI answers with a 400 before the check runs.
 
+## Company settings: independent review
+
+`docs/changes/company-settings/independent-review.md` found two Important problems, both now fixed. Each new test failed on the code before its fix.
+
+1. **A pending save threw away what was typed meanwhile.** Only Save settings was disabled during a save, and when the save came back, the form was reset to what had been sent, so a box changed in the meantime went back without a word. A test that holds the save, types a new phone number and then lets the save finish showed the old number. The page now keeps anything changed since Save settings was pressed, still to be saved, so a teammate's save can't replace it either (B10), and the other boxes show what was saved. B8 says so. The new test in `SettingsPage.test.tsx` also fails if the kept change isn't left unsaved.
+2. **A rate sent as a JSON number was rounded before it was checked.** FastAPI reads a body with Python's JSON reader, which makes 8.8750000000000001 the float 8.875, so it was saved as 8.875, 100.000000000000001 as 100, and 1e-999999999 as 0. The plan's risk 4 assumed a float keeps what was sent. The settings' routes now use `api.ExactNumbersRoute`, which reads a number with a point or an exponent as a `Decimal` with every digit, and the rate's check reads that from its digits and exponent, without writing it out in full or rounding it. New tests in `test_company_settings.py` send the JSON as text, because a Python float would lose the digits before the request went. They fail again with the route class taken out. Other routes read their bodies as before.
+
+The review's third point, that no test overlaps two saves to prove the read and check happen under the write lock, is the same as the first nit of the review above, and is still open.
+
 ## Running Accountable
 
 Accountable runs two ways:

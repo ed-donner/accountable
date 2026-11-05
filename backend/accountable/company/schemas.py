@@ -44,23 +44,40 @@ def _company_name(value: str) -> str:
     return value
 
 
-def _rate_digits(value: Any) -> str:
-    """The rate as plain digits, from text as typed or from a JSON number, never through a binary fraction (B7).
+def _thousandths(value: Any) -> int:
+    """8.875 is 8875: thousandths of a percent, as the table keeps them, from text as typed or a JSON number (B7).
 
-    Anything else, a boolean included, which would otherwise pass as 1 or 0, gives no digits.
+    Anything else, a boolean included, which would otherwise pass as 1 or 0, is refused.
     """
     if isinstance(value, str):
-        return value.strip()
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        return ""
-    # A float writes its shortest form, so 8.875 arrives as 8.875. "f" leaves out the exponent,
-    # and writes infinity and NaN as words, which have no digits.
-    return format(Decimal(str(value)), "f")
+        return _thousandths_of_text(value.strip())
+    if isinstance(value, int | float | Decimal) and not isinstance(value, bool):
+        # The settings' routes read a number with a point as a Decimal, with every digit sent. A
+        # float from anywhere else writes its shortest form, so 8.875 reads as 8.875.
+        return _thousandths_of_number(Decimal(str(value)) if isinstance(value, float) else Decimal(value))
+    # Anything else has no digits, so it gets the same message as blank text.
+    return _thousandths_of_text("")
 
 
-def _thousandths(value: Any) -> int:
-    """8.875 is 8875: thousandths of a percent, as the table keeps them."""
-    match = RATE_DIGITS.fullmatch(_rate_digits(value))
+def _thousandths_of_number(number: Decimal) -> int:
+    """Decimals compare exactly, and nothing here rounds the number or writes it out in full,
+    which for 1e999999999 would take a billion digits."""
+    if not number.is_finite() or number.is_signed() or number > MAX_RATE:
+        raise ValueError(RATE_RANGE_MESSAGE)
+    _, digits, exponent = number.as_tuple()
+    # Trailing zeros don't count as decimal places, so 8.8750 is 8.875.
+    significant = "".join(map(str, digits)).rstrip("0")
+    if not significant:
+        return 0
+    exponent = int(exponent) + len(digits) - len(significant)
+    if exponent < -DECIMAL_PLACES:
+        raise ValueError(RATE_DECIMALS_MESSAGE)
+    # At most 100, with at most three places, so these are small numbers.
+    return int(significant) * 10 ** (exponent + DECIMAL_PLACES)
+
+
+def _thousandths_of_text(text: str) -> int:
+    match = RATE_DIGITS.fullmatch(text)
     if match is None:
         raise ValueError(RATE_RANGE_MESSAGE)
     whole_digits = match.group(1).lstrip("0")

@@ -32,7 +32,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Names and initials, including no display name, a one-word name and a name changed in Supabase
 - Search: part of a name, any case, accented letters, `%` and `_`, spaces at the ends, the order, the limit of 5 and the counts
 - Today follows `TZ`
-- The company settings through `GET` and `PATCH /settings`: each rule and message in B4, at and past each limit, including a tax rate of 150% and payment terms of 400 days, the cases in `shared/settings-cases.json`, prefixes that clash either way round and in any capitals, the checks made against what's already saved, a rate kept exact, who last changed them, and a save that changes nothing leaving that alone
+- The company settings through `GET` and `PATCH /settings`: each rule and message in B4, at and past each limit, including a tax rate of 150% and payment terms of 400 days, the cases in `shared/settings-cases.json`, prefixes that clash either way round and in any capitals, the checks made against what's already saved, a rate kept exact, a rate sent as a JSON number checked from every digit in the request's text, such as 8.8750000000000001 and 1e-999999999, who last changed them, and a save that changes nothing leaving that alone
 - The migration that adds the company settings, run on a database that already has records, gives the defaults in B13 with no one recorded. A new database gets the sample company in B12, `npm run seed` puts it back over changed settings, and `npm run empty` leaves the settings as they were
 - The built app: an unknown address gets the page, an unknown `/api` address gets a JSON 404, and nothing outside `frontend/dist` can be reached
 
@@ -43,7 +43,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - The menu, and the theme: each choice, the saved choice, one that can't be read, and System following the device as it changes, with the browser's `prefers-color-scheme` stood in
 - The search box: the pause before searching, an older reply arriving late, the groups, "See all", the keyboard, each message in K7, trying a failed search again with a click or the down arrow, and telling screen readers whether its results are open
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
-- The Company settings page: opening it from the menu, each message beside its field, the cases in `shared/settings-cases.json`, the ask for a company name, who last changed the settings, a failed read showing no form, a failed save keeping what was typed, and a teammate's save arriving while someone is typing
+- The Company settings page: opening it from the menu, each message beside its field, the cases in `shared/settings-cases.json`, the ask for a company name, who last changed the settings, a failed read showing no form, a failed save keeping what was typed, what's typed while a save is on its way staying, still to be saved, and a teammate's save arriving while someone is typing
 
 **Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value. It also fails if the dark block sets a token that `@theme` doesn't have, so a misspelled one can't go unnoticed.
 

@@ -284,6 +284,38 @@ describe("saving", () => {
     expect(patches(calls)).toEqual([]);
   });
 
+  it("keeps what's typed while a save is on its way, still to be saved, and shows the rest as saved", async () => {
+    const saved = vi.spyOn(toast, "success");
+    let current = SAMPLE;
+    const afterSave = { ...SAMPLE, tax_rate: "8.5", updated_by: ALEX };
+    const { calls, client } = await open({
+      "GET /settings": () => ({ body: current }),
+      "PATCH /settings": () => {
+        current = afterSave;
+        return { body: afterSave };
+      },
+    });
+    await retype("Tax rate", "8.50");
+    const release = holdSaves();
+    await user().click(saveButton());
+    await waitFor(() => expect(saveButton()).toHaveProperty("disabled", true));
+    await retype("Phone", "(718) 555-0199");
+    release();
+
+    await waitFor(() => expect(saved).toHaveBeenCalledWith("Settings saved."));
+    expect(box("Tax rate").value).toBe("8.5");
+    expect(box("Phone").value).toBe("(718) 555-0199");
+
+    // Not saved yet, so a teammate's newer save leaves it alone (B10), and the next save sends it.
+    current = { ...afterSave, updated_by: DANA };
+    await act(() => client.refetchQueries());
+    await screen.findByText(/^Last changed by Dana Whitfield/);
+    expect(box("Phone").value).toBe("(718) 555-0199");
+    await user().click(saveButton());
+    await waitFor(() => expect(patches(calls)).toHaveLength(2));
+    expect(patches(calls)[1].body).toMatchObject({ phone: "(718) 555-0199", tax_rate: "8.5" });
+  });
+
   it("keeps what was typed when the save fails, and says so", async () => {
     const failed = vi.spyOn(toast, "error");
     await open({ "PATCH /settings": () => ({ status: 500, body: { detail: "Something went wrong." } }) });

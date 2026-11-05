@@ -7,7 +7,8 @@ from accountable.company import schemas
 from accountable.company.tables import company_settings
 from accountable.users import person, users
 
-router = APIRouter(prefix="/settings")
+# The rate can come as a JSON number, which has to keep every digit for its checks (B7).
+router = APIRouter(prefix="/settings", route_class=api.ExactNumbersRoute)
 
 # The one row there is, added by the migration (B13).
 _the_row = company_settings.c.id == 1

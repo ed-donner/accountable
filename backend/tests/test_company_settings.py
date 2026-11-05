@@ -188,6 +188,37 @@ def test_the_words_python_reads_as_numbers_are_refused(named, word):
     assert error_fields(reply) == {"tax_rate": RATE_MESSAGES["range"]}
 
 
+def send_raw(client, body: str):
+    """Sends the body's JSON text as it is. A Python float would lose these numbers' digits before the request went."""
+    return client.patch(SETTINGS, content=body, headers={"content-type": "application/json"})
+
+
+@pytest.mark.parametrize(
+    "number, message",
+    [
+        ("8.8750000000000001", "decimals"),
+        ("8.875" + "0" * 30 + "1", "decimals"),
+        ("1e-999999999", "decimals"),
+        ("100.000000000000001", "range"),
+        ("1e999999999", "range"),
+        ("-0.0", "range"),
+    ],
+)
+def test_a_number_is_checked_from_every_digit_sent(named, number, message):
+    assert error_fields(send_raw(named, f'{{"tax_rate": {number}}}')) == {"tax_rate": RATE_MESSAGES[message]}
+    assert stored()["tax_rate"] == 0
+
+
+@pytest.mark.parametrize(
+    "number, thousandths",
+    [("8.8750", 8875), ("8.875e0", 8875), ("1E2", 100000), ("100.0", 100000), ("0.0", 0), ("0e999999999", 0)],
+)
+def test_a_number_written_any_way_json_allows_is_read_exactly(named, number, thousandths):
+    saved(named.patch(SETTINGS, json={"tax_rate": "5"}))
+    saved(send_raw(named, f'{{"tax_rate": {number}}}'))
+    assert stored()["tax_rate"] == thousandths
+
+
 @pytest.mark.parametrize("number, thousandths", NUMBERS_ACCEPTED, ids=str)
 def test_each_rate_sent_as_a_number_is_read_from_its_digits(named, number, thousandths):
     saved(named.patch(SETTINGS, json={"tax_rate": number}))

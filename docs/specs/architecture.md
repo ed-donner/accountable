@@ -80,7 +80,8 @@ backend/accountable/
   who.py                          who added and last changed, for every area: the columns a record's table keeps, the
                                   values a save writes, and the names and times in replies (U10)
   api.py                          what every area's API shares: the base request model and its checks on what's sent,
-                                  the field types and request parameters, and the errors shown beside a field
+                                  the field types and request parameters, the errors shown beside a field, and a
+                                  route that reads JSON numbers with every digit sent
   cli.py                          seed and empty commands, for the local copy only
   migrations/                     Alembic, with batch mode on
   crm/

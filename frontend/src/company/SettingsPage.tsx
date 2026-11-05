@@ -59,9 +59,16 @@ function SettingsForm({ settings }: { settings: CompanySettings }) {
   }, [settings, isDirty, reset]);
 
   async function submit(values: SettingsValues) {
+    // The boxes as they're sent, to tell what's typed while the save is on its way.
+    const sent = form.getValues();
     try {
       const saved = await save.mutateAsync(toRequest(values));
+      const typed = form.getValues();
       reset(toForm(saved));
+      // What was typed meanwhile stays, still to be saved, so a teammate's save can't replace it either (B8, B10).
+      for (const field of Object.keys(typed) as (keyof SettingsValues)[]) {
+        if (typed[field] !== sent[field]) form.setValue(field, typed[field], { shouldDirty: true });
+      }
       toast.success("Settings saved.");
     } catch (error) {
       showSaveError(error, form);

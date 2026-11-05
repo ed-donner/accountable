@@ -6,17 +6,17 @@ The look is set by [Visual design](specs/visual-design.md#visual-design) and the
 
 ## Problem
 
-A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next.
+A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next. Prices live in people's heads and old emails too, so the same thing gets quoted at different prices.
 
 ## What Accountable is
 
-Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. It should feel sharp, modern and professional, and be a pleasure to use.
+Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. It also holds the business's price list, its first step beyond the CRM, which quotes and invoices will use later. It should feel sharp, modern and professional, and be a pleasure to use.
 
 **Who uses it:** a small sales team, sharing one Accountable every day with their own real data. Each person signs in with their own email and password, everyone works on the same records, and each record shows who added it. They start from the sample data to look around, then clear it and type in their own records. No other systems are involved yet.
 
 **Two ways to run it:** the **shared app** is the team's, on Render, with its data in Postgres on Supabase. The **local copy** runs on one computer with `npm run dev`, with the sample data and made-up teammates to sign in as, and needs neither Supabase nor the internet. It's where the app is built and tried out, and nothing done in it reaches the team's data. [running.md](specs/running.md) has both.
 
-**Five sections:**
+**Six sections:**
 
 | Section | What it's for |
 |---|---|
@@ -25,15 +25,17 @@ Accountable is a business management system: a sales CRM that will grow into a f
 | Contacts | The people we deal with, including leads and customers, each with a timeline |
 | Deals | The potential sales, each with its stage, value, close date and timeline |
 | Pipeline | The deals as cards on a board, one column per stage, moved by dragging |
+| Products | The price list: what the business sells, and at what price |
 
-Around them, a search box in the top bar finds any organization, contact or deal, and a menu under your initials holds the theme, Company settings and Sign out.
+Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out.
 
-**Four kinds of record:**
+**Five kinds of record:**
 
 - **Organization:** a company we do business with. It has many contacts and many deals.
 - **Contact:** a person we deal with, at an organization, with a status of lead, qualified or customer.
 - **Deal:** a potential sale, with an organization and a main contact, moving through six stages.
 - **Activity:** a note, call or email that happened, or needs to happen, with a contact or a deal, with an optional follow-up date.
+- **Product:** something the business sells, with a unique name, a description and a unit price in dollars and cents. It's archived rather than deleted once it's no longer sold.
 
 **One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms and the prefixes for quote and invoice numbers. Quotes and invoices come later, so nothing uses the settings yet.
 
@@ -52,11 +54,14 @@ Around them, a search box in the top bar finds any organization, contact or deal
 - AI features
 - Email, calendar or phone integrations
 - Currencies other than US dollars, or more than one tax rate
+- Products on deals, quotes or invoices
+- Stock levels, product categories, units of measure or variants
+- Price lists for particular customers, or discounts
 - Reports beyond the dashboard
 - Tags or custom fields
 - Changing the pipeline stages
 - Importing, exporting or backing up data
-- Undo
+- Undo, apart from restoring an archived product
 
 ## Terms
 
@@ -81,6 +86,9 @@ Around them, a search box in the top bar finds any organization, contact or deal
 | Overdue follow-up | Not done, with a follow-up date before today |
 | Upcoming follow-up | Not done, with a follow-up date of today or later |
 | Blank link | A deal's organization or main contact, or a contact's organization, cleared by a delete. Shown as "None". |
+| Unit price | A product's price for one, in US dollars and cents, kept as a whole number of cents |
+| Active product | A product that isn't archived. Every product starts out active. |
+| Archived product | A product taken off the price list. It's hidden from the Products table unless Show archived is ticked, and from the top bar's search, and Restore makes it active again. |
 | Company settings | The one set of company details the whole team shares, on the Company settings page. Not to be confused with the three settings in `.env` and Render that decide which copy runs (C8). |
 | Tax rate | The sales tax as a percentage, from 0 to 100 with up to three decimal places, such as 8.875% |
 | Payment terms | How many days customers have to pay, from 0 to 365 |
@@ -97,7 +105,7 @@ Around them, a search box in the top bar finds any organization, contact or deal
 
 ## Quality
 
-- **Q1.** At 1,000 contacts, 500 deals and 5,000 activities, in the local copy: the dashboard's data arrives in under 200ms, a table opens in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
+- **Q1.** At 1,000 contacts, 500 deals, 5,000 activities and 500 products, in the local copy: the dashboard's data arrives in under 200ms, a table opens in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
 - **Q2.** No errors in the browser's console, on any screen, at any time.
 - **Q3.** All controls can be reached by keyboard, with a visible focus ring. Animations respect the system's reduced motion setting.
 - **Q4.** Chrome is the one supported and tested browser. Safari and Firefox may work, but nobody has checked.
@@ -116,6 +124,7 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [records.md](specs/records.md) | Organizations, contacts and deals: the tables, adding and editing, deleting, the record pages, and their screens | T1 to T10, F1 to F12, D1 to D3, R1 to R6 |
 | [deals.md](specs/deals.md) | Stage changes, the pipeline board and its screen | S1 to S9, P1 to P11 |
 | [activities.md](specs/activities.md) | Activities, follow-ups and timelines | A1 to A7 |
+| [products.md](specs/products.md) | The price list: unit prices in dollars and cents, unique names, archiving and restoring, the product page, and their screens | G1 to G12 |
 | [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, and its screen | H1 to H9 |
 | [running.md](specs/running.md) | The local copy and the shared app, sample data, keeping data, and the commands and first run | M1 to M7, C1 to C11 |
 | [settings.md](specs/settings.md) | The company settings: the page, each field's rules, saving, who last changed them, the sample company and the defaults, and the page's screen | B1 to B14 |

@@ -7,7 +7,7 @@ addresses use the reserved .example domain.
 
 import calendar
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import Connection, insert
@@ -15,6 +15,7 @@ from sqlalchemy import Connection, insert
 from accountable import who
 from accountable.crm import rules
 from accountable.crm.tables import activities, contacts, organizations
+from accountable.sample import moment, put_down_to
 from accountable.users import add_missing_teammates, teammate
 
 # name, website slug, industry
@@ -327,16 +328,6 @@ def add_months(day: date, months: int, day_of_month: int | None = None) -> date:
     return date(year, month, min(wanted, calendar.monthrange(year, month)[1]))
 
 
-def moment(day: date, number: int) -> datetime:
-    """A working-hours time on a local day, in UTC with no zone, varied by number.
-
-    The hour repeats every 8 numbers. The activity types repeat every 3, so a repeat
-    of 3 or 9 here would put every note at the same time of day.
-    """
-    local = datetime.combine(day, time(9 + number * 5 % 8, number * 17 % 60))
-    return local.astimezone(UTC).replace(tzinfo=None)
-
-
 def path_to(stage: str) -> list[str]:
     return rules.OPEN_STAGES[: rules.OPEN_STAGES.index(stage) + 1]
 
@@ -379,14 +370,6 @@ def _lost_walks(today: date) -> list[Walk]:
     return walks
 
 
-def _who(number: int, start: datetime, today: date, every: int) -> dict[str, Any]:
-    """Added by one teammate, and for one record in every few, last changed by the next one since."""
-    if number % every != 1:
-        return who.added(teammate(number), start)
-    changed_on = today - timedelta(days=3 + number * 7 % 90)
-    return {**who.added(teammate(number), start), **who.changed(teammate(number + 1), moment(changed_on, number))}
-
-
 def _add_people(conn: Connection, today: date) -> tuple[dict[str, int], dict[str, int], list[int]]:
     start = moment(today - timedelta(days=400), 1)
     org_ids = {}
@@ -398,7 +381,7 @@ def _add_people(conn: Connection, today: date) -> tuple[dict[str, int], dict[str
                 website=f"https://www.{slug}.example",
                 industry=industry,
                 notes=notes,
-                **_who(number, start, today, every=3),
+                **put_down_to(number, start, today, every=3),
             )
             .returning(organizations.c.id)
         ).scalar_one()
@@ -431,7 +414,7 @@ def _add_people(conn: Connection, today: date) -> tuple[dict[str, int], dict[str
                 job_title=job_title,
                 organization_id=org_ids[organization],
                 status=status,
-                **_who(number, start, today, every=4),
+                **put_down_to(number, start, today, every=4),
             )
             .returning(contacts.c.id)
         ).scalar_one()

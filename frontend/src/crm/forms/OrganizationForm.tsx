@@ -1,10 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { Field } from "../../components/Field";
 import { FormDialog } from "../../components/FormDialog";
+import { useNotify } from "../../lib/notify";
 import { showSaveError } from "../../lib/saveErrors";
 import { WEBSITE_MESSAGE, isWebsite } from "../../lib/validate";
 import { useSaveOrganization, type Organization, type OrganizationDetail } from "../queries";
@@ -39,6 +39,7 @@ function initialValues(record?: Organization, defaultName?: string): Values {
 
 export function OrganizationForm({ record, defaultName, onClose, onSaved }: Props) {
   const save = useSaveOrganization(record?.id);
+  const notify = useNotify();
   const {
     register,
     handleSubmit,
@@ -55,11 +56,11 @@ export function OrganizationForm({ record, defaultName, onClose, onSaved }: Prop
         industry: values.industry || null,
         notes: values.notes || null,
       });
-      toast.success("Organization saved.");
+      notify.success("Organization saved.");
       onSaved?.(saved);
       onClose();
     } catch (error) {
-      showSaveError(error, { setError, getValues });
+      showSaveError(error, { setError, getValues, notify });
     }
   }
 

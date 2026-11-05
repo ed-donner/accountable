@@ -9,8 +9,10 @@ import {
   playwrightFolderGuardReply,
   readOnlyGuardReply,
   readsOnly,
+  runsBarePython,
   shorten,
   stopHookReply,
+  uvGuardReply,
 } from "./agent-hooks.mjs";
 
 const HERE = import.meta.dirname;
@@ -78,6 +80,58 @@ describe("envGuardReply", () => {
   });
 });
 
+describe("runsBarePython", () => {
+  it.each([
+    "cd /repo/backend/accountable && python3 - <<'EOF'\nprint(1)\nEOF",
+    "python3 - <<'EOF' 2>/dev/null || true\nprint(1)\nEOF",
+    "pip install requests",
+    "python -m pytest",
+    "FOO=1 python3 x.py",
+    "ls; python3.12 --version",
+    "(python3 x.py)",
+    "git status | python3 -c 'import sys'",
+  ])("stops %j", (command) => expect(runsBarePython(command)).toBe(true));
+
+  it.each([
+    "uv run python - <<'EOF'\nprint(1)\nEOF",
+    "uv run --no-sync python -I script.py",
+    "uv run --project ../.. python - <<'EOF'\nimport json\nEOF",
+    "uv add requests",
+    "grep -rn python docs",
+    'echo "run python3 here"',
+    "grep -E 'a|python' docs",
+    'git log --grep "fix it; python3 now"',
+    "cat > notes.md <<'EOF'\npython3 x.py\npip install y\nEOF",
+    ".venv/bin/python --version",
+    "ls .venv/lib/python3.12",
+    "npm run check",
+  ])("lets %j run", (command) => expect(runsBarePython(command)).toBe(false));
+});
+
+describe("uvGuardReply", () => {
+  it("stops a bare python, and says to use uv", () => {
+    const reply = uvGuardReply({ tool_name: "Bash", tool_input: { command: "python3 -c 'print(1)'" } });
+
+    expect(denied(reply)).toBe(true);
+    expect(reply.hookSpecificOutput.permissionDecisionReason).toContain("uv run");
+  });
+
+  it("leaves the file tools alone", () => {
+    expect(uvGuardReply({ tool_name: "Write", tool_input: { file_path: "a.py", content: "python3 x" } })).toBeNull();
+  });
+
+  it("answers Claude Code through the hook script", () => {
+    const blocked = hook("agent-guard-uv.mjs", { tool_name: "Bash", tool_input: { command: "pip install requests" } });
+    expect(blocked.code).toBe(0);
+    expect(blocked.reply.hookSpecificOutput).toMatchObject({ hookEventName: "PreToolUse", permissionDecision: "deny" });
+
+    expect(hook("agent-guard-uv.mjs", { tool_name: "Bash", tool_input: { command: "uv run pytest" } })).toEqual({
+      code: 0,
+      reply: null,
+    });
+  });
+});
+
 describe("readsOnly", () => {
   it.each([
     "git diff --stat --merge-base main",
@@ -96,6 +150,10 @@ describe("readsOnly", () => {
     "rg -n TODO backend; ls -la docs",
     "git log --format=%an | sort | head",
     "cat docs/REVIEW.md",
+    "sed -n 40,100p backend/accountable/api.py",
+    "sed -n '1,$p' docs/spec.md",
+    "sed -n 12p docs/STATUS.md; grep -n products docs/spec.md",
+    "git diff --merge-base main -- docs/STATUS.md | sed -n 1,80p",
   ])("lets %s run", (command) => expect(readsOnly(command)).toBe(true));
 
   it.each([
@@ -113,6 +171,12 @@ describe("readsOnly", () => {
     "rm -rf node_modules",
     "npm test",
     "sed -i '' 's/a/b/' docs/spec.md",
+    "sed -n -i 1p docs/spec.md",
+    "sed -n 1,5p -i docs/spec.md",
+    "sed -n '1,5w copy.md' docs/spec.md",
+    "sed -n 1e docs/spec.md",
+    "sed -n 's/a/b/p' docs/spec.md",
+    "sed -n",
     "git diff $(git merge-base main HEAD)",
     'echo "$(rm notes.txt)"',
     "git log `whoami`",

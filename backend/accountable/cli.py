@@ -19,24 +19,28 @@ import sys
 from sqlalchemy import Connection, delete, func, select
 
 from accountable import db, users
-from accountable.company import sample_data as sample_company
-from accountable.crm import sample_data
+from accountable.company import sample_data as company_sample_data
+from accountable.crm import sample_data as crm_sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
+from accountable.products import sample_data as products_sample_data
+from accountable.products.tables import products
 
 
 def fill_sample(conn: Connection) -> None:
-    """The sample data, dated from today in the team's zone, which is what the shared app's first start uses too.
+    """Every area's sample data, dated from today in the team's zone. The shared app's first start uses this too.
 
     The sample company's settings come with it, so only a new database or a seed ever gets them (B12, B13).
     """
-    sample_data.fill(conn, db.local_today())
-    sample_company.fill(conn, db.utc_now())
+    today = db.local_today()
+    crm_sample_data.fill(conn, today)
+    products_sample_data.fill(conn, today)
+    company_sample_data.fill(conn, db.utc_now())
 
 
 def _counts(conn: Connection) -> dict[str, int]:
     return {
         table.name: conn.execute(select(func.count()).select_from(table)).scalar_one()
-        for table in (organizations, contacts, deals, activities)
+        for table in (organizations, contacts, deals, activities, products)
     }
 
 
@@ -51,7 +55,7 @@ def _reaches_the_shared_app() -> bool:
 
 
 def _wipe(conn: Connection) -> None:
-    for table in (activities, stage_changes, deals, contacts, organizations):
+    for table in (activities, stage_changes, deals, contacts, organizations, products):
         conn.execute(delete(table))
 
 

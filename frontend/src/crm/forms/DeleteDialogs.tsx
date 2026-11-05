@@ -1,7 +1,6 @@
-import { toast } from "sonner";
-
 import { ConfirmDelete } from "../../components/ConfirmDelete";
 import { money } from "../../lib/money";
+import { useNotify } from "../../lib/notify";
 import { useDeleteImpact, useDeleteRecord } from "../../lib/records";
 import { plural } from "../../lib/words";
 import { useDeleteActivity, type ContactImpact, type DealImpact, type OrganizationImpact } from "../queries";
@@ -12,16 +11,17 @@ type Props = { id: number; name: string; onClose: () => void; onDeleted?: () => 
 
 function useRemove(kind: "organizations" | "contacts" | "deals", word: string, { id, onClose, onDeleted }: Props) {
   const remove = useDeleteRecord(kind, id);
+  const notify = useNotify();
   return {
     pending: remove.isPending,
     confirm: async () => {
       try {
         await remove.mutateAsync();
-        toast.success(`${word} deleted.`);
+        notify.success(`${word} deleted.`);
         onClose();
         onDeleted?.();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Something went wrong.");
+        notify.error(error instanceof Error ? error.message : "Something went wrong.");
       }
     },
   };
@@ -87,6 +87,7 @@ export function DeleteDeal(props: Props) {
 
 export function DeleteActivity({ id, description, onClose }: { id: number; description: string; onClose: () => void }) {
   const remove = useDeleteActivity();
+  const notify = useNotify();
   return (
     <ConfirmDelete
       title={`Delete "${description}"?`}
@@ -96,10 +97,10 @@ export function DeleteActivity({ id, description, onClose }: { id: number; descr
       onConfirm={async () => {
         try {
           await remove.mutateAsync(id);
-          toast.success("Activity deleted.");
+          notify.success("Activity deleted.");
           onClose();
         } catch (error) {
-          toast.error(error instanceof Error ? error.message : "Something went wrong.");
+          notify.error(error instanceof Error ? error.message : "Something went wrong.");
         }
       }}
       onClose={onClose}

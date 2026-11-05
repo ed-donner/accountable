@@ -5,8 +5,8 @@ server defaults, and nobody recorded as having changed them. So a database that
 already exists, such as the team's, never gets the sample company (B13). A new
 database gets that from the sample data instead.
 
-Revision ID: 0004
-Revises: 0003
+Revision ID: 0005
+Revises: 0004
 """
 
 from datetime import UTC, datetime
@@ -14,8 +14,8 @@ from datetime import UTC, datetime
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0004"
-down_revision = "0003"
+revision = "0005"
+down_revision = "0004"
 branch_labels = None
 depends_on = None
 

@@ -16,6 +16,19 @@
           }
         ],
         "matcher": "Edit|MultiEdit|Write|NotebookEdit|Bash|PowerShell"
+      },
+      {
+        "hooks": [
+          {
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-uv.mjs"
+            ],
+            "command": "node",
+            "onFailure": "block",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
       }
     ],
     "Stop": [

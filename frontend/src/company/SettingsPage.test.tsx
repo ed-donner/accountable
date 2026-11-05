@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
-import { mockApi, renderApp, user, type Call } from "../test-utils";
+import { holdSaves, mockApi, renderApp, user, type Call } from "../test-utils";
 import type { CompanySettings } from "./settings";
 import { SettingsPage } from "./SettingsPage";
 
@@ -92,23 +92,6 @@ function patches(calls: Call[]) {
 
 function messageBeside(label: string) {
   return box(label).closest("div.flex-col")?.querySelector('[role="alert"]')?.textContent;
-}
-
-/**
- * Keeps every save unanswered until released. The stand-in backend answers at once,
- * which would finish the first save before a second press could overlap it.
- */
-function holdSaves() {
-  let release = () => undefined as void;
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const answer = globalThis.fetch;
-  vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
-    if (init.method === "PATCH") await held;
-    return answer(url, init);
-  });
-  return release;
 }
 
 describe("the Company settings page", () => {

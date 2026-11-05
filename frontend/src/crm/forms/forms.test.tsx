@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
-import { META, mockApi, renderApp, user } from "../../test-utils";
+import { META, holdSaves, mockApi, renderApp, user } from "../../test-utils";
 import type { ContactDetail, Deal, OrganizationDetail, TimelineEntry } from "../queries";
 import { EditActivity, LogActivity } from "./ActivityForm";
 import { ContactForm } from "./ContactForm";
@@ -115,23 +115,6 @@ const FORMS: Case[] = [
 
 function box(label: string) {
   return screen.getByLabelText(label) as HTMLInputElement;
-}
-
-/**
- * Keeps every save unanswered until released. The stand-in backend answers at once,
- * which would finish the first save before a second press could overlap it.
- */
-function holdSaves() {
-  let release = () => undefined as void;
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const answer = globalThis.fetch;
-  vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
-    if (init.method && init.method !== "GET") await held;
-    return answer(url, init);
-  });
-  return release;
 }
 
 async function retype(label: string, text: string) {

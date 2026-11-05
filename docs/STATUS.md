@@ -93,7 +93,7 @@ Every screen was also walked in both modes at both sizes, on a temporary databas
 
 Built on the `subagents` branch. The coding agent has two subagents in `.claude/agents/`, and `docs/specs/testing.md` describes them:
 
-- **reviewer** reviews a branch, a commit or a range against `docs/REVIEW.md` and reports Important findings and nits. It runs on Sonnet. A hook in its file lets its shell run only commands that read, such as `git diff`, `git log`, `git show`, `git grep` and `grep`, and stops anything that could write, such as `git checkout`, a redirect into a file or `$( )`.
+- **reviewer** reviews a branch, a commit or a range against `docs/REVIEW.md` and reports Important findings and nits. It runs on Sonnet. A hook in its file lets its shell run only commands that read, such as `git diff`, `git log`, `git show`, `git grep`, `grep` and `sed -n 40,100p`, and stops anything that could write, such as `git checkout`, a redirect into a file or `$( )`.
 - **ui-check** checks each page of the running app in the browser, with the Playwright MCP server, against the brand skill and the spec, in light and dark mode, and reports what's broken or off-brand. It runs on Sonnet. It has no tools to edit files or type into the app, and a hook keeps every file it saves in `.playwright-mcp/`, which git ignores.
 
 Claude Code loads a new `.claude/agents/` folder only when a session starts, so restart it before using them. The hooks in the agents' files run only once the project folder is trusted, and not in a `claude -p` run. Both agents were started with `claude -p --agent`, which confirmed they load and that the reviewer runs on Sonnet. The hooks are tested through their scripts in `scripts/agent-hooks.test.mjs`, but neither agent has done a full run yet. `npm test` now runs 1,689 tests.
@@ -298,6 +298,75 @@ Proved twice with the new code, between this checkout and a worktree in `.claude
 
 The speed figures were the same in every run, alone or shared: the dashboard's data in 24 to 26ms, the top bar's search in 178 to 181ms, and the worst task in each drag at a median of 70 to 79ms.
 
+## Products: design
+
+On the `products` branch, `docs/spec.md` and the area files now describe Accountable with the price list in it, as it will be once the branch merges. The intent and its decisions are in `docs/changes/products/intent.md`. One area file is new: `docs/specs/products.md`, with G1 to G12. No code has changed yet. The project owner agreed the points below, and the choices in the spec that the intent left open: archiving without asking first, with Restore on its message, the count on Show archived, the message when only archived products match a search, the message for a name an archived product has, prices from $0.00 to $1 trillion, a 405 for deleting a product, and `name_key` for the unique check.
+
+- **Search spans two areas:** the top bar's search moves out of `crm/` to the top level on both sides, as `backend/accountable/search.py` and `frontend/src/components/Search.tsx`. Each area says what to look for and how its results look, so `crm/` and `products/` never import each other.
+- **The top bar:** measured on the local copy at 1280px, the bar had 75px to spare and a Products link takes 108px. With one added, the date wrapped onto two lines. The search box goes from 240px to 180px, which leaves about 17px to spare even with the widest date, such as Nov 30, 2026.
+- **Archived chip:** a new color token, Sea Mist in light mode and `#3B5862` in dark mode, because ink on the Line token's dark value is only 4.37:1.
+- **Q1** now includes 500 products, so the stress run covers the Products table.
+- **For the build:** the run instructions below described search without products, and the SQL under Clear the sample data needed `products` added once the table existed. The build did both.
+
+The build plan is in `docs/changes/products/plan.md`, in four phases. First, search moves to the top level with no visible change. Then come products on the backend, products on the frontend, and the end-to-end tests. It ends with the build. The plan adds three things the spec doesn't say yet, which the build puts in the spec: a top-level `sample.py` for what both areas' sample data share, `name_key` normalized as well as casefolded, and field messages chosen by area.
+
+## Products: build
+
+Built on the `products` branch, following `docs/changes/products/plan.md` through its four phases, each ending with `npm run check:quick` passing. Products is the sixth section: a price list with unit prices in whole cents, unique names, Archive and Restore, a page for each product, and the top bar's search finding active products. Migration `0004` adds the `products` table with no rows, so an existing local copy and the team's Supabase database start with an empty Products section. Every new test was seen to fail by breaking a copy of the code it covers, then putting the copy back.
+
+- **Search moved first, unchanged:** `backend/accountable/search.py` runs the one query over the kinds each area's `search.py` gives it, and `frontend/src/components/Search.tsx` takes its groups from `App.tsx`. `test_search.py` and the moved `Search.test.tsx` passed with nothing they expect changed, and a new cap holds `/api/search` to one query. The plan had each area's select name its own `kind`. The top level adds it instead, from the kind's name, so the two can't disagree.
+- **In the spec now:** `sample.py`, in the file tree and the layout rules. `name_key` in NFC form as well as casefolded, in `backend.md`. Field messages picked by the area whose route a request reached, in the layout rules: a product's bad description gets "Check this field", not the CRM's "Enter a description".
+- **Also in the spec now:** the archived message stays 10 seconds, in G9, and focus moves to the table's search box when Archive takes a row out, in G10. The plan had the Products page move focus. The shared table does it instead: a row that leaves the table while it has focus hands focus to the search box, once the row has gone, and only if focus fell to the page. The page would otherwise need a handle on the table's search box. `quality.spec.ts` now names N1 in `testing.md`, for its check that the top bar stays on one line.
+- **Found by the end-to-end tests:** the Show archived box unticked itself for a moment after a click, because the real app's router updates the address a moment later, and the box was drawn from the address. The unit tests' router updates it at once, so they passed. The box now keeps its own tick and follows the address when something else changes it, as the table's search box already keeps its own text.
+- **Test helpers:** `holdSaves` moved from `crm/forms/forms.test.tsx` to `test-utils.tsx`, for the products tests to share. `test-setup.ts` now dismisses Sonner's messages after each test, because Sonner hands a new `Toaster` every message still showing, so one test's "Product archived." turned up in the next. It also fills in jsdom's missing `setPointerCapture`, which Sonner calls when its message is pressed.
+
+`npm run check` passes: 3,245 tests in 4m 05s, with no unit test at a second or more. At the limits, Products opens in 123ms with 500 products, the top bar's search shows its results in 195ms, and the dashboard's data arrives in 26ms. The first full run failed one end-to-end test, `data.spec.ts`'s check after `npm run empty`: the Pipeline's "No deals yet" took more than its 5 seconds to show, though the screenshot shows it there. That step isn't changed on this branch, the test took 11 seconds in the full run against 3 on its own, it passed twice on its own, and the next full run passed. So it looks like the copy that test starts being slow under the run's load, and it may come back on a busy machine.
+
+After the build, `npm run check` failed once more on `data.spec.ts`, in another place: the copy that its `npm run empty` test starts didn't come up within the 60 seconds `startCopy` allows, while another worktree's run had the load average at about 50 on 10 cores. The limit wasn't raised, and the next run passed. ui-check then found nothing broken or off-brand on the products pages, in light and dark, and on the CRM pages next to them. It had two nits: on a product's page, a long email in "Last changed by" pushes the year onto a second line, as on every record page; and three 401s showed on the first load, before sign-in, and none after.
+
+Still to do: the walk on Supabase.
+
+## Products: review
+
+The reviewer found one Important gap: no test checked that the "Product archived." message stays up for 10 seconds (G9), so dropping its `duration` would have put it back to Sonner's 4 seconds with every test still passing. `Products.test.tsx` now checks the message asks for 10 seconds. It was seen to fail with `duration` taken out of a copy of `products/queries.ts`, then the copy was put back. The review's nits are left as they are: a failed Archive is tested end to end from the product's page only, the price message has unit tests only, two Escape presses in `products.spec.ts` have no wait between them, and the table's count of hidden matches ignores filters, which no table uses alongside hidden rows yet.
+
+`npm run check` passes: 3,246 tests in 7m 27s, longer than usual because another worktree's run was going at the same time. The first run failed one end-to-end test, `quality.spec.ts`'s walk through every screen: it ran out of its 30 seconds while opening an organization's page, after visiting the six sections. The next run, with nothing changed, passed it in 8.8 seconds. The cause isn't known. Like the `data.spec.ts` failure in the build, it may come back on a busy machine.
+
+## Products: harness improved
+
+`docs/IMPROVE.md` was followed after the review fixes. The review's four nits are still open, for later. This run used the review, the owner's messages, the Stop hook's results, the calls that hooks stopped and the agents' shell commands, from the branch's three sessions and their subagents, and searched the sessions of earlier changes for the same mistakes. The owner corrected nothing. They said "Leave the commits to me" three times, and no agent committed. The Stop hook never failed.
+
+It also looked at `company-settings`, which isn't merged and has its own harness changes in `c87c78b`. That branch already adds `npm run e2e` for running chosen end-to-end tests, which this branch's build needed (it wrote a runner of its own in `/tmp`). It also adds the rule to stop a server by its process ID, and the note about slow unit tests while another run is busy, so this run doesn't repeat them. Five mistakes had happened more than once:
+
+- **The reviewer's `sed -n` stopped:** the reviewer's shell hook stopped `sed -n 40,100p` and the like 8 times, on `multi-user`, on `company-settings` in two copies of the repo, and 3 times here. In its first pass here, the reviewer left the end-to-end tests, the table rewrite and the search move unread after two were stopped. The hook now lets `sed -n` through when it prints one range of lines, and still stops `-i`, `w`, `e` and every other sed command. Its message no longer offers the Grep and Glob tools, which this Claude Code doesn't have, and points to Read with an offset instead. Of the 13 reviewer commands the hook stopped in the logs, 10 would now run, and the other 3 are `for` loops. `agent-hooks.test.mjs` fails with sed stopped again, and with every sed let through.
+- **A bare `python3`:** agents ran `python3` themselves 24 times: 10 on `mvp`, 6 on `multi-user`, 4 on `dark-mode`, once on `prepare`, twice on `company-settings` and once in this branch's build, though the owner asks for `uv run`. A new hook, `scripts/agent-guard-uv.mjs`, stops `python`, `python3`, `pip` and the like where a command starts, and skips quoted text and heredoc bodies. Of the 3,963 shell commands in the logs, it would have stopped 24, each a real run of `python3`, and none that used `uv run`. Its tests fail with the heredoc or quote handling taken out, with it never stopping, and with it stopping every mention of python. It stopped a bare `python3` in this session.
+- **A finding the request can't reach:** on `company-settings`, the reviewer said a 5,000-digit tax rate would get an odd message, though the JSON parser refuses it first. Here it said a NUL in a product's name might reach Postgres, though `api.Request` refuses it in every text field. `docs/REVIEW.md`'s Bugs pass now says to follow an input from the request through the framework's parsing and the shared checks before saying what the code does with it.
+- **Staging with git:** on `prepare`, an agent moved a file with `git mv` and then ran `git reset` to unstage it. Here, the build deleted one with `git rm` and did the same. A `git reset` on a file also unstages whatever the owner had staged in it. `AGENTS.md` now says to use `mv` and `rm` and leave git's index as it was. A hook could stop `git mv` and `git rm`, but `git add`, `git apply --index` and others stage too, so it's a rule.
+- **An end-to-end failure explained without the slow step:** the build's first `data.spec.ts` failure was put down to load, and the review fixes' `quality.spec.ts` failure was left unexplained. Both times the rerun replaced the report, which keeps every step's time. The passing run's report shows that test's steps at about half a second each, so the failed run's report would have shown which step took the 30 seconds. `AGENTS.md` now says to find that step before running the tests again, and where the report keeps it.
+
+One mistake seen once is now in `docs/IMPROVE.md`: a review cut short. `docs/IMPROVE.md` now says that a stopped tool call is in the call's result with `is_error` set, and to check the harness changes on branches not yet merged. The ui-check run, the build's second check failure and two lines that were out of date are now in this file, above.
+
+**For the merge:** both branches change `AGENTS.md`, `docs/IMPROVE.md`, this file, `docs/specs/testing.md` and `docs/specs/architecture.md`, so the second to merge will need the other's lines kept as well. Once both are in, take `company-settings`'s Seen once entry "a finding the request can't reach" out of `docs/IMPROVE.md`, because `docs/REVIEW.md` now has it as a rule.
+
+`npm run check` passes: 3,279 tests in 4m 54s, the 33 new ones being the hooks'.
+
+## Products: independent review fixes
+
+`docs/changes/products/independent-review.md` found two Important problems and one nit. Both Important ones are fixed. Each was reproduced before the fix, and each new test was seen to fail with the fix taken out of a copy of the file, then the copy was put back.
+
+- **A message, and its Restore button, outlived its session (U5).** Sonner keeps its messages for the whole page, and hands those still showing to the next `Toaster` that starts. So after Alex archived a product, signed out and Dana signed in, Dana saw "Product archived.", and its Restore changed the product through Alex's dropped cache, leaving Dana's table out of date. A save whose reply came after sign-out showed its message to the next person too, and that held for every message, not only products'. Two new tests in `Products.test.tsx` failed on the old code, one for each case.
+  - `SignedIn` now takes away every message still showing when a session ends, before the next session's `Toaster` starts.
+  - Every message now goes through `useNotify` in the new `lib/notify.ts`, which shows it only if the session the component began in is still going. All twelve places that showed a message use it, the CRM's included, and `showSaveError` takes the form's notifier with its other parts.
+  - ESLint now refuses `toast` from Sonner in `frontend/src` outside `lib/notify.ts` and the tests, so a new message can't bring this back.
+  - Two CRM tests, for a pipeline move still on its way at sign-out, had waited for that move's message to show in the next person's session, which was this bug. They now wait for the move to finish in Alex's own cache, and check the next person sees no message.
+- **A long product name was a 500 on Postgres.** The unique index on `name_key` holds the whole key, and Postgres refuses an index entry over 2,704 bytes. That refusal isn't a duplicate, so the API let it through as a 500. SQLite has no such limit, so no test could show it. On a throwaway Postgres 16 in a scratch folder, the review's 8,192-character name was refused, random keys were stored up to 2,690 bytes and refused from 2,700, and the longest key a 200-character name can make, 2,400 bytes, was stored. The cluster was stopped and removed afterwards.
+  - A product's name now has 200 characters at most (G2), with spaces at the ends not counted. Past that, the API and the form say "Keep the name to 200 characters or fewer" beside the name, on add and rename. zod already counts characters as Python does, where JavaScript's `length` counts an emoji as two.
+  - No character's key is more than 12 bytes, so 200 are at most 2,400. `test_products.py` checks that against `INDEXED_KEY_BYTES`, by finding the character whose key is longest, in 0.2 seconds, so raising the limit past what Postgres can index fails a test.
+  - Migration `0004` is unchanged.
+- **Left open, for later:** the nit, that "two saves of one name at once" in `docs/specs/testing.md` is tested by taking the check out and saving twice in a row on SQLite, not by two connections at once or on Postgres.
+
+`npm run check` passes: 3,285 tests in 4m 03s, with no unit test at a second or more.
+
 ## Company settings: build
 
 Built on the `company-settings` branch from `docs/changes/company-settings/plan.md`, following `settings.md` (B1 to B14). Company settings, in the menu under your initials, opens a page at `/settings` with the business's details for its quotes and invoices. Nothing uses them yet.
@@ -323,8 +392,8 @@ Checked by hand on temporary databases: the page in Chrome at 1280 by 720 and 14
 
 Still to do:
 
-- **The project owner, on the shared app** (plan, By hand): `npm start` against Supabase, which runs migration `0004` there, as the next deploy would. Check that the page asks for the company name and shows nobody as having changed the settings, save the real details and see them as a second teammate, and on a Supabase project that still has the sample data, run the new clearing steps. Then, with the owner's go-ahead, the agent checks row-level security on `company_settings` and runs the security advisors through the Supabase MCP server, reporting only.
-- **Before merging:** the `products` branch also adds migration `0004`. Whichever merges second renumbers its migration to `0005` and runs the migration tests again, which now fail on two heads (plan, risk 2).
+- **The project owner, on the shared app** (plan, By hand): `npm start` against Supabase, which runs migration `0005` there, as the next deploy would, after the products' `0004` if that hasn't run yet. Check that the page asks for the company name and shows nobody as having changed the settings, save the real details and see them as a second teammate, and on a Supabase project that still has the sample data, run the new clearing steps. Then, with the owner's go-ahead, the agent checks row-level security on `company_settings` and runs the security advisors through the Supabase MCP server, reporting only.
+- **Before merging:** done in the merge with `main`, below: this branch's migration is now `0005`.
 
 ## Company settings: review
 
@@ -344,6 +413,19 @@ A fourth, that a 5,000-digit tax rate gets an odd message, was dropped: Python's
 2. **A rate sent as a JSON number was rounded before it was checked.** FastAPI reads a body with Python's JSON reader, which makes 8.8750000000000001 the float 8.875, so it was saved as 8.875, 100.000000000000001 as 100, and 1e-999999999 as 0. The plan's risk 4 assumed a float keeps what was sent. The settings' routes now use `api.ExactNumbersRoute`, which reads a number with a point or an exponent as a `Decimal` with every digit, and the rate's check reads that from its digits and exponent, without writing it out in full or rounding it. New tests in `test_company_settings.py` send the JSON as text, because a Python float would lose the digits before the request went. They fail again with the route class taken out. Other routes read their bodies as before.
 
 The review's third point, that no test overlaps two saves to prove the read and check happen under the write lock, is the same as the first nit of the review above, and is still open.
+
+## Company settings: merged with main
+
+`main`, with Products in it, was merged into `company-settings`. What the merge settled:
+
+- **Migrations:** both branches added `0004` on top of `0003`. Products merged first, so this branch's migration is now `0005_company_settings.py`, with `down_revision = "0004"`, and its upgrade test starts from a database at `0004`, as the team's will be. No database that lasts had run the old `0004`: neither this worktree nor the main checkout has a `data/accountable.db`, and Supabase hadn't been upgraded yet (Still to do, above).
+- **Field messages:** `main.py` picks the messages of the area whose route a request reached, as Products made it, and a request to `/api/settings` gets the company's. Their names no longer have to differ from every other area's, so the test for that is gone, and so is the comment in `company/schemas.py` that said so.
+- **Layout rules:** `test_layout.py` finds each area by its `tables.py`, as Products made it, so it finds `company/` too. `company/` is the one area others may import, so it's left out of the check that no area imports another. `architecture.md`'s layout rules say so.
+- **Messages:** the Settings page shows "Settings saved." and its errors through `useNotify`, as every message now must (U5), and its test uses the shared `holdSaves` in `test-utils.tsx` in place of its own copy. The App test's and `settings.spec.ts`'s counts of top bar links on `/settings` are 6 now, with Products. The first full run after the merge failed `settings.spec.ts` on that count, which still said 5.
+- **Sample data and clearing:** `cli.fill_sample` fills the CRM, the products and the sample company. The clearing steps truncate `products` too, inside the transaction that resets the settings.
+- **Harness:** `docs/IMPROVE.md` keeps both branches' changes. As Products' note for the merge asked, the Seen once entry "a finding the request can't reach" is out, because `docs/REVIEW.md` now has it as a rule.
+
+`npm run check` passes: 3,659 tests in 4m 17s, of which 2,276 backend, 1,102 frontend, 272 end-to-end and 9 speed.
 
 ## Running Accountable
 
@@ -379,7 +461,7 @@ It opens on a sign-in screen listing four made-up teammates: Alex Rivera, Dana W
 
 If it says a port is in use, Accountable is probably already running in another window.
 
-The search box in the top bar finds organizations, contacts and deals by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices, which come later: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back. The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices, which come later: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -448,11 +530,11 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity and stage change. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change and product. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
 begin;
-truncate table activities, stage_changes, deals, contacts, organizations;
+truncate table activities, stage_changes, deals, contacts, organizations, products;
 update company_settings set
   company_name = default, address = default, email = default, phone = default,
   tax_label = default, tax_rate = default, payment_terms_days = default,

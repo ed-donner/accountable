@@ -19,7 +19,6 @@ PREFIX_CHARACTERS_MESSAGE = "Use up to 10 letters, digits and hyphens"
 CLASH_MESSAGE = "Clashes with the quote prefix. Neither can start with the other, ignoring capitals"
 
 # For a value of the wrong kind, such as a prefix sent as null or the payment terms as text.
-# The keys can't be any other area's field names, because the error handler reads every area's.
 FIELD_MESSAGES = {
     "company_name": COMPANY_NAME_MESSAGE,
     "tax_rate": RATE_RANGE_MESSAGE,

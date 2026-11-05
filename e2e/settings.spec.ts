@@ -84,7 +84,7 @@ test("the menu opens Company settings, with no section marked as current", async
   await expect(page.getByText(`Last changed by Dana Whitfield on ${today()}`)).toBeVisible();
   await expect(page.getByText("No company name yet.")).toHaveCount(0);
   const sections = page.getByRole("navigation", { name: "Sections" });
-  await expect(sections.getByRole("link")).toHaveCount(5);
+  await expect(sections.getByRole("link")).toHaveCount(6);
   await expect(sections.locator('[aria-current="page"]')).toHaveCount(0);
 });
 

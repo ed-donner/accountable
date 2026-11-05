@@ -7,9 +7,20 @@ import { formatDate } from "../lib/dates";
 import type { Authorship, Person } from "../lib/records";
 import { PageHeader } from "./PageHeader";
 
-type HeaderProps = { title: string; chips?: ReactNode; onEdit: () => void; onDelete: () => void };
+/** A record page's second button, in place of Delete, such as Archive. */
+export type HeaderAction = { label: string; icon: ReactNode; onClick: () => void; pending?: boolean };
 
-export function RecordHeader({ title, chips, onEdit, onDelete }: HeaderProps) {
+/** A page gives Delete or another button, never both. */
+type SecondButton = { onDelete: () => void; action?: never } | { action: HeaderAction; onDelete?: never };
+
+type HeaderProps = SecondButton & { title: string; chips?: ReactNode; onEdit: () => void };
+
+export function RecordHeader({ title, chips, onEdit, onDelete, action }: HeaderProps) {
+  const second: HeaderAction = action ?? {
+    label: "Delete",
+    icon: <Trash2 size={15} aria-hidden="true" />,
+    onClick: onDelete!,
+  };
   return (
     <PageHeader title={title}>
       {chips}
@@ -18,9 +29,9 @@ export function RecordHeader({ title, chips, onEdit, onDelete }: HeaderProps) {
           <Pencil size={15} aria-hidden="true" />
           Edit
         </button>
-        <button type="button" className="btn btn-secondary bg-panel" onClick={onDelete}>
-          <Trash2 size={15} aria-hidden="true" />
-          Delete
+        <button type="button" className="btn btn-secondary bg-panel" disabled={second.pending} onClick={second.onClick}>
+          {second.icon}
+          {second.label}
         </button>
       </div>
     </PageHeader>

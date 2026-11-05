@@ -22,6 +22,7 @@ The project owner makes the commits. Don't commit unless asked, and don't put co
 The working tree holds the owner's uncommitted work, and `data/accountable.db` holds their records. Git can't give either back, so leave both as you found them.
 
 - To prove a test fails, break the code from your own copy of the file and put your copy back after. Never undo the break through git, such as with `git checkout --` or `git restore`, which also throws away the uncommitted work in that file.
+- Move, rename and delete files with `mv` and `rm`, not `git mv` or `git rm`, and leave git's index as you found it. Those stage the change, and undoing that with `git reset` also unstages anything the owner had staged in the file. The owner stages what goes in each commit.
 - Run the app on a temporary database unless the person asks for their own: `ACCOUNTABLE_DB=<your scratchpad>/accountable.db npm run dev`. A new database gets the sample data. A branch's migrations upgrade whatever database the app starts on, and nothing takes them back.
 - Stop every server and background command you start once you're done with it, before you end your turn, and check its ports are free. Stop it by its own process ID, never by a name: `pkill -f scripts/dev.mjs` also stops the app in the person's checkout and in every other worktree. If the person wants one left running, say that it is and how to stop it.
 
@@ -37,6 +38,8 @@ Pytest and Playwright refuse to start on their own, because `npm test` is what s
 
 In an end-to-end test, wait for the exact thing the next step needs, such as the row it scrolls to or the reply to the save it checks. A wait for the page to load or the network to go quiet returns at once on a page that has already loaded, so the test passes on its own and fails under the load of a full run.
 
-Hooks run some of this for you. Before each commit, lefthook formats the staged files, then runs the lint, type and secrets checks; don't skip it with `--no-verify`. When you finish a turn, a hook runs `npm run check:quick` and sends any failure back to you, once. Another hook stops any edit to `.env`, including any shell command that names it.
+Hooks run some of this for you. Before each commit, lefthook formats the staged files, then runs the lint, type and secrets checks; don't skip it with `--no-verify`. When you finish a turn, a hook runs `npm run check:quick` and sends any failure back to you, once. Another hook stops any edit to `.env`, including any shell command that names it, and one stops a shell command that runs `python`, `python3` or `pip` without `uv run`.
 
 On every push, GitHub Actions runs gitleaks and then `npm run check:quick`, from `.github/workflows/ci.yml`. CI leaves out the end-to-end tests, so a green CI run doesn't replace running `npm run check` yourself. The end-to-end tests leave a report, with a screenshot of each failure, in `playwright-report/`.
+
+When an end-to-end test fails, find the step that failed or took the time before you run the tests again, because the next run replaces the report. A test that passes the second time still failed for a reason. The report keeps each step and how long it took: `playwright-report/main/index.html` holds a zip in base64, and each test's JSON in it lists its steps with their `duration`.

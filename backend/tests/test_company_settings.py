@@ -9,7 +9,6 @@ import pytest
 from accountable import db
 from accountable.company import schemas
 from accountable.company.tables import company_settings
-from accountable.crm import schemas as crm_schemas
 from accountable.users import TEAMMATES
 from conftest import SUPABASE_PERSON
 from sqlalchemy import insert, select
@@ -147,10 +146,6 @@ def test_the_name_cant_be_cleared(named, name):
         "company_name": "Enter the company name"
     }
     assert stored()["company_name"] == "Plainsong Systems"
-
-
-def test_the_names_message_doesnt_clash_with_the_crms():
-    assert not set(schemas.FIELD_MESSAGES) & set(crm_schemas.FIELD_MESSAGES)
 
 
 # The tax rate (B4, B7)

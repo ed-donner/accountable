@@ -2,12 +2,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
 import { useEffect, useRef, type FormEvent, type HTMLAttributes } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
-import { toast } from "sonner";
 
 import { Field, messageId } from "../components/Field";
 import { LoadFailed } from "../components/LoadFailed";
 import { PageHeader } from "../components/PageHeader";
 import { SidePanel, WhoAndWhen } from "../components/RecordLayout";
+import { useNotify } from "../lib/notify";
 import { showSaveError } from "../lib/saveErrors";
 import {
   settingsSchema,
@@ -47,6 +47,7 @@ export function SettingsPage() {
 
 function SettingsForm({ settings }: { settings: CompanySettings }) {
   const save = useSaveSettings();
+  const notify = useNotify();
   const form = useForm<SettingsValues>({ resolver: zodResolver(settingsSchema), defaultValues: toForm(settings) });
   const { isDirty } = form.formState;
   const { reset } = form;
@@ -69,9 +70,9 @@ function SettingsForm({ settings }: { settings: CompanySettings }) {
       for (const field of Object.keys(typed) as (keyof SettingsValues)[]) {
         if (typed[field] !== sent[field]) form.setValue(field, typed[field], { shouldDirty: true });
       }
-      toast.success("Settings saved.");
+      notify.success("Settings saved.");
     } catch (error) {
-      showSaveError(error, form);
+      showSaveError(error, { setError: form.setError, getValues: form.getValues, notify });
     }
   }
 

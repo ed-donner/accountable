@@ -8,6 +8,7 @@ const TONES = {
   won: "bg-ink text-on-won",
   alert: "bg-chip-alert text-white",
   quiet: "bg-page text-muted",
+  archived: "bg-archived text-ink",
 };
 
 export type ChipTone = keyof typeof TONES;

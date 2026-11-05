@@ -2,11 +2,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { Field } from "../../components/Field";
 import { FormDialog } from "../../components/FormDialog";
+import { useNotify } from "../../lib/notify";
 import { showSaveError } from "../../lib/saveErrors";
 import { capitalize } from "../../lib/words";
 import {
@@ -50,6 +50,7 @@ type FieldsProps = {
 
 function ActivityFields({ entry, save, pending, onClose }: FieldsProps) {
   const [start] = useState(() => initialValues(entry));
+  const notify = useNotify();
   const {
     register,
     handleSubmit,
@@ -79,10 +80,10 @@ function ActivityFields({ entry, save, pending, onClose }: FieldsProps) {
         follow_up_date: values.follow_up_date || null,
         follow_up_done: values.follow_up_date ? values.follow_up_done : false,
       });
-      toast.success("Activity saved.");
+      notify.success("Activity saved.");
       onClose();
     } catch (error) {
-      showSaveError(error, { setError, getValues });
+      showSaveError(error, { setError, getValues, notify });
     }
   }
 

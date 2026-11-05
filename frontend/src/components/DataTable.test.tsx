@@ -4,7 +4,7 @@ import { MemoryRouter, useLocation } from "react-router";
 
 import { ApiError } from "../lib/api";
 import { user } from "../test-utils";
-import { DataTable, type TableColumn } from "./DataTable";
+import { DataTable, type HiddenRows, type RowAction, type TableColumn } from "./DataTable";
 
 type Row = { id: number; name: string; city: string | null; stage: string; amount: number | null };
 
@@ -423,5 +423,155 @@ describe("rows", () => {
   it("links each row to its record", () => {
     show(ROWS);
     expect(screen.getByRole("link", { name: "Bravo" }).getAttribute("href")).toBe("/things/1");
+  });
+});
+
+// Lost things stay out of the table until Show lost is ticked, as archived products do.
+const LOST: HiddenRows<Row> = {
+  which: (row) => row.stage === "lost",
+  param: "lost",
+  label: "Show lost",
+  allHidden: "Every thing is lost.",
+  hiddenMatch: (count) => `${count} lost things match.`,
+};
+
+const SOME_LOST: Row[] = [
+  { id: 1, name: "Delta", city: "Oslo", stage: "lost", amount: 40 },
+  { id: 2, name: "Alpha", city: "Lima", stage: "new", amount: 10 },
+  { id: 3, name: "Charlie", city: "Quito", stage: "won", amount: 30 },
+  { id: 4, name: "Bravo", city: "Oslo", stage: "lost", amount: 20 },
+];
+
+let archived: number[] = [];
+
+function archiving(row: Row): RowAction {
+  return { label: "Archive", icon: <span aria-hidden="true" />, onClick: () => archived.push(row.id) };
+}
+
+/** A table with Archive in place of Delete and lost things hidden. update() gives it new rows. */
+function showHiding(rows: Row[], address = "/") {
+  archived = [];
+  const element = (current: Row[]) => (
+    <MemoryRouter initialEntries={[address]}>
+      <DataTable
+        noun="thing"
+        rows={current}
+        columns={COLUMNS}
+        defaultSort={{ id: "name", desc: false }}
+        rowId={(row) => row.id}
+        rowName={(row) => row.name}
+        rowHref={(row) => `/things/${row.id}`}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        rowAction={archiving}
+        hidden={LOST}
+      />
+      <Address />
+    </MemoryRouter>
+  );
+  const view = render(element(rows));
+  return { update: (next: Row[]) => view.rerender(element(next)) };
+}
+
+function showLost() {
+  return screen.getByRole<HTMLInputElement>("checkbox", { name: /^Show lost/ });
+}
+
+describe("a second button in place of Delete", () => {
+  it("takes Delete's place, named with the row, and doesn't open the row", async () => {
+    showHiding(SOME_LOST);
+    expect(screen.queryByRole("button", { name: /^Delete/ })).toBeNull();
+    await user().click(screen.getByRole("button", { name: "Archive Charlie" }));
+    expect(archived).toEqual([3]);
+    expect(address()).toBe("");
+  });
+});
+
+describe("rows hidden until a box shows them", () => {
+  it("stay out of the table, with their count beside the box", () => {
+    showHiding(SOME_LOST);
+    expect(names()).toEqual(["Alpha", "Charlie"]);
+    expect(showLost().checked).toBe(false);
+    expect(showLost().parentElement?.textContent).toBe("Show lost (2)");
+  });
+
+  it("sort among the rest once the box is ticked, which the address keeps", async () => {
+    showHiding(SOME_LOST, "/?page=1&sort=amount&dir=desc");
+    await user().click(showLost());
+    expect(names()).toEqual(["Delta", "Charlie", "Bravo", "Alpha"]);
+    expect(address()).toBe("?sort=amount&dir=desc&lost=1");
+
+    await user().click(showLost());
+    expect(names()).toEqual(["Charlie", "Alpha"]);
+    expect(address()).toBe("?sort=amount&dir=desc");
+  });
+
+  it("show from the start when the address says so", () => {
+    showHiding(SOME_LOST, "/?lost=1");
+    expect(showLost().checked).toBe(true);
+    expect(names()).toEqual(["Alpha", "Bravo", "Charlie", "Delta"]);
+  });
+
+  it("say so when they're every row, with a button that shows them", async () => {
+    showHiding(SOME_LOST.filter((row) => row.stage === "lost"));
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByText("Every thing is lost.")).toBeTruthy();
+    expect(screen.queryByText("No things yet. Add the first one.")).toBeNull();
+    await user().click(screen.getByRole("button", { name: "Show lost things" }));
+    expect(names()).toEqual(["Bravo", "Delta"]);
+    expect(address()).toBe("?lost=1");
+  });
+
+  it("still invite the first row when there are none at all", () => {
+    showHiding([]);
+    expect(screen.getByText("No things yet. Add the first one.")).toBeTruthy();
+    expect(showLost().parentElement?.textContent).toBe("Show lost (0)");
+  });
+
+  it("are counted when only they match a search, with the same button", async () => {
+    showHiding(SOME_LOST, "/?q=oslo");
+    expect(screen.getByText("No things match. 2 lost things match.")).toBeTruthy();
+    await user().click(screen.getByRole("button", { name: "Show lost things" }));
+    expect(names()).toEqual(["Bravo", "Delta"]);
+    expect(address()).toBe("?q=oslo&lost=1");
+  });
+
+  it("aren't mentioned when no row matches at all", () => {
+    showHiding(SOME_LOST, "/?q=zzz");
+    expect(screen.getByText("No things match.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Show lost things" })).toBeNull();
+  });
+
+  it("are counted only in the columns the search looks in", () => {
+    showHiding(SOME_LOST, "/?q=40");
+    expect(screen.getByText("No things match.")).toBeTruthy();
+  });
+
+  it("stay as they were when the search is cleared", async () => {
+    showHiding(SOME_LOST, "/?q=zzz&lost=1");
+    await user().click(screen.getByRole("button", { name: "Clear search" }));
+    expect(address()).toBe("?lost=1");
+    expect(names()).toEqual(["Alpha", "Bravo", "Charlie", "Delta"]);
+  });
+});
+
+describe("a row that leaves the table", () => {
+  it("moves focus to the search box if it had it", async () => {
+    const { update } = showHiding(SOME_LOST);
+    await user().click(screen.getByRole("button", { name: "Archive Charlie" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Archive Charlie" }));
+
+    update(SOME_LOST.map((row) => (row.id === 3 ? { ...row, stage: "lost" } : row)));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("searchbox")));
+    expect(names()).toEqual(["Alpha"]);
+  });
+
+  it("leaves focus where it is if it didn't have it", async () => {
+    const { update } = showHiding(SOME_LOST);
+    await user().click(screen.getByRole("button", { name: "Edit Alpha" }));
+
+    update(SOME_LOST.map((row) => (row.id === 3 ? { ...row, stage: "lost" } : row)));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Edit Alpha" }));
   });
 });

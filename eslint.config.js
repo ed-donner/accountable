@@ -6,7 +6,17 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["**/dist/", "**/coverage/", "test-results/", "playwright-report/", ".venv/", "course/", "docs/"]),
+  globalIgnores([
+    "**/dist/",
+    "**/coverage/",
+    "test-results/",
+    "playwright-report/",
+    ".venv/",
+    "course/",
+    "docs/",
+    // Claude Code's worktrees: other checkouts of this repo, which git ignores and which run their own checks.
+    ".claude/worktrees/",
+  ]),
   js.configs.recommended,
   tseslint.configs.recommended,
   { rules: { complexity: ["error", 15] } },

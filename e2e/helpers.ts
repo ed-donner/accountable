@@ -11,8 +11,12 @@ import { stackFor } from "../scripts/test-plan.mjs";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** This Playwright worker's own servers and database. */
-export const stack = stackFor(Number(process.env.TEST_PARALLEL_INDEX ?? 0), process.env.ACCOUNTABLE_DB!);
+/** This Playwright worker's own servers and database, in the ports this run holds. */
+export const stack = stackFor({
+  slot: Number(process.env.ACCOUNTABLE_TEST_SLOT),
+  worker: Number(process.env.TEST_PARALLEL_INDEX ?? 0),
+  database: process.env.ACCOUNTABLE_DB!,
+});
 const stackEnv = { ...process.env, ACCOUNTABLE_DB: stack.database };
 
 export const API = "/api";

@@ -2,20 +2,24 @@
 //
 // 1. The quick layers, side by side: the code checks (npm run check only), the type
 //    checks and the unit tests with their coverage.
-// 2. The end-to-end tests, on as many workers as this machine can run well.
-// 3. The speed tests, alone, because their timings need a quiet machine.
+// 2. The end-to-end tests, on as many workers as this machine can run well, shared
+//    with any other test runs on it, such as one in another worktree.
+// 3. The speed tests, alone, because their timings need a quiet machine. They wait
+//    until no other run on this computer is busy, and other runs wait for them.
 //
-// The database path is chosen here, once, because Playwright reads its config again
-// in every worker: a path made there would differ between the servers and the resets.
+// The database path and the slot, which says which ports this run's servers use, are
+// chosen here, once, because Playwright reads its config again in every worker: a path
+// made there would differ between the servers and the resets.
 
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { availableParallelism, tmpdir, totalmem } from "node:os";
 import path from "node:path";
 
-import { ROOT, localEnv, setup, start } from "./setup.mjs";
-import { chooseWorkers } from "./test-plan.mjs";
+import { ROOT, localEnv, setup, start, stop } from "./setup.mjs";
+import { chooseWorkers, workerPorts } from "./test-plan.mjs";
 import { readPlaywright, readPytest, readVitest, summarize } from "./test-report.mjs";
+import { joinTestRuns } from "./test-runs.mjs";
 
 const node = process.execPath;
 const bin = (...parts) => path.join(ROOT, "node_modules", ...parts);
@@ -134,17 +138,41 @@ function run(layer, env, failuresOnly) {
   });
 }
 
-function chooseBrowserWorkers() {
+function chooseBrowserWorkers(otherRuns = 0) {
   try {
     return chooseWorkers({
       cores: availableParallelism(),
       memoryGb: totalmem() / 2 ** 30,
       requested: process.env.ACCOUNTABLE_TEST_WORKERS,
+      otherRuns,
     });
   } catch (error) {
-    console.error(error.message);
-    process.exit(1);
+    stop(error.message);
   }
+}
+
+function plural(count, word) {
+  return `${count} ${word}${count === 1 ? "" : "s"}`;
+}
+
+/** The end-to-end tests, sharing the machine with any other busy runs, then the speed tests once it's quiet. */
+async function runBrowserTests(thisRun, env, report, text) {
+  const otherRuns = await thisRun.otherBusyRuns();
+  const workers = chooseBrowserWorkers(otherRuns);
+  const sharing = otherRuns > 0 ? `, sharing this computer with ${plural(otherRuns, "other test run")}` : "";
+  console.log(`\nEnd-to-end tests, on ${plural(workers, "worker")}${sharing}\n`);
+  const endToEnd = await run(browserLayer("End-to-end", "main", workers, report, text), env);
+  thisRun.stopBusy();
+
+  console.log("\nSpeed tests, on their own\n");
+  const handBackTurn = await thisRun
+    .takeSpeedTurn(() =>
+      console.log("Waiting for the other test runs on this computer to finish their checks and end-to-end tests.\n"),
+    )
+    .catch((error) => stop(error.message));
+  const speed = await run(browserLayer("Speed", "speed", 1, report, text), env);
+  await handBackTurn();
+  return [endToEnd, speed];
 }
 
 /**
@@ -154,7 +182,11 @@ function chooseBrowserWorkers() {
 export async function runChecks({ withCodeChecks, withBrowserTests, failuresOnly = false }) {
   setup();
   const startedAt = performance.now();
-  const workers = withBrowserTests ? chooseBrowserWorkers() : 0;
+  // The most workers this run could have. Their ports have to be free in the slot it takes.
+  const mostWorkers = withBrowserTests ? chooseBrowserWorkers() : 0;
+  const thisRun = await joinTestRuns({ portsFor: (slot) => workerPorts(slot, mostWorkers) }).catch((error) =>
+    stop(error.message),
+  );
 
   const folder = mkdtempSync(path.join(tmpdir(), "accountable-test-"));
   const report = (name) => path.join(folder, name);
@@ -164,20 +196,15 @@ export async function runChecks({ withCodeChecks, withBrowserTests, failuresOnly
   const env = {
     ...localEnv(),
     ACCOUNTABLE_DB: report("test.db"),
+    ACCOUNTABLE_TEST_SLOT: String(thisRun.slot),
     // Kept between runs to save filling it each time, and apart from the cache npm run dev uses.
     ACCOUNTABLE_VITE_CACHE: path.join(ROOT, "node_modules", ".vite-test"),
   };
 
+  await thisRun.startBusy(() => console.log("\nWaiting for the speed tests of another test run on this computer.\n"));
   const quickLayers = [...(withCodeChecks ? codeChecks : []), ...unitLayers(report, text)];
   const finished = await Promise.all(quickLayers.map((layer) => run(layer, env, failuresOnly)));
-
-  if (withBrowserTests) {
-    console.log(`\nEnd-to-end tests, on ${workers} ${workers === 1 ? "worker" : "workers"}\n`);
-    finished.push(await run(browserLayer("End-to-end", "main", workers, report, text), env));
-
-    console.log("\nSpeed tests, on their own\n");
-    finished.push(await run(browserLayer("Speed", "speed", 1, report, text), env));
-  }
+  if (withBrowserTests) finished.push(...(await runBrowserTests(thisRun, env, report, text)));
 
   rmSync(folder, { recursive: true, force: true });
 

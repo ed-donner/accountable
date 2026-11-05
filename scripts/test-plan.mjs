@@ -7,6 +7,9 @@ export const READY = "All test servers are up.";
 
 export const MAX_WORKERS = 64;
 
+/** The most runs of npm test, npm run check and check:quick this computer can have going at once, such as one in each worktree. */
+export const MAX_RUNS = 16;
+
 // Measured on 10 cores: the time stops falling at 6 workers, and 8 to 12 are slower,
 // because each worker is a browser, a backend and a Vite server.
 const WORKERS_PER_CORE = 0.6;
@@ -14,8 +17,24 @@ const WORKERS_PER_CORE = 0.6;
 const GB_PER_WORKER = 1;
 const GB_SET_ASIDE = 4;
 
-/** Starts from cores and memory, so a smaller machine gets fewer workers rather than failures. */
-export function chooseWorkers({ cores, memoryGb, requested }) {
+// Clear of npm run dev's 5173 and 8765, npm start's 8000, the ports from 5200 to 8963 that
+// tests on older branches use, and the ports macOS, Linux and Windows hand out for connections.
+const FIRST_PORT = 20000;
+const PORTS_PER_WORKER = 4;
+
+/** The ports the runs on this computer share it through: one for the speed tests' turn, then one for each run's slot. */
+export const RUN_PORTS = {
+  speedTurn: FIRST_PORT,
+  slots: Array.from({ length: MAX_RUNS }, (_, slot) => FIRST_PORT + 1 + slot),
+};
+
+const FIRST_WORKER_PORT = FIRST_PORT + 1 + MAX_RUNS;
+
+/**
+ * Starts from cores and memory, so a smaller machine gets fewer workers rather than failures,
+ * then shares them with the other runs busy on this computer.
+ */
+export function chooseWorkers({ cores, memoryGb, requested, otherRuns = 0 }) {
   if (requested) {
     const count = Number(requested);
     if (!Number.isInteger(count) || count < 1 || count > MAX_WORKERS) {
@@ -25,16 +44,24 @@ export function chooseWorkers({ cores, memoryGb, requested }) {
   }
   const byCores = Math.floor(cores * WORKERS_PER_CORE);
   const byMemory = Math.floor((memoryGb - GB_SET_ASIDE) / GB_PER_WORKER);
-  return Math.max(1, Math.min(byCores, byMemory, MAX_WORKERS));
+  const forTheMachine = Math.min(byCores, byMemory, MAX_WORKERS);
+  return Math.max(1, Math.floor(forTheMachine / (otherRuns + 1)));
 }
 
-/** Everything one Playwright worker has to itself, so workers can run side by side. */
-export function stackFor(index, database) {
+function portsFor(slot, worker) {
+  const first = FIRST_WORKER_PORT + (slot * MAX_WORKERS + worker) * PORTS_PER_WORKER;
+  return { webPort: first, apiPort: first + 1, copyWebPort: first + 2, copyApiPort: first + 3 };
+}
+
+/** Everything one Playwright worker has to itself, so workers, and runs in other worktrees, can run side by side. */
+export function stackFor({ slot, worker, database }) {
   return {
-    webPort: 5200 + index,
-    apiPort: 8800 + index,
-    copyWebPort: 5300 + index,
-    copyApiPort: 8900 + index,
-    database: path.join(path.dirname(database), `worker-${index}`, path.basename(database)),
+    ...portsFor(slot, worker),
+    database: path.join(path.dirname(database), `worker-${worker}`, path.basename(database)),
   };
+}
+
+/** Every port the first few workers in a slot would use, so a run can check they're free before it takes the slot. */
+export function workerPorts(slot, workers) {
+  return Array.from({ length: workers }, (_, worker) => Object.values(portsFor(slot, worker))).flat();
 }

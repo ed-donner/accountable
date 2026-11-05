@@ -70,9 +70,7 @@ export function isReady(reply) {
   return reply.status === 401 && (reply.headers.get("content-type") ?? "").startsWith("application/json");
 }
 
-// "localhost" can reach either address, so another app on ::1 would take the
-// browser's requests even though 127.0.0.1 looks free.
-function portIsFree(port, host) {
+function portIsFreeOn(port, host) {
   return new Promise((resolve) => {
     const server = net.createServer();
     server.once("error", (error) => resolve(error.code !== "EADDRINUSE"));
@@ -80,9 +78,14 @@ function portIsFree(port, host) {
   });
 }
 
+// "localhost" can reach either address, so another app on ::1 would take the
+// browser's requests even though 127.0.0.1 looks free.
+export async function portIsFree(port) {
+  return (await portIsFreeOn(port, "127.0.0.1")) && (await portIsFreeOn(port, "::1"));
+}
+
 export async function stopIfTaken(port) {
-  const free = (await portIsFree(port, "127.0.0.1")) && (await portIsFree(port, "::1"));
-  if (!free) stop(`Port ${port} is in use. Is Accountable already running?`);
+  if (!(await portIsFree(port))) stop(`Port ${port} is in use. Is Accountable already running?`);
 }
 
 async function answers(url) {

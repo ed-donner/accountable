@@ -59,7 +59,8 @@ scripts/
   check.mjs                       npm run check and npm run check:quick
   checks.mjs                      runs the layers behind both, side by side where it can, and prints one summary
   data.mjs                        npm run seed and npm run empty
-  test-plan.mjs                   how npm test shares out the machine, and where each worker's servers are
+  test-plan.mjs                   how npm test shares out the machine, and which ports each run's slot and workers use
+  test-runs.mjs                   lets the test runs on one computer share it: slots, who's busy, and the speed tests' turn
   test-servers.mjs                starts one backend and one Vite server for each Playwright worker
   test-report.mjs                 turns what each test runner wrote into the summary that ends npm test
   agent-check-on-stop.mjs         the coding agent's hook that runs npm run check:quick when it finishes a turn
@@ -67,7 +68,7 @@ scripts/
   agent-guard-read-only.mjs       the reviewer's hook that lets its shell run only commands that read
   agent-guard-playwright-folder.mjs   ui-check's hook that keeps the files it saves in .playwright-mcp/
   agent-hooks.mjs                 what those four hooks decide
-  setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-report.test.mjs, agent-hooks.test.mjs
+  setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-runs.test.mjs, test-report.test.mjs, agent-hooks.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, routers, and the built frontend in the shared app
   settings.py                     which copy runs, from DATABASE_URL, SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (C8)

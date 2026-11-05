@@ -272,6 +272,22 @@ Done on the `prepare` branch, ahead of business areas beside the CRM, such as pr
 
 Left in `crm/`: the dates the sample data uses, the chart helpers and the delete dialogs' shared code, because no other area needs them yet. `docs/INDEPENDENT_REVIEW.md` still links to `crm/who.py`, as a record of the code it reviewed.
 
+## Test runs in several worktrees at once
+
+`npm run check` in two worktrees at the same time used to fail in one of them. Every run put its servers on the same ports, from 5200, 8800, 5300 and 8900, so the second run's servers couldn't start: "Port 5200 is already in use". Shown by running `npm run check` in two new worktrees in `.claude/worktrees/` at once, on the code as it was: one passed, and the other failed both its end-to-end and speed tests that way. A second clash turned up in the main checkout: ESLint doesn't follow `.gitignore`, so it linted the 284 files of the worktrees inside `.claude/worktrees/` and failed on 168 errors in them.
+
+- **Ports:** each run takes a slot, by listening on the slot's port, and its servers use that slot's block of ports, from 20017 up. The operating system frees the port when the run ends, even after a crash. A slot where another program already has one of the run's ports is passed over: a VS Code helper was listening on 23977 on this Mac. There's nothing to set. `scripts/test-runs.mjs` is new, `scripts/test-plan.mjs` has the layout, and `playwright.config.ts` refuses to start without a slot, as it does without a database.
+- **Workers:** a run reaching its end-to-end tests divides the machine's workers by the runs busy at that moment, its own included, so two at once on 10 cores take 3 each rather than 6.
+- **Speed tests:** one run at a time holds the speed tests' turn, and starts them only once no other run is busy with its checks or end-to-end tests. A run waits to start its checks while another holds the turn. That includes the Stop hook's `npm run check:quick`, so an agent's turn can end a few minutes later while another worktree is running `npm run check`. Claude Code gives a Stop hook 600 seconds by default, and the longest wait seen was 4 minutes 41 seconds, all told.
+- **ESLint** now leaves out `.claude/worktrees/`, as git does. It lints the same 143 files as before in the main checkout.
+
+Proved twice with the new code, between this checkout and a worktree in `.claude/worktrees/`:
+
+- **Started together:** both took 3 workers and passed every test, 2,889 each, in 5m 54s and 6m 18s. One run alone takes 4m 11s.
+- **Started 100 seconds apart, with a `check:quick` in a third worktree started once the first run took the speed tests' turn:** all three passed. The first run's speed tests waited for the second run's end-to-end tests, and the second run's speed tests and the `check:quick` waited for the first run's speed tests. The second run's unit tests ran beside the first run's 6-worker end-to-end tests, so they took two to four times as long, and the summary listed 29 of them as over a second. That list is information only.
+
+The speed figures were the same in every run, alone or shared: the dashboard's data in 24 to 26ms, the top bar's search in 178 to 181ms, and the worst task in each drag at a median of 70 to 79ms.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -405,5 +421,7 @@ Accountable has only been used on a Mac. It's built to work the same on Windows 
 `npm run check` runs the code checks and then `npm test`. `npm test` runs the type checks and every test: backend, frontend and end-to-end. It takes about four minutes on a 10-core Mac, and ends with a short summary. It keeps going if one part fails, names what failed at the end, and exits with an error. A leftover `.only` in a test also counts as a failure, because it would quietly skip other tests. It uses its own temporary databases, so it never touches your data.
 
 The end-to-end tests run side by side, using a number of workers chosen from your computer's cores and memory, so a smaller computer runs fewer at once and takes longer. To set the number yourself, for example while the computer is busy, run `ACCOUNTABLE_TEST_WORKERS=2 npm test`. The speed tests always run last and alone, so their timings are fair.
+
+You can run the tests in several worktrees at once, with nothing to set. Each run uses ports no other run is using, the runs share the workers between them, and each run's speed tests wait until the others have finished their checks and end-to-end tests, printing a line while they wait. So two runs together take longer than one, but both get a fair result.
 
 Each run leaves a report of the end-to-end tests, with a screenshot of each failure. `npx playwright show-report playwright-report/main` opens it, and `playwright-report/speed` has the speed tests'. CI on GitHub doesn't run the end-to-end tests, so run `npm run check` yourself before merging.

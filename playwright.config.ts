@@ -17,6 +17,10 @@ const fromData = path.relative(path.join(root, "data"), path.resolve(database));
 if (!fromData.startsWith("..") && !path.isAbsolute(fromData)) {
   throw new Error(`Refusing to run against ${database}: that's where real data lives.`);
 }
+// The slot holds this run's ports, apart from any other run on this computer, for as long as scripts/test.mjs runs.
+if (!process.env.ACCOUNTABLE_TEST_SLOT) {
+  throw new Error("ACCOUNTABLE_TEST_SLOT isn't set. Run the tests with npm test.");
+}
 
 export default defineConfig({
   testDir: "e2e",

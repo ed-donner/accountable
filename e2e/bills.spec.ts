@@ -46,6 +46,11 @@ function shown(iso: string) {
   });
 }
 
+/** A plain date, such as 2026-11-05, for a day the test picks. */
+function isoOf(day: Date) {
+  return [day.getFullYear(), day.getMonth() + 1, day.getDate()].map((part) => String(part).padStart(2, "0")).join("-");
+}
+
 function dollars(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
@@ -246,18 +251,28 @@ test("the Money section matches the bills", async ({ page, request }) => {
 
 test("an organization's page lists its bills and can't delete it while it has them", async ({ page, request }) => {
   const supplier = await addOrganization(request, "Northwind Software");
+  // Due dates of two lengths: the 15th of last month, such as Oct 15, 2026, and the 1st of next, such as Dec 1, 2026.
+  const now = new Date();
+  const lastMonth = isoOf(new Date(now.getFullYear(), now.getMonth() - 1, 15));
+  const nextMonth = isoOf(new Date(now.getFullYear(), now.getMonth() + 1, 1));
   await addBill(request, {
     organization_id: supplier.id,
     bill_number: "NS-1",
-    bill_date: isoDay(-40),
-    due_date: isoDay(-10),
+    bill_date: isoOf(new Date(now.getFullYear(), now.getMonth() - 1, 15 - 30)),
+    due_date: lastMonth,
     amount_cents: 110000,
   });
-  await addBill(request, { organization_id: supplier.id, bill_number: "NS-2", amount_cents: 310000 });
+  await addBill(request, {
+    organization_id: supplier.id,
+    bill_number: "NS-2",
+    due_date: nextMonth,
+    amount_cents: 310000,
+  });
   await addBill(request, {
     organization_id: supplier.id,
     bill_number: "NS-0",
     bill_date: isoDay(-60),
+    due_date: isoDay(-59),
     amount_cents: 99,
     paid_on: isoDay(-50),
   });
@@ -266,6 +281,10 @@ test("an organization's page lists its bills and can't delete it while it has th
   const panel = page.getByRole("region", { name: "Bills" });
   await expect(panel.getByRole("link")).toHaveText(["NS-1", "NS-2", "NS-0"]);
   await expect(panel).toContainText("$4,200.00 unpaid, $1,100.00 of it overdue");
+  // The rows line up, so each due date starts at the same place however long it is.
+  const starts = [];
+  for (const due of [lastMonth, nextMonth]) starts.push((await panel.getByText(shown(due)).boundingBox())!.x);
+  expect(starts[1]).toBe(starts[0]);
 
   await panel.getByRole("button", { name: "Add bill" }).click();
   await expect(dialog(page).getByRole("combobox", { name: "Supplier" })).toHaveText("Northwind Software");

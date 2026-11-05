@@ -36,7 +36,10 @@ function BillLine({ bill, today }: { bill: BillRow; today: string }) {
       <Link to={`/bills/${bill.id}`} className="link num min-w-0 flex-1 truncate text-[13px] font-medium">
         {bill.bill_number}
       </Link>
-      <span className="num flex-none text-[12px] text-muted">{formatDate(bill.due_date)}</span>
+      {/* As wide as the longest date, such as Sep 30, 2026, so each row's date starts at the same place. */}
+      <span className="num w-[88px] flex-none text-[12px] whitespace-nowrap text-muted">
+        {formatDate(bill.due_date)}
+      </span>
       <span className="num w-[92px] flex-none text-right text-[13px]">{price(bill.total_cents)}</span>
       <span className="flex w-[70px] flex-none justify-end">
         <BillStatusChip status={billStatus(bill, today)} />

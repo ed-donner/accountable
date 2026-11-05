@@ -520,6 +520,12 @@ On Postgres: a throwaway Postgres 16, built from the migrations' Postgres SQL, m
 
 `npm run check` passes: 4,296 tests in 5m 36s, of which 2,714 backend, 1,281 frontend, 290 end-to-end and 11 speed. At the limits, Bills opens in 133ms and the Money section's data arrives in 8ms. Two unit tests read 1.1s while another test run on the computer was busy: the paging test in `DataTable.test.tsx`, which bills didn't change, and one case of the amount checks in `test_bills.py`. Alone they took 340ms and under 40ms.
 
+## Bills: UI check
+
+ui-check looked at the Bills table under each filter, a bill's page overdue, unpaid and paid, the Add, Edit, Mark paid and Delete dialogs, a supplier's and a customer's page with the Bills panel, the dashboard's Money section with both tooltips, and the top bar at 1280px, at 1440 by 900 on a scratch database. It covered light mode throughout and dark mode for most of them, and found nothing broken or off-brand.
+
+Of its three nits, one is fixed. The due dates in an organization's Bills panel started a few pixels apart from row to row, because "Dec 1, 2026" is shorter than "Oct 31, 2026". The date now takes the width of the longest one, as the total and the chip already had fixed widths, and stays on one line. That's in the Bills panel's screen in `bills.md`. The panel's test in `e2e/bills.spec.ts` now gives two bills due dates of different lengths and checks they start at the same place. It failed by 7px before the fix. The other two are left as they are, at the owner's word: a dark-mode dashboard screenshot caught the revenue line's draw-in partway through, and the Mark paid dialog's label "Paid on" is the spec's.
+
 ## Running Accountable
 
 Accountable runs two ways:

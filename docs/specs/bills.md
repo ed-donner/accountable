@@ -76,7 +76,7 @@ A small dialog titled "Mark bill INV-0042 paid", with a Paid on date box holding
 
 ### An organization's Bills panel
 
-In the left column of the organization's page, under its contacts and deals, in the same style as their panels. The heading "Bills" has Add bill at the right, and the line saying what's unpaid sits under it in muted ink. Each bill is one row: the bill number as a link, the due date and the total in JetBrains Mono, and the status chip at the end.
+In the left column of the organization's page, under its contacts and deals, in the same style as their panels. The heading "Bills" has Add bill at the right, and the line saying what's unpaid sits under it in muted ink. Each bill is one row: the bill number as a link, the due date and the total in JetBrains Mono, and the status chip at the end. The due date takes the width of the longest date, such as Sep 30, 2026, and the total and the chip have fixed widths too, so each starts at the same place in every row.
 
 ### Money section
 

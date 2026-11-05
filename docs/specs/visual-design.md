@@ -30,7 +30,7 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Sea Green text | `#047A5B` | `#51E2BC` | If Sea Green is ever needed as text |
 | Marigold text | `#866522` | `#FFD47D` | If Marigold is ever needed as text |
 | Raspberry text | `#D23E62` | `#F591A9` | Error messages beside a field. Light mode uses the Alert chip's shade |
-| Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts |
+| Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts, and the icon before the Company settings page's ask for a company name |
 | Alert | `#EF476F` Raspberry, white text | Same | Delete buttons, charts |
 | Small chip, Information | `#107FA4`, white text | Same | Negotiation chips |
 | Small chip, Alert | `#D23E62`, white text | Same | Late, Overdue and Lost chips, the connection message |

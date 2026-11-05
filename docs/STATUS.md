@@ -305,6 +305,7 @@ Where the build settled something or differs from the plan:
 - **The page didn't fit at 1280 by 720** at first: it ran 9px past the window. The gap between fields in the panels is now 10px rather than the forms' 14px, and the space under the button 12px. With an error showing, the page grows by a line and can scroll. The rate and terms boxes are short, so % and days sit beside the number, which `settings.md`'s screen now says.
 - **The double-press test** in `SettingsPage.test.tsx` presses twice with nothing between. With user-event's double click, the button had time to disable between the clicks, so the test passed even without the guard.
 - **`quality.spec.ts`'s Tab walk** now names a box by its `<label>` when it has no `aria-label`, so its new test can name the settings boxes.
+- **The ask for a company name** (B14) was first a box on the page color, rounded like the inputs, as the spec's screen said. ui-check's screenshots showed it looked like an empty box to type in, especially in dark mode, so on the owner's say it's now ink text after a Cerulean information icon, with nothing behind it. `settings.md`'s screen and `visual-design.md`'s Information color say so.
 
 `npm run check` passes: 3,248 tests, of which 2,032 backend, 953 frontend, 255 end-to-end and 8 speed, with no unit test taking a second or more.
 

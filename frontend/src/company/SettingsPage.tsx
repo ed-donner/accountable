@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Info } from "lucide-react";
 import { useEffect, useRef, type FormEvent, type HTMLAttributes } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { toast } from "sonner";
@@ -85,7 +86,10 @@ function SettingsForm({ settings }: { settings: CompanySettings }) {
           <SidePanel title="Company">
             <div className="flex flex-col gap-2.5">
               {settings.company_name === null && (
-                <p className="rounded-control bg-page px-3 py-2.5">No company name yet. Enter one below.</p>
+                <p className="flex items-center gap-2">
+                  <Info size={16} aria-hidden="true" className="flex-none text-cerulean" />
+                  No company name yet. Enter one below.
+                </p>
               )}
               <Box field="company_name" label="Company name" />
               <AddressBox />

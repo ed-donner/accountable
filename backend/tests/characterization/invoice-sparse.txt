@@ -1,0 +1,27 @@
+--- page 1 ---
+Plainsong Systems
+ Invoice
+Number
+INV-0001
+Issued
+Oct 31, 2026
+Due
+Nov 30, 2026
+Bill to
+Walk-in customer
+Description
+Qty
+Unit price
+Amount
+Pro license
+One named user
+1
+$49.50
+$49.50
+Subtotal
+$49.50
+Tax (0%)
+$0.00
+Total
+$49.50
+INV-0001, page 1 of 1

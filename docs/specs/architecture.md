@@ -48,7 +48,8 @@ lefthook.yml                      the git pre-commit hook
 .claude/settings.json             the coding agent's permissions and hooks
 .claude/agents/                   reviewer.md and ui-check.md, the coding agent's two subagents
 .claude/skills/brand/SKILL.md     the brand skill: fonts, colors and tone
-.mcp.json                         the Playwright MCP server, which ui-check uses
+.mcp.json                         the Playwright MCP server, which ui-check uses, with a browser that keeps nothing
+                                  from one start to the next
 shared/                           expected-revenue-cases.json, website-cases.json, settings-cases.json and
                                   totals-cases.json, read by both unit test suites
 scripts/

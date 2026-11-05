@@ -10,6 +10,7 @@ Read `docs/spec.md` first. It summarizes the whole product as it stands today, h
 - `docs/TECH_STACK.md`: the stack
 - `docs/STATUS.md`: what's done so far
 - `docs/IMPROVE.md`: how to improve this harness. Follow it at Deploy, after the review fixes and before the merge
+- `docs/REVIEW.md`: what a review checks, which the reviewer subagent follows. If its report says it left part of the change unread, run it again on that part before anyone acts on the review
 
 Each change has a folder, `docs/changes/<branch name>/`, holding its `intent.md` and `plan.md`. Read only the folder for the current branch. The others are records of past changes.
 
@@ -32,7 +33,7 @@ Run `npm run check` from the project root before calling any work finished, and 
 
 It runs Prettier, ESLint, ruff format, ruff check and gitleaks, then everything `npm test` runs, ends with a summary, and exits with an error if any of them failed. `npm run format` fixes the formatting. `npm run check:quick` leaves out the end-to-end tests, for checking as you go.
 
-`npm test` runs the type checks (tsc and ty), the backend unit tests (pytest), the frontend unit tests (Vitest) and the end-to-end tests (Playwright). Unit test coverage under 80% fails it. It takes about four minutes on 10 cores, and uses its own temporary databases. It picks the number of end-to-end workers from the machine's cores and memory. `ACCOUNTABLE_TEST_WORKERS=2 npm test` sets it by hand. Runs in several worktrees can share the computer, with nothing to set: each takes ports of its own, no more than two go at once while the rest wait their turn and say so, and the speed tests wait until no other run is busy. So a run can take several minutes longer while others are going. Let a waiting run wait rather than stop it, and since the wait can outlast a shell tool's time limit, start `npm run check` in the background, or with the longest timeout the tool allows, and wait for it to finish.
+`npm test` runs the type checks (tsc and ty), the backend unit tests (pytest), the frontend unit tests (Vitest) and the end-to-end tests (Playwright). Unit test coverage under 80% fails it. It takes about four minutes on 10 cores, and uses its own temporary databases. It picks the number of end-to-end workers from the machine's cores and memory. `ACCOUNTABLE_TEST_WORKERS=2 npm test` sets it by hand. Runs in several worktrees can share the computer, with nothing to set: each takes ports of its own, no more than two go at once while the rest wait their turn and say so, and the speed tests wait until no other run is busy. So a run can take several minutes longer while others are going. Let a waiting run wait rather than stop it, and since the wait can outlast a shell tool's time limit, start `npm run check` in the background, or with the longest timeout the shell tool allows, and wait for it to finish. That's the tool's own setting: macOS has no `timeout` command.
 
 Pytest and Playwright refuse to start on their own, because `npm test` is what sets up those databases. To run chosen end-to-end tests as you go, use `npm run e2e -- e2e/settings.spec.ts`, which takes Playwright's own arguments, such as `-g` or `--repeat-each`, rather than a runner of your own.
 

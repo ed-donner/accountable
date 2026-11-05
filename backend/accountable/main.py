@@ -5,8 +5,9 @@ the shared app's routes on their own SQLite database, with a stand-in for Supaba
 """
 
 import os
-from collections.abc import AsyncGenerator, Callable, Mapping
+from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path, PurePath, PurePosixPath
 
 import jwt
@@ -26,11 +27,57 @@ from accountable.company import schemas as company_schemas
 from accountable.crm import schemas as crm_schemas
 from accountable.crm import search as crm_search
 from accountable.crm.routers import activities, contacts, dashboard, deals, meta, organizations
+from accountable.holds import Hold
 from accountable.products import router as products
 from accountable.products import schemas as products_schemas
 from accountable.products import search as products_search
 
 FRONTEND = db.ROOT / "frontend" / "dist"
+
+
+@dataclass(frozen=True)
+class Area:
+    """A business area, as the app puts it together."""
+
+    routers: Sequence[APIRouter]
+    """Its routes, which start with the area's own words, such as /api/products, and no other area's."""
+    messages: Mapping[str, str]
+    """The messages for its fields, for a request that reached one of its routes."""
+    kinds: Sequence[search.Kind] = ()
+    """What the top bar's search finds among its records."""
+    holds: Sequence[Hold] = ()
+    """Which of its records hold a deal or an organization, so that can't be deleted (D4)."""
+
+    @property
+    def route_starts(self) -> set[str]:
+        """The words its routes start with, such as {"products"}."""
+        return {
+            route_start(f"/api{route.path}")
+            for router in self.routers
+            for route in router.routes
+            if isinstance(route, APIRoute)
+        }
+
+
+# Every area, in the order the top bar's search shows its results. A later area joins the end.
+AREAS = [
+    Area(
+        routers=[meta.router, organizations.router, contacts.router, deals.router, activities.router, dashboard.router],
+        messages=crm_schemas.FIELD_MESSAGES,
+        kinds=crm_search.KINDS,
+    ),
+    Area(routers=[products.router], messages=products_schemas.FIELD_MESSAGES, kinds=products_search.KINDS),
+    Area(routers=[company_settings.router], messages=company_schemas.FIELD_MESSAGES),
+]
+
+
+def route_start(path: str) -> str:
+    """The word a route's path starts with after /api, such as "products", or "" for /api itself."""
+    parts = PurePosixPath(path).parts
+    return parts[2] if parts[1:2] == ("api",) and len(parts) > 2 else ""
+
+
+_MESSAGES = {start: area.messages for area in AREAS for start in area.route_starts}
 
 
 def make_app(
@@ -39,6 +86,7 @@ def make_app(
     """The local copy with no settings, or the shared app, serving the built frontend as well as the API."""
     app = FastAPI(title="Accountable", docs_url=None, redoc_url=None, openapi_url=None, lifespan=_lifespan(shared))
     app.state.sign_in = auth.LocalSignIn() if shared is None else auth.SupabaseSignIn(shared, keys)
+    app.state.holds = [hold for area in AREAS for hold in area.holds]
 
     # Each middleware added goes outside the ones before it, so a request meets these
     # in the opposite order: the host, then the token, then the body's type. No
@@ -72,9 +120,10 @@ def _local_sign_in_paths() -> list[str]:
 def _signed_in_routes() -> APIRouter:
     routes = APIRouter(prefix="/api", dependencies=[Depends(auth.current_user)])
     routes.include_router(auth.router)
-    for module in (meta, organizations, contacts, deals, activities, dashboard, products, company_settings):
-        routes.include_router(module.router)
-    routes.include_router(search.router([*crm_search.KINDS, *products_search.KINDS]))
+    for area in AREAS:
+        for router in area.routers:
+            routes.include_router(router)
+    routes.include_router(search.router([kind for area in AREAS for kind in area.kinds]))
     return routes
 
 
@@ -124,13 +173,9 @@ async def _json_only(request: Request, call_next):
 
 def _area_messages(request: Request) -> Mapping[str, str]:
     """The messages for the fields of the area whose route the request reached. The CRM
-    and products both have a description, and only the CRM's is required."""
-    route = PurePosixPath(request.url.path).parts[:3]
-    if route == ("/", "api", "products"):
-        return products_schemas.FIELD_MESSAGES
-    if route == ("/", "api", "settings"):
-        return company_schemas.FIELD_MESSAGES
-    return crm_schemas.FIELD_MESSAGES
+    and products both have a description, and only the CRM's is required. Routes that
+    belong to no area, such as search's, have messages of their own or none."""
+    return _MESSAGES.get(route_start(request.url.path), {})
 
 
 async def _invalid_request(request: Request, error: RequestValidationError):

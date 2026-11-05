@@ -1,6 +1,6 @@
 import { differenceInSeconds, parseISO } from "date-fns";
 import { Pencil, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { Link } from "react-router";
 
 import { formatDate } from "../lib/dates";
@@ -56,6 +56,23 @@ export function SidePanel({ title, action, children }: { title: string; action?:
       </div>
       <div className="mt-1.5">{children}</div>
     </section>
+  );
+}
+
+/**
+ * A panel another area adds to a record page, such as a deal's quotes, given the record as
+ * the page has it. App.tsx hands the panels to the page, so the page never names that area.
+ */
+export type RecordPanel<R> = { name: string; Panel: ComponentType<{ record: R }> };
+
+/** The panels other areas add, below the page's own in its side column, in the order given. */
+export function AddedPanels<R>({ panels, record }: { panels: RecordPanel<R>[]; record: R }) {
+  return (
+    <>
+      {panels.map(({ name, Panel }) => (
+        <Panel key={name} record={record} />
+      ))}
+    </>
   );
 }
 

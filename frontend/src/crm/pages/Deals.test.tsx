@@ -223,7 +223,7 @@ describe("adding, editing and deleting from the deals table", () => {
 
   it("Delete asks first, then deletes that deal", async () => {
     const calls = await showDeals("/deals", {
-      "GET /deals/7/delete-impact": { activities: 0, stage_changes: 1, won: true, value: 12000 },
+      "GET /deals/7/delete-impact": { activities: 0, stage_changes: 1, won: true, value: 12000, held_by: [] },
       "DELETE /deals/7": () => ({ status: 204, body: null }),
     });
     await user().click(await screen.findByRole("button", { name: "Delete Renewal" }));

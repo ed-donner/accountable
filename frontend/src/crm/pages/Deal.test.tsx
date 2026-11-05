@@ -3,6 +3,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { describe, expect, it } from "vitest";
 
+import type { RecordPanel } from "../../components/RecordLayout";
 import { queryDefaults } from "../../lib/queryDefaults";
 import { META, mockApi, user } from "../../test-utils";
 import type { DealDetail, TimelineEntry } from "../queries";
@@ -56,13 +57,13 @@ function Address() {
   return <output data-testid="address">{useLocation().pathname}</output>;
 }
 
-function show(address: string) {
+function show(address: string, panels: RecordPanel<DealDetail>[] = []) {
   const client = new QueryClient({ defaultOptions: queryDefaults });
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[address]}>
         <Routes>
-          <Route path="/deals/:id" element={<Deal />} />
+          <Route path="/deals/:id" element={<Deal panels={panels} />} />
           <Route path="*" element={<Address />} />
         </Routes>
       </MemoryRouter>
@@ -192,7 +193,7 @@ describe("the buttons on a deal's page", () => {
     const { calls } = await showSupport(
       {},
       {
-        "GET /deals/5/delete-impact": { activities: 1, stage_changes: 2, won: false, value: 36000 },
+        "GET /deals/5/delete-impact": { activities: 1, stage_changes: 2, won: false, value: 36000, held_by: [] },
         "DELETE /deals/5": () => ({ status: 204, body: null }),
       },
     );
@@ -245,5 +246,28 @@ describe("a deal that can't be shown", () => {
     await user().click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
     expect(screen.getByRole("heading", { level: 1, name: "Annual support" })).toBeTruthy();
+  });
+});
+
+describe("a deal's page, with panels another area adds", () => {
+  function Quotes({ record }: { record: DealDetail }) {
+    return <section aria-label="Quotes">{`${record.name} is at ${record.stage}`}</section>;
+  }
+  function Invoices({ record }: { record: DealDetail }) {
+    return <section aria-label="Invoices">{`Invoices for deal ${record.id}`}</section>;
+  }
+
+  it("shows them below its details, in their order, each given the deal", async () => {
+    mockApi({ "GET /deals/5": SUPPORT, [TIMELINE]: { entries: [], total: 0 } });
+    show("/deals/5", [
+      { name: "quotes", Panel: Quotes },
+      { name: "invoices", Panel: Invoices },
+    ]);
+    const quotes = await screen.findByRole("region", { name: "Quotes" });
+    expect(quotes.textContent).toBe("Annual support is at proposal");
+    const regions = screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"));
+    expect(regions.indexOf("Details")).toBeLessThan(regions.indexOf("Quotes"));
+    expect(regions.indexOf("Quotes")).toBe(regions.indexOf("Invoices") - 1);
+    expect(screen.getByRole("region", { name: "Invoices" }).textContent).toBe("Invoices for deal 5");
   });
 });

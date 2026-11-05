@@ -90,3 +90,7 @@ stage_changes = Table(
     Column("created_by", ForeignKey(users.c.id), index=True),
     **TABLE_OPTIONS,
 )
+
+# The CRM's records, which npm run seed and npm run empty count before they delete them (C4).
+# Stage changes go with their deals, so they aren't counted on their own.
+RECORDS = (organizations, contacts, deals, activities)

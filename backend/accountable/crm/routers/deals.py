@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, func, select, update
 
-from accountable import api, db, who
+from accountable import api, db, holds, who
 from accountable.auth import CurrentUser
 from accountable.crm import rules, schemas, timeline
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
@@ -135,14 +135,15 @@ def move_deal(
 
 
 @router.delete("/{deal_id}", status_code=204)
-def delete_deal(deal_id: api.PathId) -> None:
+def delete_deal(deal_id: api.PathId, holders: holds.Holds) -> None:
     with db.writing() as conn:
         _get(conn, deal_id)
+        holds.refuse_if_held(conn, holders, deals, deal_id, "deal")
         conn.execute(delete(deals).where(deals.c.id == deal_id))
 
 
 @router.get("/{deal_id}/delete-impact")
-def deal_impact(deal_id: api.PathId) -> schemas.DealImpact:
+def deal_impact(deal_id: api.PathId, holders: holds.Holds) -> schemas.DealImpact:
     with db.reading() as conn:
         row = _get(conn, deal_id)
         return schemas.DealImpact(
@@ -154,6 +155,7 @@ def deal_impact(deal_id: api.PathId) -> schemas.DealImpact:
             ).scalar_one(),
             won=row.stage == "won",
             value=row.value,
+            held_by=holds.holding(conn, holders, deals, deal_id),
         )
 
 

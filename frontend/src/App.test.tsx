@@ -139,6 +139,31 @@ describe("the app, signed in", () => {
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
   });
 
+  it("links the top bar to the six sections, in order, Products last", async () => {
+    visit("/");
+    render(<App />);
+    await heading();
+    const links = topBar().getAllByRole("link");
+    expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Dashboard", "/"],
+      ["Organizations", "/organizations"],
+      ["Contacts", "/contacts"],
+      ["Deals", "/deals"],
+      ["Pipeline", "/pipeline"],
+      ["Products", "/products"],
+    ]);
+  });
+
+  it("gives every section an icon of the same size, hidden from screen readers", async () => {
+    visit("/");
+    render(<App />);
+    await heading();
+    for (const link of topBar().getAllByRole("link")) {
+      const icon = link.querySelector("svg")!;
+      expect([icon.getAttribute("width"), icon.getAttribute("aria-hidden")], link.textContent!).toEqual(["17", "true"]);
+    }
+  });
+
   it.each([
     ["/organizations", "Organizations"],
     ["/contacts", "Contacts"],

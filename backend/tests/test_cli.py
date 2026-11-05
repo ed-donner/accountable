@@ -2,19 +2,24 @@ import io
 
 import pytest
 from accountable import cli, db, users
+from accountable.company import documents
 from accountable.company.sample_data import SAMPLE_COMPANY
 from accountable.company.tables import company_settings
-from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
-from accountable.products.tables import products
+from accountable.crm.tables import organizations
 from sqlalchemy import func, select, update
+
+# Every table seed and empty delete from: all but the people and the company settings.
+WIPED = [table for table in db.metadata.sorted_tables if table not in cli.KEPT]
 
 
 def counts() -> dict[str, int]:
     with db.reading() as conn:
-        return {
-            table.name: conn.execute(select(func.count()).select_from(table)).scalar_one()
-            for table in (organizations, contacts, deals, activities, stage_changes, products)
-        }
+        return {table.name: conn.execute(select(func.count()).select_from(table)).scalar_one() for table in WIPED}
+
+
+def take_number(kind: documents.DocumentKind) -> str:
+    with db.writing() as conn:
+        return documents.take_number(conn, kind)
 
 
 def answer(monkeypatch, text: str) -> None:
@@ -28,9 +33,24 @@ def with_records(make):
     deal = make.deal(organization_id=organization, main_contact_id=contact)
     make.activity(deal_id=deal)
     make.product()
+    take_number("quote")
 
 
-EMPTY = {"organizations": 0, "contacts": 0, "deals": 0, "activities": 0, "stage_changes": 0, "products": 0}
+EMPTY = {table.name: 0 for table in WIPED}
+
+
+def test_every_table_but_the_people_and_the_settings_is_wiped():
+    assert {"stage_changes", "products", "number_counters"} <= set(EMPTY)  # The check is looking in the right place.
+    assert {"users", "company_settings"}.isdisjoint(EMPTY)
+
+
+def test_the_wipe_sees_every_areas_tables():
+    """A table is in the metadata only once its module is imported, and the wipe goes by the metadata."""
+    source = (db.ROOT / "backend" / "accountable" / "cli.py").read_text()
+    areas = sorted(path.parent.name for path in (db.ROOT / "backend" / "accountable").glob("*/tables.py"))
+    assert {"company", "crm", "products"} <= set(areas)  # The check is looking in the right place.
+    for area in areas:
+        assert f"from accountable.{area} import tables" in source, area
 
 
 @pytest.mark.parametrize("command", ["seed", "empty"])
@@ -67,6 +87,17 @@ def test_empty_removes_every_record(with_records, monkeypatch):
     answer(monkeypatch, "yes\n")
     cli.main(["empty"])
     assert counts() == EMPTY
+
+
+@pytest.mark.parametrize("command", ["seed", "empty"])
+def test_seed_and_empty_start_each_count_again_at_1(database, command):
+    for _ in range(3):
+        take_number("quote")
+    take_number("invoice")
+
+    assert cli.main([command, "--yes"]) == 0
+
+    assert (take_number("quote"), take_number("invoice")) == ("QT-0001", "INV-0001")
 
 
 @pytest.mark.parametrize("command", ["seed", "empty"])

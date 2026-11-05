@@ -3,6 +3,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { describe, expect, it } from "vitest";
 
+import type { RecordPanel } from "../../components/RecordLayout";
 import { queryDefaults } from "../../lib/queryDefaults";
 import { META, mockApi, user } from "../../test-utils";
 import type { OrganizationDetail, TimelineEntry } from "../queries";
@@ -63,13 +64,13 @@ function Address() {
   return <output data-testid="address">{useLocation().pathname}</output>;
 }
 
-function show(address: string) {
+function show(address: string, panels: RecordPanel<OrganizationDetail>[] = []) {
   const client = new QueryClient({ defaultOptions: queryDefaults });
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[address]}>
         <Routes>
-          <Route path="/organizations/:id" element={<Organization />} />
+          <Route path="/organizations/:id" element={<Organization panels={panels} />} />
           <Route path="*" element={<Address />} />
         </Routes>
       </MemoryRouter>
@@ -236,7 +237,7 @@ describe("the buttons on an organization's page", () => {
 
   it("Delete asks first, then goes back to Organizations", async () => {
     const { calls } = await showHarbor(HARBOR, {
-      "GET /organizations/1/delete-impact": { contacts: 2, deals: 1 },
+      "GET /organizations/1/delete-impact": { contacts: 2, deals: 1, held_by: [] },
       "DELETE /organizations/1": () => ({ status: 204, body: null }),
     });
     await user().click(screen.getByRole("button", { name: "Delete" }));
@@ -293,5 +294,19 @@ describe("an organization that can't be shown", () => {
     await user().click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
     expect(screen.getByRole("heading", { level: 1, name: "Harbor & Pine" })).toBeTruthy();
+  });
+});
+
+describe("an organization's page, with a panel another area adds", () => {
+  function Bills({ record }: { record: OrganizationDetail }) {
+    return <section aria-label="Bills">{`Bills from ${record.name}`}</section>;
+  }
+
+  it("shows it below the deals, given the organization", async () => {
+    mockApi({ "GET /organizations/1": HARBOR, [TIMELINE]: { entries: [], total: 0 } });
+    show("/organizations/1", [{ name: "bills", Panel: Bills }]);
+    expect((await screen.findByRole("region", { name: "Bills" })).textContent).toBe("Bills from Harbor & Pine");
+    const regions = screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"));
+    expect(regions.indexOf("Bills")).toBe(regions.indexOf("Deals") + 1);
   });
 });

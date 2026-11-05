@@ -324,3 +324,27 @@ describe("when the figures can't be read", () => {
     expect(region("Revenue won").getByTestId("revenue-this-month").textContent).toBe("$42,000");
   });
 });
+
+describe("sections another area adds", () => {
+  function Owed() {
+    return <section aria-label="What customers owe">Owed</section>;
+  }
+  function Spent() {
+    return <section aria-label="What we owe">Spent</section>;
+  }
+
+  it("come below the dashboard's own, in their order", async () => {
+    mockApi({ "GET /dashboard": figures() });
+    renderApp(
+      <Dashboard
+        sections={[
+          { name: "owed", Section: Owed },
+          { name: "spent", Section: Spent },
+        ]}
+      />,
+    );
+    await figuresShown();
+    const regions = screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"));
+    expect(regions.slice(-3)).toEqual(["Recent activity", "What customers owe", "What we owe"]);
+  });
+});

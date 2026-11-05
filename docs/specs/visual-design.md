@@ -82,6 +82,19 @@ Within a mode, a stage keeps its color everywhere. Negotiation and Lost chips us
 
 Stage-change entries use Cerulean, which marks them as information.
 
+Quotes, invoices and bills will show their status in chips, in these tones, agreed ahead of them so the three areas match. Each tone is already in `Chip.tsx`, so none is new, and nothing uses this table yet:
+
+| Status | Chip | Used by |
+|---|---|---|
+| Draft | Quiet: the page color with muted ink, as on a follow-up's Done chip | Quotes, invoices |
+| Sent, Issued, Unpaid | Small chip, Information: waiting on someone | Quotes, invoices, bills |
+| Part paid | Marigold | Invoices |
+| Accepted, Paid | Sea Green | Quotes, invoices, bills |
+| Expired, Declined, Overdue | Small chip, Alert, as Late, Overdue and Lost are | Quotes, invoices, bills |
+| Void | Archived, which never reads as a warning | Invoices |
+
+As with stages, each chip names its status, so its color never carries the meaning alone.
+
 ### Type
 
 The fonts are bundled through Fontsource, so nothing loads from outside the app's own address.

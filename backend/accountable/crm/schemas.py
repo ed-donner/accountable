@@ -6,6 +6,7 @@ from typing import Annotated, Literal
 from pydantic import MISSING, AfterValidator, BaseModel, Field, StrictBool, StrictInt
 
 from accountable import api
+from accountable.holds import Holding
 from accountable.users import Person
 from accountable.who import Authorship
 
@@ -106,6 +107,7 @@ class OrganizationDetail(Organization, Authorship):
 class OrganizationImpact(BaseModel):
     contacts: int
     deals: int
+    held_by: list[Holding]
 
 
 # Contacts
@@ -215,6 +217,7 @@ class DealImpact(BaseModel):
     stage_changes: int
     won: bool
     value: int
+    held_by: list[Holding]
 
 
 # Activities and timelines

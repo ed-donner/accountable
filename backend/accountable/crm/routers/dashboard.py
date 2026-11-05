@@ -10,13 +10,12 @@ from sqlalchemy import Subquery, and_, case, func, select, union_all
 from accountable import api, db
 from accountable.crm import rules, schemas, timeline
 from accountable.crm.tables import activities, contacts, deals, stage_changes
+from accountable.months import last_months, month_key
 
 router = APIRouter()
 
-MONTHS = 12
 RECENT = 10
 FUNNEL_STAGES = rules.STAGES[:5]  # New to Won. Lost isn't a step on the way to a sale.
-MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
 def whole_percent(part: int, whole: int) -> int:
@@ -25,16 +24,12 @@ def whole_percent(part: int, whole: int) -> int:
 
 
 def month_series(won: Iterable[Any], today: date) -> list[schemas.MonthFigures]:
-    index = today.year * 12 + today.month - 1
-    months = []
-    for back in range(MONTHS - 1, -1, -1):
-        year, month = (index - back) // 12, (index - back) % 12 + 1
-        months.append(
-            schemas.MonthFigures(month=f"{year}-{month:02d}", label=MONTH_LABELS[month - 1], revenue=0, deals=0)
-        )
+    months = [
+        schemas.MonthFigures(month=month.key, label=month.label, revenue=0, deals=0) for month in last_months(today)
+    ]
     by_month = {item.month: item for item in months}
     for deal in won:
-        item = by_month.get(f"{deal.close_date.year}-{deal.close_date.month:02d}")
+        item = by_month.get(month_key(deal.close_date))
         if item is not None:
             item.revenue += deal.value
             item.deals += 1

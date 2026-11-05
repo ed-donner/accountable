@@ -111,6 +111,15 @@ The products table belongs to the price list, not the CRM, so it's in `products/
 
 The table holds one row, with `id` 1. The migration that makes the table adds it with the defaults, and a check constraint keeps `id` at 1, so no second row can appear. The API has no route that adds or deletes one. Each setting's default, and `updated_by`'s blank, are kept in the table itself, as server defaults, so the migration's row takes them from there. The clearing steps in [C11](running.md#running-and-keeping-data) set those columns back with Postgres's `DEFAULT`, rather than writing the values out a second time, and set `updated_at` to the time of clearing, because it has no default in the database. The tax rate is a whole number of thousandths, because SQLite has no exact decimal type and would keep 8.875 as a binary fraction, and the same column type then works on both databases.
 
+**number_counters**
+
+| Column | Type | Notes |
+|---|---|---|
+| kind | text | `quote` or `invoice`. Unique |
+| last_number | integer | the last number that kind has taken, so the next is one more (B15) |
+
+A kind's row is added when it takes its first number, so the migration adds none, and a kind with no row starts at 1. It belongs to `company/`, beside the prefixes, and `company/documents.py`'s `take_number` is the one thing that changes it. Seed, empty and the clearing steps delete its rows, as they delete the documents, so each count starts again at 1.
+
 Notes:
 
 - **Links:** required links are enforced by the API, not the database, because deletes have to be able to blank them. The database columns allow blank.
@@ -121,7 +130,8 @@ Notes:
 - **Migrations:** these run when the backend starts, all in one transaction, on both databases. On SQLite they run with foreign keys off, because SQLite makes most table changes by rebuilding the table, and dropping the old table with foreign keys on would run its delete rules, blanking links and deleting activities. Steps that only SQLite needs, such as those rebuilds, are skipped on Postgres, where Postgres can change a table in place. Every migration, the first ones included, runs from an empty database on both, so a new Supabase project gets the whole history.
 - **Row-level security:** on Postgres, the migrations turn on row-level security for every table, Alembic's version table included, with no policies ([Security](security.md#the-database)). SQLAlchemy has no way to say this, so it's the one place the migrations use raw SQL, and it runs only on Postgres.
 - **Row-level security check:** on Postgres, once the migrations have run, the backend reads Postgres's catalog through SQLAlchemy Core and refuses to start if any table in the `public` schema has row-level security off. It runs inside the migrations' transaction, so a start that fails it changes nothing. The message names each one, such as "Row-level security is off for these tables: notes. Turn it on in a migration." That catches a later migration that forgot, and a table added in Supabase's dashboard. The check lives in `db.py`.
-- **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)` and `stage_changes (changed_at)`, and a unique one on `products (name_key)`.
+- **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)` and `stage_changes (changed_at)`, and unique ones on `products (name_key)` and `number_counters (kind)`.
+- **Held records:** a later area's column that holds a deal or an organization (D4), such as an invoice's `deal_id`, is a foreign key with no delete rule, so the database refuses the delete too, should one ever get past the route's check.
 - **Times:** stored in UTC with no time zone, on both databases, so the API always sends times with a `Z`. Otherwise the browser would read a UTC time as local.
 - **Unique product names:** the database refuses a second product with the same `name_key`, so two saves at once can't both get through, and the API turns that refusal into the message beside the name (G8), never a 500. The key is worked out in Python, so it's the same on both databases. An index on the database's own `lower(name)` would differ between them, because SQLite's `lower()` only knows the letters A to Z, and an index can't use the lowercase function `db.py` gives SQLite. Saves check the key first, inside the write lock, so the usual case never reaches the refusal. Postgres also refuses an index entry over 2,704 bytes, its own few included, and that refusal isn't a duplicate, so it would be a 500. A name has at most 200 characters (G2), and no character's key is more than 12 bytes, so a key is at most 2,400 bytes, inside the 2,690 Postgres 16 took (`INDEXED_KEY_BYTES` in `products/tables.py`).
 - **Prices:** whole cents in a 64-bit integer, as `deals.value` is for whole dollars. The API takes `unit_price_cents` as a whole number and refuses anything else, so `49.5` is refused, not rounded. The browser holds whole numbers exactly up to about 9 quadrillion, far past the limit.
@@ -146,6 +156,8 @@ Adding a deal at Won uses step 4 and writes no `stage_changes` row. Moving a car
 Every add and save sets `created_by` and `updated_by` from the token, never from the request.
 
 Saving the company settings reads the row, applies what was sent, checks the result against B4 to B7, and writes it, all in one transaction under the write lock. It sets `updated_by` and `updated_at` only if a value changed, as U10 says. The messages for their fields live in `company/schemas.py`, and `main.py` hands them to the error handler for a request to `/api/settings`.
+
+A deal's and an organization's delete check what holds the record first, inside the delete's own transaction, under the write lock, so nothing can come to hold it between the check and the delete. Each area gives `main.py` its holds in `holds.py`'s terms: the column that points at the held record, and the word for one of its records, such as `invoice`. `main.py` puts every area's on the app, and the CRM's routes read them from there, so they never name another area. Those routes' delete-impact replies list what holds the record, kind by kind, and a delete of a held record gets a 409 in the dialog's words (D4).
 
 Every write takes one lock in `db.py`, because FastAPI runs requests on separate threads and renumbering reads a column before writing it, so two quick moves could otherwise undo each other. Teammates' moves on the shared app go through the same lock. It lives in the process, so the shared app runs as one process (W6).
 
@@ -191,6 +203,10 @@ The local copy also has these two, which need no token and which the shared app 
 | `POST /local/sign-in` | Body: `user_id`. Returns a token for that teammate. |
 
 Signing in to the shared app goes from the browser straight to Supabase Auth, so it has no route here.
+
+`DELETE /organizations/{id}` and `DELETE /deals/{id}` get a 409 while another area's records hold the record (D4), such as `{"detail": "This deal has 2 quotes and 1 invoice, so it can't be deleted."}`, and their `delete-impact` replies carry `held_by`, a list of `{"noun": "quote", "count": 2}`, empty when nothing holds the record. Contacts are never held, so theirs doesn't.
+
+Each area's routes start with words of its own after `/api`, such as `/api/products` or `/api/settings`, never another area's, so `main.py` can give a field error the messages of the area whose route it reached. A later area's lists for a deal or an organization go under its own words, such as `/api/quotes?deal_id=7`, not under `/api/deals`. Routes that belong to no area, such as `/api/search`, have messages of their own or none.
 
 Products have no delete route, so `DELETE /products/{id}` gets a 405 (G9). A product's name that's taken gets a 422 with a message beside `name`, like any other field (G2).
 

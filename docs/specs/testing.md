@@ -13,15 +13,20 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 **Backend (pytest)**, on a fresh temporary database each test:
 
 - Every row of the stage rules, with today's date fixed, including hand-set probabilities and blank main contacts
-- Delete outcomes and the counts in `delete-impact`
+- Delete outcomes and the counts in `delete-impact`, and a held deal or organization (D4): what holds it in `delete-impact`, the 409 and its words, a record that nothing points at still deleting, and a missing one still a 404. No area holds anything yet, so a deal's activities and an organization's contacts and deals stand in for a later area's records. Also that no area gives any holds yet
 - Required fields, and the rules on blank links
 - Dashboard figures against a small dataset with known answers, including month boundaries, an edited close date and a reopened deal
 - The funnel, including skipped stages, a deal moved backwards, a lost deal and a deal added at Won
 - All three timelines, with no duplicates
 - Sample data meets every line of M3, including when seeded on the 1st of a month, and M7
 - An emptied database stays empty after a restart
+- Seed and empty wipe every table but the people's and the settings', taken from the metadata, `cli.py` imports every area's tables so the wipe reaches them, and both start each count of quote and invoice numbers again at 1
+- Quote and invoice numbers (B15): each kind counted from 1 on its own with its prefix, the prefix the settings have when the number is taken, a fifth figure after 9999, a save that fails giving its number back, and 20 taken at the same moment with no gaps or repeats. Also the settings as later areas read them
+- The sums for quotes and invoices (B16, B17), from the cases in `shared/totals-cases.json`, including a half cent rounding up and the tax once on the subtotal, and quantities: whole numbers from 1 to a million, refusing 0, 1.5, 2.0, "2", `true` and past the limit
+- The last 12 months that charts by month show, across the turn of a year
 - Migrations build the same tables as `crm/tables.py`, `products/tables.py` and `company/tables.py`
 - The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value` and `products.unit_price_cents` `bigint`s, keep each company setting's default in its table, and turn on row-level security for every table, Alembic's own included
+- The migration that adds `number_counters`, run on a database that already has records, keeps them and starts each count at 1, and `number_counters (kind)` is unique
 - The migrations have one head, so two branches that each add the next migration fail the tests rather than the backend's start, and `migrations/env.py` imports every area's tables
 - The startup check for row-level security, given a list of tables with it on and off, refuses to start and names each table that has it off
 - Every route the app has gets the security and bad-input checks, taken from the app's own list of routes. That includes refusing a request with no token, an expired one, one signed with another key and one issued for something other than a signed-in user, in the local copy and in the shared app
@@ -47,6 +52,10 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Products: the table with Show archived and each of its empty states, the form with a taken name, Archive and the Restore button on its message, which stays up for 10 seconds, and the product page, active and archived. After an archive, signing out and in leaves no message or Restore for the next person, even when the archive's reply comes after sign-out. The form refuses a name over 200 characters and counts them as the backend does, so 200 eighth notes, two each in JavaScript, still go
 - The search box: the pause before searching, an older reply arriving late, the groups, including Products with their prices, "See all", the keyboard, each message in K7, trying a failed search again with a click or the down arrow, and telling screen readers whether its results are open
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
+- The delete dialog of a held deal or organization (D4): its title, what holds it in the backend's words, and Close as its only button
+- Panels other areas add to a deal's and an organization's page (R7), below the page's own and each given the record, and sections below the dashboard's own (H10), in their order
+- Downloading a file: the token sent as with any request, the file saved under the name given and let go after, and the same errors as `api()`, with nothing saved
+- The sums for quotes and invoices, from the same cases as the backend, including two half cents past $900 million that plain JavaScript numbers get a cent wrong, reading the backend's rate by its digits, and reading a typed quantity. Also the top of a money axis
 - The Company settings page: opening it from the menu, each message beside its field, the cases in `shared/settings-cases.json`, the ask for a company name, who last changed the settings, a failed read showing no form, a failed save keeping what was typed, what's typed while a save is on its way staying, still to be saved, and a teammate's save arriving while someone is typing
 
 **Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value. It also fails if the dark block sets a token that `@theme` doesn't have, so a misspelled one can't go unnoticed.
@@ -95,6 +104,8 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 |---|---|---|
 | Start and land on the dashboard, signed in through a restart | C1, C2, C9, N1 to N5, M1 to M5, M7, U15 | `e2e/start.spec.ts` |
 | Tables, forms, delete, reset, empty | T1 to T9, F1 to F9, D1 to D3, C3 to C6 | `e2e/records.spec.ts`, `e2e/data.spec.ts` |
+| Held records | D4 | `backend/tests/test_delete.py`, `frontend/src/crm/forms/forms.test.tsx` |
+| Panels and sections other areas add | R7, H10 | `frontend/src/crm/pages/Deal.test.tsx`, `frontend/src/crm/pages/Organization.test.tsx`, `frontend/src/crm/pages/Dashboard.test.tsx` |
 | Filter and record pages | T6, R1 to R5 | `e2e/records.spec.ts` |
 | Pipeline | P1 to P9, S1 to S6 | `e2e/pipeline.spec.ts` |
 | Activities and timelines | A1 to A5, S2, H6 | `e2e/activities.spec.ts` |
@@ -105,14 +116,15 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 | Search | K1 to K8 | `e2e/search.spec.ts`, `backend/tests/test_search.py`, `frontend/src/components/Search.test.tsx` |
 | Products | G1 to G12 | `e2e/products.spec.ts`, `backend/tests/test_products.py`, the tests in `frontend/src/products/` and `frontend/src/lib/money.test.ts` |
 | Company settings | B1 to B14 | `e2e/settings.spec.ts`, `backend/tests/test_company_settings.py`, `frontend/src/company/SettingsPage.test.tsx`, `frontend/src/company/settings.test.ts` |
+| Numbers and sums for quotes and invoices | B15 to B17, C4 | `backend/tests/test_numbers.py`, `backend/tests/test_tax.py`, `backend/tests/test_cli.py`, `frontend/src/company/tax.test.ts` |
 | Look and brand | Visual design, L5 | By hand, against the design reference and the dark mode screenshots |
-| Layout, the top bar on one line at 1280px, console, keyboard, Chrome | N1, N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
+| Layout, the top bar on one line at 1280px, its icons only from 1536px, console, keyboard, Chrome | N1, N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
 | Speed at the limits | Q1 | `e2e/stress.spec.ts` |
 | Security | Security, U7, U16 | `e2e/security.spec.ts`, `backend/tests/test_every_route.py`, `backend/tests/test_security.py`, `backend/tests/test_auth.py` |
 | Which copy runs | C8 to C10 | `backend/tests/test_settings.py`, `scripts/setup.test.mjs`, `scripts/start.test.mjs` |
 | The shared app | U2, U3, W1 to W9, C10 | By hand, below |
 | When things go wrong | N4, N6, F10, F11, D1, P4 | `e2e/failures.spec.ts`, `frontend/src/crm/forms/forms.test.tsx`, `frontend/src/crm/queries.test.tsx` |
-| Layout rules | Layout rules | `backend/tests/test_layout.py`, `frontend/src/layout.test.ts` |
+| Layout rules, including one-way imports between areas and each area's own route words | Layout rules | `backend/tests/test_layout.py`, `frontend/src/layout.test.ts` |
 
 **By hand:** tests can't settle everything. The app is also used in Chrome at 1440 by 900 and 1280 by 720 the way a salesperson would, including with an emptied database, after a restart and with the network off, and each screen is compared with the design reference, in light mode and dark mode. The project owner checks that someone with no instructions can answer the five questions from the dashboard (H9), and has the final say, including on how it looks. Passing tests is necessary, but it isn't enough.
 

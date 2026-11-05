@@ -49,8 +49,8 @@ lefthook.yml                      the git pre-commit hook
 .claude/agents/                   reviewer.md and ui-check.md, the coding agent's two subagents
 .claude/skills/brand/SKILL.md     the brand skill: fonts, colors and tone
 .mcp.json                         the Playwright MCP server, which ui-check uses
-shared/                           expected-revenue-cases.json, website-cases.json and settings-cases.json, read by both
-                                  unit test suites
+shared/                           expected-revenue-cases.json, website-cases.json, settings-cases.json and
+                                  totals-cases.json, read by both unit test suites
 scripts/
   setup.mjs                       shared setup, used by the scripts below that start things, Node built-ins only. It also
                                   gives the local commands an environment without the Supabase settings (C9)
@@ -73,7 +73,9 @@ scripts/
   agent-hooks.mjs                 what those five hooks decide
   setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-runs.test.mjs, test-report.test.mjs, agent-hooks.test.mjs
 backend/accountable/
-  main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, routers, and the built frontend in the shared app
+  main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, the list of areas
+                                  with each one's routes, messages, search kinds and holds, and the built frontend in
+                                  the shared app
   settings.py                     which copy runs, from DATABASE_URL, SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (C8)
   db.py                           engine for SQLite or Postgres, metadata, foreign keys, write lock, migrations on start
   auth.py                         the token check, the signed-in person and GET /me, and the local copy's sign-in routes
@@ -87,10 +89,15 @@ backend/accountable/
                                   each area gives it, the order, the limit of 5 and the counts (K1 to K8)
   sample.py                       what every area's sample data shares: the time a sample record was put down at, and
                                   which made-up teammate added it and which last changed it (U14)
-  cli.py                          seed and empty commands, for the local copy only, across every area
-  migrations/                     Alembic, with batch mode on
+  holds.py                        what holds a deal or an organization from being deleted: the Hold each area gives,
+                                  the counts for the delete dialog and the refusal (D4)
+  months.py                       the last 12 months, which every area's charts by month show
+  cli.py                          seed and empty commands, for the local copy only, across every area: each area's
+                                  sample data in order, its records counted, and every table but the people's and
+                                  the settings' wiped, in the order their foreign keys allow
+  migrations/                     Alembic, with batch mode on. 0006 adds number_counters
   crm/
-    tables.py                     SQLAlchemy Core tables
+    tables.py                     SQLAlchemy Core tables, and RECORDS, the ones seed and empty count
     schemas.py                    the CRM's Pydantic request and reply models, and the messages for its fields
     rules.py                      stage-change rules, usual probabilities, expected revenue
     timeline.py                   merged timelines and last-activity queries
@@ -98,15 +105,18 @@ backend/accountable/
     sample_data.py                sample records, dated from a given day
     routers/                      meta, organizations, contacts, deals, activities, dashboard
   products/                       the price list (G1 to G12), which never imports crm/
-    tables.py                     the products table
+    tables.py                     the products table, and RECORDS
     schemas.py                    its request and reply models, and the messages for its fields
     router.py                     the products routes and their queries
     search.py                     what the top bar's search looks for among products: active ones only
     sample_data.py                the sample products, dated from a given day
-  company/                        the company settings (B1), the one area that later areas can import
-    tables.py                     the company_settings table
+  company/                        the company settings (B1), the one area every other can import
+    tables.py                     the company_settings and number_counters tables
     schemas.py                    the settings' request and reply models, their checks, and the messages for their fields
     router.py                     GET and PATCH /settings, and their queries
+    documents.py                  for quotes and invoices: the settings as saved, and the next number (B15)
+    tax.py                        for quotes and invoices: a line's amount, the subtotal, the tax and the total, and
+                                  the quantity's type and limits (B16, B17)
     sample_data.py                the sample company (B12)
 backend/tests/
 frontend/index.html               the page, with a short script that applies the saved theme before anything draws
@@ -120,13 +130,16 @@ frontend/src/
                                   save's errors beside its fields, useCloseIfUnreadable.ts, and notify.ts, which
                                   shows messages and keeps each to its session
   components/                     Shell, SignIn, UserMenu, DataTable, RecordPicker, ConfirmDelete, LoadFailed, Chip and
-                                  others, RecordLayout: a record page's header, panels and who added and changed it,
-                                  and Search: the top bar's search box, which knows nothing about any area's records
+                                  others, RecordLayout: a record page's header, panels, the panels other areas add and
+                                  who added and changed it, and Search: the top bar's search box, which knows nothing
+                                  about any area's records
+    charts/                       what any area's chart can use: ChartTooltip, useSize, and the axes' text and the top
+                                  of a money axis
   crm/
     queries.ts, deals.ts, Timeline.tsx, searchGroups.tsx and others
     forms/                        organization, contact, deal and activity forms
     board/                        Board, Column, DealCard
-    charts/                       RevenueChart, DealsWonChart, SalesFunnel, PipelineBand
+    charts/                       RevenueChart, DealsWonChart, SalesFunnel, PipelineBand, and their geometry
     pages/                        one file per screen
   products/                       the price list, which never imports crm/
     queries.ts, ProductForm.tsx, searchGroups.tsx
@@ -134,6 +147,7 @@ frontend/src/
   company/
     SettingsPage.tsx              the Company settings page and its form
     settings.ts                   the settings' type, reading and saving them, and the form's checks
+    tax.ts                        the sums on quotes and invoices, as tax.py does them, and reading a quantity
 frontend/dist/                    the built frontend, from npm start and Render, git-ignored
 e2e/
 data/                             the local copy's database and what it needs to sign its own tokens, created on first
@@ -144,12 +158,15 @@ data/                             the local copy's database and what it needs to
 
 Accountable will grow from a sales CRM into a Business OS, including ERP, so the layout leaves room for the next business area and adds nothing else. `backend/tests/test_layout.py` and `frontend/src/layout.test.ts` enforce the rules a test can check.
 
-- **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, and `products/` the price list. A later area, such as invoices, gets a folder beside them with its own tables, routes and pages. Apart from `company/`, below, areas never import each other, so `crm/` never imports `products/` and `products/` never imports `crm/`. What they share comes from the top level. Invoices will need to read products, so the change that adds them decides how one area reads another's records.
-- **`company/` holds the company settings, on both sides.** It's an area beside `crm/` and `products/`, called `company/` because the backend's `settings.py` already decides which copy runs. It imports only the top level, and never another area. It isn't at the top level because not every area needs it: the CRM and products don't. It's the one area others can import: later areas that need the company's details, such as quotes and invoices, can import it. The sample company is in `company/sample_data.py`, and the function that fills a new database fills it too.
-- **The top level holds only what every area needs.** Signing in and people are needed by every area, so `auth.py` and `users.py` sit there, and `users.py` holds the made-up teammates that any area's sample records are put down to. `sample.py` gives every area's sample data the same times of day and the same rule for which teammate added and last changed each record. `who.py` gives every area's record tables the same four columns, `created_at`, `updated_at`, `created_by` and `updated_by`, and what saves and replies do with them. `api.py` has the base request model and its checks, the field types such as names, emails, websites, ids, dollars and cents, and the errors shown beside a field. Each area keeps the messages for its own fields, and `main.py` hands the error handler the messages of the area whose route a request reached. Two areas can each have a field of one name with different rules: the CRM's activities need a description, and a product's is optional. The top bar's search spans every area, so `search.py` sits at the top level too: it runs the one query and puts the results in order, and each area's own `search.py` says what to look for in its tables. An area can import any of these, but they never import an area, so `main.py` passes `db.py` the function that fills a new database and passes `search.py` each area's kinds. Only `main.py`, `cli.py` and the migrations name an area's folder.
+- **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, and `products/` the price list. A later area, such as quotes, invoices or bills, gets a folder beside them with its own tables, routes and pages. What areas share comes from the top level.
+- **Imports between areas go one way.** `crm/`, `products/` and `company/` are the first areas, and import no other area but `company/`, so `crm/` never imports `products/`, and neither ever imports a later area. A later area builds on them, and may import only these of theirs: on the backend, `crm/tables.py` and `products/tables.py`, for foreign keys and reads, and `crm/rules.py`, so a deal changes stage the one way however it's asked for, such as when a quote is accepted; on the frontend, `crm/queries.ts` and `products/queries.ts`, for their types and reads, and `crm/deals.ts`, such as which stages are open. Any area may import `company/`. Later areas never import each other.
+- **A later area shows its records on the CRM's pages through `App.tsx`,** never by changing the CRM's queries or replies. A deal's quotes come from the quotes area's own route, such as `/api/quotes?deal_id=7`, in a panel the quotes area gives `App.tsx`, which hands it to the deal's page (R7). The dashboard takes sections the same way (H10). Every area's routes start with words of their own after `/api`, which `backend/tests/test_layout.py` checks, so `main.py` can give a field error the right area's messages.
+- **A later area's record can hold a deal or an organization** (D4). The area says which of its columns hold one, as a `Hold`, and `main.py` hands every area's holds to the CRM's delete routes through the app, so the CRM never names the area.
+- **`company/` holds the company settings, on both sides.** It's an area beside `crm/` and `products/`, called `company/` because the backend's `settings.py` already decides which copy runs. It imports only the top level, and never another area. It isn't at the top level because not every area needs it: the CRM and products don't. It's the one area every other can import: later areas that need the company's details, such as quotes and invoices, can import it. `company/documents.py` gives them the settings as saved and each document's next number, and `company/tax.py` and `company/tax.ts` the sums on their lines. The sample company is in `company/sample_data.py`, and the function that fills a new database fills it too.
+- **The top level holds only what every area needs.** Signing in and people are needed by every area, so `auth.py` and `users.py` sit there, and `users.py` holds the made-up teammates that any area's sample records are put down to. `sample.py` gives every area's sample data the same times of day and the same rule for which teammate added and last changed each record. `who.py` gives every area's record tables the same four columns, `created_at`, `updated_at`, `created_by` and `updated_by`, and what saves and replies do with them. `api.py` has the base request model and its checks, the field types such as names, emails, websites, ids, dollars and cents, and the errors shown beside a field. Each area keeps the messages for its own fields, and `main.py` hands the error handler the messages of the area whose route a request reached, from the words the route starts with. Two areas can each have a field of one name with different rules: the CRM's activities need a description, and a product's is optional. The top bar's search spans every area, so `search.py` sits at the top level too: it runs the one query and puts the results in order, and each area's own `search.py` says what to look for in its tables. `holds.py` lets any area's records hold a deal or an organization (D4), and `months.py` gives every area's charts by month the same 12 months. An area can import any of these, but they never import an area, so `main.py` passes `db.py` the function that fills a new database, passes `search.py` each area's kinds and puts each area's holds on the app. `main.py` keeps one list of areas, each with its routers, its fields' messages, its search kinds and its holds, so a later area joins with one entry. Only `main.py`, `cli.py` and the migrations name an area's folder.
 - **One database setup.** All tables share one `metadata` and one migration history, and anything specific to SQLite or Postgres stays in `db.py` and the migrations. There's no raw SQL, check constraints included, apart from turning on row-level security in the migrations, which SQLAlchemy can't say.
 - **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/` and `company/` each have one router, so it's `router.py` in their folder, with no folder around it. In `crm/`, a module outside `routers/` exists only because several files use it, and each area's `search.py` exists because the top-level `search.py` needs it.
-- **`components/` and `lib/` hold only what any area could use.** Anything that knows about deals or contacts goes in `crm/`, and anything that knows about products in `products/`. The search box is in `components/` and knows nothing about records: each area's `searchGroups.tsx` says what its results look like, and `App.tsx` hands them to the box and the box to the shell. A record page's layout, who added and last changed a record, the hooks that save and delete records, the checks on a form's fields and a save's errors shown beside them are in `components/` and `lib/`, so `products/` and any later area's pages and forms use the same ones. Only `App.tsx` names an area's folder, `company/` included, which it names for the Company settings route. The menu opens the page by its address, so `components/` doesn't name `company/`.
+- **`components/` and `lib/` hold only what any area could use.** Anything that knows about deals or contacts goes in `crm/`, and anything that knows about products in `products/`. The search box is in `components/` and knows nothing about records: each area's `searchGroups.tsx` says what its results look like, and `App.tsx` hands them to the box and the box to the shell. `App.tsx` also gives the shell its sections, and the CRM's pages the panels and sections later areas add. What any area's chart needs, such as its tooltip and the axes' text, is in `components/charts/`, and the CRM's charts and their geometry stay in `crm/charts/`. A record page's layout, who added and last changed a record, the hooks that save and delete records, the checks on a form's fields and a save's errors shown beside them are in `components/` and `lib/`, so `products/` and any later area's pages and forms use the same ones. Among the top-level files, `components/` and `lib/`, only `App.tsx` names an area's folder, `company/` included, which it names for the Company settings route. The menu opens the page by its address, so `components/` doesn't name `company/`.
 - **Only `lib/api.ts` talks to the backend,** so every reply gets the same error handling, **and only `lib/session.ts` talks to Supabase.** **Messages go through `lib/notify.ts`,** so each stays with its session (U5). ESLint refuses `toast` from Sonner anywhere else but the tests.
 - **No extra layers.** No service or repository classes, base classes, generic routers that build routes for each record, or a folder per record type. Split a file when it's become hard to work in, not before.
 - **Tests stay flat for now.** Nothing imports them, so moving them later costs nothing.

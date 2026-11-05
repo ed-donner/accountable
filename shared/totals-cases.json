@@ -1,0 +1,81 @@
+[
+  { "lines": [], "rate": "8.875", "subtotal": 0, "tax": 0, "total": 0, "why": "no lines" },
+  { "lines": [[1, 4950]], "rate": "0", "subtotal": 4950, "tax": 0, "total": 4950, "why": "no tax" },
+  { "lines": [[5, 0]], "rate": "8.875", "subtotal": 0, "tax": 0, "total": 0, "why": "lines at no charge" },
+  {
+    "lines": [
+      [2, 48000],
+      [1, 360000],
+      [3, 4950]
+    ],
+    "rate": "8.875",
+    "subtotal": 470850,
+    "tax": 41788,
+    "total": 512638,
+    "why": "three lines"
+  },
+  {
+    "lines": [[1, 50]],
+    "rate": "5",
+    "subtotal": 50,
+    "tax": 3,
+    "total": 53,
+    "why": "a half cent rounds up, where Python's round() gives 2"
+  },
+  { "lines": [[1, 10]], "rate": "5", "subtotal": 10, "tax": 1, "total": 11, "why": "the smallest half cent rounds up" },
+  { "lines": [[1, 9]], "rate": "5", "subtotal": 9, "tax": 0, "total": 9, "why": "just under a half cent rounds down" },
+  { "lines": [[1, 11]], "rate": "5", "subtotal": 11, "tax": 1, "total": 12, "why": "just over a half cent rounds up" },
+  {
+    "lines": [
+      [1, 10],
+      [1, 10]
+    ],
+    "rate": "5",
+    "subtotal": 20,
+    "tax": 1,
+    "total": 21,
+    "why": "tax once on the subtotal, where line by line it would be 2"
+  },
+  {
+    "lines": [[1, 12345]],
+    "rate": "8.5",
+    "subtotal": 12345,
+    "tax": 1049,
+    "total": 13394,
+    "why": "a rate with fewer places"
+  },
+  { "lines": [[1, 50000]], "rate": "0.001", "subtotal": 50000, "tax": 1, "total": 50001, "why": "the smallest rate" },
+  { "lines": [[3, 4950]], "rate": "100", "subtotal": 14850, "tax": 14850, "total": 29700, "why": "a rate of 100%" },
+  {
+    "lines": [[1000000, 100]],
+    "rate": "8.875",
+    "subtotal": 100000000,
+    "tax": 8875000,
+    "total": 108875000,
+    "why": "the largest quantity"
+  },
+  {
+    "lines": [[1, 100000000000000]],
+    "rate": "100",
+    "subtotal": 100000000000000,
+    "tax": 100000000000000,
+    "total": 200000000000000,
+    "why": "the largest subtotal at the largest rate"
+  },
+  {
+    "lines": [[1, 99999998050000]],
+    "rate": "99.999",
+    "subtotal": 99999998050000,
+    "tax": 99998998050020,
+    "total": 199998996100020,
+    "why": "a half cent on a subtotal past $900 million, where plain JavaScript numbers give a cent less"
+  },
+  {
+    "lines": [[1, 99999983810000]],
+    "rate": "12.345",
+    "subtotal": 99999983810000,
+    "tax": 12344998001345,
+    "total": 112344981811345,
+    "why": "another half cent past $900 million that plain JavaScript numbers get wrong"
+  }
+]

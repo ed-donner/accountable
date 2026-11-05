@@ -16,6 +16,9 @@ export type Authorship = {
   updated_by: Person | null;
 };
 
+/** How many records of one kind, in another area, hold a deal or an organization, so it can't be deleted (D4). */
+export type Holding = { noun: string; count: number };
+
 /** A save, after which everything is read again. */
 export function useWrite<Input, Result>(write: (input: Input) => Promise<Result>) {
   const client = useQueryClient();

@@ -26,6 +26,26 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
   },
   {
+    // Sonner keeps its messages for the whole page, so a message straight from it can
+    // reach whoever signs in next (U5). lib/notify.ts keeps each to its session.
+    files: ["frontend/src/**/*.{ts,tsx}"],
+    ignores: ["frontend/src/lib/notify.ts", "frontend/src/**/*.test.{ts,tsx}", "frontend/src/test-setup.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "sonner",
+              importNames: ["toast"],
+              message: "Show messages with useNotify from lib/notify.ts, so each stays with its session (U5).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["scripts/**", "e2e/**", "*.config.{js,ts}", "frontend/*.config.ts"],
     languageOptions: { globals: globals.node },
   },

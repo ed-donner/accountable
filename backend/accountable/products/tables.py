@@ -21,6 +21,12 @@ products = Table(
 )
 
 
+# The most bytes a key can have and still go in the unique index on Postgres, which
+# refuses an entry over 2,704 bytes, its own few included: 2,690 was the most it took,
+# measured on Postgres 16. SQLite has no such limit, so its tests can't show one.
+INDEXED_KEY_BYTES = 2690
+
+
 def name_key(name: str) -> str:
     """The name with its case taken out in any language, so "PRO LICENSE" clashes with
     "Pro license" and "ÉMILE" with "émile" (G2). Worked out here rather than by either

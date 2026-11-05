@@ -1,13 +1,15 @@
 """The price list through the API: adding, editing, archiving and restoring, unique
 names and whole-cent prices (G1 to G12)."""
 
+import sys
 from datetime import timedelta
 
 import pytest
 from accountable import db, users
 from accountable.api import MAX_CENTS
 from accountable.products import router
-from accountable.products.tables import products
+from accountable.products.schemas import MAX_NAME_LENGTH
+from accountable.products.tables import INDEXED_KEY_BYTES, name_key, products
 from conftest import NOW
 from sqlalchemy import func, select
 
@@ -20,6 +22,7 @@ LATER_TEXT = "2026-10-31T17:00:00Z"
 PRICE_MESSAGE = "Enter a price in dollars and cents, such as 49.50"
 TAKEN = "A product with this name already exists"
 ARCHIVED_TAKEN = "An archived product has this name. Restore it or choose another."
+TOO_LONG = "Keep the name to 200 characters or fewer"
 
 
 def named(teammate) -> dict:
@@ -187,6 +190,28 @@ def test_spaces_at_the_ends_are_dropped_before_the_check(api):
     add(api)
     assert error_fields(api.post(PRODUCTS, json={"name": "  Pro license  ", "unit_price_cents": 1})) == {"name": TAKEN}
     assert add(api, "  Training day  ")["name"] == "Training day"
+
+
+def test_a_name_has_200_characters_at_most_not_counting_spaces_at_the_ends(api):
+    assert add(api, "  " + "x" * 200 + "  ")["name"] == "x" * 200
+    assert error_fields(api.post(PRODUCTS, json={"name": "y" * 201, "unit_price_cents": 1})) == {"name": TOO_LONG}
+    product = add(api, "Training day")
+    assert error_fields(api.patch(f"{PRODUCTS}/{product['id']}", json={"name": "y" * 201})) == {"name": TOO_LONG}
+    assert api.get(f"{PRODUCTS}/{product['id']}").json()["name"] == "Training day"
+    assert how_many() == 2
+
+
+def test_the_longest_name_fits_the_postgres_index_whatever_its_characters(api):
+    """Taking out the case and normalizing can make a character's key longer, such as
+    the eighth note, which becomes three characters. Postgres can't index a key past
+    INDEXED_KEY_BYTES, and refused one with a 500, which SQLite can't show. So 200 of
+    the character whose key is longest must still fit."""
+    widest = max(
+        (chr(code) for code in range(sys.maxunicode + 1) if not 0xD800 <= code <= 0xDFFF),
+        key=lambda character: len(name_key(character).encode()),
+    )
+    longest = add(api, widest * MAX_NAME_LENGTH)
+    assert len(name_key(longest["name"]).encode()) <= INDEXED_KEY_BYTES
 
 
 def test_a_name_an_archived_product_has_says_so(api, make):

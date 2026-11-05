@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { ApiError, CONNECTION_MESSAGE, api } from "../lib/api";
+import { dropMessages } from "../lib/notify";
 import { queryDefaults } from "../lib/queryDefaults";
 import { isSharedApp, signInWithPassword, signInWithToken, useSession } from "../lib/session";
 import { Field } from "./Field";
@@ -25,9 +26,13 @@ export function SignedIn({ children }: { children: ReactNode }) {
   return <OwnCache key={session.id}>{children}</OwnCache>;
 }
 
-/** A query cache made for what's inside, and dropped with it. */
+/**
+ * A query cache made for what's inside, and dropped with it. Its messages go too (U5).
+ * React runs this before the next session's Toaster starts, so that one never gets them.
+ */
 function OwnCache({ children }: { children: ReactNode }) {
   const [client] = useState(() => new QueryClient({ defaultOptions: queryDefaults }));
+  useEffect(() => dropMessages, []);
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 

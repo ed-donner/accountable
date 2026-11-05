@@ -340,6 +340,23 @@ One mistake seen once is now in `docs/IMPROVE.md`: a review cut short. `docs/IMP
 
 `npm run check` passes: 3,279 tests in 4m 54s, the 33 new ones being the hooks'.
 
+## Products: independent review fixes
+
+`docs/changes/products/independent-review.md` found two Important problems and one nit. Both Important ones are fixed. Each was reproduced before the fix, and each new test was seen to fail with the fix taken out of a copy of the file, then the copy was put back.
+
+- **A message, and its Restore button, outlived its session (U5).** Sonner keeps its messages for the whole page, and hands those still showing to the next `Toaster` that starts. So after Alex archived a product, signed out and Dana signed in, Dana saw "Product archived.", and its Restore changed the product through Alex's dropped cache, leaving Dana's table out of date. A save whose reply came after sign-out showed its message to the next person too, and that held for every message, not only products'. Two new tests in `Products.test.tsx` failed on the old code, one for each case.
+  - `SignedIn` now takes away every message still showing when a session ends, before the next session's `Toaster` starts.
+  - Every message now goes through `useNotify` in the new `lib/notify.ts`, which shows it only if the session the component began in is still going. All twelve places that showed a message use it, the CRM's included, and `showSaveError` takes the form's notifier with its other parts.
+  - ESLint now refuses `toast` from Sonner in `frontend/src` outside `lib/notify.ts` and the tests, so a new message can't bring this back.
+  - Two CRM tests, for a pipeline move still on its way at sign-out, had waited for that move's message to show in the next person's session, which was this bug. They now wait for the move to finish in Alex's own cache, and check the next person sees no message.
+- **A long product name was a 500 on Postgres.** The unique index on `name_key` holds the whole key, and Postgres refuses an index entry over 2,704 bytes. That refusal isn't a duplicate, so the API let it through as a 500. SQLite has no such limit, so no test could show it. On a throwaway Postgres 16 in a scratch folder, the review's 8,192-character name was refused, random keys were stored up to 2,690 bytes and refused from 2,700, and the longest key a 200-character name can make, 2,400 bytes, was stored. The cluster was stopped and removed afterwards.
+  - A product's name now has 200 characters at most (G2), with spaces at the ends not counted. Past that, the API and the form say "Keep the name to 200 characters or fewer" beside the name, on add and rename. zod already counts characters as Python does, where JavaScript's `length` counts an emoji as two.
+  - No character's key is more than 12 bytes, so 200 are at most 2,400. `test_products.py` checks that against `INDEXED_KEY_BYTES`, by finding the character whose key is longest, in 0.2 seconds, so raising the limit past what Postgres can index fails a test.
+  - Migration `0004` is unchanged.
+- **Left open, for later:** the nit, that "two saves of one name at once" in `docs/specs/testing.md` is tested by taking the check out and saving twice in a row on SQLite, not by two connections at once or on Postgres.
+
+`npm run check` passes: 3,285 tests in 4m 03s, with no unit test at a second or more.
+
 ## Running Accountable
 
 Accountable runs two ways:

@@ -109,7 +109,8 @@ frontend/src/
                                   price, date formatting, useToday, validation,
                                   the saved theme, and for every area's records and forms: records.ts, with who added and
                                   changed a record and the hooks that save and delete one, saveErrors.ts, which shows a
-                                  save's errors beside its fields, and useCloseIfUnreadable.ts
+                                  save's errors beside its fields, useCloseIfUnreadable.ts, and notify.ts, which
+                                  shows messages and keeps each to its session
   components/                     Shell, SignIn, UserMenu, DataTable, RecordPicker, ConfirmDelete, LoadFailed, Chip and
                                   others, RecordLayout: a record page's header, panels and who added and changed it,
                                   and Search: the top bar's search box, which knows nothing about any area's records
@@ -137,7 +138,7 @@ Accountable will grow from a sales CRM into a Business OS, including ERP, so the
 - **One database setup.** All tables share one `metadata` and one migration history, and anything specific to SQLite or Postgres stays in `db.py` and the migrations. There's no raw SQL, check constraints included, apart from turning on row-level security in the migrations, which SQLAlchemy can't say.
 - **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/` has one router, so it's `products/router.py`, with no folder around it. In `crm/`, a module outside `routers/` exists only because several files use it, and each area's `search.py` exists because the top-level `search.py` needs it.
 - **`components/` and `lib/` hold only what any area could use.** Anything that knows about deals or contacts goes in `crm/`, and anything that knows about products in `products/`. The search box is in `components/` and knows nothing about records: each area's `searchGroups.tsx` says what its results look like, and `App.tsx` hands them to the box and the box to the shell. A record page's layout, who added and last changed a record, the hooks that save and delete records, the checks on a form's fields and a save's errors shown beside them are in `components/` and `lib/`, so `products/` and any later area's pages and forms use the same ones. Only `App.tsx` names an area's folder.
-- **Only `lib/api.ts` talks to the backend,** so every reply gets the same error handling, **and only `lib/session.ts` talks to Supabase.**
+- **Only `lib/api.ts` talks to the backend,** so every reply gets the same error handling, **and only `lib/session.ts` talks to Supabase.** **Messages go through `lib/notify.ts`,** so each stays with its session (U5). ESLint refuses `toast` from Sonner anywhere else but the tests.
 - **No extra layers.** No service or repository classes, base classes, generic routers that build routes for each record, or a folder per record type. Split a file when it's become hard to work in, not before.
 - **Tests stay flat for now.** Nothing imports them, so moving them later costs nothing.
 

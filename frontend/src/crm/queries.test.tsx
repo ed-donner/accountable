@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider, type InfiniteData } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -267,7 +267,11 @@ describe("a move still on its way when its session ends", () => {
     return backend;
   }
 
+  /** Each session's own cache, in the order the sessions began. */
+  const caches = new Set<QueryClient>();
+
   function Board() {
+    caches.add(useQueryClient());
     useMeta();
     const deals = useDeals();
     const move = useMoveDeal();
@@ -290,6 +294,7 @@ describe("a move still on its way when its session ends", () => {
 
   /** Alex wins a deal and signs out before the reply comes, and Dana signs in and sees her own deals. */
   async function changeHandsDuringAMove() {
+    caches.clear();
     const backend = standInBackend();
     backend.deals = [deal(1), deal(2)];
     startSignedIn("alex-token");
@@ -308,31 +313,36 @@ describe("a move still on its way when its session ends", () => {
     return backend;
   }
 
-  /** Lets a reply's handlers finish, and anything they changed show. */
+  /**
+   * Waits for the move's handlers to finish in Alex's cache, which marks the move done
+   * only after they've run, and then for anything they changed to show.
+   */
   async function settle() {
+    const [alexs] = caches;
+    await waitFor(() => expect(alexs.isMutating()).toBe(0));
     await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
   }
 
-  it("leaves the next person's deals alone when it goes through", async () => {
+  it("leaves the next person's deals alone when it goes through, and says nothing to them", async () => {
     const success = vi.spyOn(toast, "success");
     const backend = await changeHandsDuringAMove();
 
     act(() => backend.replyToMove.get(1)!({ status: 200, body: moved(1, "won") }));
-    await waitFor(() => expect(success).toHaveBeenCalledOnce());
     await settle();
 
     expect(shown()).toBe("Deal 3: new");
+    expect(success).not.toHaveBeenCalled();
   });
 
-  it("leaves the next person's deals alone when it fails", async () => {
+  it("leaves the next person's deals alone when it fails, and says nothing to them", async () => {
     const failure = vi.spyOn(toast, "error");
     const backend = await changeHandsDuringAMove();
 
     act(() => backend.replyToMove.get(1)!({ status: 500, body: { detail: "Something went wrong." } }));
-    await waitFor(() => expect(failure).toHaveBeenCalledOnce());
     await settle();
 
     expect(shown()).toBe("Deal 3: new");
+    expect(failure).not.toHaveBeenCalled();
   });
 
   it("leaves the next person's own moves alone", async () => {

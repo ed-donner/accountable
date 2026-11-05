@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
-import { toast } from "sonner";
-
 import { api } from "../lib/api";
+import { useNotify } from "../lib/notify";
 import { useWrite, type Authorship } from "../lib/records";
 
 /** A unit price is always whole cents, never a decimal (G3). */
@@ -47,20 +46,21 @@ export function useSetActive() {
     api<ProductDetail>(`/products/${id}`, { method: "PATCH", body: { active } }),
   );
   const asked = useRef(new Set<number>());
+  const notify = useNotify();
 
   async function setActive(id: number, active: boolean) {
     if (asked.current.has(id)) return;
     asked.current.add(id);
     try {
       await save.mutateAsync({ id, active });
-      if (active) toast.success("Product restored.");
+      if (active) notify.success("Product restored.");
       else
-        toast.success("Product archived.", {
+        notify.success("Product archived.", {
           duration: ARCHIVED_MESSAGE_MS,
           action: { label: "Restore", onClick: () => void setActive(id, true) },
         });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong.");
+      notify.error(error instanceof Error ? error.message : "Something went wrong.");
     } finally {
       asked.current.delete(id);
     }

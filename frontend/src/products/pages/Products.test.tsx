@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
 import { Toaster, toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
+import { SignedIn } from "../../components/SignIn";
 import { queryDefaults } from "../../lib/queryDefaults";
-import { holdSaves, mockApi, user, type Call } from "../../test-utils";
+import { signOut } from "../../lib/session";
+import { holdSaves, mockApi, startSignedIn, user, type Call } from "../../test-utils";
 import type { ProductRow } from "../queries";
 import { Products } from "./Products";
 
@@ -201,6 +203,56 @@ describe("archiving from the table", () => {
     await user().click(await screen.findByRole("button", { name: "Archive Training day" }));
     expect(await screen.findByText("Something went wrong.")).toBeTruthy();
     expect(names()).toContain("Training day");
+  });
+});
+
+describe("archiving, then signing out", () => {
+  /** The page in the real SignedIn, with the messages inside it as Shell has them, so each session mounts its own. */
+  async function showSignedIn(calls: Call[] = backend(PRODUCTS)) {
+    startSignedIn("alex-token");
+    render(
+      <MemoryRouter initialEntries={["/products"]}>
+        <SignedIn>
+          <Products />
+          <Toaster />
+        </SignedIn>
+      </MemoryRouter>,
+    );
+    await screen.findByRole("button", { name: "Archive Training day" });
+    return calls;
+  }
+
+  /** Alex signs out, and Dana signs in and sees her products. */
+  async function changeHands() {
+    await act(() => signOut());
+    act(() => startSignedIn("dana-token"));
+    await screen.findByRole("button", { name: "Archive Extra user seat" });
+  }
+
+  it("leaves no message, and no Restore on one, for whoever signs in next", async () => {
+    const calls = await showSignedIn();
+    await user().click(screen.getByRole("button", { name: "Archive Training day" }));
+    expect(await screen.findByText("Product archived.")).toBeTruthy();
+
+    await changeHands();
+
+    expect(screen.queryByText("Product archived.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Restore" })).toBeNull();
+    expect(writes(calls)).toEqual([{ method: "PATCH", path: "/products/2", body: { active: false } }]);
+  });
+
+  it("says nothing to whoever signs in next when the reply comes after sign-out", async () => {
+    const calls = await showSignedIn();
+    const release = holdSaves();
+    await user().click(screen.getByRole("button", { name: "Archive Training day" }));
+
+    await changeHands();
+    act(() => release());
+    await waitFor(() => expect(writes(calls)).toHaveLength(1));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    expect(screen.queryByText("Product archived.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Restore" })).toBeNull();
   });
 });
 

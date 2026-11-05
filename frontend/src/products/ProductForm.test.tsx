@@ -9,6 +9,7 @@ import type { ProductDetail } from "./queries";
 const PRICE_MESSAGE = "Enter a price in dollars and cents, such as 49.50";
 const TAKEN = "A product with this name already exists";
 const ARCHIVED_TAKEN = "An archived product has this name. Restore it or choose another.";
+const TOO_LONG = "Keep the name to 200 characters or fewer";
 
 const SURVEY: ProductDetail = {
   id: 7,
@@ -140,6 +141,30 @@ describe("what the form refuses", () => {
       expect(writes(calls)).toEqual([]);
     },
   );
+
+  it("stops a name of more than 200 characters before sending, with the message beside the box", async () => {
+    const { calls } = await openAdd();
+    await user().click(box("Name"));
+    await user().paste("x".repeat(201));
+    await user().type(box("Unit price"), "10");
+    await save();
+    expect(await screen.findByText(TOO_LONG)).toBeTruthy();
+    expect(invalid("Name")).toBe(true);
+    expect(writes(calls)).toEqual([]);
+  });
+
+  it("counts characters as the backend does, so 200 that each take two in JavaScript still go", async () => {
+    const { calls, onClose } = await openAdd();
+    const notes = "\u{1D160}".repeat(200);
+    await user().click(box("Name"));
+    await user().paste(notes);
+    await user().type(box("Unit price"), "10");
+    await save();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(writes(calls)).toEqual([
+      { method: "POST", path: "/products", body: { name: notes, description: null, unit_price_cents: 1000 } },
+    ]);
+  });
 
   it("needs a name", async () => {
     const { calls } = await openAdd();

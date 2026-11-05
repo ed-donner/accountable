@@ -64,6 +64,16 @@ The second run was on `multi-user`, after the fix for the review's Important fin
 
 Five mistakes seen once are now in `docs/IMPROVE.md`: `python` in a comment, slowness on a remote database, a check on a header the client sets, the Stop hook running all through a team build, and a fixable bug presented as a library's way. "Leave the commits to me" was said again in three sessions, but no agent committed, and `AGENTS.md` already says it, so nothing was added. `AGENTS.md` and the test instructions below now say `npm test` takes about four minutes, not two. `docs/IMPROVE.md` now says how to find a change's sessions, how to leave out teammate messages, where the Stop hook's failures are, and to read the agents' shell commands for what the person never saw.
 
+The third run was on `company-settings`, after its review, which found nothing Important. It used the review, the person's messages, the Stop hook's results and the agents' shell commands from the branch's three sessions, and searched the sessions of earlier changes for the same commands. The Stop hook never failed, and the checks caught only type errors in the new code, fixed during the build. Three mistakes had happened more than once:
+
+- **Stopping the app by name:** agents stopped `npm run dev` with `pkill -f scripts/dev.mjs` on `mvp`, `dark-mode`, `multi-user` and four times on this branch. That stops every copy of the app on the computer, the person's own and other worktrees' included. Nothing else was running each time here, but `products` started its own app 11 minutes after the last one. `AGENTS.md` now says to stop a server by its process ID. A hook could stop `pkill`, but not `kill $(pgrep ...)` and the other ways to do the same, so it's a rule.
+- **Runners of their own for the end-to-end tests:** Playwright refuses to start without the database and slot `npm test` sets up, so on `mvp`, `multi-user` and this branch, agents wrote scripts of their own to run a few spec files, copying that setup. `npm run e2e -- <files>` now does it, taking Playwright's own arguments, and `AGENTS.md` says to use it. Tried on `e2e/settings.spec.ts` alone, with `-g`, and with a name that matches nothing, which fails.
+- **A slow-test list from a shared run:** twice on this branch, `npm run check` listed unit tests as taking a second or more while another worktree's run was going, 1 and then 25, and the agent ran them again alone to show each was quick. The summary now says under that list when another run was busy while the unit tests ran. `scripts/test-report.test.mjs` tests it, and fails with the note taken out.
+
+Two mistakes seen once are now in `docs/IMPROVE.md`: a message that looked like a box to type in, and a review finding the request couldn't reach. "Leave the commits to me" was said in three sessions again, and no agent committed. `docs/IMPROVE.md` now says that a change's sessions can be in more than one folder, that another copy of the repo can hold a branch with the same name, and to search earlier changes' sessions for a mistake before calling it new.
+
+`npm run check` passes, with 3,249 tests. It ran while another worktree's tests were going, and its summary listed 23 unit tests as slow, with the new line under them.
+
 ## Dark mode
 
 Built on the `dark-mode` branch, following `docs/changes/dark-mode/plan.md`. A round button in the top bar, just before the date, switches between light and dark mode on every screen. It shows a moon in light mode and a sun in dark mode. Light mode is the default. The choice is saved in this browser under `accountable-mode`, and a short script at the top of `frontend/index.html` applies it before anything draws, so a reload in dark mode doesn't flash light first.
@@ -357,6 +367,66 @@ One mistake seen once is now in `docs/IMPROVE.md`: a review cut short. `docs/IMP
 
 `npm run check` passes: 3,285 tests in 4m 03s, with no unit test at a second or more.
 
+## Company settings: build
+
+Built on the `company-settings` branch from `docs/changes/company-settings/plan.md`, following `settings.md` (B1 to B14). Company settings, in the menu under your initials, opens a page at `/settings` with the business's details for its quotes and invoices. Nothing uses them yet.
+
+- **Backend:** a new area, `company/`, beside `crm/`: the `company_settings` table, `GET` and `PATCH /api/settings`, and the sample company. Migration `0004` adds the table with one row at the blank defaults and nobody recorded, so a database that already exists never gets the made-up company (B13). A new database and `npm run seed` get it through `cli.fill_sample`, and `npm run empty` leaves the settings alone. A save reads the row, checks the name and the prefixes against it and writes, in one transaction under the write lock.
+- **Frontend:** `company/settings.ts` and `company/SettingsPage.tsx`, the `/settings` route, and the menu item. `Field` has an optional hint, and `RecordLayout.tsx` exports `WhoAndWhen` for the page's "Last changed by" line.
+- **Tests:** `shared/settings-cases.json` holds the tax rate, prefix and clash cases, and both unit suites run them. New: `test_company_settings.py`, `settings.test.ts`, `SettingsPage.test.tsx` and `e2e/settings.spec.ts`. Changed: the migration, CLI, sample data, layout and every-route tests, the menu, app, shell and layout unit tests, `menu.spec.ts` and `quality.spec.ts`. Each new check was shown to fail on code broken for it, with the file put back from a copy after.
+- **The clearing steps** below are now one transaction that also resets the company settings, with `DEFAULT`, so their values come from the table. They were run on a throwaway Postgres 16 built from the migrations' Postgres SQL: the records went, the people stayed, the settings went back to B13's defaults with nobody recorded, and a copy broken partway changed nothing. Supabase itself is still to be checked, below.
+
+Where the build settled something or differs from the plan:
+
+- **The company name** has its own check in `company/schemas.py`, not `api.Name`, because `api.Name`'s message is "Enter a name" and B4's is "Enter the company name".
+- **B7** now says trailing zeros don't count as decimal places, so 8.8750 is accepted as 8.875, and that .5 and 5. are numbers. Both sides read the rate from its text with one pattern. The backend's check uses no `Decimal` arithmetic, which rounds past 28 digits: a rate of 99 followed by 32 nines after the point would have been saved as 100. That case is in the shared cases.
+- **A rate that isn't text or a number,** such as `true` or a list, gets the range message. Ruff's TRY004 wanted a TypeError there, which Pydantic doesn't turn into a message, so it would have been a 500.
+- **The page didn't fit at 1280 by 720** at first: it ran 9px past the window. The gap between fields in the panels is now 10px rather than the forms' 14px, and the space under the button 12px. With an error showing, the page grows by a line and can scroll. The rate and terms boxes are short, so % and days sit beside the number, which `settings.md`'s screen now says.
+- **The double-press test** in `SettingsPage.test.tsx` presses twice with nothing between. With user-event's double click, the button had time to disable between the clicks, so the test passed even without the guard.
+- **`quality.spec.ts`'s Tab walk** now names a box by its `<label>` when it has no `aria-label`, so its new test can name the settings boxes.
+- **The ask for a company name** (B14) was first a box on the page color, rounded like the inputs, as the spec's screen said. ui-check's screenshots showed it looked like an empty box to type in, especially in dark mode, so on the owner's say it's now ink text after a Cerulean information icon, with nothing behind it. `settings.md`'s screen and `visual-design.md`'s Information color say so.
+
+`npm run check` passes: 3,248 tests, of which 2,032 backend, 953 frontend, 255 end-to-end and 8 speed, with no unit test taking a second or more.
+
+Checked by hand on temporary databases: the page in Chrome at 1280 by 720 and 1440 by 900, in light and dark mode, with a field error, "Settings saved." after Enter, and the keyboard alone from the menu to Save settings, with a focus ring on each box and no console errors. A second database built only to `0003`, with a record in it, then started with `npm run dev`, kept its record, got the blank defaults, and asked for the company name until one was saved.
+
+Still to do:
+
+- **The project owner, on the shared app** (plan, By hand): `npm start` against Supabase, which runs migration `0005` there, as the next deploy would, after the products' `0004` if that hasn't run yet. Check that the page asks for the company name and shows nobody as having changed the settings, save the real details and see them as a second teammate, and on a Supabase project that still has the sample data, run the new clearing steps. Then, with the owner's go-ahead, the agent checks row-level security on `company_settings` and runs the security advisors through the Supabase MCP server, reporting only.
+- **Before merging:** done in the merge with `main`, below: this branch's migration is now `0005`.
+
+## Company settings: review
+
+The reviewer subagent reviewed the branch against `main`, leaving out style. It found nothing Important, and `npm run check` passed afterwards, with 3,248 tests. Three nits are open, for the review fixes:
+
+1. **No test for the save lock:** nothing fails if the read before a save moves outside `db.writing()`, which B5 and the plan's risk 7 rely on.
+2. **The clearing steps aren't tied to the table:** a column added to `company_settings` later could be left out of the clearing SQL below with no test failing.
+3. **The seed prompt** doesn't say how much of the settings it replaces.
+
+A fourth, that a 5,000-digit tax rate gets an odd message, was dropped: Python's JSON parser refuses it first, and FastAPI answers with a 400 before the check runs.
+
+## Company settings: independent review
+
+`docs/changes/company-settings/independent-review.md` found two Important problems, both now fixed. Each new test failed on the code before its fix.
+
+1. **A pending save threw away what was typed meanwhile.** Only Save settings was disabled during a save, and when the save came back, the form was reset to what had been sent, so a box changed in the meantime went back without a word. A test that holds the save, types a new phone number and then lets the save finish showed the old number. The page now keeps anything changed since Save settings was pressed, still to be saved, so a teammate's save can't replace it either (B10), and the other boxes show what was saved. B8 says so. The new test in `SettingsPage.test.tsx` also fails if the kept change isn't left unsaved.
+2. **A rate sent as a JSON number was rounded before it was checked.** FastAPI reads a body with Python's JSON reader, which makes 8.8750000000000001 the float 8.875, so it was saved as 8.875, 100.000000000000001 as 100, and 1e-999999999 as 0. The plan's risk 4 assumed a float keeps what was sent. The settings' routes now use `api.ExactNumbersRoute`, which reads a number with a point or an exponent as a `Decimal` with every digit, and the rate's check reads that from its digits and exponent, without writing it out in full or rounding it. New tests in `test_company_settings.py` send the JSON as text, because a Python float would lose the digits before the request went. They fail again with the route class taken out. Other routes read their bodies as before.
+
+The review's third point, that no test overlaps two saves to prove the read and check happen under the write lock, is the same as the first nit of the review above, and is still open.
+
+## Company settings: merged with main
+
+`main`, with Products in it, was merged into `company-settings`. What the merge settled:
+
+- **Migrations:** both branches added `0004` on top of `0003`. Products merged first, so this branch's migration is now `0005_company_settings.py`, with `down_revision = "0004"`, and its upgrade test starts from a database at `0004`, as the team's will be. No database that lasts had run the old `0004`: neither this worktree nor the main checkout has a `data/accountable.db`, and Supabase hadn't been upgraded yet (Still to do, above).
+- **Field messages:** `main.py` picks the messages of the area whose route a request reached, as Products made it, and a request to `/api/settings` gets the company's. Their names no longer have to differ from every other area's, so the test for that is gone, and so is the comment in `company/schemas.py` that said so.
+- **Layout rules:** `test_layout.py` finds each area by its `tables.py`, as Products made it, so it finds `company/` too. `company/` is the one area others may import, so it's left out of the check that no area imports another. `architecture.md`'s layout rules say so.
+- **Messages:** the Settings page shows "Settings saved." and its errors through `useNotify`, as every message now must (U5), and its test uses the shared `holdSaves` in `test-utils.tsx` in place of its own copy. The App test's and `settings.spec.ts`'s counts of top bar links on `/settings` are 6 now, with Products. The first full run after the merge failed `settings.spec.ts` on that count, which still said 5.
+- **Sample data and clearing:** `cli.fill_sample` fills the CRM, the products and the sample company. The clearing steps truncate `products` too, inside the transaction that resets the settings.
+- **Harness:** `docs/IMPROVE.md` keeps both branches' changes. As Products' note for the merge asked, the Seen once entry "a finding the request can't reach" is out, because `docs/REVIEW.md` now has it as a rule.
+
+`npm run check` passes: 3,659 tests in 4m 17s, of which 2,276 backend, 1,102 frontend, 272 end-to-end and 9 speed.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -391,7 +461,7 @@ It opens on a sign-in screen listing four made-up teammates: Alex Rivera, Dana W
 
 If it says a port is in use, Accountable is probably already running in another window.
 
-Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back. The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme and Sign out. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back. The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices, which come later: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -401,8 +471,8 @@ Click on the terminal window and press Ctrl+C.
 
 Accountable comes with made-up sample data so you can look around.
 
-- `npm run seed` replaces everything with fresh sample data.
-- `npm run empty` removes everything, so you can type in your own records.
+- `npm run seed` replaces everything with fresh sample data, and puts back the made-up company's settings.
+- `npm run empty` removes every record, so you can type in your own. It leaves the company settings as they are.
 
 Both tell you what will be lost and only go ahead if you type `yes`. Both are safe with the app running: refresh the browser to see the result. Both keep the four teammates, so there's still someone to sign in as. They only ever touch the local copy, never the team's data in Supabase.
 
@@ -460,13 +530,20 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change and product, and leaves the people and the tables in place:
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change and product. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
+begin;
 truncate table activities, stage_changes, deals, contacts, organizations, products;
+update company_settings set
+  company_name = default, address = default, email = default, phone = default,
+  tax_label = default, tax_rate = default, payment_terms_days = default,
+  quote_prefix = default, invoice_prefix = default, updated_by = default,
+  updated_at = now() at time zone 'utc';
+commit;
 ```
 
-New records carry on from the next id, so an old address never opens a different record. There's no undo.
+Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
 
 #### Put it on Render
 
@@ -492,5 +569,7 @@ Accountable has only been used on a Mac. It's built to work the same on Windows 
 The end-to-end tests run side by side, using a number of workers chosen from your computer's cores and memory, so a smaller computer runs fewer at once and takes longer. To set the number yourself, for example while the computer is busy, run `ACCOUNTABLE_TEST_WORKERS=2 npm test`. The speed tests always run last and alone, so their timings are fair.
 
 You can run the tests in several worktrees at once, with nothing to set. Each run uses ports no other run is using, the runs share the workers between them, and each run's speed tests wait until the others have finished their checks and end-to-end tests, printing a line while they wait. So two runs together take longer than one, but both get a fair result.
+
+To run some of the end-to-end tests on their own, such as one file, use `npm run e2e -- e2e/settings.spec.ts`. Playwright's own options work after the file, such as `-g "a save"` to pick tests by name.
 
 Each run leaves a report of the end-to-end tests, with a screenshot of each failure. `npx playwright show-report playwright-report/main` opens it, and `playwright-report/speed` has the speed tests'. CI on GitHub doesn't run the end-to-end tests, so run `npm run check` yourself before merging.

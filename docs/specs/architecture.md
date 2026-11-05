@@ -49,7 +49,8 @@ lefthook.yml                      the git pre-commit hook
 .claude/agents/                   reviewer.md and ui-check.md, the coding agent's two subagents
 .claude/skills/brand/SKILL.md     the brand skill: fonts, colors and tone
 .mcp.json                         the Playwright MCP server, which ui-check uses
-shared/                           expected-revenue-cases.json and website-cases.json, read by both unit test suites
+shared/                           expected-revenue-cases.json, website-cases.json and settings-cases.json, read by both
+                                  unit test suites
 scripts/
   setup.mjs                       shared setup, used by the scripts below that start things, Node built-ins only. It also
                                   gives the local commands an environment without the Supabase settings (C9)
@@ -57,7 +58,8 @@ scripts/
   start.mjs                       npm start: reads .env, builds the frontend, runs the shared app on this computer
   test.mjs                        npm test
   check.mjs                       npm run check and npm run check:quick
-  checks.mjs                      runs the layers behind both, side by side where it can, and prints one summary
+  e2e.mjs                         npm run e2e: chosen end-to-end tests only
+  checks.mjs                      runs the layers behind all three, side by side where it can, and prints one summary
   data.mjs                        npm run seed and npm run empty
   test-plan.mjs                   how npm test shares out the machine, and which ports each run's slot and workers use
   test-runs.mjs                   lets the test runs on one computer share it: slots, who's busy, and the speed tests' turn
@@ -79,7 +81,8 @@ backend/accountable/
   who.py                          who added and last changed, for every area: the columns a record's table keeps, the
                                   values a save writes, and the names and times in replies (U10)
   api.py                          what every area's API shares: the base request model and its checks on what's sent,
-                                  the field types and request parameters, and the errors shown beside a field
+                                  the field types and request parameters, the errors shown beside a field, and a
+                                  route that reads JSON numbers with every digit sent
   search.py                       the top bar's search, GET /search: the check on the text, one query over the kinds
                                   each area gives it, the order, the limit of 5 and the counts (K1 to K8)
   sample.py                       what every area's sample data shares: the time a sample record was put down at, and
@@ -100,6 +103,11 @@ backend/accountable/
     router.py                     the products routes and their queries
     search.py                     what the top bar's search looks for among products: active ones only
     sample_data.py                the sample products, dated from a given day
+  company/                        the company settings (B1), the one area that later areas can import
+    tables.py                     the company_settings table
+    schemas.py                    the settings' request and reply models, their checks, and the messages for their fields
+    router.py                     GET and PATCH /settings, and their queries
+    sample_data.py                the sample company (B12)
 backend/tests/
 frontend/index.html               the page, with a short script that applies the saved theme before anything draws
 frontend/src/
@@ -123,6 +131,9 @@ frontend/src/
   products/                       the price list, which never imports crm/
     queries.ts, ProductForm.tsx, searchGroups.tsx
     pages/                        Products and Product
+  company/
+    SettingsPage.tsx              the Company settings page and its form
+    settings.ts                   the settings' type, reading and saving them, and the form's checks
 frontend/dist/                    the built frontend, from npm start and Render, git-ignored
 e2e/
 data/                             the local copy's database and what it needs to sign its own tokens, created on first
@@ -133,11 +144,12 @@ data/                             the local copy's database and what it needs to
 
 Accountable will grow from a sales CRM into a Business OS, including ERP, so the layout leaves room for the next business area and adds nothing else. `backend/tests/test_layout.py` and `frontend/src/layout.test.ts` enforce the rules a test can check.
 
-- **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, and `products/` the price list. A later area, such as invoices, gets a folder beside them with its own tables, routes and pages. Areas never import each other, so `crm/` never imports `products/` and `products/` never imports `crm/`. What they share comes from the top level. Invoices will need to read products, so the change that adds them decides how one area reads another's records.
+- **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, and `products/` the price list. A later area, such as invoices, gets a folder beside them with its own tables, routes and pages. Apart from `company/`, below, areas never import each other, so `crm/` never imports `products/` and `products/` never imports `crm/`. What they share comes from the top level. Invoices will need to read products, so the change that adds them decides how one area reads another's records.
+- **`company/` holds the company settings, on both sides.** It's an area beside `crm/` and `products/`, called `company/` because the backend's `settings.py` already decides which copy runs. It imports only the top level, and never another area. It isn't at the top level because not every area needs it: the CRM and products don't. It's the one area others can import: later areas that need the company's details, such as quotes and invoices, can import it. The sample company is in `company/sample_data.py`, and the function that fills a new database fills it too.
 - **The top level holds only what every area needs.** Signing in and people are needed by every area, so `auth.py` and `users.py` sit there, and `users.py` holds the made-up teammates that any area's sample records are put down to. `sample.py` gives every area's sample data the same times of day and the same rule for which teammate added and last changed each record. `who.py` gives every area's record tables the same four columns, `created_at`, `updated_at`, `created_by` and `updated_by`, and what saves and replies do with them. `api.py` has the base request model and its checks, the field types such as names, emails, websites, ids, dollars and cents, and the errors shown beside a field. Each area keeps the messages for its own fields, and `main.py` hands the error handler the messages of the area whose route a request reached. Two areas can each have a field of one name with different rules: the CRM's activities need a description, and a product's is optional. The top bar's search spans every area, so `search.py` sits at the top level too: it runs the one query and puts the results in order, and each area's own `search.py` says what to look for in its tables. An area can import any of these, but they never import an area, so `main.py` passes `db.py` the function that fills a new database and passes `search.py` each area's kinds. Only `main.py`, `cli.py` and the migrations name an area's folder.
 - **One database setup.** All tables share one `metadata` and one migration history, and anything specific to SQLite or Postgres stays in `db.py` and the migrations. There's no raw SQL, check constraints included, apart from turning on row-level security in the migrations, which SQLAlchemy can't say.
-- **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/` has one router, so it's `products/router.py`, with no folder around it. In `crm/`, a module outside `routers/` exists only because several files use it, and each area's `search.py` exists because the top-level `search.py` needs it.
-- **`components/` and `lib/` hold only what any area could use.** Anything that knows about deals or contacts goes in `crm/`, and anything that knows about products in `products/`. The search box is in `components/` and knows nothing about records: each area's `searchGroups.tsx` says what its results look like, and `App.tsx` hands them to the box and the box to the shell. A record page's layout, who added and last changed a record, the hooks that save and delete records, the checks on a form's fields and a save's errors shown beside them are in `components/` and `lib/`, so `products/` and any later area's pages and forms use the same ones. Only `App.tsx` names an area's folder.
+- **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/` and `company/` each have one router, so it's `router.py` in their folder, with no folder around it. In `crm/`, a module outside `routers/` exists only because several files use it, and each area's `search.py` exists because the top-level `search.py` needs it.
+- **`components/` and `lib/` hold only what any area could use.** Anything that knows about deals or contacts goes in `crm/`, and anything that knows about products in `products/`. The search box is in `components/` and knows nothing about records: each area's `searchGroups.tsx` says what its results look like, and `App.tsx` hands them to the box and the box to the shell. A record page's layout, who added and last changed a record, the hooks that save and delete records, the checks on a form's fields and a save's errors shown beside them are in `components/` and `lib/`, so `products/` and any later area's pages and forms use the same ones. Only `App.tsx` names an area's folder, `company/` included, which it names for the Company settings route. The menu opens the page by its address, so `components/` doesn't name `company/`.
 - **Only `lib/api.ts` talks to the backend,** so every reply gets the same error handling, **and only `lib/session.ts` talks to Supabase.** **Messages go through `lib/notify.ts`,** so each stays with its session (U5). ESLint refuses `toast` from Sonner anywhere else but the tests.
 - **No extra layers.** No service or repository classes, base classes, generic routers that build routes for each record, or a folder per record type. Split a file when it's become hard to work in, not before.
 - **Tests stay flat for now.** Nothing imports them, so moving them later costs nothing.

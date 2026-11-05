@@ -11,6 +11,8 @@ AREAS = sorted(path.parent.name for path in PACKAGE.glob("*/tables.py"))
 # Where the app is put together. Everything else, every area's folder included, gets
 # what it needs from the top level.
 MAY_NAME_AN_AREA = {"main.py", "cli.py", "migrations/env.py"}
+# The one area other areas may import: later ones, such as quotes and invoices, read the company's details.
+OTHERS_MAY_IMPORT = {"company"}
 
 
 def sources() -> list[Path]:
@@ -27,10 +29,10 @@ def names(path: Path, area: str) -> bool:
 
 
 def test_the_areas_are_found():
-    assert AREAS == ["crm", "products"]
+    assert AREAS == ["company", "crm", "products"]
 
 
-@pytest.mark.parametrize("area", AREAS)
+@pytest.mark.parametrize("area", sorted(set(AREAS) - OTHERS_MAY_IMPORT))
 def test_no_area_imports_another(area):
     others = [path for path in sources() if area_of(path) not in (None, area)]
     assert others  # The check is looking in the right place.

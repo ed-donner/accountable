@@ -95,7 +95,8 @@ export function LinkedList({
 
 export const NONE = <span className="text-muted">None</span>;
 
-function WhoAndWhen({ action, person, at }: { action: string; person: Person | null; at: string }) {
+/** Such as "Last changed by Dana Whitfield on Oct 30, 2026" (R6, B9). */
+export function WhoAndWhen({ action, person, at }: { action: string; person: Person | null; at: string }) {
   return (
     <p>
       {person ? `${action} by ${person.name} on ` : `${action} `}

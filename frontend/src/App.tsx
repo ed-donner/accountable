@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { SettingsPage } from "./company/SettingsPage";
 import { MissingRecord } from "./components/MissingRecord";
 import { Search } from "./components/Search";
 import { Shell } from "./components/Shell";
@@ -42,6 +43,7 @@ const router = createBrowserRouter([
       { path: "/pipeline", element: <Pipeline /> },
       { path: "/products", element: <Products /> },
       { path: "/products/:id", element: <Product /> },
+      { path: "/settings", element: <SettingsPage /> },
       { path: "*", element: <MissingRecord word="page" to="/" section="Dashboard" /> },
     ],
   },

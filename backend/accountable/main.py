@@ -21,6 +21,8 @@ from starlette.responses import Response
 from starlette.types import Scope
 
 from accountable import api, auth, cli, db, search, settings, users
+from accountable.company import router as company_settings
+from accountable.company import schemas as company_schemas
 from accountable.crm import schemas as crm_schemas
 from accountable.crm import search as crm_search
 from accountable.crm.routers import activities, contacts, dashboard, deals, meta, organizations
@@ -70,7 +72,7 @@ def _local_sign_in_paths() -> list[str]:
 def _signed_in_routes() -> APIRouter:
     routes = APIRouter(prefix="/api", dependencies=[Depends(auth.current_user)])
     routes.include_router(auth.router)
-    for module in (meta, organizations, contacts, deals, activities, dashboard, products):
+    for module in (meta, organizations, contacts, deals, activities, dashboard, products, company_settings):
         routes.include_router(module.router)
     routes.include_router(search.router([*crm_search.KINDS, *products_search.KINDS]))
     return routes
@@ -121,10 +123,13 @@ async def _json_only(request: Request, call_next):
 
 
 def _area_messages(request: Request) -> Mapping[str, str]:
-    """The messages for the fields of the area whose route the request reached. Both
-    areas have a description, and only the CRM's is required."""
-    if PurePosixPath(request.url.path).parts[:3] == ("/", "api", "products"):
+    """The messages for the fields of the area whose route the request reached. The CRM
+    and products both have a description, and only the CRM's is required."""
+    route = PurePosixPath(request.url.path).parts[:3]
+    if route == ("/", "api", "products"):
         return products_schemas.FIELD_MESSAGES
+    if route == ("/", "api", "settings"):
+        return company_schemas.FIELD_MESSAGES
     return crm_schemas.FIELD_MESSAGES
 
 

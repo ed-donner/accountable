@@ -7,6 +7,19 @@ import { META, mockApi, startSignedIn, user, type Call } from "./test-utils";
 
 const SEARCH_BOX = "Search organizations, contacts, deals and products";
 const ALEX = { id: "alex", name: "Alex Rivera", email: "alex@accountable.example", initials: "AR" };
+const SETTINGS = {
+  company_name: "Plainsong Systems",
+  address: null,
+  email: null,
+  phone: null,
+  tax_label: "Sales tax",
+  tax_rate: "8.875",
+  payment_terms_days: 30,
+  quote_prefix: "QT-",
+  invoice_prefix: "INV-",
+  updated_at: "2026-10-31T12:00:00Z",
+  updated_by: null,
+};
 const PRODUCT = {
   name: "Front desk kiosk",
   description: null,
@@ -169,6 +182,17 @@ describe("the app, signed in", () => {
 
     expect((await heading()).textContent).toBe("Dashboard");
     expect(window.location.pathname).toBe("/");
+  });
+
+  it("opens the Company settings page at /settings, inside the top bar, with no section marked", async () => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX, "GET /settings": SETTINGS });
+    render(<App />);
+    visit("/settings");
+    expect((await heading()).textContent).toBe("Company settings");
+    expect(window.location.pathname).toBe("/settings");
+    expect(topBar().getAllByRole("link")).toHaveLength(6);
+    expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+    expect(await screen.findByLabelText("Company name")).toBeTruthy();
   });
 
   it("goes to a section from the top bar", async () => {

@@ -3,6 +3,7 @@ from datetime import date, datetime
 
 import pytest
 from accountable import db
+from accountable.company.tables import company_settings
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.products.tables import products
 from accountable.users import users
@@ -10,6 +11,7 @@ from alembic import command, op
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from conftest import insert_row
 from sqlalchemy import column, delete, func, insert, inspect, select, table
 
@@ -40,7 +42,7 @@ def declared() -> dict:
             "columns": {column.name: (str(column.type), column.nullable) for column in declared_table.columns},
             "indexes": {index.name: tuple(column.name for column in index.columns) for index in declared_table.indexes},
             "checks": {
-                constraint.name: str(constraint.sqltext)
+                constraint.name: str(constraint.sqltext.compile(compile_kwargs={"literal_binds": True}))
                 for constraint in declared_table.constraints
                 if constraint.__class__.__name__ == "CheckConstraint"
             },
@@ -111,10 +113,12 @@ def test_users_and_who_added_each_record_are_built(database):
     assert built["products"]["columns"]["unit_price_cents"] == ("BIGINT", False)
 
 
-def test_the_check_constraint_matches(database):
+def test_the_check_constraints_match(database):
     actual, expected = live(), declared()
     assert actual["activities"]["checks"] == {"ck_activities_one_parent": "(contact_id IS NULL) != (deal_id IS NULL)"}
-    assert list(actual["activities"]["checks"].values()) == list(expected["activities"]["checks"].values())
+    assert actual["company_settings"]["checks"] == {"ck_company_settings_one_row": "id = 1"}
+    for name in expected:
+        assert actual[name]["checks"] == expected[name]["checks"], name
 
 
 def test_foreign_keys_and_their_delete_rules_match(database):
@@ -358,6 +362,76 @@ def test_an_upgrade_to_sign_in_that_stops_partway_changes_nothing(database_from_
     assert everything() == before
 
 
+# B13: what a database that already existed starts with, and the clearing steps put back.
+BLANK_SETTINGS = {
+    "id": 1,
+    "company_name": None,
+    "address": None,
+    "email": None,
+    "phone": None,
+    "tax_label": "Sales tax",
+    "tax_rate": 0,
+    "payment_terms_days": 30,
+    "quote_prefix": "QT-",
+    "invoice_prefix": "INV-",
+    "updated_by": None,
+}
+
+
+def the_settings() -> list[dict]:
+    with db.reading() as conn:
+        return [dict(row._mapping) for row in conn.execute(select(company_settings))]
+
+
+@pytest.fixture
+def database_from_before_settings(tmp_path, monkeypatch):
+    path = tmp_path / "before-settings.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    fill_at(path, "0004")
+    yield path
+    db.dispose()
+
+
+def test_upgrading_from_before_the_settings_keeps_every_row_and_adds_the_blank_settings(database_from_before_settings):
+    before = everything()
+    assert "company_settings" not in inspect(db.engine()).get_table_names()
+    db.dispose()
+
+    assert db.prepare_database(nothing) is False
+
+    assert all(before.values())
+    assert everything() == before
+    assert set(who_added_and_changed()) == {None}
+    [settings] = the_settings()
+    added_at = settings.pop("created_at")
+    assert settings.pop("updated_at") == added_at
+    assert settings == BLANK_SETTINGS
+    with db.reading() as conn:
+        assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+
+
+def test_a_new_database_starts_with_the_blank_settings_before_the_sample_data(database):
+    [settings] = the_settings()
+    assert {name: settings[name] for name in BLANK_SETTINGS} == BLANK_SETTINGS
+
+
+def test_the_migrations_have_one_head():
+    """Two branches each adding the next migration would leave two, and the backend wouldn't start."""
+    config = Config()
+    config.set_main_option("script_location", str(db.MIGRATIONS))
+    assert len(ScriptDirectory.from_config(config).get_heads()) == 1
+
+
+def test_the_migrations_see_every_areas_tables():
+    """A table is in the metadata only once its module is imported. Without its import, autogenerate would drop it."""
+    env = (db.MIGRATIONS / "env.py").read_text()
+    areas = sorted(path.parent.name for path in db.MIGRATIONS.parent.glob("*/tables.py"))
+    assert {"company", "crm", "products"} <= set(areas)  # The check is looking in the right place.
+    for area in areas:
+        assert f"from accountable.{area} import tables" in env, area
+
+
 @pytest.fixture(scope="module")
 def postgres_sql() -> str:
     """Every migration written out for Postgres by Alembic's offline mode, which needs no database."""
@@ -388,3 +462,20 @@ def test_on_postgres_prices_are_64_bit(postgres_sql):
 def test_on_postgres_every_table_gets_row_level_security(postgres_sql):
     for name in ["alembic_version", *db.metadata.tables]:
         assert f"ALTER TABLE {name} ENABLE ROW LEVEL SECURITY" in postgres_sql, name
+
+
+def test_on_postgres_the_settings_table_keeps_each_default(postgres_sql):
+    created = postgres_sql[postgres_sql.index("CREATE TABLE company_settings") :].split(";")[0]
+    assert "tax_label TEXT DEFAULT 'Sales tax'," in created
+    assert "tax_rate INTEGER DEFAULT '0' NOT NULL" in created
+    assert "payment_terms_days INTEGER DEFAULT '30' NOT NULL" in created
+    assert "quote_prefix TEXT DEFAULT 'QT-' NOT NULL" in created
+    assert "invoice_prefix TEXT DEFAULT 'INV-' NOT NULL" in created
+    assert "CONSTRAINT ck_company_settings_one_row CHECK (id = 1)" in created
+    assert "FOREIGN KEY(updated_by) REFERENCES users (id)" in created
+    for blank in ("company_name", "address", "email", "phone"):
+        assert f"{blank} TEXT," in created, blank
+
+
+def test_on_postgres_the_settings_row_is_added_with_only_its_times(postgres_sql):
+    assert "INSERT INTO company_settings (id, created_at, updated_at) VALUES (1, '" in postgres_sql

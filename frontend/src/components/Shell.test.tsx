@@ -32,6 +32,7 @@ function openAt(path: string) {
             <Route path="/deals/:id" element={<p>One deal's page</p>} />
             <Route path="/pipeline" element={<p>The pipeline page</p>} />
             <Route path="/products" element={<p>The products page</p>} />
+            <Route path="/settings" element={<p>The Company settings page</p>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -99,7 +100,13 @@ describe("the top bar", () => {
     expect(screen.getByRole("main").textContent).toBe("One deal's page");
   });
 
-  it.each(["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/deals/7"])(
+  it("marks no section as current on the Company settings page, which isn't one of them", () => {
+    openAt("/settings");
+    expect(currentSections()).toEqual([]);
+    expect(screen.getByRole("main").textContent).toBe("The Company settings page");
+  });
+
+  it.each(["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/deals/7", "/settings"])(
     "has the search box after the sections, then the date and the menu button, at %s",
     async (path) => {
       openAt(path);

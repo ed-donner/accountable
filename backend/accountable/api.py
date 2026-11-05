@@ -1,13 +1,18 @@
 """What every area's API shares: the base request model and its checks on what's sent,
-the field types and request parameters, and the errors shown beside a field."""
+the field types and request parameters, the errors shown beside a field, and a route
+that reads numbers exactly."""
 
+import json
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Coroutine, Iterable, Mapping
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Annotated, Any
 from urllib.parse import urlsplit
 
-from fastapi import Depends, Path, Query
+from fastapi import Depends, Path, Query, Response
+from fastapi import Request as HttpRequest
+from fastapi.routing import APIRoute
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer, StrictInt, field_validator
 
 from accountable import db
@@ -142,3 +147,26 @@ def _is_storable(text: str) -> bool:
     except UnicodeEncodeError:
         return False
     return True
+
+
+class _ExactNumbersRequest(HttpRequest):
+    async def json(self) -> Any:
+        if not hasattr(self, "_json"):
+            self._json = json.loads(await self.body(), parse_float=Decimal)
+        return self._json
+
+
+class ExactNumbersRoute(APIRoute):
+    """A route that reads a JSON number with a point or an exponent as a Decimal, with every digit sent.
+
+    FastAPI reads a body with Python's JSON reader, which makes such a number a float, and a
+    float can't hold 8.8750000000000001: it arrives as 8.875, and no later check can tell.
+    """
+
+    def get_route_handler(self) -> Callable[[HttpRequest], Coroutine[Any, Any, Response]]:
+        handle = super().get_route_handler()
+
+        async def read_exactly(request: HttpRequest) -> Response:
+            return await handle(_ExactNumbersRequest(request.scope, request.receive))
+
+        return read_exactly

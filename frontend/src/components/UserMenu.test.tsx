@@ -53,6 +53,13 @@ function menu() {
   return within(screen.getByRole("menu"));
 }
 
+/** The menu's plain items, in order, after the themes. */
+function items() {
+  return menu()
+    .getAllByRole("menuitem")
+    .map((item) => item.textContent);
+}
+
 function themes() {
   return menu()
     .getAllByRole("menuitemradio")
@@ -71,17 +78,17 @@ describe("the menu button", () => {
     expect((await menuButton()).textContent).toBe("AR");
   });
 
-  it("still opens the menu, with the themes and Sign out, when the backend can't say who's signed in", async () => {
+  it("still opens the menu, with the themes, Company settings and Sign out, when the backend can't say who's signed in", async () => {
     mockApi({});
     openMenuAt();
     await user().click(screen.getByRole("button", { name: "Menu" }));
     expect(themes()).toEqual(["Light (checked)", "Dark", "System"]);
-    expect(menu().getByRole("menuitem", { name: "Sign out" })).toBeTruthy();
+    expect(items()).toEqual(["Company settings", "Sign out"]);
   });
 });
 
 describe("the menu", () => {
-  it("shows the name and email, the three themes with a check by the current one, and Sign out", async () => {
+  it("shows the name and email, the three themes with a check by the current one, Company settings and Sign out", async () => {
     mockApi({ "GET /me": ALEX });
     openMenuAt();
     await user().click(await menuButton());
@@ -91,7 +98,7 @@ describe("the menu", () => {
     expect(menu().getByText("Theme")).toBeTruthy();
     expect(within(menu().getByRole("group", { name: "Theme" })).getAllByRole("menuitemradio")).toHaveLength(3);
     expect(themes()).toEqual(["Light (checked)", "Dark", "System"]);
-    expect(menu().getByRole("menuitem", { name: "Sign out" })).toBeTruthy();
+    expect(items()).toEqual(["Company settings", "Sign out"]);
   });
 
   it("shows the email once for someone with no display name", async () => {
@@ -165,6 +172,22 @@ describe("the menu", () => {
     await keys.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).toBeNull();
     expect(document.activeElement).toBe(button);
+  });
+
+  it.each([
+    ["with the person", { "GET /me": ALEX }, "Menu for Alex Rivera"],
+    ["without the person", {}, "Menu"],
+  ])("opens the Company settings page and closes, %s", async (_case, routes, button) => {
+    startSignedIn();
+    mockApi(routes);
+    openMenuAt("/deals/7");
+    const clicks = user();
+    await clicks.click(await screen.findByRole("button", { name: button }));
+
+    await clicks.click(menu().getByRole("menuitem", { name: "Company settings" }));
+
+    expect(await screen.findByText("At /settings, signed-in")).toBeTruthy();
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("signs out to the sign-in screen at the Dashboard's address", async () => {

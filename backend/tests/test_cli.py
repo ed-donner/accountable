@@ -2,9 +2,11 @@ import io
 
 import pytest
 from accountable import cli, db, users
+from accountable.company.sample_data import SAMPLE_COMPANY
+from accountable.company.tables import company_settings
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.products.tables import products
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 
 def counts() -> dict[str, int]:
@@ -158,3 +160,47 @@ def test_empty_before_the_first_start_leaves_an_empty_database(tmp_path, monkeyp
     assert counts() == EMPTY
     assert everyone() == {teammate.id for teammate in users.TEAMMATES}
     db.dispose()
+
+
+OUR_OWN = {"company_name": "Our Real Company", "tax_rate": 6000, "quote_prefix": "Q-", "updated_by": "someone-real"}
+
+
+def the_settings() -> dict:
+    with db.reading() as conn:
+        row = conn.execute(select(company_settings)).one()._mapping
+    return {name: row[name] for name in (*SAMPLE_COMPANY, "updated_by")}
+
+
+@pytest.fixture
+def changed_settings(with_records):
+    with db.writing() as conn:
+        users.remember(conn, "someone-real", "Sam Real", "sam@company.example")
+        conn.execute(update(company_settings).values(**OUR_OWN))
+
+
+def test_seed_puts_the_sample_company_back_over_changed_settings(changed_settings):
+    assert cli.main(["seed", "--yes"]) == 0
+    assert the_settings() == {**SAMPLE_COMPANY, "updated_by": "teammate-dana-whitfield"}
+
+
+def test_empty_leaves_the_settings_as_they_were(changed_settings):
+    before = the_settings()
+    assert cli.main(["empty", "--yes"]) == 0
+    assert the_settings() == before
+    assert {name: before[name] for name in OUR_OWN} == OUR_OWN
+
+
+def test_seed_says_the_settings_will_be_replaced_and_empty_doesnt(with_records, monkeypatch, capsys):
+    answer(monkeypatch, "no\n")
+    cli.main(["seed"])
+    assert "The company settings will be replaced with the sample company's." in capsys.readouterr().out
+    answer(monkeypatch, "no\n")
+    cli.main(["empty"])
+    assert "company settings" not in capsys.readouterr().out
+
+
+def test_a_seed_that_isnt_confirmed_leaves_the_settings_alone(changed_settings, monkeypatch):
+    before = the_settings()
+    answer(monkeypatch, "no\n")
+    assert cli.main(["seed"]) == 1
+    assert the_settings() == before

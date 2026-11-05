@@ -27,7 +27,7 @@ Accountable is a business management system: a sales CRM that will grow into a f
 | Pipeline | The deals as cards on a board, one column per stage, moved by dragging |
 | Products | The price list: what the business sells, and at what price |
 
-Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme and Sign out.
+Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out.
 
 **Five kinds of record:**
 
@@ -37,18 +37,23 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - **Activity:** a note, call or email that happened, or needs to happen, with a contact or a deal, with an optional follow-up date.
 - **Product:** something the business sells, with a unique name, a description and a unit price in dollars and cents. It's archived rather than deleted once it's no longer sold.
 
+**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms and the prefixes for quote and invoice numbers. Quotes and invoices come later, so nothing uses the settings yet.
+
 **Not in Accountable yet:**
 
 - Roles and permissions: everyone who can sign in can do everything
 - A sign-up page, a password reset, changing a password in the app, or signing in with Google or a magic link. People are added, and their passwords set, in Supabase's dashboard.
 - Moving the records in a local copy to the shared app
 - Seeing teammates' changes as they happen. They show when the window is used again or the page is refreshed.
-- A warning when two people edit the same record at once. The last save wins.
-- A history of every change. Each record keeps who added it and who last changed it, nothing in between.
+- A warning when two people edit the same record, or the company settings, at once. The last save wins.
+- A history of every change. Each record keeps who added it and who last changed it, and the company settings keep who last changed them, nothing in between.
 - A layout for phones
+- Quotes and invoices, and so a counter for their numbers. The company settings hold only the prefixes.
+- A company logo
+- Personal settings. The theme belongs to the browser (L2), and the company settings to the team.
 - AI features
 - Email, calendar or phone integrations
-- Currencies other than US dollars
+- Currencies other than US dollars, or more than one tax rate
 - Products on deals, quotes or invoices
 - Stock levels, product categories, units of measure or variants
 - Price lists for particular customers, or discounts
@@ -84,6 +89,10 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 | Unit price | A product's price for one, in US dollars and cents, kept as a whole number of cents |
 | Active product | A product that isn't archived. Every product starts out active. |
 | Archived product | A product taken off the price list. It's hidden from the Products table unless Show archived is ticked, and from the top bar's search, and Restore makes it active again. |
+| Company settings | The one set of company details the whole team shares, on the Company settings page. Not to be confused with the three settings in `.env` and Render that decide which copy runs (C8). |
+| Tax rate | The sales tax as a percentage, from 0 to 100 with up to three decimal places, such as 8.875% |
+| Payment terms | How many days customers have to pay, from 0 to 365 |
+| Number prefix | The start of a quote's or an invoice's number, such as QT- or INV- |
 
 | Stage | Usual probability |
 |---|---|
@@ -118,6 +127,7 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [products.md](specs/products.md) | The price list: unit prices in dollars and cents, unique names, archiving and restoring, the product page, and their screens | G1 to G12 |
 | [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, and its screen | H1 to H9 |
 | [running.md](specs/running.md) | The local copy and the shared app, sample data, keeping data, and the commands and first run | M1 to M7, C1 to C11 |
+| [settings.md](specs/settings.md) | The company settings: the page, each field's rules, saving, who last changed them, the sample company and the defaults, and the page's screen | B1 to B14 |
 | [deploy.md](specs/deploy.md) | The shared app on Render: `render.yaml`, building, starting, settings and the free plans' limits | W1 to W9 |
 
 **Across every area**

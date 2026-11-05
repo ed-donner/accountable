@@ -71,7 +71,10 @@ async function switchBothWays(page: Page) {
   await expectMode(page, "light");
 }
 
-test("the menu shows the initials, the name and email, the themes and Sign out", async ({ page, request }) => {
+test("the menu shows the initials, the name and email, the themes, Company settings and Sign out", async ({
+  page,
+  request,
+}) => {
   const me = await (await request.get("/api/me")).json();
   expect(me.name).toBe(SIGNED_IN.name);
   await page.goto("/");
@@ -90,7 +93,7 @@ test("the menu shows the initials, the name and email, the themes and Sign out",
   await expect(menu(page)).toContainText(me.email);
   await expect(menu(page).getByRole("menuitemradio")).toHaveText(["Light", "Dark", "System"]);
   await expect(menu(page).getByRole("menuitemradio", { checked: true })).toHaveText("Light");
-  await expect(menu(page).getByRole("menuitem")).toHaveText(["Sign out"]);
+  await expect(menu(page).getByRole("menuitem")).toHaveText(["Company settings", "Sign out"]);
 
   // 240px wide on the raised surface, below the button and lined up with its right edge.
   await expect(menu(page)).toHaveCSS("width", "240px");
@@ -475,6 +478,15 @@ for (const mode of ["light", "dark"] as const) {
         ready: (page: Page) => expect(page.getByTestId("timeline-entry").first()).toBeVisible(),
       })),
       { path: "/pipeline", ready: (page) => expect(card(page, `Late for the ${mode} sweep`)).toBeVisible() },
+      { path: "/settings", ready: (page) => expect(page.getByLabel("Company name")).toBeVisible() },
+      {
+        path: "/settings",
+        ready: async (page) => {
+          await page.getByLabel("Company name").fill("");
+          await page.getByRole("button", { name: "Save settings" }).click();
+          await expect(page.getByText("Enter the company name")).toBeVisible();
+        },
+      },
       {
         path: "/products?archived=1",
         ready: (page) => expect(page.locator("tbody").getByText("Archived").first()).toBeVisible(),

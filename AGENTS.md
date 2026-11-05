@@ -24,7 +24,7 @@ The working tree holds the owner's uncommitted work, and `data/accountable.db` h
 - To prove a test fails, break the code from your own copy of the file and put your copy back after. Never undo the break through git, such as with `git checkout --` or `git restore`, which also throws away the uncommitted work in that file.
 - Move, rename and delete files with `mv` and `rm`, not `git mv` or `git rm`, and leave git's index as you found it. Those stage the change, and undoing that with `git reset` also unstages anything the owner had staged in the file. The owner stages what goes in each commit.
 - Run the app on a temporary database unless the person asks for their own: `ACCOUNTABLE_DB=<your scratchpad>/accountable.db npm run dev`. A new database gets the sample data. A branch's migrations upgrade whatever database the app starts on, and nothing takes them back.
-- Stop every server and background command you start once you're done with it, before you end your turn, and check its ports are free. If the person wants one left running, say that it is and how to stop it.
+- Stop every server and background command you start once you're done with it, before you end your turn, and check its ports are free. Stop it by its own process ID, never by a name: `pkill -f scripts/dev.mjs` also stops the app in the person's checkout and in every other worktree. If the person wants one left running, say that it is and how to stop it.
 
 ## Checks and tests
 
@@ -34,7 +34,7 @@ It runs Prettier, ESLint, ruff format, ruff check and gitleaks, then everything 
 
 `npm test` runs the type checks (tsc and ty), the backend unit tests (pytest), the frontend unit tests (Vitest) and the end-to-end tests (Playwright). Unit test coverage under 80% fails it. It takes about four minutes on 10 cores, and uses its own temporary databases. It picks the number of end-to-end workers from the machine's cores and memory. `ACCOUNTABLE_TEST_WORKERS=2 npm test` sets it by hand. Runs in several worktrees can go at once, with nothing to set: each takes ports of its own and shares the workers with the others, and the speed tests wait until no other run is busy, so a run can take longer while another is going.
 
-Pytest and Playwright refuse to start on their own, because `npm test` is what sets up those databases.
+Pytest and Playwright refuse to start on their own, because `npm test` is what sets up those databases. To run chosen end-to-end tests as you go, use `npm run e2e -- e2e/settings.spec.ts`, which takes Playwright's own arguments, such as `-g` or `--repeat-each`, rather than a runner of your own.
 
 In an end-to-end test, wait for the exact thing the next step needs, such as the row it scrolls to or the reply to the save it checks. A wait for the page to load or the network to go quiet returns at once on a page that has already loaded, so the test passes on its own and fails under the load of a full run.
 

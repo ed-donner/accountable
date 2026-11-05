@@ -29,6 +29,8 @@ Organizations, contacts, deals, activities and products each also have:
 
 Stage changes also have `created_by`, for who moved the deal (U11).
 
+The company settings have `updated_by` alone, for who last changed them (B9). Their one row is added by a migration, not a person, so there's no `created_by`.
+
 **organizations**
 
 | Column | Type | Notes |
@@ -94,11 +96,26 @@ Stage changes get their own table because they aren't activities: they have no t
 
 The products table belongs to the price list, not the CRM, so it's in `products/tables.py` ([Layout rules](architecture.md#layout-rules)). Nothing links to it yet.
 
+**company_settings**
+
+| Column | Type | Notes |
+|---|---|---|
+| company_name | text | required on every save. Blank only at the defaults, before the first save or after the clearing steps (B13, B14) |
+| address | text | optional, and can hold several lines |
+| email, phone | text | optional |
+| tax_label | text | optional. `Sales tax` by default |
+| tax_rate | integer | thousandths of a percent, 0 to 100,000, so 8.875% is 8875. 0 by default |
+| payment_terms_days | integer | 0 to 365. 30 by default |
+| quote_prefix, invoice_prefix | text | required. `QT-` and `INV-` by default |
+| updated_by | foreign key to users | who last changed them. Blank at the defaults, until someone saves them |
+
+The table holds one row, with `id` 1. The migration that makes the table adds it with the defaults, and a check constraint keeps `id` at 1, so no second row can appear. The API has no route that adds or deletes one. Each setting's default, and `updated_by`'s blank, are kept in the table itself, as server defaults, so the migration's row takes them from there. The clearing steps in [C11](running.md#running-and-keeping-data) set those columns back with Postgres's `DEFAULT`, rather than writing the values out a second time, and set `updated_at` to the time of clearing, because it has no default in the database. The tax rate is a whole number of thousandths, because SQLite has no exact decimal type and would keep 8.875 as a binary fraction, and the same column type then works on both databases.
+
 Notes:
 
 - **Links:** required links are enforced by the API, not the database, because deletes have to be able to blank them. The database columns allow blank.
 - **Which database:** `db.py` uses SQLite at `data/accountable.db` in the local copy and Postgres at `DATABASE_URL` in the shared app (C8). Everything specific to either one stays in `db.py` and the migrations. Postgres connections are checked before each use, because Render's sleep leaves dead ones in the pool, the pool holds at most 5, to stay within the session pooler's limit, and connecting gives up after 10 seconds, so a start can't hang on an unreachable Supabase. Reads on Postgres run in autocommit, with no BEGIN or ROLLBACK: its default isolation gives each query its own snapshot anyway, so a read transaction would only add round trips, and from far away each one costs 80ms or more. Writes are still one transaction each.
-- **New database:** in the local copy, a first start builds the database under a temporary name and renames it once the migrations and sample data are done, so an interrupted first start can't leave an empty database behind. In the shared app, a database with none of the app's tables is new, and the first start builds the tables and adds the sample data in one transaction, which Postgres can roll back whole.
+- **New database:** the migrations add the company settings' row with the defaults, and the sample data then fills it with the sample company's ([B12](settings.md#starting-values)). A database that already exists gets only the defaults, from the same migration (B13). In the local copy, a first start builds the database under a temporary name and renames it once the migrations and sample data are done, so an interrupted first start can't leave an empty database behind. In the shared app, a database with none of the app's tables is new, and the first start builds the tables and adds the sample data in one transaction, which Postgres can roll back whole.
 - **Ids:** never used twice, so an old address can't open a different record. SQLite would otherwise give the newest record's id to the next one after a delete. Every table gets `TABLE_OPTIONS` from `db.py`. Postgres never reuses an id, so it needs nothing extra. Users keep the id Supabase gave them.
 - **Foreign keys:** SQLite turns these off by default. They're turned on for each connection with `connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_FKEY, True)` in a SQLAlchemy connect event. This keeps to the "no raw SQL" rule, and it has been checked on Python 3.12. Postgres always enforces them.
 - **Migrations:** these run when the backend starts, all in one transaction, on both databases. On SQLite they run with foreign keys off, because SQLite makes most table changes by rebuilding the table, and dropping the old table with foreign keys on would run its delete rules, blanking links and deleting activities. Steps that only SQLite needs, such as those rebuilds, are skipped on Postgres, where Postgres can change a table in place. Every migration, the first ones included, runs from an empty database on both, so a new Supabase project gets the whole history.
@@ -128,11 +145,13 @@ Adding a deal at Won uses step 4 and writes no `stage_changes` row. Moving a car
 
 Every add and save sets `created_by` and `updated_by` from the token, never from the request.
 
+Saving the company settings reads the row, applies what was sent, checks the result against B4 to B7, and writes it, all in one transaction under the write lock. It sets `updated_by` and `updated_at` only if a value changed, as U10 says. The messages for their fields live in `company/schemas.py`, and `main.py` hands them to the error handler for a request to `/api/settings`.
+
 Every write takes one lock in `db.py`, because FastAPI runs requests on separate threads and renumbering reads a column before writing it, so two quick moves could otherwise undo each other. Teammates' moves on the shared app go through the same lock. It lives in the process, so the shared app runs as one process (W6).
 
 Last activity in the list replies comes from grouped queries, one for each kind of record, not one query per row, so the lists stay quick at the Q1 limits.
 
-Reset and empty delete rows inside a transaction and leave the file and tables in place. This is why they're safe while the app is running, and why an emptied database isn't treated as new.
+Reset and empty delete rows inside a transaction and leave the file and tables in place. This is why they're safe while the app is running, and why an emptied database isn't treated as new. Reset also writes the sample company's settings over the settings row, and empty leaves the row alone (C4).
 
 ## API
 
@@ -161,6 +180,8 @@ All routes are under `/api` and use JSON. Every route needs a valid token in the
 | `GET /products/{id}` | One product |
 | `PATCH /products/{id}` | Edit the fields sent. `active` set to false archives the product, and set to true restores it. |
 | `GET /search?q=` | Up to 5 organizations, contacts, deals and active products whose names hold `q`, with a count for each kind (K1 to K5). `q` is 1 to 100 characters once the spaces at its ends are gone. |
+| `GET /settings` | The company settings, with who last changed them and when (B9) |
+| `PATCH /settings` | Change the settings sent. The checks apply to the settings as they'd be after the save (B5), so while no company name is saved, a save that leaves it out is refused. |
 
 The local copy also has these two, which need no token and which the shared app doesn't have (U16):
 
@@ -173,7 +194,9 @@ Signing in to the shared app goes from the browser straight to Supabase Auth, so
 
 Products have no delete route, so `DELETE /products/{id}` gets a 405 (G9). A product's name that's taken gets a 422 with a message beside `name`, like any other field (G2).
 
-The single-record replies for organizations, contacts, deals and products carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way. Names follow U8. A record counts as changed since it was added when its `updated_at` differs from its `created_at`, so an add sets both from one moment, and the changes the app makes around a save, such as renumbering a column, leave the other records' `updated_at` alone as well as their `updated_by` (U10, R6). Records from before sign-in, with no one recorded, can have their two times a moment apart, so on those the record pages treat a difference under a second as no change.
+The single-record replies for organizations, contacts, deals and products carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way, and the company settings carry `updated_by` and `updated_at`, with `updated_by` null until someone saves them, and again after the clearing steps. Names follow U8. A record counts as changed since it was added when its `updated_at` differs from its `created_at`, so an add sets both from one moment, and the changes the app makes around a save, such as renumbering a column, leave the other records' `updated_at` alone as well as their `updated_by` (U10, R6). Records from before sign-in, with no one recorded, can have their two times a moment apart, so on those the record pages treat a difference under a second as no change.
+
+The tax rate travels as text in replies, such as `"8.875"`, without trailing zeros, so nothing on the way can round it (B7). Requests can send it as text or as a number, and the backend checks it from its digits. Python's JSON reader would make a number with a point a float, which loses digits past about the 16th, so the settings' routes use `api.ExactNumbersRoute`, which reads such a number as a `Decimal` with every digit sent. No other route uses it, so every other area's bodies are read as before.
 
 The list routes return every row, and the table does its searching, sorting and paging in the browser. At these limits that's small and quick, and it makes typing in the search box feel instant.
 

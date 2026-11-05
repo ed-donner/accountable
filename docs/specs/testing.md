@@ -8,7 +8,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 Every test runs as the local copy, on SQLite. The checks never read `.env`, and pass down an environment without the three Supabase settings (C9), so no test can reach Supabase, whether the settings are in `.env` or not, and CI needs no secrets. Where a test needs Supabase, such as the shared app's token check, it stands in for it.
 
-**Speed:** every unit test, backend and frontend, old and new, runs in under a second on the developer's computer, because CI runs on a much slower machine. The summary at the end of `npm test` names any unit test that took a second or more.
+**Speed:** every unit test, backend and frontend, old and new, runs in under a second on the developer's computer, because CI runs on a much slower machine. The summary at the end of `npm test` names any unit test that took a second or more. If another test run on the computer was busy while the unit tests ran, a line under that list says so, because the other run can make them slow.
 
 **Backend (pytest)**, on a fresh temporary database each test:
 
@@ -20,8 +20,9 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - All three timelines, with no duplicates
 - Sample data meets every line of M3, including when seeded on the 1st of a month, and M7
 - An emptied database stays empty after a restart
-- Migrations build the same tables as `crm/tables.py` and `products/tables.py`
-- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value` and `products.unit_price_cents` `bigint`s and turn on row-level security for every table, Alembic's own included
+- Migrations build the same tables as `crm/tables.py`, `products/tables.py` and `company/tables.py`
+- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value` and `products.unit_price_cents` `bigint`s, keep each company setting's default in its table, and turn on row-level security for every table, Alembic's own included
+- The migrations have one head, so two branches that each add the next migration fail the tests rather than the backend's start, and `migrations/env.py` imports every area's tables
 - The startup check for row-level security, given a list of tables with it on and off, refuses to start and names each table that has it off
 - Every route the app has gets the security and bad-input checks, taken from the app's own list of routes. That includes refusing a request with no token, an expired one, one signed with another key and one issued for something other than a signed-in user, in the local copy and in the shared app
 - The shared app's token check against a stand-in for Supabase's public keys, made in the test: a good token, a key it hasn't seen, and keys that can't be fetched
@@ -34,6 +35,8 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Product names: unique ignoring case in any language, against an archived product too, a product changing the case of its own name, and two saves of one name at once, which give one product and a message beside the name, never a 500. At most 200 characters, on add and rename, with spaces at the ends not counted, and 200 of the character whose key is longest still fit what Postgres can index, which SQLite can't show
 - Prices: whole cents from 0 to the limit, refusing a fraction such as `49.5`, a negative number, text and anything past the limit
 - Today follows `TZ`
+- The company settings through `GET` and `PATCH /settings`: each rule and message in B4, at and past each limit, including a tax rate of 150% and payment terms of 400 days, the cases in `shared/settings-cases.json`, prefixes that clash either way round and in any capitals, the checks made against what's already saved, a rate kept exact, a rate sent as a JSON number checked from every digit in the request's text, such as 8.8750000000000001 and 1e-999999999, who last changed them, and a save that changes nothing leaving that alone
+- The migration that adds the company settings, run on a database that already has records, gives the defaults in B13 with no one recorded. A new database gets the sample company in B12, `npm run seed` puts it back over changed settings, and `npm run empty` leaves the settings as they were
 - The built app: an unknown address gets the page, an unknown `/api` address gets a JSON 404, and nothing outside `frontend/dist` can be reached
 
 **Frontend (Vitest):** money and date formatting, including dates near midnight and prices with their cents, reading a typed price by its digits, including `0.29`, `1,250.5` and `$1,250.00`, and refusing a third figure after the point, expected revenue and board totals using the same cases as the backend, the deal form's stage behavior, the table's search and sort, and every page, chart and the pipeline board as a user sees them, with the API stood in for by `mockApi` in `src/test-utils.tsx`. The board's tests give jsdom a plain layout, because jsdom lays nothing out, and move cards with the keyboard and the pointer. Also:
@@ -44,6 +47,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Products: the table with Show archived and each of its empty states, the form with a taken name, Archive and the Restore button on its message, which stays up for 10 seconds, and the product page, active and archived. After an archive, signing out and in leaves no message or Restore for the next person, even when the archive's reply comes after sign-out. The form refuses a name over 200 characters and counts them as the backend does, so 200 eighth notes, two each in JavaScript, still go
 - The search box: the pause before searching, an older reply arriving late, the groups, including Products with their prices, "See all", the keyboard, each message in K7, trying a failed search again with a click or the down arrow, and telling screen readers whether its results are open
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
+- The Company settings page: opening it from the menu, each message beside its field, the cases in `shared/settings-cases.json`, the ask for a company name, who last changed the settings, a failed read showing no form, a failed save keeping what was typed, what's typed while a save is on its way staying, still to be saved, and a teammate's save arriving while someone is typing
 
 **Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value. It also fails if the dark block sets a token that `@theme` doesn't have, so a misspelled one can't go unnoticed.
 
@@ -85,6 +89,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - `scripts/test-plan.test.mjs` checks that no port is shared between workers or runs, even at 16 runs of 64 workers, and that the workers are shared out between runs. `scripts/test-runs.test.mjs` checks, on ports the system picks so it can't disturb a real run, that two runs get different slots, that a slot with a taken port is passed over, that the speed tests wait for a busy run, that a run waits to get busy while another has the speed tests' turn, and that only one run has the turn at a time.
 - Tests reach the app at 127.0.0.1, so a slow lookup of the name `localhost` can't stall them, and Chrome runs with `--disable-gpu`, because browsers compiling shaders side by side can hang on macOS.
 - Each run leaves an HTML report, with a screenshot of each failure and how long each step took, in `playwright-report/main` and `playwright-report/speed`. The next run replaces it.
+- `npm run e2e` runs only the end-to-end tests it's given, with Playwright's own arguments, such as `npm run e2e -- e2e/settings.spec.ts -g "a save"`. It sets up the run as `npm test` does: a slot, a temporary database, its share of the workers, and its turn around other runs' speed tests. It ends with the same summary, fails if no test matches, and leaves its report in `playwright-report/main`. It doesn't run the speed tests.
 
 | Area | Requirements | Tests |
 |---|---|---|
@@ -99,6 +104,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 | Signing in and out, and who added | U1, U4 to U7, U13 to U15, R6, A7, S2 | `e2e/sign-in.spec.ts`, `e2e/records.spec.ts`, `e2e/activities.spec.ts` |
 | Search | K1 to K8 | `e2e/search.spec.ts`, `backend/tests/test_search.py`, `frontend/src/components/Search.test.tsx` |
 | Products | G1 to G12 | `e2e/products.spec.ts`, `backend/tests/test_products.py`, the tests in `frontend/src/products/` and `frontend/src/lib/money.test.ts` |
+| Company settings | B1 to B14 | `e2e/settings.spec.ts`, `backend/tests/test_company_settings.py`, `frontend/src/company/SettingsPage.test.tsx`, `frontend/src/company/settings.test.ts` |
 | Look and brand | Visual design, L5 | By hand, against the design reference and the dark mode screenshots |
 | Layout, the top bar on one line at 1280px, console, keyboard, Chrome | N1, N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
 | Speed at the limits | Q1 | `e2e/stress.spec.ts` |
@@ -110,4 +116,4 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 
 **By hand:** tests can't settle everything. The app is also used in Chrome at 1440 by 900 and 1280 by 720 the way a salesperson would, including with an emptied database, after a restart and with the network off, and each screen is compared with the design reference, in light mode and dark mode. The project owner checks that someone with no instructions can answer the five questions from the dashboard (H9), and has the final say, including on how it looks. Passing tests is necessary, but it isn't enough.
 
-The shared app is checked by hand too, because no test touches Supabase. The project owner runs `npm start` against an empty Supabase database, which proves that every migration runs from empty on Postgres and that the startup check for row-level security passes. Then they sign in as their Supabase user, and go through the change's success criteria: a wrong password, signing out, who added each record, search and the theme. Once `npm start` has built the tables, the coding agent uses the Supabase MCP server to confirm that row-level security is on for every table and to run Supabase's security advisors, reporting only. After the first deploy, the same checks run on the `onrender.com` address.
+The shared app is checked by hand too, because no test touches Supabase. The project owner runs `npm start` against an empty Supabase database, which proves that every migration runs from empty on Postgres and that the startup check for row-level security passes. Then they sign in as their Supabase user, and go through the change's success criteria, such as a wrong password, signing out, who added each record, search, the theme and the company settings. For the company settings, that includes running the clearing steps in `docs/STATUS.md`, which should leave no records and the Company settings page asking for a company name, with no one shown as having changed the settings. Once `npm start` has built the tables, the coding agent uses the Supabase MCP server to confirm that row-level security is on for every table and to run Supabase's security advisors, reporting only. After the first deploy, the same checks run on the `onrender.com` address.

@@ -104,6 +104,10 @@ def test_the_routes_were_found():
     assert ("POST", "/api/deals/{deal_id}/move") in ROUTES
     assert ("GET", "/api/meta") in ROUTES
     assert ("GET", "/api/search") in ROUTES
+    assert ("GET", "/api/settings") in READS
+    assert ("PATCH", "/api/settings") in WRITES
+    assert ("PATCH", "/api/settings", "company_name") in BODY_TEXT
+    assert ("PATCH", "/api/settings", "tax_rate") in BODY_TEXT
     assert target("GET", "/api/search") == "/api/search?q=harbor"
     assert ("POST", "/api/organizations", "name") in BODY_TEXT
     assert ("PATCH", "/api/activities/{activity_id}", "description") in BODY_TEXT

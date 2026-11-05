@@ -30,7 +30,7 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Sea Green text | `#047A5B` | `#51E2BC` | If Sea Green is ever needed as text |
 | Marigold text | `#866522` | `#FFD47D` | If Marigold is ever needed as text |
 | Raspberry text | `#D23E62` | `#F591A9` | Error messages beside a field. Light mode uses the Alert chip's shade |
-| Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts |
+| Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts, and the icon before the Company settings page's ask for a company name |
 | Alert | `#EF476F` Raspberry, white text | Same | Delete buttons, charts |
 | Small chip, Information | `#107FA4`, white text | Same | Negotiation chips |
 | Small chip, Alert | `#D23E62`, white text | Same | Late, Overdue and Lost chips, the connection message |
@@ -135,7 +135,7 @@ Plain business English, short labels, no exclamation marks.
 |---|---|
 | Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore |
 | Menu button, for screen readers | Menu for Alex Rivera |
-| Menu | Theme. Light. Dark. System. Sign out. |
+| Menu | Theme. Light. Dark. System. Company settings. Sign out. |
 | Sign-in | Sign in. Email. Password. |
 | Sign-in failed | That email and password don't match. |
 | Sign-in service unreachable | Can't reach the sign-in service. Check your internet connection. |
@@ -143,12 +143,15 @@ Plain business English, short labels, no exclamation marks.
 | Session ended | Your session has ended. Sign in again. |
 | Local copy's sign-in | This is a local copy with made-up data. Choose who to sign in as. |
 | Who added and changed | Added by Alex Rivera on Oct 12, 2026. Last changed by Dana Whitfield on Oct 30, 2026. |
+| Company settings page | Company settings. Company. Tax. Quotes and invoices. Save settings. |
+| No company name saved | No company name yet. Enter one below. |
+| Prefix hint | Up to 10 letters, digits and hyphens. |
 | Search, for screen readers | Search organizations, contacts, deals and products |
 | No search matches | No organizations, contacts, deals or products match "harbour". |
 | Search failed | Couldn't search. Try again. |
 | More search results | See all 12 contacts |
-| Messages | Deal saved. Deal deleted. Product archived. Product restored. |
-| Errors | Enter a name. Choose an organization. Enter your email. Enter a price in dollars and cents, such as 49.50. |
+| Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. |
+| Errors | Enter a name. Choose an organization. Enter your email. Enter a price in dollars and cents, such as 49.50. Enter a rate from 0 to 100%. Clashes with the quote prefix. Neither can start with the other, ignoring capitals. |
 | Product name taken | A product with this name already exists. An archived product has this name. Restore it or choose another. |
 | Empty table | No deals yet. Add the first one. |
 | Archived products | Show archived (2). Every product is archived. 2 archived products match. |
@@ -170,7 +173,7 @@ Money always carries its currency, as in `$48,000`. A product's price also carri
 - **Mockup 3, Deal wall:** the style of the pipeline board.
 - **A top-down sales funnel** in place of Mockup 2's funnel bars, in the style common in sales CRMs.
 
-Organizations, Contacts, Deals, Products and the record pages aren't in the mockup, and follow the screens in [records.md](records.md#screens) and [products.md](products.md#screens) with the same shell, colors and type. Nor are the sign-in screen, the search results and the menu, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results) and [shell.md](shell.md#shell). The mockup's top bar has no Products section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
+Organizations, Contacts, Deals, Products and the record pages aren't in the mockup, and follow the screens in [records.md](records.md#screens) and [products.md](products.md#screens) with the same shell, colors and type. Nor are the sign-in screen, the search results, the menu and the Company settings page, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell) and [settings.md](settings.md#company-settings-page). The mockup's top bar has no Products section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
 
 The mockups show light mode only. Dark mode follows the dark values in [Color tokens](#color-tokens), and `docs/changes/dark-mode/` holds screenshots of the dashboard and the pipeline in both modes, at 1440 by 900 with the sample data.
 

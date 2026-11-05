@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import type { Page, Response } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { SESSION_KEY, SIGNED_IN, resetToSampleData, tokenFor } from "./helpers";
+import { API, ROOT, SESSION_KEY, SIGNED_IN, resetToSampleData, tokenFor } from "./helpers";
 
 // Each test starts from the sample company, and no other spec reads the settings.
 test.beforeEach(resetToSampleData);
@@ -84,7 +87,7 @@ test("the menu opens Company settings, with no section marked as current", async
   await expect(page.getByText(`Last changed by Dana Whitfield on ${today()}`)).toBeVisible();
   await expect(page.getByText("No company name yet.")).toHaveCount(0);
   const sections = page.getByRole("navigation", { name: "Sections" });
-  await expect(sections.getByRole("link")).toHaveCount(8);
+  await expect(sections.getByRole("link")).toHaveCount(9);
   await expect(sections.locator('[aria-current="page"]')).toHaveCount(0);
 });
 
@@ -170,11 +173,17 @@ test("the API refuses them too", async ({ request }) => {
   expect(await (await request.get("/api/settings")).json()).toEqual(before);
 });
 
-test("the form fits at 1280 by 720, Enter in the address adds a line, and Enter in a box saves", async ({ page }) => {
+test("at 1280 by 720 the company and tax panels and the button fit, Enter in the address adds a line, and Enter in a box saves", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await openSettings(page);
   await expect(saveButton(page)).toBeInViewport({ ratio: 1 });
-  expect(await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBeLessThanOrEqual(0);
+  for (const panel of ["Company", "Tax", "Quotes and invoices"]) {
+    await expect(page.getByRole("region", { name: panel, exact: true }), panel).toBeInViewport({ ratio: 1 });
+  }
+  // The page scrolls to the Documents panel below them.
+  await expect(page.getByRole("region", { name: "Documents" })).not.toBeInViewport({ ratio: 1 });
 
   const saves = countSaves(page);
   await box(page, "Address").click();
@@ -190,4 +199,67 @@ test("the form fits at 1280 by 720, Enter in the address adds a line, and Enter 
   expect((await reply.json()).address).toBe(`${SAMPLE_COMPANY.Address}\nUSA`);
   await expect(page.getByText("Settings saved.")).toBeVisible();
   await expect(saveButton(page)).toBeInViewport({ ratio: 1 });
+});
+
+const LOGO = path.join(ROOT, "e2e", "files", "logo.png");
+const NOT_A_PICTURE = path.join(ROOT, "e2e", "files", "not-a-picture.png");
+
+function sample(page: Page) {
+  return page.getByTestId("sample-invoice");
+}
+
+test("choosing a design and an accent color changes the sample before saving, and a color too light is refused", async ({
+  page,
+}) => {
+  await openSettings(page);
+  const saves = countSaves(page);
+  const title = sample(page).locator("svg text", { hasText: /^Invoice$/ });
+  // Banner, the sample company's, sets Invoice in white on a band of the accent color.
+  await expect(title).toHaveAttribute("fill", "#FFFFFF");
+
+  // The radio itself is for screen readers, and the card is what a person clicks.
+  await page.getByRole("group", { name: "Design" }).getByText("Ledger", { exact: true }).click();
+  await expect(page.getByRole("radio", { name: "Ledger" })).toBeChecked();
+  await page.getByLabel("Accent color", { exact: true }).fill("#107fa4");
+  await expect(title).toHaveAttribute("fill", "#107FA4");
+  expect(saves).toEqual([]);
+
+  await page.getByLabel("Accent color", { exact: true }).fill("#FFC145");
+  await saveButton(page).click();
+  await expect(page.getByText("Too light to read on white. Choose a darker color")).toBeVisible();
+  expect(saves).toEqual([]);
+});
+
+test("a logo is chosen and saved, and shows in the panel and on an invoice's preview", async ({ page, request }) => {
+  await openSettings(page);
+  await page.getByLabel("Logo file").setInputFiles(LOGO);
+  const chosen = readFileSync(LOGO).toString("base64");
+  await expect(page.getByAltText("Logo")).toHaveAttribute("src", `data:image/png;base64,${chosen}`);
+  const saved = page.waitForResponse(isSettingsSave);
+  await saveButton(page).click();
+  expect((await saved).ok()).toBe(true);
+
+  await page.reload();
+  await expect(page.getByAltText("Logo")).toHaveAttribute("src", `data:image/png;base64,${chosen}`);
+  const listed: { id: number; number: string | null }[] = await (await request.get(`${API}/invoices`)).json();
+  const issued = listed.find((invoice) => invoice.number !== null)!;
+  await page.goto(`/invoices/${issued.id}`);
+  await expect(page.locator("svg image").first()).toHaveAttribute("href", `data:image/png;base64,${chosen}`);
+});
+
+test("a file that isn't a PNG or JPEG is refused by the backend, though it's named .png, and nothing changes", async ({
+  page,
+  expectConsoleError,
+}) => {
+  expectConsoleError(/status of 422/);
+  await openSettings(page);
+  const before = await page.getByAltText("Logo").getAttribute("src");
+  await page.getByLabel("Logo file").setInputFiles(NOT_A_PICTURE);
+  const refused = page.waitForResponse(isSettingsSave);
+  await saveButton(page).click();
+  expect((await refused).status()).toBe(422);
+  await expect(page.getByText("Choose a PNG or JPEG image")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByAltText("Logo")).toHaveAttribute("src", before!);
 });

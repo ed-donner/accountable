@@ -1,0 +1,36 @@
+{
+  "about": "The accent color's check (B20), run by backend/tests/test_company_settings.py and frontend/src/company/accent.test.ts. Accepted colors give how each is kept. Refused ones give which message: format is not # and six hex digits, light is under 4.5:1 against white. The messages are here too, so the page needn't write a color into its code.",
+  "messages": {
+    "format": "Enter a color as # and six hex digits, such as #0E6B6B",
+    "light": "Too light to read on white. Choose a darker color"
+  },
+  "accepted": [
+    ["#073B4C", "#073B4C"],
+    ["#0e6b6b", "#0E6B6B"],
+    ["#0E6B6B", "#0E6B6B"],
+    [" #047a5b ", "#047A5B"],
+    ["#767676", "#767676"],
+    ["#107FA4", "#107FA4"],
+    ["#D23E62", "#D23E62"],
+    ["#000000", "#000000"],
+    ["#1f2a30", "#1F2A30"]
+  ],
+  "refused": [
+    ["#777777", "light"],
+    ["#FFC145", "light"],
+    ["#06D6A0", "light"],
+    ["#118AB2", "light"],
+    ["#EF476F", "light"],
+    ["#FFFFFF", "light"],
+    ["#ffffff", "light"],
+    ["073B4C", "format"],
+    ["#073B4", "format"],
+    ["#073B4CC", "format"],
+    ["#GGGGGG", "format"],
+    ["#fff", "format"],
+    ["# 073B4C", "format"],
+    ["#073B4C;", "format"],
+    ["", "format"],
+    ["   ", "format"]
+  ]
+}

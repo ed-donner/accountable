@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockApi, renderApp, user, type Call } from "../../test-utils";
 import type { Category, DueBill, MoneyFigures, SpendingMonth } from "../queries";
 import { dueDays } from "./DueTimeline";
-import { MoneySection } from "./MoneySection";
+import { BillsMoney } from "./MoneySection";
 import { LEAST_HEIGHT, StackSegment, stackScale } from "./StackSegment";
 
 const WIDTH = 600;
@@ -78,7 +78,7 @@ const EMPTY: MoneyFigures = {
 
 function show(figures: MoneyFigures | (() => { status?: number; body: unknown })) {
   const calls = mockApi({ "GET /bills/dashboard": figures });
-  renderApp(<MoneySection />);
+  renderApp(<BillsMoney />);
   return calls;
 }
 
@@ -112,10 +112,9 @@ function heightOf(segment: SVGPathElement) {
   return Number(/v\s*([\d.]+)/.exec(segment.getAttribute("d") ?? "")?.[1]);
 }
 
-describe("the Money section", () => {
-  it("comes under its own heading, with the bills to pay and the spending side by side", async () => {
+describe("bills' row of the Money section", () => {
+  it("has the bills to pay and the spending side by side", async () => {
     show(FIGURES);
-    expect(await screen.findByRole("heading", { level: 2, name: "Money" })).toBeTruthy();
     await screen.findByRole("region", { name: "Bills to pay" });
     expect(panel("Bills to pay").getByRole("heading", { name: "Bills to pay" })).toBeTruthy();
     expect(panel("Spending by category").getByRole("heading", { name: "Spending by category" })).toBeTruthy();

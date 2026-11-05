@@ -68,7 +68,7 @@ function appCode() {
 
 describe("the layout rules", () => {
   it("find every area", () => {
-    expect(AREAS).toEqual(["bills", "crm", "products", "quotes"]);
+    expect(AREAS).toEqual(["bills", "crm", "invoices", "products", "quotes"]);
   });
 
   it("read where each import leads", () => {
@@ -109,9 +109,20 @@ describe("the layout rules", () => {
     expect(importing.filter(({ target }) => ![undefined, area].includes(areaOf(target)))).toEqual([]);
   });
 
+  it("let invoices/ build only on what a later area may, and company/", () => {
+    const importing = appCode()
+      .filter((file) => areaOf(file) === "invoices")
+      .flatMap((file) => imported(file))
+      .filter((target) => !target.startsWith("invoices/") && areaOf(target) !== undefined);
+    expect(importing).toContain("crm/queries.ts"); // The check is looking in the right place.
+    expect(importing.filter((target) => !laterAreaMayImport(target))).toEqual([]);
+  });
+
   it("never let a later area import another", () => {
     // The check is looking in the right place.
-    expect(appCode().filter(isLaterArea)).toEqual(expect.arrayContaining(["bills/queries.ts", "quotes/queries.ts"]));
+    expect(appCode().filter(isLaterArea)).toEqual(
+      expect.arrayContaining(["bills/queries.ts", "invoices/queries.ts", "quotes/queries.ts"]),
+    );
     const wrong = appCode()
       .filter(isLaterArea)
       .flatMap((file) => imported(file).map((target) => ({ file, target })))
@@ -121,6 +132,14 @@ describe("the layout rules", () => {
 });
 
 describe("the company settings", () => {
+  it("never import an area, so the settings page shows the invoices' sample only through App.tsx", () => {
+    const importing = appCode()
+      .filter((file) => file.startsWith("company/"))
+      .flatMap((file) => imported(file).map((target) => ({ file, target })));
+    expect(importing.some(({ target }) => target.startsWith("company/"))).toBe(true); // Looking in the right place.
+    expect(importing.filter(({ target }) => areaOf(target) !== undefined)).toEqual([]);
+  });
+
   it("are named only by App.tsx among the top-level files, components/ and lib/, which every area shares", () => {
     const shared = code(".")
       .map((file) => path.relative(SOURCE, file))

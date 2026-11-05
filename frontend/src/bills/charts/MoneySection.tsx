@@ -72,18 +72,15 @@ function Spending({ data }: { data: MoneyFigures }) {
 }
 
 /**
- * The dashboard's Money section, below its own part (H10): what we owe, what's overdue,
- * what's due in the next 30 days, and spending by category, from the bills area's own route (E20).
+ * Bills' row of the dashboard's Money section (H10): what we owe, what's overdue, what's due in
+ * the next 30 days, and spending by category, from the bills area's own route (E20). App.tsx puts
+ * it in the section, below invoices' row.
  */
-export function MoneySection() {
+export function BillsMoney() {
   const money = useMoney();
   const data = money.data;
   return (
-    // The dashboard's own part ends 16px above, so this keeps the 12px between its panels.
-    <section aria-labelledby="money-heading" className="-mt-1 flex flex-col gap-3 px-5 pb-4">
-      <h2 id="money-heading" className="text-[20px] leading-7 font-semibold">
-        Money
-      </h2>
+    <>
       <LoadFailed keeping={data !== undefined} error={money.error} onRetry={() => money.refetch()} />
       {data && (
         <div className="grid h-[380px] grid-cols-[minmax(0,0.76fr)_minmax(0,1.24fr)] gap-3">
@@ -91,6 +88,6 @@ export function MoneySection() {
           <Spending data={data} />
         </div>
       )}
-    </section>
+    </>
   );
 }

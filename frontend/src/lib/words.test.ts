@@ -15,6 +15,8 @@ describe("plural", () => {
     [1, "open deal", "1 open deal"],
     [1, "follow-up", "1 follow-up"],
     [6, "follow-up", "6 follow-ups"],
+    [12, "day", "12 days"],
+    [2, "payment", "2 payments"],
   ])("%i %s", (count, noun, expected) => {
     expect(plural(count, noun)).toBe(expected);
   });

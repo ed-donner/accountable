@@ -1,8 +1,10 @@
+import { defaultScheduler, notifyManager } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "sonner";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { holdSaves, mockApi, renderApp, user, type Call } from "../test-utils";
+import type { SampleLook } from "./documentPreview";
 import type { CompanySettings } from "./settings";
 import { SettingsPage } from "./SettingsPage";
 
@@ -20,6 +22,9 @@ const SAMPLE: CompanySettings = {
   payment_terms_days: 30,
   quote_prefix: "QT-",
   invoice_prefix: "INV-",
+  invoice_design: "banner",
+  accent_color: "#0E6B6B",
+  logo: null,
   updated_at: "2026-11-05T12:00:00Z",
   updated_by: DANA,
 };
@@ -35,9 +40,21 @@ const DEFAULTS: CompanySettings = {
   payment_terms_days: 30,
   quote_prefix: "QT-",
   invoice_prefix: "INV-",
+  invoice_design: "classic",
+  accent_color: "#073B4C",
+  logo: null,
   updated_at: "2026-11-01T12:00:00Z",
   updated_by: null,
 };
+
+/** Stands in for the invoices area's sample, which App.tsx hands the page, saying what it was given. */
+function Preview({ look }: { look: SampleLook }) {
+  return (
+    <p data-testid="preview">
+      {look.design} {look.accent} {look.logo ? `logo ${look.logo.width}x${look.logo.height}` : "no logo"}
+    </p>
+  );
+}
 
 const BOXES = [
   "Company name",
@@ -62,7 +79,7 @@ function saveButton() {
 /** The page, once the settings have been read. */
 async function open(routes: Record<string, unknown>) {
   const calls = mockApi({ "GET /settings": SAMPLE, ...routes });
-  const view = renderApp(<SettingsPage />);
+  const view = renderApp(<SettingsPage preview={Preview} />);
   await screen.findByLabelText("Company name");
   return { calls, ...view };
 }
@@ -92,6 +109,36 @@ function patches(calls: Call[]) {
 
 function messageBeside(label: string) {
   return box(label).closest("div.flex-col")?.querySelector('[role="alert"]')?.textContent;
+}
+
+/**
+ * Holds back TanStack Query's news that the settings changed, so the page goes on with the ones it
+ * last heard of until released. The news comes on a timer, which a save's reply can beat.
+ */
+function holdNews() {
+  const held: (() => void)[] = [];
+  notifyManager.setScheduler((news) => held.push(news));
+  onTestFinished(() => notifyManager.setScheduler(defaultScheduler));
+  return () =>
+    act(() => {
+      notifyManager.setScheduler(defaultScheduler);
+      for (const news of held) news();
+    });
+}
+
+/** Every value the page puts in a box from now on, so a value it shows only for a moment is caught too. */
+function valuesPutIn(input: HTMLInputElement) {
+  const put: string[] = [];
+  const { get, set } = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value") ?? {};
+  Object.defineProperty(input, "value", {
+    configurable: true,
+    get: () => get?.call(input),
+    set: (value: string) => {
+      put.push(value);
+      set?.call(input, value);
+    },
+  });
+  return put;
 }
 
 describe("the Company settings page", () => {
@@ -232,6 +279,8 @@ describe("saving", () => {
       payment_terms_days: 45,
       quote_prefix: "QT-",
       invoice_prefix: "INV-",
+      invoice_design: "banner",
+      accent_color: "#0E6B6B",
     });
   });
 
@@ -252,6 +301,23 @@ describe("saving", () => {
     expect(screen.getByText(/^Last changed by/).textContent).toBe("Last changed by Alex Rivera on Nov 6, 2026");
     // The form shows the rate as saved, without its trailing zero (B7).
     expect(box("Tax rate").value).toBe("8.5");
+  });
+
+  it("shows what was saved, never the settings from before, however late the page hears of the save", async () => {
+    const saved = vi.spyOn(toast, "success");
+    await open(savingBackend(SAMPLE, { ...SAMPLE, tax_rate: "8.5", updated_by: ALEX }));
+    await retype("Tax rate", "8.50");
+    const shown = valuesPutIn(box("Tax rate"));
+    const hear = holdNews();
+    await user().click(saveButton());
+
+    await waitFor(() => expect(saved).toHaveBeenCalledWith("Settings saved."));
+    // The form has taken the reply, and the page still has the settings from before the save.
+    await waitFor(() => expect(box("Tax rate").value).toBe("8.5"));
+    await hear();
+    expect(screen.getByText(/^Last changed by/).textContent).toMatch(/^Last changed by Alex Rivera/);
+    expect(box("Tax rate").value).toBe("8.5");
+    expect(shown).not.toContain("8.875");
   });
 
   it("saves when Enter is pressed in a one-line box", async () => {
@@ -316,7 +382,7 @@ describe("reading the settings", () => {
     mockApi({
       "GET /settings": () => (broken ? { status: 500, body: { detail: "Something went wrong." } } : { body: SAMPLE }),
     });
-    renderApp(<SettingsPage />);
+    renderApp(<SettingsPage preview={Preview} />);
 
     expect(await screen.findByText("Couldn't load this.")).toBeTruthy();
     expect(screen.queryByRole("textbox")).toBeNull();

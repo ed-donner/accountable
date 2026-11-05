@@ -8,11 +8,14 @@ import pytest
 from accountable import cli, db
 from accountable.bills import sample_data as bill_samples
 from accountable.bills.tables import CATEGORIES, bill_number_key, bills
-from accountable.company import documents
+from accountable.company import documents, logo, tax
 from accountable.company import sample_data as company_samples
-from accountable.company.tables import company_settings
+from accountable.company.tables import company_logo, company_settings
 from accountable.crm import rules, sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
+from accountable.invoices import figures
+from accountable.invoices import sample_data as invoice_samples
+from accountable.invoices.tables import invoice_lines, invoices, payments
 from accountable.products import sample_data as product_samples
 from accountable.products.tables import name_key, products
 from accountable.quotes import sample_data as quote_samples
@@ -43,6 +46,7 @@ def seeded(request, rows_by_day, database):
             bill_samples.fill(conn, today)
             company_samples.fill(conn, datetime.combine(today, time(12)))
             quote_samples.fill(conn, today)
+            invoice_samples.fill(conn, today)
             next_number = documents.take_number(conn, "quote")
         with db.reading() as conn:
             rows_by_day[today] = {
@@ -58,6 +62,10 @@ def seeded(request, rows_by_day, database):
                 "quotes": conn.execute(select(quotes).order_by(quotes.c.id)).all(),
                 "quote_lines": rows_of(conn, quote_lines),
                 "next_number": next_number,
+                "invoices": rows_of(conn, invoices),
+                "invoice_lines": rows_of(conn, invoice_lines),
+                "payments": rows_of(conn, payments),
+                "logo": rows_of(conn, company_logo),
             }
     return rows_by_day[today]
 
@@ -320,6 +328,16 @@ def test_the_same_content_each_time(database):
             [
                 tuple(row)
                 for row in conn.execute(
+                    select(invoices.c.number, invoices.c.status, invoices.c.issue_date, invoices.c.total_cents)
+                )
+            ],
+            [
+                tuple(row)
+                for row in conn.execute(select(payments.c.paid_on, payments.c.amount_cents, payments.c.method))
+            ],
+            [
+                tuple(row)
+                for row in conn.execute(
                     select(organizations.c.name, *(column for column in bills.c if not column.name.endswith("id")))
                     .join(organizations, organizations.c.id == bills.c.organization_id)
                     .order_by(bills.c.id)
@@ -333,6 +351,7 @@ def test_the_same_content_each_time(database):
         bill_samples.fill(conn, day)
         company_samples.fill(conn, datetime.combine(day, time(12)))
         quote_samples.fill(conn, day)
+        invoice_samples.fill(conn, day)
 
     day = date(2026, 10, 31)
     with db.writing() as conn:
@@ -415,6 +434,8 @@ SAMPLE_COMPANY: dict[str, Any] = {
     "payment_terms_days": 30,
     "quote_prefix": "QT-",
     "invoice_prefix": "INV-",
+    "invoice_design": "banner",
+    "accent_color": "#0E6B6B",
 }
 
 
@@ -429,6 +450,9 @@ def test_a_new_database_gets_the_sample_company_from_dana_whitfield_on_the_seedi
     assert {name: settings[name] for name in SAMPLE_COMPANY} == SAMPLE_COMPANY
     assert settings["updated_by"] == "teammate-dana-whitfield"
     assert settings["updated_at"] == seeded_at
+    with db.reading() as conn:
+        assert conn.execute(select(company_logo.c.media_type)).scalar_one() == "image/png"
+        assert len(conn.execute(select(invoices)).all()) == 33
 
 
 def test_the_sample_company_points_at_nothing_real():
@@ -578,3 +602,139 @@ def test_a_quotes_lines_were_added_with_it(seeded):
     added = {quote.id: quote.created_at for quote in seeded["quotes"]}
     for line in seeded["quote_lines"]:
         assert line.created_at == line.updated_at == added[line.quote_id]
+
+
+# Invoices and payments (M3, M7, V29)
+
+
+def paid_on(seeded) -> dict[int, int]:
+    paid: dict[int, int] = {}
+    for payment in seeded["payments"]:
+        paid[payment.invoice_id] = paid.get(payment.invoice_id, 0) + payment.amount_cents
+    return paid
+
+
+def shown(seeded) -> Counter:
+    paid = paid_on(seeded)
+    return Counter(
+        figures.shows_as(row.status, row.total_cents, paid.get(row.id, 0), row.due_date, seeded["today"])
+        for row in seeded["invoices"]
+    )
+
+
+def test_one_invoice_for_each_win_of_the_last_12_months_and_a_void_one_invoiced_again(seeded):
+    first = date.fromisoformat(
+        f"{months_back(seeded['today'], 12)[-1][0]}-{months_back(seeded['today'], 12)[-1][1]:02d}-01"
+    )
+    wins = {deal.id for deal in seeded["deals"] if deal.stage == "won" and first <= deal.close_date <= seeded["today"]}
+    invoiced = Counter(row.deal_id for row in seeded["invoices"])
+    assert set(invoiced) == wins and len(wins) == 32
+    assert len(seeded["invoices"]) == 33
+    [twice] = [deal for deal, count in invoiced.items() if count == 2]
+    statuses = sorted(row.status for row in seeded["invoices"] if row.deal_id == twice)
+    assert statuses == ["issued", "void"]
+
+
+def test_every_status_with_most_paid(seeded):
+    counts = shown(seeded)
+    assert counts["draft"] >= 2 and counts["void"] == 1 and counts["overdue"] >= 4
+    assert 2 <= counts["part_paid"] <= 4 and counts["issued"] >= 2
+    assert counts["paid"] > len(seeded["invoices"]) / 2
+
+
+def test_one_overdue_in_each_group_of_how_late(seeded):
+    paid = paid_on(seeded)
+    groups = Counter(
+        figures.late_group(row.due_date, seeded["today"])
+        for row in seeded["invoices"]
+        if row.status == "issued" and row.total_cents > paid.get(row.id, 0)
+    )
+    for group in ("not_due", "1_30", "31_60", "61_90", "over_90"):
+        assert groups[group] >= 1, group
+    overdue_part_paid = [
+        row
+        for row in seeded["invoices"]
+        if row.status == "issued" and row.due_date < seeded["today"] and 0 < paid.get(row.id, 0) < row.total_cents
+    ]
+    assert len(overdue_part_paid) >= 2
+
+
+def test_a_payment_in_each_of_the_12_months_none_in_the_future_and_none_before_issue(seeded):
+    by_month = {f"{year}-{month:02d}" for year, month in months_back(seeded["today"], 12)}
+    paid_months = {f"{payment.paid_on.year}-{payment.paid_on.month:02d}" for payment in seeded["payments"]}
+    assert by_month <= paid_months
+    issued = {row.id: row.issue_date for row in seeded["invoices"]}
+    for payment in seeded["payments"]:
+        assert issued[payment.invoice_id] <= payment.paid_on <= seeded["today"]
+    assert any(payment.paid_on == seeded["today"] for payment in seeded["payments"])
+    assert 30 <= len(seeded["payments"]) <= 45
+
+
+def test_payments_by_each_method_some_with_a_reference_and_none_overpaying(seeded):
+    assert {payment.method for payment in seeded["payments"]} == {"bank_transfer", "card", "check"}
+    with_reference = [payment for payment in seeded["payments"] if payment.reference]
+    assert 0.3 < len(with_reference) / len(seeded["payments"]) < 0.7
+    totals = {row.id: row.total_cents for row in seeded["invoices"]}
+    for invoice_id, cents in paid_on(seeded).items():
+        assert cents <= totals[invoice_id]
+
+
+def test_drafts_only_on_this_months_wins(seeded):
+    deals_by_id = {deal.id: deal for deal in seeded["deals"]}
+    drafts = [row for row in seeded["invoices"] if row.status == "draft"]
+    assert 2 <= len(drafts) <= 3
+    for draft in drafts:
+        closed = deals_by_id[draft.deal_id].close_date
+        assert (closed.year, closed.month) == (seeded["today"].year, seeded["today"].month)
+        assert draft.number is None and draft.issue_date is None and draft.organization_id is None
+
+
+def test_each_invoice_adds_up_to_its_deals_value(seeded):
+    deals_by_id = {deal.id: deal for deal in seeded["deals"]}
+    rate = 8875
+    for row in seeded["invoices"]:
+        lines = [line for line in seeded["invoice_lines"] if line.invoice_id == row.id]
+        assert 1 <= len(lines) <= 4
+        assert all(line.unit_price_cents > 0 for line in lines)
+        totals = tax.totals(lines, rate)
+        assert totals.subtotal_cents == deals_by_id[row.deal_id].value * 100
+        if row.status != "draft":
+            assert (row.subtotal_cents, row.tax_cents, row.total_cents) == (
+                totals.subtotal_cents,
+                totals.tax_cents,
+                totals.total_cents,
+            )
+            assert row.due_date == row.issue_date + timedelta(days=30)
+            assert row.company_name == "Plainsong Systems"
+
+
+def test_lines_come_from_the_sample_products(seeded):
+    names = {product.id: product.name for product in seeded["products"] if product.active}
+    for line in seeded["invoice_lines"]:
+        assert names[line.product_id] == line.name
+
+
+def test_numbers_go_in_issue_order_from_inv_0001(seeded):
+    issued = sorted((row for row in seeded["invoices"] if row.number), key=lambda row: row.number)
+    assert len(issued) == len(seeded["invoices"]) - len([row for row in seeded["invoices"] if row.status == "draft"])
+    assert [row.number for row in issued] == [f"INV-{number:04d}" for number in range(1, len(issued) + 1)]
+    assert [row.issue_date for row in issued] == sorted(row.issue_date for row in issued)
+
+
+def test_every_invoice_and_payment_is_put_down_to_a_teammate(seeded):
+    teammates = {teammate.id for teammate in TEAMMATES}
+    for row in seeded["invoices"]:
+        assert {row.created_by, row.updated_by} <= teammates
+        assert row.created_at <= row.updated_at
+        if row.status != "draft":
+            assert row.issued_by in teammates
+    for payment in seeded["payments"]:
+        assert payment.created_by in teammates
+    [void] = [row for row in seeded["invoices"] if row.status == "void"]
+    assert void.voided_by in teammates and void.voided_at is not None
+
+
+def test_the_sample_logo_passes_the_logo_check(seeded):
+    [kept] = seeded["logo"]
+    assert logo.check(kept.image) == logo.Logo("image/png", 600, 200)
+    assert (kept.media_type, kept.width, kept.height) == ("image/png", 600, 200)

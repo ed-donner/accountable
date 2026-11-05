@@ -7,6 +7,7 @@ import {
   addBill,
   addLinkedDeal,
   addOrganization,
+  addProduct,
   addQuote,
   card,
   column,
@@ -14,12 +15,24 @@ import {
   findProduct,
   isoDay,
   resetToSampleData,
+  saveDraft,
   sendQuote,
+  startInvoice,
 } from "./helpers";
 
 test.beforeAll(resetToSampleData);
 
-const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/quotes", "/bills"];
+const SECTIONS = [
+  "/",
+  "/organizations",
+  "/contacts",
+  "/deals",
+  "/pipeline",
+  "/products",
+  "/quotes",
+  "/invoices",
+  "/bills",
+];
 const SIZES = [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
@@ -35,6 +48,7 @@ async function recordPaths(request: APIRequestContext) {
     `/products/${await get("/products")}`,
     `/quotes/${quotes[quotes.length - 1].id}`,
     `/quotes/${quotes.find((quote) => quote.status === "draft")!.id}`,
+    ...(await invoicePaths(request)),
     `/bills/${await get("/bills")}`,
   ];
 }
@@ -45,6 +59,13 @@ async function addDraft(request: APIRequestContext, name: string) {
   const product = await findProduct(request, "Standard license, per user per year");
   const line = { product_id: product.id, quantity: 2, unit_price_cents: product.unit_price_cents };
   return addQuote(request, deal.id, [line, line]);
+}
+
+/** A draft's page and an issued invoice's, from the sample invoices. */
+async function invoicePaths(request: APIRequestContext) {
+  const invoices: { id: number; shows_as: string }[] = await (await request.get("/api/invoices")).json();
+  const first = (shows: string) => invoices.find((invoice) => invoice.shows_as === shows)!.id;
+  return [`/invoices/${first("draft")}`, `/invoices/${first("part_paid")}`];
 }
 
 function sidewaysOverflow(page: Page) {
@@ -74,7 +95,7 @@ test("the top bar's sections show their icons from 1536px wide, and only their l
   await page.setViewportSize({ width: 1536, height: 900 });
   await page.goto("/");
   const links = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
-  await expect(links).toHaveCount(8);
+  await expect(links).toHaveCount(9);
   for (const link of await links.all()) await expect(link.locator("svg")).toBeVisible();
 
   for (const width of [1535, 1440, 1280]) {
@@ -154,6 +175,21 @@ test("a walk through every screen and main action logs no console errors", async
   await expect(page.getByRole("dialog", { name: "New quote" })).toBeVisible();
   await page.keyboard.press("Escape");
 
+  // An invoice: a draft's Add line and Issue invoice, and an issued one's Record payment.
+  const [invoiceDraft, issued] = await invoicePaths(request);
+  await page.goto(invoiceDraft);
+  await page.getByRole("button", { name: "Add line" }).click();
+  await expect(page.getByPlaceholder("Search products")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Issue invoice" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("Once it's issued, it can't be changed.");
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+  await page.goto(issued);
+  await page.getByRole("button", { name: "Record payment" }).click();
+  await expect(page.getByRole("dialog", { name: "Record payment" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
   // A save with nothing changed, which leaves the settings as they were.
   await openSettings(page);
   const saved = page.waitForResponse(
@@ -193,8 +229,8 @@ async function tabThrough(page: Page, presses: number) {
 test("every control can be reached by Tab and shows a focus ring", async ({ page }) => {
   await page.goto("/organizations");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  // Past the eight sections, the search box, the menu, Add, the table's search and its headings.
-  const table = await tabThrough(page, 23);
+  // Past the nine sections, the search box, the menu, Add, the table's search and its headings.
+  const table = await tabThrough(page, 24);
   for (const name of [
     "A Dashboard",
     "A Deals",
@@ -213,19 +249,19 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
 
   await page.goto("/");
   await expect(page.getByTestId("follow-up").first()).toBeVisible();
-  const dashboard = await tabThrough(page, 21);
+  const dashboard = await tabThrough(page, 22);
   expect([...dashboard].some((name) => name.startsWith("INPUT Mark "))).toBe(true);
   expect([...dashboard]).toContain("A Open the pipeline");
 
   await page.goto("/pipeline");
   await expect(page.locator("[data-deal]").first()).toBeVisible();
-  const board = await tabThrough(page, 15);
+  const board = await tabThrough(page, 16);
   expect([...board].some((name) => name.startsWith("BUTTON Add deal to "))).toBe(true);
   expect([...board].some((name) => name.startsWith("A $"))).toBe(true);
 
   await page.goto("/products");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  const products = await tabThrough(page, 20);
+  const products = await tabThrough(page, 21);
   for (const name of ["BUTTON Add product", "INPUT Search products", "INPUT Show archived (2)", "BUTTON Unit price"]) {
     expect([...products], name).toContain(name);
   }
@@ -233,7 +269,7 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
 
   await page.goto("/bills");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  const bills = await tabThrough(page, 27);
+  const bills = await tabThrough(page, 28);
   for (const name of ["BUTTON Add bill", "INPUT Search bills", "BUTTON Total"]) {
     expect([...bills], name).toContain(name);
   }
@@ -290,7 +326,7 @@ test("the top bar stays on one line at 1280 by 720, even with the widest date", 
 
   expect((await bar.boundingBox())!.height).toBe(56);
   expect(await linesOf(bar.getByRole("navigation", { name: "Sections" }).getByRole("link"))).toEqual([
-    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1,
   ]);
   const date = bar.getByText("Nov 30, 2026");
   expect(await linesOf(date)).toEqual([1]);
@@ -316,6 +352,7 @@ test("the Company settings form can be tabbed through in order, with a focus rin
     .focus();
   const reached = [...(await tabThrough(page, 10))];
   expect(reached).toEqual([
+    "BUTTON Save settings",
     "INPUT Company name",
     "TEXTAREA Address",
     "INPUT Email",
@@ -325,7 +362,34 @@ test("the Company settings form can be tabbed through in order, with a focus rin
     "INPUT Payment terms",
     "INPUT Quote prefix",
     "INPUT Invoice prefix",
-    "BUTTON Save settings",
+  ]);
+});
+
+test("a draft's form can be tabbed through in order, with a focus ring on each box and button", async ({
+  page,
+  request,
+}) => {
+  const { deal } = await addLinkedDeal(request, "Tabbed", { stage: "won", close_date: isoDay() });
+  const product = await addProduct(request, "Tabbed license");
+  const draft = await startInvoice(request, deal.id);
+  await saveDraft(request, draft.id, { lines: [{ product_id: product.id }] });
+  await page.goto(`/invoices/${draft.id}`);
+  await expect(page.getByTestId("draft-line")).toHaveCount(1);
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: `Menu for ${SIGNED_IN.name}` })
+    .focus();
+  const reached = [...(await tabThrough(page, 9))];
+  expect(reached).toEqual([
+    "BUTTON Delete draft",
+    "BUTTON Save draft",
+    "BUTTON Issue invoice",
+    "TEXTAREA Bill to",
+    "BUTTON Remove Tabbed license",
+    "TEXTAREA Description",
+    "INPUT Quantity",
+    "INPUT Unit price",
+    "BUTTON Add line",
   ]);
 });
 

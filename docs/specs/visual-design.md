@@ -21,17 +21,17 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Ink on Won | `#CDD8DB` Sea Mist | `#073B4C` Midnight | Text on the Won fill |
 | Midnight | `#073B4C` | `#073B4C` | Text on Sea Green, Marigold and Coral, including on the revenue chart's fill |
 | Muted ink | `#4A6B76` | `#9AB1B8` | Secondary text |
-| Line | `#CDD8DB` Sea Mist | `#45646E` | Link underlines, funnel leader lines, scrollbars, and at half strength the slot where a dragged card will land |
+| Line | `#CDD8DB` Sea Mist | `#45646E` | Link underlines, funnel leader lines, scrollbars, the owed part of an invoice's bar until it's overdue, and at half strength the slot where a dragged card will land |
 | Grid | `#E4ECEE` | `#1E4350` | Chart grid lines |
 | Soft bar | `#839DA5` | `#6C858E` | The current month's bar, halfway between ink and the panel, and the Other bill category |
 | Focus ring | `#118AB2` Cerulean | `#4CB3D6` | Focus rings, a lighter Cerulean in dark mode so it shows on every layer |
-| Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, including Sign in, current section |
+| Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, including Sign in, current section, the paid part of an invoice's bar, the chosen design's ring |
 | Secondary | `#FFC145` Marigold, Midnight text | Same | The initials circle, on the menu button and the local copy's sign-in screen |
 | Sea Green text | `#047A5B` | `#51E2BC` | If Sea Green is ever needed as text |
 | Marigold text | `#866522` | `#FFD47D` | If Marigold is ever needed as text |
 | Raspberry text | `#D23E62` | `#F591A9` | Error messages beside a field. Light mode uses the Alert chip's shade |
-| Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts, and the icon before the Company settings page's ask for a company name |
-| Alert | `#EF476F` Raspberry, white text | Same | Delete buttons, charts |
+| Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts, the Not yet due bar in How late, and the icon before the Company settings page's ask for a company name |
+| Alert | `#EF476F` Raspberry, white text | Same | Delete buttons, charts, the late bars in How late, the owed part of an overdue invoice's bar |
 | Small chip, Information | `#107FA4`, white text | Same | Negotiation and Unpaid chips |
 | Small chip, Alert | `#D23E62`, white text | Same | Late, Overdue and Lost chips, the connection message |
 | Late tint | `#FDECF1` | `#4B2436` | Late cards |
@@ -100,7 +100,7 @@ Bill categories are six, like the stages, and share the brand's five colors in t
 
 A category shows as a round swatch in its color beside its name in ink, in the Bills table, on a bill's page and in the charts' legend and tooltips, and as its color in the Money section's bars. It's never a filled chip: Office and Marketing chips would take the small chip shades of Unpaid and Overdue, and a bill's category and status sit in the same row. As with the stages, Sea Green, Marigold and Coral are below 3:1 on white, so the name always sits beside the swatch. Apart from Other, the colors are the same in both modes.
 
-Quotes, invoices and bills show their status in chips, in these tones, agreed ahead of them so the three areas match. Each tone is already in `Chip.tsx`, so none is new. Quotes use Draft, Sent, Accepted, Expired and Declined, bills use Unpaid, Paid and Overdue, and invoices will use the rest:
+Quotes, invoices and bills show their status in chips, in these tones, agreed ahead of them so the three areas match. Each tone is already in `Chip.tsx`, so none is new. Quotes use Draft, Sent, Accepted, Expired and Declined, invoices use Draft, Issued, Part paid, Overdue, Paid and Void ([V3](invoices.md#invoices)), and bills use Unpaid, Paid and Overdue:
 
 | Status | Chip | Used by |
 |---|---|---|
@@ -121,12 +121,13 @@ The fonts are bundled through Fontsource, so nothing loads from outside the app'
 |---|---|---|---|
 | Page title | Instrument Sans | 28/36 | 600 |
 | Section heading | Instrument Sans | 16/24 | 600 |
+| The dashboard's Money heading | Instrument Sans | 20/28 | 600 |
 | Body, table text | Instrument Sans | 14/20 | 400 |
 | Label, chip | Instrument Sans | 13/18 | 600 |
 | Dashboard summary line | Instrument Serif | 22/30 | 400 |
 | Revenue won figure | JetBrains Mono | 52/60 | 500 |
 | Quote number as a page title | JetBrains Mono | 28/36 | 500 |
-| Other headline figures, including the Money section's, column totals, a product's price and a bill's total on their pages, the figures above the Quotes table | JetBrains Mono | 24/30 | 500 |
+| Other headline figures, including the Money section's, such as Owed to us, Overdue and What we owe, column totals, a product's price, an invoice's total and a bill's total on their pages, the figures above the Quotes table | JetBrains Mono | 24/30 | 500 |
 | Board totals | JetBrains Mono | 20/26 | 500 |
 | Card value | JetBrains Mono | 19/26 | 500 |
 | Money, counts, dates in tables | JetBrains Mono | 13/20 | 400 |
@@ -141,6 +142,7 @@ Numbers are always in JetBrains Mono, so columns of figures line up. The quote d
 - Panels are in the panel color on the page background, white in light mode and dark Midnight in dark mode, with no outline and no shadow.
 - There are no gradient fills, and no borders on one edge of a panel. There's no line across the top of the page.
 - Late cards are marked by the chip and tint, never a colored edge.
+- An invoice's preview, and the sample on the Company settings page, is a white page in both modes, with the invoice's own colors rather than the app's tokens ([V28](invoices.md#designs)), because it shows what will print. `colors.test.ts` still holds: those colors live in `shared/invoice-designs.json`, outside `frontend/src`.
 - Pipeline columns are headed by a solid block in the stage color, never a colored bar or edge.
 - Labels are in sentence case, not capitals. No text runs joined with middle dots, and no arrows added to link text.
 
@@ -155,6 +157,8 @@ Numbers are always in JetBrains Mono, so columns of figures line up. The quote d
 - **Spending by category:** a column for each month, its segments stacked in the categories' order from Software at the bottom to Other at the top, in the category colors, with 2px gaps in the panel color between segments, so neighboring colors stay apart, and 4px rounded corners on top of each column. The columns are wider than the deals-won bars, so the thinnest segment still shows. A segment too small to see at the chart's scale is drawn 4px tall above its 2px gap, and the axis's top makes room for it. Pointing at it still gives its real figure. The current month is marked by its "so far" label and its total above it, never by a lighter color, because color means the category here. The legend sits under the chart, in the same order, each category's swatch beside its name.
 - **Due in the next 30 days:** a timeline from today to 30 days on, with a thin bar at each bill's due date in its category color and 4px rounded tops. Bills due on the same day stack, with 2px gaps, and a bill too small to see is drawn 4px tall, as in Spending by category. The axis starts at "Today" and marks each week. It has no direct labels: the total due sits above it as a figure.
 - **All charts:** one axis per chart, so revenue and deal count are never on the same one. Faint horizontal grid lines only, in the grid color. Direct labels on the current month only, which is usually the highest in the sample data. Text is in ink, never the series color, apart from Midnight text on the bright fills. Each chart has a hover tooltip, on the raised surface.
+- **How late:** five horizontal bars, one per group in order of lateness, sized against the largest, with 4px rounded ends. Not yet due is Cerulean and the four late groups Raspberry, and each bar has its group's name before it and its amount and count after it, in ink.
+- **Payments received:** as the deals-won bar chart, in ink with the current month in the soft bar color, labeled "so far", with a money axis.
 - **Money on axes:** shortened with the currency, such as `$40k` and `$1.2M`.
 
 ### Motion
@@ -167,7 +171,7 @@ Plain business English, short labels, no exclamation marks.
 
 | Where | Text |
 |---|---|
-| Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore, New quote, Save quote, Mark as sent, Accept, Decline, Copy to new draft, Download PDF, Add bill, Save bill, Delete bill, Mark paid, Mark unpaid, Undo, Show all bills |
+| Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore, New quote, Save quote, Mark as sent, Accept, Decline, Copy to new draft, New invoice, Add line, Save draft, Issue invoice, Delete draft, Record payment, Void, Download PDF, Choose logo, Remove logo, Add bill, Save bill, Delete bill, Mark paid, Mark unpaid, Undo, Show all bills |
 | Menu button, for screen readers | Menu for Alex Rivera |
 | Menu | Theme. Light. Dark. System. Company settings. Sign out. |
 | Sign-in | Sign in. Email. Password. |
@@ -177,28 +181,32 @@ Plain business English, short labels, no exclamation marks.
 | Session ended | Your session has ended. Sign in again. |
 | Local copy's sign-in | This is a local copy with made-up data. Choose who to sign in as. |
 | Who added and changed | Added by Alex Rivera on Oct 12, 2026. Last changed by Dana Whitfield on Oct 30, 2026. |
-| Company settings page | Company settings. Company. Tax. Quotes and invoices. Save settings. |
+| Company settings page | Company settings. Company. Tax. Quotes and invoices. Documents. Design. Accent color. Logo. Save settings. |
 | No company name saved | No company name yet. Enter one below. |
 | Prefix hint | Up to 10 letters, digits and hyphens. |
 | Search, for screen readers | Search organizations, contacts, deals and products |
 | No search matches | No organizations, contacts, deals or products match "harbour". |
 | Search failed | Couldn't search. Try again. |
 | More search results | See all 12 contacts |
-| Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. Quote saved. Quote sent. Quote declined. Copied to QT-0012. Bill saved. Bill deleted. Bill marked paid. Bill marked unpaid. |
+| Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. Quote saved. Quote sent. Quote declined. Copied to QT-0012. Draft saved. Draft deleted. Invoice issued. Invoice voided. Payment recorded. Payment deleted. Bill saved. Bill deleted. Bill marked paid. Bill marked unpaid. |
 | Quote accepted | Quote accepted. Harbor & Pine renewal is now Won at $48,001. Close date set to today. Sam Carter is now a customer. |
 | Quote dialogs | Mark QT-0004 as sent? It can't be changed after this. To change it later, copy it to a new draft. Accept QT-0004? Decline QT-0004? This can't be undone. |
 | Quote refused | QT-0004 has been sent, so it can't be changed. Copy it to make a new draft. This deal is closed, so its quotes can't be sent. Give the deal an organization before sending its quote. Add a line before sending the quote. Add the company's name in Company settings first. |
 | Quotes, empty | No quotes yet. Add the first one from an open deal. No expired quotes. Quotes can be added while the deal is open. |
-| Errors | Enter a name. Choose an organization. Enter your email. Enter a price in dollars and cents, such as 49.50. Enter a rate from 0 to 100%. Clashes with the quote prefix. Neither can start with the other, ignoring capitals. Choose a supplier. Enter the bill number. Keep the bill number to 50 characters or fewer. Choose a bill date. Choose a due date. Choose a category. Choose a paid date. Enter an amount in dollars and cents, such as 49.50. The due date can't be before the bill date. The paid date can't be in the future. The paid date can't be before the bill date. |
+| Invoice statuses | Draft. Issued. Part paid. Overdue. Paid. Void. |
+| Invoice marks, on the page | DRAFT. PAID. OVERDUE. VOID. |
+| Issuing and voiding | Issue this invoice? Once it's issued, it can't be changed. Void INV-0042? It keeps its number and is marked VOID. This can't be undone. |
+| Leaving a draft | Leave without saving? Your changes to this draft will be lost. |
+| Errors | Enter a name. Choose an organization. Enter your email. Enter a price in dollars and cents, such as 49.50. Enter a rate from 0 to 100%. Clashes with the quote prefix. Neither can start with the other, ignoring capitals. That's more than the $1,250.00 still owed. Too light to read on white. Choose a darker color. Choose a PNG or JPEG image. Invoices can't show "漢". Take it out to save. Choose a supplier. Enter the bill number. Keep the bill number to 50 characters or fewer. Choose a bill date. Choose a due date. Choose a category. Choose a paid date. Enter an amount in dollars and cents, such as 49.50. The due date can't be before the bill date. The paid date can't be in the future. The paid date can't be before the bill date. |
 | Product name taken | A product with this name already exists. An archived product has this name. Restore it or choose another. |
 | Bill number taken | This supplier already has a bill with this number. |
-| Empty table | No deals yet. Add the first one. |
+| Empty table | No deals yet. Add the first one. No invoices yet. Start one from a won deal. |
 | Archived products | Show archived (2). Every product is archived. 2 archived products match. |
 | Bills filter | Unpaid (9). No unpaid bills. No overdue bills. No unpaid bills match "acme". 4 bills match under All. |
 | Bill form | Paid on. Leave blank if it isn't paid yet. Total $1,364.00. |
 | Mark paid dialog | Mark bill INV-0042 paid. |
 | An organization's bills | $4,200.00 unpaid, $1,100.00 of it overdue. No bills from this organization. |
-| Money section | Money. Bills to pay. What we owe. Overdue. 9 unpaid bills. Due in the next 30 days. Spending by category. |
+| Money section | Money. Owed to us. Overdue. How late. Not yet due. 1 to 30 days. 31 to 60 days. 61 to 90 days. Over 90 days. Payments received in November. Nothing owed. No payments in the last 12 months. Bills to pay. What we owe. 9 unpaid bills. Due in the next 30 days. Spending by category. |
 | Empty funnel | Deals will show here once you've added some. |
 | Empty Money charts | No bills due in the next 30 days. Spending will show here once you've added bills. |
 | Empty follow-ups | No follow-ups due. |
@@ -210,7 +218,7 @@ Plain business English, short labels, no exclamation marks.
 | Deleting a bill | Delete bill INV-0042 from Northwind Software? It will leave the dashboard's Money section. This can't be undone. |
 | An organization with bills | Harbor & Pine can't be deleted. This organization has 12 bills, so it can't be deleted. |
 
-Money always carries its currency, as in `$48,000`. A product's price also carries its cents, as in `$49.50` and `$1,250.00`, and so do a bill's amounts, as in `$1,240.00`, the Money section's figures included, while deal values stay in whole dollars. Dates read `Oct 31, 2026`, and times read `Oct 31, 3:20 PM`.
+Money always carries its currency, as in `$48,000`. A product's price also carries its cents, as in `$49.50` and `$1,250.00`, and so does every amount on an invoice and a payment, and a bill's amounts, as in `$1,240.00`, the Money section's figures included, while deal values stay in whole dollars. Dates read `Oct 31, 2026`, and times read `Oct 31, 3:20 PM`.
 
 ## Design reference
 
@@ -220,7 +228,7 @@ Money always carries its currency, as in `$48,000`. A product's price also carri
 - **Mockup 3, Deal wall:** the style of the pipeline board.
 - **A top-down sales funnel** in place of Mockup 2's funnel bars, in the style common in sales CRMs.
 
-Organizations, Contacts, Deals, Products, Quotes, Bills, the record pages and the dashboard's Money section aren't in the mockup, and follow the screens in [records.md](records.md#screens), [products.md](products.md#screens), [quotes.md](quotes.md#screens) and [bills.md](bills.md#screens) with the same shell, colors and type. Nor is the quote document, the preview and the PDF, which [quotes.md](quotes.md#quote-document) sets out. Nor are the sign-in screen, the search results, the menu and the Company settings page, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell) and [settings.md](settings.md#company-settings-page). The mockup's top bar has no Products, Quotes or Bills section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
+Organizations, Contacts, Deals, Products, Quotes, Invoices, Bills, the record pages and the dashboard's Money section aren't in the mockup, and follow the screens in [records.md](records.md#screens), [products.md](products.md#screens), [quotes.md](quotes.md#screens), [invoices.md](invoices.md#screens) and [bills.md](bills.md#screens) with the same shell, colors and type. Nor is the quote document, the preview and the PDF, which [quotes.md](quotes.md#quote-document) sets out, or the invoice's three designs, which [invoices.md](invoices.md#designs) sets out. Nor are the sign-in screen, the search results, the menu and the Company settings page, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell) and [settings.md](settings.md#company-settings-page). The mockup's top bar has no Products, Quotes, Invoices or Bills section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
 
 The mockups show light mode only. Dark mode follows the dark values in [Color tokens](#color-tokens), and `docs/changes/dark-mode/` holds screenshots of the dashboard and the pipeline in both modes, at 1440 by 900 with the sample data.
 

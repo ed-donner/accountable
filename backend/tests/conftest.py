@@ -61,6 +61,7 @@ from accountable import auth, db, settings, users
 from accountable.bills.tables import bill_number_key, bills
 from accountable.crm import rules
 from accountable.crm.tables import activities, contacts, deals, organizations
+from accountable.invoices.tables import invoices, payments
 from accountable.products.tables import name_key, products
 
 LOCAL = "http://localhost"
@@ -141,6 +142,17 @@ class Make:
         row = {"unit_price_cents": 4950, **values}
         with db.writing() as conn:
             return insert_row(conn, products, name=name, name_key=name_key(name), **row)
+
+    def invoice(self, deal_id: int, **values: Any) -> int:
+        """A draft on the deal, or an issued one if the values say so, put straight in the database."""
+        row = {"status": "draft", **values}
+        with db.writing() as conn:
+            return insert_row(conn, invoices, deal_id=deal_id, **row)
+
+    def payment(self, invoice_id: int, amount_cents: int, paid_on: date = TODAY, **values: Any) -> int:
+        row = {"method": "card", **values}
+        with db.writing() as conn:
+            return insert_row(conn, payments, invoice_id=invoice_id, amount_cents=amount_cents, paid_on=paid_on, **row)
 
     def bill(self, organization_id: int | None = None, bill_number: str = "INV-0042", **values: Any) -> int:
         """Unpaid, dated today and due in 30 days, by nobody, like a record from before sign-in,
@@ -442,3 +454,79 @@ def copy(request, database, supabase) -> Iterator[Copy]:
         yield local_copy(request.getfixturevalue("local_app"), supabase)
     else:
         yield shared_copy(request.getfixturevalue("shared_app"), supabase)
+
+
+# Invoices, for the tests of invoices, payments, the Money section and the PDF
+
+
+@dataclass
+class Billing:
+    """A won deal for Harbor & Pine, with Sam Carter as its main contact, three products, and
+    the company's name saved, so a draft can be started and issued through the API."""
+
+    api: TestClient
+    organization: int
+    contact: int
+    deal: int
+    products: dict[str, int]
+
+    @contextmanager
+    def on(self, day: date) -> Generator[None]:
+        """Today is this day for the requests inside, such as an issue."""
+        self.api.app.dependency_overrides[db.local_today] = lambda: day
+        try:
+            yield
+        finally:
+            self.api.app.dependency_overrides[db.local_today] = lambda: TODAY
+
+    def draft(self, deal: int | None = None) -> dict[str, Any]:
+        reply = self.api.post("/api/invoices", json={"deal_id": deal or self.deal})
+        assert reply.status_code == 201, reply.text
+        return reply.json()
+
+    def line(self, product: str, **values: Any) -> dict[str, Any]:
+        return {"product_id": self.products[product], **values}
+
+    def issued(self, *lines: dict[str, Any], on: date = TODAY, deal: int | None = None) -> dict[str, Any]:
+        """A draft issued on this day with these lines, or one Pro license if none are given."""
+        invoice = self.draft(deal)
+        with self.on(on):
+            reply = self.api.post(
+                f"/api/invoices/{invoice['id']}/issue", json={"lines": list(lines) or [self.line("Pro license")]}
+            )
+        assert reply.status_code == 200, reply.text
+        return reply.json()
+
+    def pay(self, invoice: dict[str, Any], cents: int, on: date = TODAY, **values: Any) -> dict[str, Any]:
+        body = {"paid_on": on.isoformat(), "amount_cents": cents, "method": "bank_transfer", **values}
+        with self.on(on):
+            reply = self.api.post(f"/api/invoices/{invoice['id']}/payments", json=body)
+        assert reply.status_code == 201, reply.text
+        return reply.json()
+
+
+@pytest.fixture
+def billing(api, make) -> Billing:
+    organization = make.organization("Harbor & Pine")
+    contact = make.contact("Sam Carter", email="sam@harbor.example", organization_id=organization)
+    deal = make.deal(
+        "Annual support", stage="won", close_date=TODAY, organization_id=organization, main_contact_id=contact
+    )
+    products = {
+        "Pro license": make.product("Pro license", unit_price_cents=4950, description="One named user"),
+        "Annual support plan": make.product("Annual support plan", unit_price_cents=360000),
+        "Training day": make.product("Training day", unit_price_cents=125000, description="Up to 12 people"),
+    }
+    saved = api.patch(
+        "/api/settings",
+        json={
+            "company_name": "Plainsong Systems",
+            "address": "48 Orchard Row\nBrooklyn, NY 11201",
+            "email": "accounts@plainsong.example",
+            "phone": "(718) 555-0142",
+            "tax_label": "Sales tax",
+            "tax_rate": "8.875",
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    return Billing(api=api, organization=organization, contact=contact, deal=deal, products=products)

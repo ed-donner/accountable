@@ -43,13 +43,14 @@ const PRICE = /^\$?(\d{1,3}(?:,\d{3})+|\d+)?(?:\.(\d{1,2}))?$/;
 /**
  * A price as people write it, such as 49.5 or $1,250.00, in whole cents, or null if it
  * isn't one (G4). The dollars and the cents are read as two whole numbers, never
- * through floating point, where 0.29 times 100 is 28.999999999999996.
+ * through floating point, where 0.29 times 100 is 28.999999999999996. An amount that
+ * isn't a price, such as a payment, can have a higher limit than a price's.
  */
-export function parsePrice(text: string): number | null {
+export function parsePrice(text: string, most = MAX_CENTS): number | null {
   const match = PRICE.exec(text.trim());
   if (!match || (match[1] === undefined && match[2] === undefined)) return null;
   const dollars = Number((match[1] ?? "0").replaceAll(",", ""));
   const cents = Number((match[2] ?? "0").padEnd(2, "0"));
   const total = dollars * 100 + cents;
-  return total <= MAX_CENTS ? total : null;
+  return total <= most ? total : null;
 }

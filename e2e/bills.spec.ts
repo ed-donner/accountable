@@ -56,7 +56,8 @@ function dollars(cents: number) {
 }
 
 function moneyFigure(page: Page, label: RegExp) {
-  return page.getByRole("region", { name: "Money" }).getByRole("link", { name: label });
+  // Bills' own panel, since invoices' row in the same section has an Overdue figure too.
+  return page.getByRole("region", { name: "Bills to pay" }).getByRole("link", { name: label });
 }
 
 test("a bill can be added, edited, marked paid and unpaid, and deleted", async ({ page, request }) => {

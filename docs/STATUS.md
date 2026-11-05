@@ -657,6 +657,151 @@ Checked: the Playwright MCP server starts with `--isolated` and lists its tools,
 
 `npm run check` passes: 4,971 tests in 4m 44s, of which 3,270 backend, 1,387 frontend, 300 end-to-end and 14 speed. At the limits, Quotes opens in 126ms and Bills in 131ms. No unit test took a second or more. The owner's checks by hand from both plans are still to do, including `npm start` against an empty Supabase database, which now runs `0007` and `0008` in turn, and the clearing steps with both areas' tables.
 
+## Invoices: design and build
+
+On the `invoices` branch, `docs/spec.md` and the area files now describe Accountable with invoices and payments in it, as it will be once the branch merges. The intent and the owner's three decisions, on the Bill to, what's fixed at issue and deals leaving Won, are in `docs/changes/invoices/intent.md`. One area file is new: `docs/specs/invoices.md`, with V1 to V31, and `settings.md` gains B18 to B22 for the Documents panel. No code has changed yet.
+
+- **Invoices section and records:** seventh section in the top bar, two new kinds of record, Invoice and Payment, new terms, and an Invoices panel on deal and organization pages. Invoices hold their deal, and issued ones their organization (D4).
+- **Preview and PDF:** the browser draws the preview and the backend makes the PDF with ReportLab, both from `shared/invoice-designs.json` and the fonts' widths in `shared/invoice-fonts.json`, so lines break and pages turn at the same places.
+- **Company settings:** a Documents panel below the others, and Save settings moves to the top right, since the page now scrolls at 1280 by 720. The logo travels as base64 in JSON, so no route takes a file upload, and a body over 2 MB is refused.
+- **Q1** now includes 1,000 invoices, 3,000 lines and 1,500 payments, the Money section's data and a PDF's download.
+
+The project owner agreed the choices the intent left open: the preview drawn by the browser and the PDF by ReportLab from one description of the designs, with the plan to make the case for ReportLab; a logo of at most 2,000 pixels a side; a 2 MB limit on request bodies; the payment date rules; a total over $0.00 to issue; the field limits in V8; asking before leaving a draft with changes; a void invoice in the sample data; Save settings at the top right; a part-paid invoice past its due date showing as Overdue; and a sample invoice's subtotal matching its deal's value. A draft with characters the invoice's fonts can't draw, such as emoji, isn't saved, with a message beside the field (V9). Company settings still take any characters, but an invoice isn't issued while the company's name, address, email, phone or tax label has one, and the message names the field to change there (V10). Bank details on invoices and invoices in the top bar's search stay under Not in Accountable yet.
+
+### Build
+
+Built on the `invoices` branch, in the plan's six phases, with `npm run check:quick` passing at the end of each. Every requirement in `invoices.md` and B18 to B22 is in, and the spec now says what the build added and settled, listed below.
+
+- **New dependencies:** ReportLab 5.1 and Pillow 13 for the PDF and the logo's check, and pypdf 6.21 for the tests alone, as the plan made the case for. Installed with `uv add`, all as wheels.
+- **Fonts:** static TTFs of Instrument Sans (Regular, SemiBold), Instrument Serif and JetBrains Mono (Regular, Medium), from Instrument's and JetBrains' own repositories and Google Fonts', checked to load in ReportLab and to come with the OFL, in `backend/accountable/invoices/fonts/`. `shared/invoice-fonts.json` is written from them by `invoices/fonts.py`. The characters invoices can show are the 333 all five share: Latin letters with their accents, digits, punctuation, $, £, €, ©, ™ and typographic quotes and dashes.
+- **One layout, two drawings:** `invoices/layout.py` and `invoices/layout.ts` lay an invoice out the same way from `shared/invoice-designs.json`, and the 16 cases in `shared/invoice-layout-cases.json` give the same lines on the same pages on both sides, the 100-line invoice's five pages included. The expected lines were made by `layout.py` and read through before they were kept, so the Python side's tests of where lines break and pages turn also check them by hand-worked widths. Each design was drawn first as a sketch, then as a PDF and looked at.
+- **Sample data:** 33 invoices and 32 to 36 payments, seeded and checked on every day from Jan 1, 2026 to Feb 4, 2027: each status, an invoice in each group of How late, and a payment in each of the 12 months on every one of them.
+
+Where the build settled something the plan or spec left open, or found them wrong, the spec now says so:
+
+- **A day's payment:** the plan paid today one of the invoices not yet due. That left only one part-paid invoice late in a month, so today's payment goes to an older invoice paid late instead. M3 now says about 35 payments, not 40, and 2 to 4 part paid.
+- **The Bill to** drops spaces and line breaks at its ends, as every other field does, and keeps the rest as typed.
+- **Characters no one can see** are named in the message, "a tab", "an unusual space" or "an invisible character", by their Unicode category on both sides, since Python's and JavaScript's ideas of a space differ.
+- **The accent color's messages** live in `shared/accent-cases.json`, since one of them names `#0E6B6B` as an example and `colors.test.ts` refuses a color written into the page's code.
+- **No accent tints:** the plan allowed a tint of the accent for the designs, but none of the three needed one, so the layout has no code for it.
+- **Words the spec didn't give:** "Choose a won deal" and "Choose an active product" beside the picker and the line, "A draft has no PDF. Issue it first.", "A draft is deleted rather than voided.", "This invoice is already void." and the Delete draft question.
+- **`DataTable`** can now leave out a row's buttons, search a column it doesn't show, and word its empty table's invitation, all three for Invoices.
+- **New files the plan didn't list:** `company/documentPreview.ts`, the sample's look and the type of the drawing `App.tsx` hands the settings page, so `company/` still never imports `invoices/`; `invoices/InvoiceChip.tsx`; and `lib/files.ts`, a file's bytes as base64 and a picture's size. The logo is shown from a data address, so there's no object URL to let go of.
+- **The settings page's header is inside its form,** so Save settings at the top right is the form's own button and Enter in a box still saves.
+
+Found and fixed on the way:
+
+- `plural()` wrote "12 daies". A "y" now becomes "ies" only after a consonant.
+- The draft's form refilled itself whenever a change was typed back to what it was, which remounted every line's boxes and lost the focus. It now refills only when a new reply arrives.
+- A test of two payments at once passed with the write lock taken out, because the two requests never overlapped. It now holds each until both have read what's owed, so without the lock both go in.
+
+Each new check of a race or a limit was shown to fail on code broken for it, from a copy put back after: the 2 MB limit taken out, the write lock taken out for 20 drafts issued at once and for two payments at once, and the Money route added after the invoices' own.
+
+By hand, on a scratch database, in Chrome: the Invoices table, a draft's page, issued, part-paid, overdue, paid and void invoices, the panels, the Money section and the Documents panel, at 1440 by 900 and 1280 by 720, in light and dark mode. A draft was changed, asked about on leaving, issued, and became INV-0031 after the sample's 30. Each design, with the sample logo and in `#073B4C` or `#0E6B6B` and in `#767676`, the lightest accent allowed, was downloaded as a PDF and put beside its preview: the same lines on the same pages, the same mark, the logo in the same place. All three still read in greyscale, as a black and white printer gives them. The console logged no errors or warnings.
+
+One end-to-end run failed two of the menu's theme tests, because I edited a source file while its Vite servers were watching the files: Vite's reload then asks for the page's script under a new address, which the test's hold doesn't catch. With nothing changing they passed eight times in eight, and with a file changing through the run they failed eight times in eight. The tests' Vite servers no longer watch the files, so that can't happen now (Invoices: harness improved, below).
+
+`npm run check` passes: 4,938 tests in 6m 24s, of which 3,249 backend, 1,387 frontend, 290 end-to-end and 12 speed. Backend unit coverage is 99%. At the Q1 limits, the Invoices table opened in 177ms, the Money section's data arrived in 8ms and a PDF downloaded in 23ms, each the median of five.
+
+ui-check went through every page this change adds or changes, signed in, in both modes, and found one thing broken and one nit that came from this change. Both are fixed:
+
+- **An organization's Invoices panel** cut a long deal name short, such as "Service c...", because the number, the deal's name and the chip shared one line. The name now sits on a line of its own under the number, and the spec says so. The panel's test was shown to fail on the old layout.
+- **The logo's tile** had a 1px ring, where the spec says a white tile and panels have no outline. It's gone.
+
+Its other nits aren't from this change: 401s logged before sign-in, which the app's handling of an ended session already gave, now with the Money section's read among them (`quotes` found they come from an old token kept in Playwright MCP's browser profile, and its `.mcp.json` fixes it); the top bar's active link a pixel wider; a teammate with no display name shown by email, as U8 says; and the revenue chart drawing in.
+
+Still for the project owner, on the shared app, since no test touches Supabase: run `npm start` against the team's database, which now runs migrations `0007` to `0010` on it, bills', quotes' and these two, then take an invoice from draft to paid with a logo, download its PDF and see it as a second teammate; run the new clearing steps on a project that still has the sample data and check the invoices, payments and logo are gone and the settings are at their defaults. With the owner's go-ahead, the coding agent can then use the Supabase MCP server to confirm row-level security is on for `company_logo`, `invoices`, `invoice_lines` and `payments`, and run the security advisors.
+
+## Invoices: review
+
+The reviewer subagent reviewed the branch against `main`, leaving out style. It found nothing Important, so there was nothing to fix. Four nits are open, for later:
+
+1. **Issue refusals come one at a time:** `_refuse_what_cant_be_issued` in `invoices/routers/invoices.py` reports the first problem it finds, so a draft with three shows the next only once the first is fixed. V10 doesn't ask for them all at once.
+2. **Money written out twice:** `dollars()` in `invoices/routers/payments.py` repeats `money()` in `invoices/layout.py`, and V15's message depends on it.
+3. **Deleting a payment doesn't look at the invoice's status.** That's safe only because a void invoice can't hold a payment: `void_invoice` refuses one that has any, under the same lock.
+4. **Pillow's pixel limit is set for the whole process** in `company/logo.py`. The logo is the only image read today.
+
+A fifth, that it couldn't confirm the shared layout cases cover a word wider than its column, 100 lines and a draft, is answered: `shared/invoice-layout-cases.json` has a case for each.
+
+The review left part of the change unread, and its log shows more than its report says:
+
+- **`docs/STANDARDS.md` was never opened.** The one command that printed it also printed `intent.md` and `docs/specs/invoices.md`, so Claude Code showed only its first 2KB, the start of `intent.md`, and saved the rest to a file the reviewer didn't open. Its report says it read the rules and checked the diff against them.
+- **`plan.md`** was read to line 120 of 407, and `intent.md` only in part.
+- **The frontend:** it read `queries.ts`, `files.ts` and `lib/api.ts`, and none of `layout.ts`, the pages or the React and end-to-end tests, as its report says.
+
+**Still to do:** run the reviewer again on what it left unread: the frontend and the tests, against `docs/STANDARDS.md` and the whole of `plan.md`.
+
+## Invoices: harness improved
+
+`docs/IMPROVE.md` was followed after the review. The review's nits and the part it left unread are still open, above. This run used the review and its log, the owner's messages, the Stop hook's results, the failed and stopped tool calls and the agents' shell commands, from the branch's three sessions and two subagents. It searched the sessions of every earlier change, in all four copies of the repo, and of `quotes` and `bills`, for the same mistakes. The owner corrected nothing: "No, leave Company settings as it is" answered a question the design had asked. They said "Leave the commits to me" three times, and no agent committed. The Stop hook ran 9 times in the design and build and never failed. The build ran the app three times, each on a temporary database, stopped it by its process ID and checked its ports. It used git only to read, and broke code only from its own copies, put back after. Claude Code stopped a `sleep 120`, and a `sed` its safety check took for a removal, with no harm done.
+
+It also looked at the harness changes on `bills`, in `6f083b9`, and `quotes`, in `e3fac07`. Between them they already fix what went wrong with this review, so this run doesn't repeat it: the reviewer reads every file in `--stat`, one per call, opens any output Claude Code saved to a file, and lists what it didn't read, and `AGENTS.md` says to run it again on that. Three more of their fixes came up here too: an unquoted `=====` stopped one of this run's commands in zsh, the build's first full check found the count of sections in `settings.spec.ts` and `menu.spec.ts` still at six, and ui-check logged the 401s that quotes' `.mcp.json` change explains.
+
+One mistake had happened more than once:
+
+- **A file saved during an end-to-end run:** the tests' Vite servers watched the files, so a save reloaded pages in the middle of tests. On `multi-user`, a teammate's save reloaded the page in "with reduced motion set, nothing animates", and the failure was put down to that and left. Here, the build edited `Invoice.tsx` while `npm run check` ran, and two tests in `menu.spec.ts` failed, because the reloaded page asked for its script at a new address the test wasn't holding. A run of those tests while `InvoiceChip.tsx` changed every two seconds, from a copy put back after, failed 8 of 8 before the fix and passed 8 of 8 after. Each test run now sets `ACCOUNTABLE_VITE_WATCH=off`, and `frontend/vite.config.ts` then gives Vite `server.watch: null`, so the servers watch nothing and serve each file as it was first asked for. `npm run dev` still reloads on a save. The new `scripts/vite-watch.test.mjs` checks it in about 0.3 seconds. It failed with the setting taken out of a copy of the config, put back after, and passed ten times in ten.
+
+Two mistakes seen once are now in `docs/IMPROVE.md`: the test report read by guesswork, and requirement ids renumbered in the design. `docs/IMPROVE.md` now says to search earlier sessions for the reason an agent gave a failed test, as well as for the test. The build's notes above on the theme tests and the 401s are brought up to date.
+
+**For the merge:** `bills` and `quotes` both change `docs/IMPROVE.md`, this file, `.claude/agents/reviewer.md`, `AGENTS.md` and `docs/specs/testing.md`, and this branch changes `docs/IMPROVE.md`, this file, `docs/specs/testing.md` and `docs/specs/architecture.md`, so keep every side. This branch leaves products' Seen once entry "a review cut short" in place and the other two take it out, so it goes. This branch's entries go at the end of Seen once, with theirs. Done in the merge with `main`, below.
+
+`npm run check` passes: 4,939 tests in 6m 26s, the new one being `vite-watch.test.mjs`. The end-to-end tests took 247s on 2 workers, because other runs had the machine busy, where the build's runs took 182 to 223s on 6.
+
+## Invoices: independent review fixes
+
+`docs/changes/invoices/independent-review.md` found seven Important problems. All seven are fixed. Each was reproduced first by a test that failed on the code before its fix, and the layout's and the migration's were also shown to fail with the fix taken out of a copy of the file, put back after.
+
+1. **A day's change threw away what was typed on a draft (V8, V31).** Each invoice read is keyed by today, so on a new day the page had no data while it read again, took the draft's form off the page and put a fresh one back from the last save. The reads in `invoices/queries.ts` now keep the last day's reply on screen while the same invoice or list is read for the new day, and never another invoice's, which would put one invoice's typing on another. New tests in `Invoice.test.tsx` type into the Bill to, move the clock past midnight and check the typing and the question before leaving are still there, and check that opening another invoice never shows the first one meanwhile.
+2. **A line taller than a page ran off the PDF (V26, V28).** A row that didn't fit moved to the next page whole, even when it was taller than that page, so a description of 60 short lines, 479 characters, drew its last lines below the margin and off the paper, in the preview too. `layout.py` and `layout.ts` now keep a row whole if it fits on a page of its own, and otherwise carry it on from page to page, as much on each as fits, with its figures beside its first part and the headings over each page. Three shared cases, a line taller than a page in each design, were made by `layout.py` and read through before they were kept. Both sides' margin checks run over every case, the browser's being new, and a new PDF test reads all 60 lines back from the file in each design.
+3. **A new line lost its id when something was typed during its save (V6, V8).** The save's reply was used only if nothing had changed meanwhile, so the line kept no id, and the next save added it again from its product, taking a new name or failing on an archived one. Each line in the form now has a key of its own, never sent, and the reply gives each new line it saved its id while the typing stays. The new test holds the save, types in the Bill to, and checks the next save sends the line's id.
+4. **A Bill to from the deal, or a description from a product, skipped V8's limits (V8, V9).** Only the values sent were checked for length. `_save_draft` now checks the Bill to and each description as they'll be saved, with their characters, by Save draft and Issue invoice alike. New tests in `test_invoices.py` start a draft for an organization with a 501-character name, and add a product with a 1,001-character description.
+5. **Failed reads in the Add line picker and the Invoices panels (N6).** The picker said "Loading products" for ever after a failed read, and the panels offered no Try again and hid a failed refresh. Both now use `LoadFailed`: Try again on a failed first read, and the list kept with "Couldn't refresh this, so it may be out of date." on a later one. New tests in `panels.test.tsx` and `Invoice.test.tsx`.
+6. **Number sorted drafts issued on one day by when they were started (V22).** The table sorted by issue date, then id, and ids come from starting the draft. The number's count can't be read back from the number, since a prefix may end in a digit, so each invoice now keeps the count it took, as `issue_order`, from `take` in `company/documents.py`, which `take_number` now wraps. Migration `0008_invoice_issue_order.py`, now `0010`, adds the column, rather than a change to `0007`, now `0009`, which the team's database may already have run, and gives invoices already issued their places by issue date and then id, the order the table used until now. Its SQL was run on a throwaway Postgres 16 in a scratch folder, which gave the same places, and was stopped and removed after. New tests in `test_invoices.py`, `test_migrations.py` and `Invoices.test.tsx`.
+7. **The largest invoice couldn't be paid in one payment (V15, B17).** A payment was capped at a price's limit, $1 trillion, where a $1 trillion subtotal with tax at 100% owes $2 trillion. `company/tax.py` and `company/tax.ts` now have `MAX_TOTAL_CENTS`, which the payment's check and the payment form use, and `parsePrice` takes a limit. What's owed is still checked inside the save (V16). New tests in `test_payments.py` and `Invoice.test.tsx`.
+
+The spec says what each fix settled: V8, V9, V15, V22 and V26 in `invoices.md`, B15 in `settings.md`, the issuing steps, the new column and the payment's limit in `backend.md`, the draft's form and invoices and today in `frontend.md`, migration `0008` in `architecture.md`, and the new tests in `testing.md`.
+
+**For the merge:** done in the merge with `main`, below: these migrations are now `0009_invoices.py` and `0010_invoice_issue_order.py`, after bills' `0007` and quotes' `0008`. The project owner's step on the shared app, above, now runs all four.
+
+`npm run check` passes: 4,987 tests in 7m 28s, of which 3,268 backend, 1,417 frontend, 290 end-to-end and 12 speed, on 2 end-to-end workers while other runs were busy. Two unit tests took a second or more, the WEBP logo check at 1.1s and the limits data at 1.0s.
+
+The first full run failed twice. Ruff refused a `sorted(...)[-1]` in the new issue-order test, now written plainly. And 63 end-to-end tests failed, because one of the run's Vite servers crashed inside Node 26.13.0: V8 aborted with "Lazy deopt after a fast API call with return value is unsupported" in `Buffer.byteLength`, while Vite sent a 347 KB pre-bundled file, and every test on that worker's ports then had its connection refused. Node runs `Buffer.byteLength` as a V8 fast call, and V8 can't yet deoptimize after a fast call that returns a value, so it's a fault in Node and V8, not in this change's code, and the second run passed with nothing changed but the test. No session of any change had seen it before. If it comes back, it's worth trying another Node version.
+
+## Invoices: merged with main
+
+`main`, with Bills and Quotes in it, was merged into `invoices`. What the merge settled:
+
+- **Migrations:** bills is `0007` and quotes `0008`, so this branch's two are now `0009_invoices.py`, with `down_revision = "0008"`, and `0010_invoice_issue_order.py`, with `down_revision = "0009"`. The invoices' upgrade test starts from a database at `0008`, with bills and quotes, as the team's will be, and the issue order's from `0009`. No worktree has a `data/accountable.db`, so no local database had run the old `0007` or `0008`. The owner's `npm start` against Supabase from this branch was still to do, so the team's database shouldn't have them either.
+- **Sections:** nine, with Invoices between Quotes and Bills, the order `prepare` measured the top bar's widths in. Quotes, then invoices, then bills, everywhere an area joins a list: `AREAS` in `main.py`, `RECORDS` in `cli.py`, so seed and empty say "1 product, 1 quote, 0 invoices, 0 payments, 1 bill.", the imports in `migrations/env.py`, and in `App.tsx` the sections, the routes and the panels: Quotes then Invoices on a deal's page, and Quotes, Invoices and Bills on an organization's. `fill_sample` fills the CRM, products, bills, the company, quotes and invoices, in that order, since quotes and invoices both need the company's tax and prefixes.
+- **The Money section:** both branches added one, each headed "Money", so the dashboard would have had two regions of that name and two `money-heading` ids. There's now one, `MoneySection` in `App.tsx`, as bills' plan expected: the heading at 20/28, 12px below the dashboard's own part, as bills had it, then invoices' row, Owed to us and Payments received, 320px tall, then bills' row, Bills to pay and Spending by category, 380px tall. Each area exports only its row, `InvoicesMoney` and `BillsMoney`, and still reads its own route and shows its own failed read. Invoices' row now has the same columns as bills' row and the dashboard's bottom row, 0.76fr and 1.24fr, where it had 2fr and 3fr. The whole section fits a 1440 by 900 window once it's scrolled to, and the heading's top 4px show at the bottom of the first screen, as bills' did.
+- **`DataTable`:** main's, with invoices' `hidden` on a column, searched but not shown, for the Bill to. Invoices' `invitation` did what main's `empty` does, so the Invoices table now passes `empty`, with the same words. Quotes' `empty.filtered` and bills' `filterNote` still both say a filter left nothing. The quotes merge said they could become one once invoices merged, and that's still to do.
+- **Field errors:** both branches keyed a field inside a list by its place, such as `lines.2.quantity`. `api.field_messages` takes main's `_field`, which leaves out anything pydantic adds past a field's name, such as which kind of value it tried, with invoices' case for a list item that isn't a record at all, keyed `lines.1` with the list's message. `saveErrors.ts` takes main's `hasField`, with invoices' `form` message at the form's top.
+- **PDFs:** fpdf2 for quotes, and ReportLab with Pillow for invoices, with `pypdf` for both areas' tests. So there are two PDF libraries, and two copies of Instrument Sans and JetBrains Mono, in `quotes/fonts/` and `invoices/fonts/`, until the PDFs are brought together, as both plans said.
+- **Tests that count sections or Tab stops:** `App.test.tsx`, `start.spec.ts`, `settings.spec.ts`, `menu.spec.ts` and `quality.spec.ts` count nine links. `quality.spec.ts` presses Tab once more on each walk from the top bar, Bills' included, and its check that the top bar stays on one line lists nine `1`s. Its walk does the quote's steps, then the invoice's.
+- **Tests that list the areas or their records:** `test_cli.py`, `test_layout.py`, `layout.test.ts`, `test_migrations.py`, `test_sample_data.py`, `test_limits.py`, `limits_data.py`, `test_delete.py`, `conftest.py` and `App.test.tsx` take all three. `test_cli.py` keeps invoices' two tests for starting the counts again, one for empty and one for seed, which now expects QT-0041 next and the issued invoices from INV-0001. The same-content test in `test_sample_data.py` covers invoices and payments too. `test_delete.py` has one holds test for quotes, invoices and bills. Both branches had added the same `created` helper to `test_migrations.py`, so main's is kept. `limits_data.py` fills the invoices in `_invoices`, beside `_quotes` and `_bills`, and `/api/invoices/money` joins the dashboard's speed test in `test_limits.py`.
+- **Lookups the one Money section made ambiguous:** invoices' row has an Overdue figure and a "so far" too, so `bills.spec.ts`'s Money figures, `data.spec.ts`'s Overdue link and `menu.spec.ts`'s "so far" now look inside bills' own panels. `App.test.tsx` checks the section holds both rows, invoices' first. `dashboard.spec.ts`'s fit test keeps both branches' checks, checks all four panels show once the section is scrolled to, and drops invoices' check that the heading starts below the first screen.
+- **The clearing steps** put `quote_lines`, `quotes`, `payments`, `invoice_lines`, `invoices` and `bills` in the one `truncate`, delete the logo, and set the design and accent color back with the rest, still in one transaction.
+- **Harness:** as the notes above asked, `docs/IMPROVE.md` keeps both sides' changes to its first step, products' Seen once entry stays out, and this branch's entries follow bills' and quotes'. `ui-check.md` reads `quotes.md`, `invoices.md` and `bills.md`, and `settings.md` for the Documents panel.
+
+The owner's checks by hand from all three plans are still to do, including `npm start` against an empty Supabase database, which now runs `0007` to `0010` in turn, and the clearing steps with all three areas' tables. If the team's database was ever started from this branch before the merge, its `alembic_version` says `0008` with the invoices tables in it, and main's code would take that for quotes', so check it before the first start after the merge.
+
+By hand, on a temporary database at 1440 by 900 in both modes: one Money heading, invoices' row above bills', the two rows' panels starting and ending at the same places, and the whole 768px section in the window once scrolled to. At 1280 by 720 the nine sections sit on one line in the 56px bar, with nothing running off sideways. No console errors or warnings.
+
+`npm run check` passes: 6,165 tests in 5m 51s, of which 4,199 backend, 1,632 frontend, 317 end-to-end and 17 speed. One unit test took a second or more: `test_the_data_really_is_at_the_limits`, at 1.1s, all of it the setup that fills the limits database once for the module, which now fills quotes, invoices and bills together (1.07s). On `main` it stayed under a second, and on this branch alone it was already at 1.0s in a run while others were busy. Making that fill quicker is still to do.
+
+## Invoices: the settings form went back to the old values after a save
+
+After the merge, `npm run check` failed "saves once, however quickly Save settings is pressed, says so and shows who saved" in `SettingsPage.test.tsx` with "expected '8.875' to be '8.5'", though `check:quick` had passed it minutes before and it passed 15 times in 15 on its own.
+
+- **The cause:** `SettingsForm` filled itself from its `settings` prop whenever nothing was typed in it. A save puts its reply in the settings' query and resets the form to it, so the form has nothing typed in it at once, but TanStack Query tells `SettingsPage` of the reply on a `setTimeout(0)`. Until then the prop is still the settings from before the save, so the form went back to them, 8.875, and then forward again to 8.5 once the page heard. The test read the box between the two.
+- **The evidence:** a trace of each render, commit and reset, on copies of the files since put back. The stand-in backend answers the PATCH and `useWrite`'s read again in the same task, so the reply always reached the form before the page heard of it. In 301 runs of the test the box went back to 8.875 every time, and the test failed when its check landed in that moment: 18 times idle and 2 times with every core busy. In a browser the read again goes over the network, which usually gives the page time to hear first, so a person would rarely have seen it.
+- **The fix:** the form now takes newer settings only when they arrive, as a draft invoice's form does, never just because it has nothing typed in it. `frontend.md` says so. One edge changes: a teammate's save that arrives while someone is typing isn't taken later if they undo their typing, and the next save wins over it, as B10 says.
+- **The test:** "shows what was saved, never the settings from before, however late the page hears of the save" holds back TanStack Query's news until the form has taken the reply, and records every value put in the Tax rate box. It failed 50 runs in 50 before the fix and passed 50 in 50 after. The test that failed passed 301 runs in 301 after it, with every core busy too.
+
+The quote form, `useQuoteForm` in `QuoteForm.tsx`, fills itself the same way from a `quote` prop that `takeSaved` gets ahead of, so it may go back to the quote from before a save for a moment too. Nobody has checked that with a test yet.
+
+`npm run check` passes: 6,166 tests in 6m 07s, of which 4,199 backend, 1,633 frontend, 317 end-to-end and 17 speed. Two unit tests took a second or more: `test_the_data_really_is_at_the_limits` at 1.1s, as before, and `test_other_image_formats_are_refused[WEBP]` at 6.6s, and 4.8s in a `check:quick` afterwards. That one wasn't in the list after the merge, and nothing here touches it.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -695,9 +840,13 @@ Products is the price list: what the business sells, each with a unit price in d
 
 Quotes are the prices offered on a deal: New quote on an open deal's page, or in the Quotes section, opens a draft with a preview beside it of what the customer will get. Add products from the price list, change their quantities, descriptions and prices, and Save quote. Mark as sent when it's ready, then Accept when the customer says yes, which moves the deal to Won at the quote's value, or Decline. Download PDF saves the quote as a PDF to send. A sent quote can't be changed, so Copy to new draft starts a new version. Quotes are never deleted.
 
-Bills holds the bills the business receives from its suppliers. A supplier is any organization, so add a new one in Organizations first. Each bill has the supplier's bill number, a bill date, a due date 30 days later unless you change it, the amount and the tax as they appear on the bill, and a category. Bills opens on the unpaid ones, earliest due first, so overdue bills come first: a bill is overdue once its due date has passed. Mark paid asks the date you paid it, and Mark unpaid undoes it, with Undo on its message for 10 seconds. An organization's page lists its bills, and an organization with bills can't be deleted. Below the dashboard's own part, the Money section shows what we owe and what's overdue, a timeline of the bills due in the next 30 days, and spending by category for the last 12 months.
+Invoices bills customers for won deals. New invoice on a won deal's page starts a draft: add lines from the price list, change a quantity, a price or a description, and the preview beside the form shows the invoice as the customer will see it. Save draft keeps it. Issue invoice gives it its number and due date, and after that it can't be changed, only voided. Record payment notes money as it arrives, and Download PDF saves the invoice to send. The Invoices section lists every invoice, with a filter for drafts, overdue ones, paid ones and the rest, and each deal's and organization's page shows its invoices.
 
-The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+Bills holds the bills the business receives from its suppliers. A supplier is any organization, so add a new one in Organizations first. Each bill has the supplier's bill number, a bill date, a due date 30 days later unless you change it, the amount and the tax as they appear on the bill, and a category. Bills opens on the unpaid ones, earliest due first, so overdue bills come first: a bill is overdue once its due date has passed. Mark paid asks the date you paid it, and Mark unpaid undoes it, with Undo on its message for 10 seconds. An organization's page lists its bills, and an organization with bills can't be deleted.
+
+Below the dashboard's own part, the Money section shows what customers owe, how much is overdue and how late, and the payments received each month. Under that, it shows what we owe and what's overdue, a timeline of the bills due in the next 30 days, and spending by category for the last 12 months.
+
+The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. Its Documents panel sets how invoices look: one of three designs, an accent color and the company's logo, with a sample invoice that changes as you choose. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -707,8 +856,8 @@ Click on the terminal window and press Ctrl+C.
 
 Accountable comes with made-up sample data so you can look around.
 
-- `npm run seed` replaces everything with fresh sample data, and puts back the made-up company's settings.
-- `npm run empty` removes every record, so you can type in your own. It leaves the company settings as they are.
+- `npm run seed` replaces everything with fresh sample data, invoices and payments included, and puts back the made-up company's settings and logo.
+- `npm run empty` removes every record, invoices and payments included, so you can type in your own. It leaves the company settings and the logo as they are.
 
 Both tell you what will be lost and only go ahead if you type `yes`. Both are safe with the app running: refresh the browser to see the result. Both keep the four teammates, so there's still someone to sign in as. They only ever touch the local copy, never the team's data in Supabase.
 
@@ -766,20 +915,22 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, quote and bill, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, quote, invoice, payment and bill, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, no logo, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
 begin;
-truncate table quote_lines, quotes, activities, stage_changes, deals, contacts, organizations, bills, products, number_counters;
+truncate table quote_lines, quotes, payments, invoice_lines, invoices, activities, stage_changes, deals, contacts,
+  organizations, bills, products, number_counters;
+delete from company_logo;
 update company_settings set
   company_name = default, address = default, email = default, phone = default,
   tax_label = default, tax_rate = default, payment_terms_days = default,
-  quote_prefix = default, invoice_prefix = default, updated_by = default,
-  updated_at = now() at time zone 'utc';
+  quote_prefix = default, invoice_prefix = default, invoice_design = default, accent_color = default,
+  updated_by = default, updated_at = now() at time zone 'utc';
 commit;
 ```
 
-Quotes and bills are in the same `truncate` as the deals and organizations because each quote points at its deal and each bill at its supplier, and Postgres won't empty a table that another table's rows still point at. Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
+Quotes, invoices with their lines and payments, and bills are in the same `truncate` as the deals, organizations and products because each quote and invoice points at its deal, an issued invoice at its organization, their lines at the products and each bill at its supplier, and Postgres won't empty a table that another table's rows still point at. Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
 
 #### Put it on Render
 

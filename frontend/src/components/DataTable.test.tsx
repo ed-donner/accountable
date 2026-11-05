@@ -641,6 +641,23 @@ describe("a row that leaves the table", () => {
   });
 });
 
+describe("a hidden column, such as an invoice's Bill to", () => {
+  const WITH_NOTE: TableColumn<Row>[] = [
+    ...COLUMNS,
+    { id: "note", header: "Note", value: () => "kept out of sight", searchable: true, hidden: true },
+  ];
+
+  it("is searched without being shown", async () => {
+    showWithoutButtons(ROWS, "/", { columns: WITH_NOTE });
+    expect(screen.queryByText("kept out of sight")).toBeNull();
+    expect(screen.getAllByRole("columnheader")).toHaveLength(4);
+    await user().type(screen.getByRole("searchbox"), "out of sight");
+    await waitFor(() => expect(names()).toHaveLength(3));
+    await user().type(screen.getByRole("searchbox"), " nowhere");
+    expect(await screen.findByText("No things match.")).toBeTruthy();
+  });
+});
+
 describe("a row's own button and Delete together", () => {
   it("come after Edit, in that order, each named with the row", async () => {
     archived = [];

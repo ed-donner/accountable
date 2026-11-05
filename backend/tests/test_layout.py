@@ -37,7 +37,7 @@ def names(path: Path, area: str) -> bool:
 
 
 def test_the_areas_are_found():
-    assert AREAS == ["bills", "company", "crm", "products", "quotes"]
+    assert AREAS == ["bills", "company", "crm", "invoices", "products", "quotes"]
 
 
 def imported_areas(source: str) -> set[tuple[str, str]]:
@@ -115,7 +115,7 @@ def test_the_first_areas_import_no_other_area_but_company():
 
 
 def test_a_later_area_imports_only_the_first_areas_tables_and_the_crms_rules():
-    """Quotes and bills are the later areas so far, and invoices is held to the same rules."""
+    """Quotes, invoices and bills are the later areas so far."""
     for path in sources():
         own = area_of(path)
         if own is not None and own not in FIRST_AREAS:
@@ -125,6 +125,7 @@ def test_a_later_area_imports_only_the_first_areas_tables_and_the_crms_rules():
     assert ("crm", "rules") in imported_areas((PACKAGE / "quotes" / "router.py").read_text())
     assert ("products", "tables") in imported_areas((PACKAGE / "quotes" / "tables.py").read_text())
     assert ("crm", "tables") in imported_areas((PACKAGE / "bills" / "router.py").read_text())
+    assert ("crm", "tables") in imported_areas((PACKAGE / "invoices" / "tables.py").read_text())
 
 
 def test_quotes_routes_start_with_quotes_alone():

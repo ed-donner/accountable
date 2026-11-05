@@ -36,7 +36,11 @@ class FieldError(Exception):
 
 
 def field_messages(errors: Iterable[Mapping[str, Any]], messages: Mapping[str, str]) -> dict[str, str]:
-    """Each bad field's message: its check's own, or else the one the areas give that field."""
+    """Each bad field's message: its check's own, or else the one the areas give that field.
+
+    A field inside a list is keyed by its whole place, such as lines.2.quantity, which is
+    the form's own path for it, and takes the message of its own name, quantity.
+    """
     fields: dict[str, str] = {}
     for error in errors:
         field, name = _field(error["loc"])
@@ -50,6 +54,7 @@ def field_messages(errors: Iterable[Mapping[str, Any]], messages: Mapping[str, s
 def _field(location: tuple[Any, ...]) -> tuple[str, str]:
     """Where a bad field is, and the name its message goes by: "name" for a field of the body,
     and for one inside a list, its place, such as "lines.2.quantity", with "quantity" as its name.
+    An item that isn't a record at all, such as "lines.1", goes by its list's name.
     Anything deeper, such as which kind of value pydantic tried, isn't part of the field."""
     if len(location) < 2:
         return "body", "body"
@@ -57,6 +62,8 @@ def _field(location: tuple[Any, ...]) -> tuple[str, str]:
     while len(rest) >= 2 and isinstance(rest[0], int) and isinstance(rest[1], str):
         parts += [str(rest[0]), rest[1]]
         name, rest = rest[1], rest[2:]
+    if rest and isinstance(rest[0], int):
+        parts.append(str(rest[0]))
     return ".".join(parts), name
 
 
@@ -119,6 +126,8 @@ Email = Annotated[str | None, AfterValidator(_email)]
 Website = Annotated[str | None, AfterValidator(_website)]
 Id = Annotated[int, Field(ge=1, le=MAX_ID)]
 PathId = Annotated[int, Path(ge=1, le=MAX_ID)]
+# A record to narrow a list to, such as /api/invoices?deal_id=7, or None for every row.
+QueryId = Annotated[int | None, Query(ge=1, le=MAX_ID)]
 PageLimit = Annotated[int, Query(ge=1, le=500)]
 PageOffset = Annotated[int, Query(ge=0, le=MAX_ID)]
 # Asked for per request, so tests can fix them.

@@ -229,6 +229,8 @@ async function startRun(mostWorkers) {
     ACCOUNTABLE_TEST_SLOT: String(thisRun.slot),
     // Kept between runs to save filling it each time, and apart from the cache npm run dev uses.
     ACCOUNTABLE_VITE_CACHE: path.join(ROOT, "node_modules", ".vite-test"),
+    // A file saved mid-run, by the person, an agent or a teammate, would otherwise reload pages mid-test.
+    ACCOUNTABLE_VITE_WATCH: "off",
   };
 
   await waitForTurn(thisRun);

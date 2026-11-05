@@ -22,21 +22,23 @@ This month's figures sit beside last month's rather than showing a percentage ch
 - **H6.** **Follow-ups** lists every follow-up not yet done: overdue ones first, oldest first, then upcoming ones by date. Each shows what it's about, its date, a link to its contact or deal, and a tick box to mark it done. Overdue ones carry an Overdue chip. The panel's heading shows how many are overdue and upcoming, and the panel scrolls if the list is long.
 - **H7.** **Recent activity** lists the 10 newest activities and stage changes, leaving out anything dated in the future. Each links to its contact or deal.
 - **H8.** Every chart and list has a designed empty state, and nothing divides by zero.
-- **H9.** Each of the five questions in the [Problem](../spec.md#problem) can be answered within two clicks of the dashboard: which companies we deal with, who our contacts are, what's in the pipeline, what happened last with a customer and what needs doing next.
-- **H10.** Other areas can add sections below the dashboard's own, such as what customers owe, in the order `App.tsx` gives them. The dashboard's own part still fills the window, so the page scrolls to them. Bills adds the Money section: what we owe, what's overdue, the bills due in the next 30 days and spending by category ([E20 to E24](bills.md#the-money-section)).
+- **H9.** Each of the questions in the [Problem](../spec.md#problem) can be answered within two clicks of the dashboard: which companies we deal with, who our contacts are, what's in the pipeline, what happened last with a customer and what needs doing next, what was quoted and whether it was accepted, from Quotes, and, from the Money section, what customers owe, which invoices are overdue and who has paid, and which supplier bills are unpaid, when they're due and what the business spends each month.
+- **H10.** Other areas can add sections below the dashboard's own, such as what customers owe, in the order `App.tsx` gives them. The dashboard's own part still fills the window, so the page scrolls to them. Today there's one, the Money section, which invoices and bills share under one heading: invoices' row shows what customers owe, how much of it is overdue and how late, and the payments received each month ([V29 to V31](invoices.md#money-on-the-dashboard)), and bills' row below it shows what we owe, what's overdue, the bills due in the next 30 days and spending by category ([E20 to E24](bills.md#the-money-section)). Each row reads its own figures, so a row that can't load says so and leaves the other showing.
 
 ## Screens
 
 ### Dashboard
 
-Everything fits on one screen at 1440 by 900 with no page scrolling, so what needs doing next is always in view. Sections other areas add (H10) come below that screen, such as the Money section, which has its own screen in [bills.md](bills.md#money-section). The page only scrolls on windows under 760px tall. Follow-ups and Recent activity each scroll by themselves.
+Everything fits on one screen at 1440 by 900 with no page scrolling, so what needs doing next is always in view. Sections other areas add (H10) come below that screen, such as the Money section. The page only scrolls on windows under 760px tall. Follow-ups and Recent activity each scroll by themselves.
+
+The Money section starts 12px below the dashboard's own part, the same gap as between its panels, with the heading "Money" in Instrument Sans at 20/28, semibold. Under it come invoices' row, about 320px tall, with Owed to us and Payments received ([Money section](invoices.md#money-section)), and then bills' row, about 380px tall, with Bills to pay and Spending by category ([Money section](bills.md#money-section)), 12px apart. Each row is two panels at about 40% and 60% of the width, as in the dashboard's bottom row, so the panels line up down the page. The whole section fits a 1440 by 900 window once the page is scrolled to it.
 
 The revenue chart is the one bold thing on this screen: a large figure over a solid Sea Green area that runs to the panel's edges. Everything around it stays quiet.
 
 ```
-+---------------------------------------------------------------------------------------------------------------------+
-| Accountable  [Dashboard]  Organizations  Contacts  Deals  Pipeline  Products  Quotes  [Search ]  Oct 31, 2026  (AR) |
-+---------------------------------------------------------------------------------------------------------------------+
++--------------------------------------------------------------------------------------------------------------------------------------+
+| Accountable  [Dashboard]  Organizations  Contacts  Deals  Pipeline  Products  Quotes  Invoices  Bills  [Search ]  Oct 31, 2026  (AR) |
++--------------------------------------------------------------------------------------------------------------------------------------+
 Dashboard   6 follow-ups overdue and 5 deals running late.
 
 +---------------------------------------------------+ +-----------------------+

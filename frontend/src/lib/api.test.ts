@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { startSignedIn } from "../test-utils";
-import { ApiError, CONNECTION_MESSAGE, api, download, isConnectionLost, onReconnect } from "./api";
+import { ApiError, CONNECTION_MESSAGE, api, download, fetchFile, isConnectionLost, onReconnect } from "./api";
 import { queryDefaults } from "./queryDefaults";
 import { SESSION_KEY, signInWithToken, signOut, useSession } from "./session";
 
@@ -236,6 +236,31 @@ describe("downloading a file", () => {
     });
     await expect(download("/quotes/3/pdf", "QT-0003.pdf")).rejects.toMatchObject({ kind: "connection" });
     expect(made).not.toHaveBeenCalled();
+  });
+});
+
+describe("fetching a file", () => {
+  it("sends the token and gives the file's bytes and type", async () => {
+    startSignedIn("abc");
+    const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(
+      async () => new Response("PNG bytes", { status: 200, headers: { "content-type": "image/png" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const file = await fetchFile("/settings/logo");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/settings/logo");
+    expect(fetchMock.mock.calls[0][1].headers).toEqual({ Authorization: "Bearer abc" });
+    expect(await file.text()).toBe("PNG bytes");
+    expect(file.type).toBe("image/png");
+  });
+
+  it("gives the same errors as any other request", async () => {
+    stubFetch(404, { detail: "No logo" });
+    await expect(fetchFile("/settings/logo")).rejects.toMatchObject({ kind: "missing", message: "No logo" });
+    stubFetch(409, { detail: "A draft has no PDF. Issue it first." });
+    await expect(fetchFile("/invoices/1/pdf")).rejects.toMatchObject({
+      kind: "server",
+      message: "A draft has no PDF. Issue it first.",
+    });
   });
 });
 

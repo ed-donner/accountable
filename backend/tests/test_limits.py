@@ -7,6 +7,7 @@ import pytest
 from accountable import db
 from accountable.bills.tables import bills
 from accountable.crm.tables import activities, contacts, deals
+from accountable.invoices.tables import invoice_lines, invoices, payments
 from accountable.products.tables import products
 from accountable.quotes.tables import quote_lines, quotes
 from conftest import TODAY, using_database
@@ -54,10 +55,17 @@ def test_the_data_really_is_at_the_limits(full):
         assert conn.scalar(select(func.count()).select_from(quote_lines)) == 5000
         longest = conn.scalar(select(func.max(quote_lines.c.position)))
         assert longest == 100
+        assert conn.scalar(select(func.count()).select_from(invoices)) == 1000
+        assert conn.scalar(select(func.count()).select_from(invoice_lines)) == 3000
+        assert conn.scalar(select(func.count()).select_from(payments)) == 1500
         assert conn.scalar(select(func.count()).select_from(bills)) == 1000
+        statuses = set(conn.scalars(select(invoices.c.status)))
+    assert statuses == {"draft", "issued", "void"}
+    shown = {invoice["shows_as"] for invoice in full.get("/api/invoices").json()}
+    assert shown == {"draft", "issued", "part_paid", "overdue", "paid", "void"}
 
 
-@pytest.mark.parametrize("path", ["/api/dashboard", "/api/bills/dashboard"])
+@pytest.mark.parametrize("path", ["/api/dashboard", "/api/invoices/money", "/api/bills/dashboard"])
 def test_the_dashboard_and_its_money_section_are_quick(full, path):
     elapsed = median_ms(full, path)
     print(f"{path}: {elapsed:.1f}ms")
@@ -65,7 +73,16 @@ def test_the_dashboard_and_its_money_section_are_quick(full, path):
 
 
 @pytest.mark.parametrize(
-    "path", ["/api/organizations", "/api/contacts", "/api/deals", "/api/products", "/api/quotes", "/api/bills"]
+    "path",
+    [
+        "/api/organizations",
+        "/api/contacts",
+        "/api/deals",
+        "/api/products",
+        "/api/quotes",
+        "/api/invoices",
+        "/api/bills",
+    ],
 )
 def test_lists_are_quick(full, path):
     elapsed = median_ms(full, path)
@@ -115,6 +132,11 @@ QUERIES = {
     # The quote with its deal, the settings a draft follows, and its lines.
     "/api/quotes/{quote}": 3,
     "/api/quotes/new/{deal}": 2,
+    # The invoices and their paid totals, then the rate for the drafts.
+    "/api/invoices": 2,
+    "/api/invoices/money": 2,
+    # The invoice, its lines, its payments, and the settings a draft follows.
+    "/api/invoices/{invoice}": 4,
 }
 
 
@@ -128,6 +150,7 @@ def test_a_screen_asks_the_database_only_a_few_times(api, make, path, most):
     make.activity(contact_id=contact)
     product = make.product()
     make.product("Archived", active=False)
+    invoice = make.invoice(deal)
     bill = make.bill(organization)
     make.bill(organization, "INV-0043", paid_on=TODAY)
     api.post(f"/api/deals/{deal}/move", json={"stage": "qualified"})
@@ -142,7 +165,13 @@ def test_a_screen_asks_the_database_only_a_few_times(api, make, path, most):
     event.listen(db.engine(), "before_cursor_execute", count)
     try:
         address = path.format(
-            organization=organization, contact=contact, deal=deal, product=product, quote=quote, bill=bill
+            organization=organization,
+            contact=contact,
+            deal=deal,
+            product=product,
+            quote=quote,
+            invoice=invoice,
+            bill=bill,
         )
         assert api.get(address).status_code == 200
     finally:

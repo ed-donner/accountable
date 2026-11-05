@@ -17,7 +17,17 @@ const RAISED = { light: "rgb(255, 255, 255)", dark: "rgb(18, 64, 79)" };
 const FOCUS = { light: "rgb(17, 138, 178)", dark: "rgb(76, 179, 214)" };
 const MARIGOLD = "rgb(255, 193, 69)";
 const MIDNIGHT = "rgb(7, 59, 76)";
-const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/quotes", "/bills"];
+const SECTIONS = [
+  "/",
+  "/organizations",
+  "/contacts",
+  "/deals",
+  "/pipeline",
+  "/products",
+  "/quotes",
+  "/invoices",
+  "/bills",
+];
 const SEARCH_BOX = "Search organizations, contacts, deals and products";
 
 /** Named for the person once the backend says who's signed in, and plain "Menu" until then. */
@@ -112,8 +122,8 @@ test("the menu button can be reached by Tab, shows a focus ring, and its menu wo
   await expect(page.locator("tbody tr").first()).toBeVisible();
 
   const sections = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
-  await expect(sections).toHaveCount(8);
-  for (let index = 0; index < 8; index += 1) {
+  await expect(sections).toHaveCount(9);
+  for (let index = 0; index < 9; index += 1) {
     await page.keyboard.press("Tab");
     await expect(sections.nth(index)).toBeFocused();
   }
@@ -245,7 +255,7 @@ test("the menu is on every screen and works there", async ({ page, request, expe
   const screens: [string, RegExp | string][] = [
     ...SECTIONS.map((path): [string, RegExp] => [
       path,
-      /^(Dashboard|Organizations|Contacts|Deals|Pipeline|Products|Quotes|Bills)$/,
+      /^(Dashboard|Organizations|Contacts|Deals|Pipeline|Products|Quotes|Invoices|Bills)$/,
     ]),
     [`/deals/${deal.id}`, "Menu everywhere"],
     [`/deals/${gone.id}`, "This deal no longer exists"],
@@ -468,6 +478,8 @@ for (const mode of ["light", "dark"] as const) {
       `/deals/${await firstId("/deals")}`,
     ];
     const products: { id: number; active: boolean }[] = await (await request.get("/api/products")).json();
+    const invoices: { id: number; shows_as: string }[] = await (await request.get("/api/invoices")).json();
+    const invoiceShowing = (shows: string) => `/invoices/${invoices.find((invoice) => invoice.shows_as === shows)!.id}`;
     const archived = products.find((product) => !product.active)!;
     const quotes: { id: number; status: string }[] = await (await request.get("/api/quotes")).json();
     const draft = quotes.find((quote) => quote.status === "draft")!;
@@ -512,6 +524,27 @@ for (const mode of ["light", "dark"] as const) {
           await expect(page.getByText("Enter a whole number from 1 to 1,000,000")).toBeVisible();
         },
       },
+      { path: "/invoices", ready: (page) => expect(page.locator("tbody tr").first()).toBeVisible() },
+      ...["draft", "part_paid", "overdue", "paid", "void"].map((shows) => ({
+        path: invoiceShowing(shows),
+        ready: (page: Page) => expect(page.getByRole("img", { name: /^Invoice preview, page 1/ })).toBeVisible(),
+      })),
+      {
+        path: invoiceShowing("issued"),
+        ready: async (page) => {
+          await page.getByRole("button", { name: "Record payment" }).click();
+          await page.getByRole("dialog").getByLabel("Amount").fill("0");
+          await page.getByRole("dialog").getByRole("button", { name: "Record payment" }).click();
+          await expect(page.getByRole("dialog").getByText("Enter an amount more than $0.00")).toBeVisible();
+        },
+      },
+      {
+        path: "/",
+        ready: async (page) => {
+          await page.getByRole("heading", { level: 2, name: "Money" }).scrollIntoViewIfNeeded();
+          await expect(page.getByRole("list", { name: "How late" })).toBeVisible();
+        },
+      },
       {
         path: "/products?archived=1",
         ready: (page) => expect(page.locator("tbody").getByText("Archived").first()).toBeVisible(),
@@ -540,7 +573,9 @@ for (const mode of ["light", "dark"] as const) {
           const money = page.getByRole("region", { name: "Money" });
           await money.getByRole("img", { name: /^Spending by category/ }).scrollIntoViewIfNeeded();
           await expect(money.getByRole("img", { name: /bills due from today/ })).toBeVisible();
-          await expect(money.getByText("so far", { exact: true })).toBeVisible();
+          await expect(
+            money.getByRole("region", { name: "Spending by category" }).getByText("so far", { exact: true }),
+          ).toBeVisible();
         },
       },
       {

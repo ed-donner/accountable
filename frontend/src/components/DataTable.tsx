@@ -58,6 +58,8 @@ export type TableColumn<T> = {
   numeric?: boolean;
   /** Tailwind width for columns that need less room than they'd take. */
   width?: string;
+  /** Searched but not shown, such as an invoice's Bill to. */
+  hidden?: boolean;
 };
 
 /** A row's own button after Edit, such as Archive, in place of Delete or before it. */
@@ -472,28 +474,31 @@ function TableRow<T extends RowData>({ row, cells, href, name, buttons, onLeaveW
 
   return (
     <tr ref={element} onClick={() => navigate(href)} className="group h-11 cursor-pointer hover:bg-page">
-      {row.getAllCells().map((cell, index) => {
-        const column = cells.get(cell.column.id)!;
-        const shown = column.cell ? column.cell(row.original) : (column.value(row.original) ?? "");
-        return (
-          <td
-            key={cell.id}
-            className={`truncate px-2.5 first:rounded-l-[10px] last:rounded-r-[10px] ${column.numeric ? "num text-right text-[13px]" : ""}`}
-          >
-            {index === 0 ? (
-              <Link
-                to={href}
-                onClick={(event) => event.stopPropagation()}
-                className="block truncate rounded font-medium"
-              >
-                {shown}
-              </Link>
-            ) : (
-              shown
-            )}
-          </td>
-        );
-      })}
+      {row
+        .getAllCells()
+        .filter((cell) => !cells.get(cell.column.id)!.hidden)
+        .map((cell, index) => {
+          const column = cells.get(cell.column.id)!;
+          const shown = column.cell ? column.cell(row.original) : (column.value(row.original) ?? "");
+          return (
+            <td
+              key={cell.id}
+              className={`truncate px-2.5 first:rounded-l-[10px] last:rounded-r-[10px] ${column.numeric ? "num text-right text-[13px]" : ""}`}
+            >
+              {index === 0 ? (
+                <Link
+                  to={href}
+                  onClick={(event) => event.stopPropagation()}
+                  className="block truncate rounded font-medium"
+                >
+                  {shown}
+                </Link>
+              ) : (
+                shown
+              )}
+            </td>
+          );
+        })}
       {buttons && <RowButtonsCell name={name} {...buttons} />}
     </tr>
   );
@@ -545,28 +550,30 @@ function HeadingRow<T extends RowData>({ headers, cells, buttonsWidth, onSort }:
   return (
     <thead>
       <tr>
-        {headers.map((header) => {
-          const column = cells.get(header.column.id)!;
-          const sorted = header.column.getIsSorted();
-          return (
-            <th
-              key={header.id}
-              scope="col"
-              aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
-              className={`h-9 px-2.5 text-[13px] font-semibold ${column.numeric ? "text-right" : "text-left"} ${column.width ?? ""}`}
-            >
-              <button
-                type="button"
-                onClick={() => onSort(column.id)}
-                className={`inline-flex items-center gap-1 rounded ${column.numeric ? "flex-row-reverse" : ""}`}
+        {headers
+          .filter((header) => !cells.get(header.column.id)!.hidden)
+          .map((header) => {
+            const column = cells.get(header.column.id)!;
+            const sorted = header.column.getIsSorted();
+            return (
+              <th
+                key={header.id}
+                scope="col"
+                aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                className={`h-9 px-2.5 text-[13px] font-semibold ${column.numeric ? "text-right" : "text-left"} ${column.width ?? ""}`}
               >
-                {column.header}
-                {sorted === "asc" && <ArrowUp size={13} aria-hidden="true" />}
-                {sorted === "desc" && <ArrowDown size={13} aria-hidden="true" />}
-              </button>
-            </th>
-          );
-        })}
+                <button
+                  type="button"
+                  onClick={() => onSort(column.id)}
+                  className={`inline-flex items-center gap-1 rounded ${column.numeric ? "flex-row-reverse" : ""}`}
+                >
+                  {column.header}
+                  {sorted === "asc" && <ArrowUp size={13} aria-hidden="true" />}
+                  {sorted === "desc" && <ArrowDown size={13} aria-hidden="true" />}
+                </button>
+              </th>
+            );
+          })}
         {buttonsWidth && (
           <th scope="col" className={buttonsWidth}>
             <span className="sr-only">Actions</span>

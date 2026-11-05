@@ -38,7 +38,15 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ### Requests
 
-- The API accepts only JSON request bodies.
+- The API accepts only JSON request bodies. The logo travels inside one, as base64 (B21), so no route reads a file upload.
+- A request body over 2 MB is refused with a 413 and `{"detail": "That's too big to send."}`, so a large body can't use up the server's memory. The bytes are counted as they arrive, so a body sent without a `Content-Length` is refused too. The check comes after the token's and before the JSON check, so a body sent without a token is still refused for the token. The largest body the app sends is a 1 MB logo, about 1.4 MB as base64.
 - Website links must be `http` or `https`, so a saved value can't run a script when clicked.
 - A quote's PDF draws everything typed as plain text, never as markup or formatting (Q32), so a description or a name can't change what the PDF shows or does. The PDF is made by the backend from the saved quote, at the request of a signed-in person, and its route needs a token like every other.
 - The backend works out every amount on a quote from its lines and the tax rate, and never takes a subtotal, tax or total from the request (Q15).
+
+### Invoices and the logo
+
+- The backend works out every amount on an invoice and every balance itself, and ignores any figure a request sends (V9). A payment is checked against what's owed under the write lock, so no pair of requests can overpay an invoice (V16).
+- An issued invoice can't be changed through any route (V12), so what a customer was sent stays as it was.
+- Anything typed into an invoice or the company settings goes onto the PDF as plain text, never as markup (V25), and the preview draws it as SVG text, never as HTML.
+- The logo is kept only if Pillow reads it as a PNG or a JPEG, whatever its name or stated type, and no larger than 1 MB or 2,000 pixels on a side, so a small file can't unpack into a huge image (B21). SVG is refused, because it can carry a script. The logo is sent back with the type the check found and `X-Content-Type-Options: nosniff`, so a browser never treats it as anything else.

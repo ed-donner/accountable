@@ -1,7 +1,7 @@
-/** "1 deal", "3 deals", "1 activity", "2 activities". */
+/** "1 deal", "3 deals", "1 activity", "2 activities", "12 days". */
 export function plural(count: number, noun: string): string {
   if (count === 1) return `1 ${noun}`;
-  const many = noun.endsWith("y") ? `${noun.slice(0, -1)}ies` : `${noun}s`;
+  const many = /[^aeiou]y$/.test(noun) ? `${noun.slice(0, -1)}ies` : `${noun}s`;
   return `${count} ${many}`;
 }
 

@@ -148,7 +148,9 @@ test("npm run seed with the app running brings back the sample data and keeps th
   await goto(page, "/");
   const money = page.getByRole("region", { name: "Money" });
   await expect(money.getByRole("link", { name: /^What we owe/ })).toContainText(/\$[1-9][\d,]*\.\d\d/);
-  await expect(money.getByRole("link", { name: /^Overdue/ })).toContainText(/\$[1-9][\d,]*\.\d\d/);
+  await expect(
+    money.getByRole("region", { name: "Bills to pay" }).getByRole("link", { name: /^Overdue/ }),
+  ).toContainText(/\$[1-9][\d,]*\.\d\d/);
   await expect(money.getByRole("img", { name: /bills due from today/ })).toBeVisible();
   await expect(money.getByRole("img", { name: /^Spending by category/ })).toBeVisible();
   const months = money.getByRole("table", { name: "Spending by category for the last 12 months" }).locator("tbody tr");

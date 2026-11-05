@@ -17,6 +17,9 @@ const SETTINGS = {
   payment_terms_days: 30,
   quote_prefix: "QT-",
   invoice_prefix: "INV-",
+  invoice_design: "classic",
+  accent_color: "#073B4C",
+  logo: null,
   updated_at: "2026-10-31T12:00:00Z",
   updated_by: null,
 };
@@ -31,6 +34,37 @@ const PRODUCT = {
   updated_by: null,
 };
 
+const INVOICE = {
+  id: 7,
+  number: "INV-0042",
+  issue_order: 42,
+  shows_as: "issued",
+  status: "issued",
+  deal: { id: 3, name: "Annual support" },
+  organization: { id: 2, name: "Harbor & Pine" },
+  bill_to: "Harbor & Pine",
+  issue_date: "2026-10-31",
+  due_date: "2026-11-30",
+  total_cents: 100000,
+  owed_cents: 100000,
+  days_late: null,
+  deal_stage: "won",
+  company: { name: "Plainsong Systems", address: null, email: null, phone: null },
+  tax_label: "Sales tax",
+  tax_rate: "0",
+  lines: [],
+  subtotal_cents: 100000,
+  tax_cents: 0,
+  paid_cents: 0,
+  payments: [],
+  issued_by: null,
+  voided_by: null,
+  voided_at: null,
+  created_at: "2026-10-31T12:00:00Z",
+  created_by: null,
+  updated_at: "2026-10-31T12:00:00Z",
+  updated_by: null,
+};
 const WHO = {
   created_at: "2026-10-12T12:00:00Z",
   created_by: null,
@@ -107,6 +141,41 @@ const NO_MONEY = {
   due: { total_cents: "0", count: 0, bills: [] },
   months: [],
 };
+const NO_INVOICE_MONEY = {
+  owed: { cents: 0, count: 0 },
+  overdue: { cents: 0, count: 0 },
+  groups: [],
+  payments: [
+    { month: "2026-09", label: "Sep", cents: 0, count: 0 },
+    { month: "2026-10", label: "Oct", cents: 0, count: 0 },
+  ],
+};
+// A won deal and its organization, for the Invoices panels.
+const WON_DEAL = {
+  id: 3,
+  name: "Annual support",
+  organization_id: 2,
+  organization_name: "Harbor & Pine",
+  main_contact_id: null,
+  main_contact_name: null,
+  stage: "won",
+  value: 1000,
+  probability: 100,
+  expected_revenue: 0,
+  close_date: "2026-10-30",
+  position: 0,
+  ...WHO,
+};
+const ORGANIZATION = {
+  id: 2,
+  name: "Harbor & Pine",
+  website: null,
+  industry: null,
+  notes: null,
+  contacts: [],
+  deals: [],
+  ...WHO,
+};
 
 let calls: Call[];
 
@@ -118,6 +187,7 @@ beforeEach(() => {
     "GET /me": ALEX,
     "GET /local/teammates": [ALEX],
     "POST /local/sign-in": { token: "alex-token" },
+    "GET /invoices/money": NO_INVOICE_MONEY,
     "GET /bills/dashboard": NO_MONEY,
   });
 });
@@ -200,7 +270,7 @@ describe("the app, signed out", () => {
 
     expect((await heading()).textContent).toBe("Deals");
     expect(window.location.pathname).toBe("/deals");
-    expect(topBar().getAllByRole("link")).toHaveLength(8);
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
   });
 });
 
@@ -211,13 +281,13 @@ describe("the app, signed in", () => {
     visit("/");
     render(<App />);
     expect((await heading()).textContent).toBe("Dashboard");
-    expect(topBar().getAllByRole("link")).toHaveLength(8);
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
     const bar = within(screen.getByRole("banner"));
     expect(bar.getByLabelText(SEARCH_BOX)).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
   });
 
-  it("links the top bar to the eight sections, in order, Quotes and Bills last", async () => {
+  it("links the top bar to the nine sections, in order, Quotes, Invoices and Bills last", async () => {
     visit("/");
     render(<App />);
     await heading();
@@ -230,6 +300,7 @@ describe("the app, signed in", () => {
       ["Pipeline", "/pipeline"],
       ["Products", "/products"],
       ["Quotes", "/quotes"],
+      ["Invoices", "/invoices"],
       ["Bills", "/bills"],
     ]);
   });
@@ -251,6 +322,7 @@ describe("the app, signed in", () => {
     ["/pipeline", "Pipeline"],
     ["/products", "Products"],
     ["/quotes", "Quotes"],
+    ["/invoices", "Invoices"],
     ["/bills", "Bills"],
   ])("gives %s its own address", async (path, title) => {
     render(<App />);
@@ -266,6 +338,7 @@ describe("the app, signed in", () => {
     ["/products/abc", "This product no longer exists", "Back to Products"],
     ["/quotes/abc", "This quote no longer exists", "Back to Quotes"],
     ["/quotes/new?deal=abc", "This deal no longer exists", "Back to Quotes"],
+    ["/invoices/abc", "This invoice no longer exists", "Back to Invoices"],
     ["/bills/abc", "This bill no longer exists", "Back to Bills"],
   ])("says %s couldn't be a record, with a link back to its section", async (path, title, back) => {
     render(<App />);
@@ -330,10 +403,19 @@ describe("the app, signed in", () => {
     visit("/");
     render(<App />);
     expect((await heading()).textContent).toBe("Dashboard");
-    const money = await screen.findByRole("region", { name: "Money" });
-    expect(within(money).getByRole("link", { name: /^What we owe/ }).textContent).toBe(
+    const money = within(await screen.findByRole("region", { name: "Money" }));
+    expect((await money.findByRole("link", { name: /^What we owe/ })).textContent).toBe(
       "What we owe$0.000 unpaid bills",
     );
+    expect(await money.findByText("Nothing owed.")).toBeTruthy();
+    // One section for both: what customers owe us, from invoices, then what we owe, from bills.
+    expect(money.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual([
+      "Owed to us",
+      "Payments received",
+      "Bills to pay",
+      "Spending by category",
+    ]);
+    expect(screen.getAllByRole("heading", { level: 2, name: "Money" })).toHaveLength(1);
     expect(screen.getAllByRole("heading", { level: 2 }).at(-1)?.textContent).toBe("Money");
   });
 
@@ -353,22 +435,61 @@ describe("the app, signed in", () => {
       "GET /organizations/1": NORTHWIND,
       "GET /organizations/1/timeline?limit=50&offset=0": { entries: [], total: 0 },
       "GET /quotes?organization_id=1": [],
+      "GET /invoices?organization_id=1": [],
       "GET /bills?organization_id=1": [BILL],
     });
     render(<App />);
     visit("/organizations/1");
     expect((await heading()).textContent).toBe("Northwind Software");
     const panels = screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"));
-    expect(panels.slice(0, 5)).toEqual(["Details", "Contacts", "Deals", "Quotes", "Bills"]);
+    expect(panels.slice(0, 6)).toEqual(["Details", "Contacts", "Deals", "Quotes", "Invoices", "Bills"]);
     const bills = within(screen.getByRole("region", { name: "Bills" }));
     expect((await bills.findByRole("link", { name: "INV-0042" })).getAttribute("href")).toBe("/bills/9");
+  });
+
+  it("opens an invoice's page at its address, and says when one no longer exists", async () => {
+    mockApi({
+      "GET /me": ALEX,
+      "GET /meta": META,
+      "GET /settings": SETTINGS,
+      "GET /invoices/7": INVOICE,
+      "GET /invoices/8": () => ({ status: 404, body: { detail: "Invoice not found" } }),
+    });
+    render(<App />);
+    visit("/invoices/7");
+    expect((await heading()).textContent).toBe("INV-0042");
+    visit("/invoices/8");
+    expect((await screen.findByRole("heading", { level: 1, name: "This invoice no longer exists" })).textContent).toBe(
+      "This invoice no longer exists",
+    );
+  });
+
+  it("puts the Invoices panel on a deal's and an organization's page, and Money below the dashboard", async () => {
+    mockApi({
+      "GET /me": ALEX,
+      "GET /meta": META,
+      "GET /deals/3": WON_DEAL,
+      "GET /deals/3/timeline?limit=50&offset=0": { entries: [], total: 0 },
+      "GET /invoices?deal_id=3": [],
+      "GET /organizations/2": ORGANIZATION,
+      "GET /organizations/2/timeline?limit=50&offset=0": { entries: [], total: 0 },
+      "GET /invoices?organization_id=2": [],
+    });
+    render(<App />);
+    visit("/deals/3");
+    expect(await screen.findByRole("region", { name: "Invoices" })).toBeTruthy();
+    expect(await screen.findByText("No invoices yet.")).toBeTruthy();
+    visit("/organizations/2");
+    expect(await screen.findByRole("region", { name: "Invoices" })).toBeTruthy();
+    visit("/");
+    expect(await screen.findByRole("heading", { level: 2, name: "Money" })).toBeTruthy();
   });
 
   it("says an unknown address no longer exists, links to the Dashboard and keeps the top bar", async () => {
     render(<App />);
     visit("/no/such/page");
     expect((await heading()).textContent).toBe("This page no longer exists");
-    expect(topBar().getAllByRole("link")).toHaveLength(8);
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
 
     await user().click(screen.getByRole("link", { name: "Back to Dashboard" }));
 
@@ -382,7 +503,7 @@ describe("the app, signed in", () => {
     visit("/settings");
     expect((await heading()).textContent).toBe("Company settings");
     expect(window.location.pathname).toBe("/settings");
-    expect(topBar().getAllByRole("link")).toHaveLength(8);
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
     expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
     expect(await screen.findByLabelText("Company name")).toBeTruthy();
   });

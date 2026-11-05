@@ -221,7 +221,7 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 | Running both servers | concurrently |
 | Signing in, in the browser | `@supabase/supabase-js` 2, in the shared app only |
 | Backend | FastAPI, Uvicorn, SQLAlchemy Core, Alembic, Pydantic |
-| PDFs | ReportLab 4, with Pillow, which it brings, for the logo |
+| PDFs | ReportLab 5, with Pillow, which it brings, for the logo |
 | Postgres | psycopg 3, SQLAlchemy's driver for it |
 | Checking tokens | PyJWT, with `cryptography` for Supabase's signing keys |
 | Frontend tools | `typescript`, `@vitejs/plugin-react`, `@tailwindcss/vite` |

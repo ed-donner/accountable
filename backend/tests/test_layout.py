@@ -3,29 +3,51 @@
 import re
 from pathlib import Path
 
+import pytest
+
 PACKAGE = Path(__file__).resolve().parents[1] / "accountable"
-# Where the app is put together. Everything else outside crm/, a later area's folder
-# included, gets what it needs from the top level.
-MAY_NAME_CRM = {"main.py", "cli.py", "migrations/env.py"}
+# Each business area's folder, found by its tables, so a later area is held to the rules too.
+AREAS = sorted(path.parent.name for path in PACKAGE.glob("*/tables.py"))
+# Where the app is put together. Everything else, every area's folder included, gets
+# what it needs from the top level.
+MAY_NAME_AN_AREA = {"main.py", "cli.py", "migrations/env.py"}
 
 
 def sources() -> list[Path]:
     return [path for path in PACKAGE.rglob("*.py") if "__pycache__" not in path.parts]
 
 
-def test_only_main_cli_and_the_migrations_name_crm():
-    found = {
-        path.relative_to(PACKAGE).as_posix()
-        for path in sources()
-        if "crm" not in path.relative_to(PACKAGE).parts[:1]
-        and re.search(r"accountable\.crm|import crm", path.read_text())
-    }
-    assert found <= MAY_NAME_CRM
+def area_of(path: Path) -> str | None:
+    first = path.relative_to(PACKAGE).parts[0]
+    return first if first in AREAS else None
+
+
+def names(path: Path, area: str) -> bool:
+    return bool(re.search(rf"accountable\.{area}\b|import {area}\b", path.read_text()))
+
+
+def test_the_areas_are_found():
+    assert AREAS == ["crm", "products"]
+
+
+@pytest.mark.parametrize("area", AREAS)
+def test_no_area_imports_another(area):
+    others = [path for path in sources() if area_of(path) not in (None, area)]
+    assert others  # The check is looking in the right place.
+    assert [path.relative_to(PACKAGE).as_posix() for path in others if names(path, area)] == []
+
+
+@pytest.mark.parametrize("area", AREAS)
+def test_only_main_cli_and_the_migrations_name_an_area(area):
+    found = {path.relative_to(PACKAGE).as_posix() for path in sources() if area_of(path) is None and names(path, area)}
+    assert found <= MAY_NAME_AN_AREA
     assert "main.py" in found  # The check is looking in the right place.
 
 
-def test_db_never_imports_crm():
-    assert "crm" not in (PACKAGE / "db.py").read_text()
+@pytest.mark.parametrize("area", AREAS)
+@pytest.mark.parametrize("module", ["db.py", "search.py"])
+def test_db_and_search_never_name_an_area(module, area):
+    assert not names(PACKAGE / module, area)
 
 
 def test_there_is_no_raw_sql():

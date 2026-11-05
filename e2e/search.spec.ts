@@ -1,14 +1,14 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { addContact, addDeal, addOrganization, emptyDatabase } from "./helpers";
+import { addContact, addDeal, addOrganization, addProduct, emptyDatabase } from "./helpers";
 
 // The top bar's search (K1 to K7), on a database holding only what each test adds.
 
 test.beforeEach(emptyDatabase);
 
 function searchBox(page: Page) {
-  return page.getByRole("combobox", { name: "Search organizations, contacts and deals" });
+  return page.getByRole("combobox", { name: "Search organizations, contacts, deals and products" });
 }
 
 function results(page: Page) {
@@ -110,7 +110,7 @@ test("says so when nothing matches", async ({ page, request }) => {
   await addHarbor(request);
   await page.goto("/");
   await searchBox(page).fill("harbour");
-  await expect(page.getByRole("status")).toHaveText('No organizations, contacts or deals match "harbour".');
+  await expect(page.getByRole("status")).toHaveText('No organizations, contacts, deals or products match "harbour".');
 });
 
 test("% and _ match only themselves", async ({ page, request }) => {
@@ -157,4 +157,42 @@ test("Escape closes the list, and a second Escape clears the box", async ({ page
   await page.keyboard.press("Escape");
   await expect(searchBox(page)).toHaveValue("");
   await expect(page).toHaveURL("/");
+});
+
+test("finds active products, fourth, with their prices, and opens one", async ({ page, request }) => {
+  await addHarbor(request);
+  const survey = await addProduct(request, "Harbor survey", { unit_price_cents: 125050 });
+  await addProduct(request, "Harbor seat", { unit_price_cents: 4950 });
+  await addProduct(request, "Harbor printer", { unit_price_cents: 28995, active: false });
+  await page.goto("/");
+
+  await searchBox(page).fill("harb");
+  const groups = results(page).getByRole("group");
+  await expect(groups).toHaveCount(4);
+  for (const [index, name] of ["Organizations", "Contacts", "Deals", "Products"].entries()) {
+    await expect(groups.nth(index)).toHaveAccessibleName(name);
+  }
+  const products = results(page).getByRole("group", { name: "Products" });
+  await expect(products.getByRole("option")).toHaveText(["Harbor seat$49.50", "Harbor survey$1,250.50"]);
+  await expect(products.getByText("$1,250.50")).toHaveCSS("font-family", /JetBrains Mono/);
+
+  await result(page, "Harbor survey").click();
+  await expect(page).toHaveURL(`/products/${survey.id}`);
+  await expect(heading(page, "Harbor survey")).toBeVisible();
+});
+
+test("See all 6 products opens Products with the same search", async ({ page, request }) => {
+  for (const name of ["Seat pack", "Pro seat", "Team seat", "Extra seat", "Basic seat", "Annual seat"]) {
+    await addProduct(request, name);
+  }
+  await addProduct(request, "Old seat", { active: false });
+  await page.goto("/");
+
+  await searchBox(page).fill("seat");
+  await expect(results(page).getByRole("group", { name: "Products" }).getByRole("option")).toHaveCount(6);
+  await result(page, "See all 6 products").click();
+
+  await expect(page).toHaveURL("/products?q=seat");
+  await expect(page.getByRole("searchbox", { name: "Search products" })).toHaveValue("seat");
+  await expect(page.locator("tbody tr")).toHaveCount(6);
 });

@@ -53,6 +53,23 @@ export function mockApi(routes: Record<string, unknown | Handler>): Call[] {
 }
 
 /**
+ * Keeps every save unanswered until released, on top of mockApi. The stand-in backend
+ * answers at once, which would finish the first save before a second press could overlap it.
+ */
+export function holdSaves() {
+  let release = () => undefined as void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const answer = globalThis.fetch;
+  vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+    if (init.method && init.method !== "GET") await held;
+    return answer(url, init);
+  });
+  return release;
+}
+
+/**
  * Starts the test signed in to the local copy, the way a tab does when another tab
  * signs in. mockApi takes any token. test-setup.ts signs out after each test.
  */

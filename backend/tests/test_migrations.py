@@ -4,6 +4,7 @@ from datetime import date, datetime
 import pytest
 from accountable import db
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
+from accountable.products.tables import products
 from accountable.users import users
 from alembic import command, op
 from alembic.autogenerate import compare_metadata
@@ -84,6 +85,13 @@ def test_the_spec_indexes_exist(database):
     assert ("changed_at",) in indexes["stage_changes"]
 
 
+def test_product_names_have_a_unique_index(database):
+    unique = {
+        tuple(index["column_names"]): index["unique"] for index in inspect(db.engine()).get_indexes(products.name)
+    }
+    assert unique[("name_key",)]
+
+
 def test_every_foreign_key_has_an_index(database):
     for name, built in live().items():
         indexed = set(built["indexes"].values())
@@ -95,11 +103,12 @@ def test_users_and_who_added_each_record_are_built(database):
     built = live()
     assert built["users"]["columns"]["id"] == ("TEXT", False)
     assert built["users"]["columns"]["email"] == ("TEXT", False)
-    for record in ("organizations", "contacts", "deals", "activities"):
+    for record in ("organizations", "contacts", "deals", "activities", "products"):
         assert (("created_by",), "users", None) in built[record]["foreign_keys"], record
         assert (("updated_by",), "users", None) in built[record]["foreign_keys"], record
     assert (("created_by",), "users", None) in built["stage_changes"]["foreign_keys"]
     assert built["deals"]["columns"]["value"] == ("BIGINT", False)
+    assert built["products"]["columns"]["unit_price_cents"] == ("BIGINT", False)
 
 
 def test_the_check_constraint_matches(database):
@@ -300,6 +309,14 @@ def test_an_upgrade_that_stops_partway_changes_nothing(older_database, monkeypat
     assert "AUTOINCREMENT" in built_tables()["stage_changes"]
 
 
+def test_an_upgrade_adds_the_products_table_with_no_products_in_it(older_database):
+    """Sample products only go into a new database (M1), so an existing one starts with none."""
+    db.prepare_database(nothing)
+    assert products.name in inspect(db.engine()).get_table_names()
+    with db.reading() as conn:
+        assert conn.execute(select(func.count()).select_from(products)).scalar_one() == 0
+
+
 def test_upgrading_from_before_sign_in_keeps_every_row_with_no_one_recorded(database_from_before_sign_in):
     before = everything()
 
@@ -360,6 +377,12 @@ def test_on_postgres_the_sqlite_rebuilds_are_skipped(postgres_sql):
 
 def test_on_postgres_deal_values_are_64_bit(postgres_sql):
     assert "ALTER TABLE deals ALTER COLUMN value TYPE BIGINT" in postgres_sql
+
+
+def test_on_postgres_prices_are_64_bit(postgres_sql):
+    """Postgres's integer stops at about $21 million in cents, far short of the $1 trillion allowed (G3)."""
+    created = postgres_sql[postgres_sql.index("CREATE TABLE products") :]
+    assert "unit_price_cents BIGINT NOT NULL" in created[: created.index(";")]
 
 
 def test_on_postgres_every_table_gets_row_level_security(postgres_sql):

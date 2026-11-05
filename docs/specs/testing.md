@@ -99,7 +99,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 | Search | K1 to K8 | `e2e/search.spec.ts`, `backend/tests/test_search.py`, `frontend/src/components/Search.test.tsx` |
 | Products | G1 to G12 | `e2e/products.spec.ts`, `backend/tests/test_products.py`, the tests in `frontend/src/products/` and `frontend/src/lib/money.test.ts` |
 | Look and brand | Visual design, L5 | By hand, against the design reference and the dark mode screenshots |
-| Layout, console, keyboard, Chrome | N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
+| Layout, the top bar on one line at 1280px, console, keyboard, Chrome | N1, N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
 | Speed at the limits | Q1 | `e2e/stress.spec.ts` |
 | Security | Security, U7, U16 | `e2e/security.spec.ts`, `backend/tests/test_every_route.py`, `backend/tests/test_security.py`, `backend/tests/test_auth.py` |
 | Which copy runs | C8 to C10 | `backend/tests/test_settings.py`, `scripts/setup.test.mjs`, `scripts/start.test.mjs` |

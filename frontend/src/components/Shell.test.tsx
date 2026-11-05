@@ -7,7 +7,7 @@ import { queryDefaults } from "../lib/queryDefaults";
 import { mockApi, user } from "../test-utils";
 import { Shell } from "./Shell";
 
-const SECTIONS = ["Dashboard", "Organizations", "Contacts", "Deals", "Pipeline"];
+const SECTIONS = ["Dashboard", "Organizations", "Contacts", "Deals", "Pipeline", "Products"];
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 9, 31, 12, 0) });
@@ -31,6 +31,7 @@ function openAt(path: string) {
             <Route path="/deals" element={<p>The deals page</p>} />
             <Route path="/deals/:id" element={<p>One deal's page</p>} />
             <Route path="/pipeline" element={<p>The pipeline page</p>} />
+            <Route path="/products" element={<p>The products page</p>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -59,7 +60,7 @@ function currentSections() {
 }
 
 describe("the top bar", () => {
-  it("links to the five sections, in order", () => {
+  it("links to the six sections, in order, Products last", () => {
     openAt("/");
     const links = sections().getAllByRole("link");
     expect(links.map((link) => link.textContent)).toEqual(SECTIONS);
@@ -69,13 +70,22 @@ describe("the top bar", () => {
       "/contacts",
       "/deals",
       "/pipeline",
+      "/products",
     ]);
   });
 
-  it("shows the app's name and today's date", () => {
+  it("gives every section an icon of the same size, hidden from screen readers", () => {
+    openAt("/");
+    for (const link of sections().getAllByRole("link")) {
+      const icon = link.querySelector("svg")!;
+      expect([icon.getAttribute("width"), icon.getAttribute("aria-hidden")], link.textContent!).toEqual(["17", "true"]);
+    }
+  });
+
+  it("shows the app's name and today's date, which never wraps", () => {
     openAt("/");
     expect(screen.getByText("Accountable")).toBeTruthy();
-    expect(screen.getByText("Oct 31, 2026")).toBeTruthy();
+    expect(screen.getByText("Oct 31, 2026").className).toContain("whitespace-nowrap");
   });
 
   it("marks the Dashboard as the section you're in on the Dashboard only", () => {
@@ -89,7 +99,7 @@ describe("the top bar", () => {
     expect(screen.getByRole("main").textContent).toBe("One deal's page");
   });
 
-  it.each(["/", "/organizations", "/contacts", "/deals", "/pipeline", "/deals/7"])(
+  it.each(["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/deals/7"])(
     "has the search box after the sections, then the date and the menu button, at %s",
     async (path) => {
       openAt(path);
@@ -115,5 +125,10 @@ describe("the top bar", () => {
 
     expect(screen.getByRole("main").textContent).toBe("The pipeline page");
     expect(currentSections()).toEqual(["Pipeline"]);
+
+    await user().click(sections().getByRole("link", { name: "Products" }));
+
+    expect(screen.getByRole("main").textContent).toBe("The products page");
+    expect(currentSections()).toEqual(["Products"]);
   });
 });

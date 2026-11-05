@@ -2,59 +2,51 @@ import { useQuery } from "@tanstack/react-query";
 import { Command } from "cmdk";
 import { Search as Magnifier } from "lucide-react";
 import { Popover } from "radix-ui";
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 
 import { ApiError, api } from "../lib/api";
-import type { RecordKind, Stage } from "./queries";
-import { StageChip } from "./StageChip";
 
 /** How long typing has to pause before the search is sent (K3). */
 export const PAUSE_MS = 150;
 const SHOWN = 5;
 const LONGEST = 100;
-const LABEL = "Search organizations, contacts and deals";
 
-type Group<T> = { count: number; results: T[] };
-export type SearchResults = {
-  organizations: Group<{ id: number; name: string; industry: string | null }>;
-  contacts: Group<{ id: number; name: string; organization_name: string | null }>;
-  deals: Group<{ id: number; name: string; stage: Stage; organization_name: string | null }>;
+/** One result: every kind has an id and a name, and each area's results carry more, which its group shows. */
+export type SearchResult = { id: number; name: string; [field: string]: unknown };
+
+/**
+ * One kind of record the box finds, as its area describes it. Methods rather than
+ * arrow properties, so a group for a narrower result still fits in a list of groups.
+ */
+export type SearchGroup<Result extends SearchResult = SearchResult> = {
+  /** Where the reply keeps this kind, which is also its section's address, such as "contacts". */
+  kind: string;
+  heading: string;
+  address(id: number): string;
+  /** The one detail shown in muted ink at the end of the row (K5). */
+  detail(result: Result): ReactNode;
+  /** A chip after the name, such as a deal's stage. */
+  chip?(result: Result): ReactNode;
 };
+
+export type SearchResults = Record<string, { count: number; results: SearchResult[] }>;
 
 /** A reply with the text it answers, which may be an earlier one than the box now holds. */
 type Found = { text: string; results: SearchResults };
 
-type Result = { id: number; name: string; detail: string | null; stage?: Stage };
-type ShownGroup = { kind: RecordKind; heading: string; count: number; results: Result[] };
+type ShownGroup = { group: SearchGroup; count: number; results: SearchResult[] };
 
-function groupsOf({ organizations, contacts, deals }: SearchResults): ShownGroup[] {
-  const groups: ShownGroup[] = [
-    {
-      kind: "organizations",
-      heading: "Organizations",
-      count: organizations.count,
-      results: organizations.results.map(({ id, name, industry }) => ({ id, name, detail: industry })),
-    },
-    {
-      kind: "contacts",
-      heading: "Contacts",
-      count: contacts.count,
-      results: contacts.results.map(({ id, name, organization_name }) => ({ id, name, detail: organization_name })),
-    },
-    {
-      kind: "deals",
-      heading: "Deals",
-      count: deals.count,
-      results: deals.results.map(({ id, name, stage, organization_name }) => ({
-        id,
-        name,
-        stage,
-        detail: organization_name,
-      })),
-    },
-  ];
-  return groups.filter((group) => group.count > 0);
+function shownGroups(groups: SearchGroup[], results: SearchResults): ShownGroup[] {
+  return groups
+    .map((group) => ({ group, count: results[group.kind]?.count ?? 0, results: results[group.kind]?.results ?? [] }))
+    .filter(({ count }) => count > 0);
+}
+
+/** "organizations, contacts and deals", from the groups' headings. */
+function kindsOf(groups: SearchGroup[], last: "and" | "or") {
+  const words = groups.map((group) => group.heading.toLowerCase());
+  return words.length > 1 ? `${words.slice(0, -1).join(", ")} ${last} ${words.at(-1)}` : words.join("");
 }
 
 /** Keyed by the text, so a reply to an older search lands under its own key and never replaces a newer one. */
@@ -92,33 +84,36 @@ const ROW = "flex cursor-pointer items-center gap-2 rounded-md px-2.5 data-[sele
 const HEADING =
   "[&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[13px] [&_[cmdk-group-heading]]:leading-[18px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted";
 
-function ResultGroup({ group, text, onOpen }: { group: ShownGroup; text: string; onOpen: (path: string) => void }) {
-  const { kind, heading, count, results } = group;
+function ResultGroup({ shown, text, onOpen }: { shown: ShownGroup; text: string; onOpen: (path: string) => void }) {
+  const { group, count, results } = shown;
   return (
-    <Command.Group heading={heading} className={`mt-1.5 first:mt-0 ${HEADING}`}>
-      {results.map((result) => (
-        <Command.Item
-          key={result.id}
-          value={`${kind}-${result.id}`}
-          onSelect={() => onOpen(`/${kind}/${result.id}`)}
-          className={`${ROW} h-11`}
-        >
-          <span className="min-w-0 truncate">
-            <Highlighted name={result.name} text={text} />
-          </span>
-          {result.stage && <StageChip stage={result.stage} />}
-          {result.detail && (
-            <span className="ml-auto max-w-[40%] flex-none truncate pl-2 text-[13px] text-muted">{result.detail}</span>
-          )}
-        </Command.Item>
-      ))}
+    <Command.Group heading={group.heading} className={`mt-1.5 first:mt-0 ${HEADING}`}>
+      {results.map((result) => {
+        const detail = group.detail(result);
+        return (
+          <Command.Item
+            key={result.id}
+            value={`${group.kind}-${result.id}`}
+            onSelect={() => onOpen(group.address(result.id))}
+            className={`${ROW} h-11`}
+          >
+            <span className="min-w-0 truncate">
+              <Highlighted name={result.name} text={text} />
+            </span>
+            {group.chip?.(result)}
+            {detail && (
+              <span className="ml-auto max-w-[40%] flex-none truncate pl-2 text-[13px] text-muted">{detail}</span>
+            )}
+          </Command.Item>
+        );
+      })}
       {count > SHOWN && (
         <Command.Item
-          value={`${kind}-all`}
-          onSelect={() => onOpen(`/${kind}?${new URLSearchParams({ q: text })}`)}
+          value={`${group.kind}-all`}
+          onSelect={() => onOpen(`/${group.kind}?${new URLSearchParams({ q: text })}`)}
           className={`${ROW} h-9 text-[13px] font-semibold`}
         >
-          See all {count} {kind}
+          See all {count} {group.kind}
         </Command.Item>
       )}
     </Command.Group>
@@ -133,20 +128,28 @@ function Message({ children }: { children: string }) {
   );
 }
 
-function Results({ found, failed, onOpen }: { found?: Found; failed: boolean; onOpen: (path: string) => void }) {
+type ResultsProps = {
+  groups: SearchGroup[];
+  found?: Found;
+  failed: boolean;
+  onOpen: (path: string) => void;
+};
+
+function Results({ groups, found, failed, onOpen }: ResultsProps) {
   if (failed) return <Message>Couldn't search. Try again.</Message>;
   if (!found) return null;
-  const groups = groupsOf(found.results);
-  if (groups.length === 0) {
-    return <Message>{`No organizations, contacts or deals match "${found.text}".`}</Message>;
+  const shown = shownGroups(groups, found.results);
+  if (shown.length === 0) {
+    const kinds = kindsOf(groups, "or");
+    return <Message>{`No ${kinds} match "${found.text}".`}</Message>;
   }
   return (
     <Command.List
       label="Search results"
       className="max-h-[calc(var(--radix-popover-content-available-height)-12px)] overflow-y-auto"
     >
-      {groups.map((group) => (
-        <ResultGroup key={group.kind} group={group} text={found.text} onOpen={onOpen} />
+      {shown.map((group) => (
+        <ResultGroup key={group.group.kind} shown={group} text={found.text} onOpen={onOpen} />
       ))}
     </Command.List>
   );
@@ -157,8 +160,8 @@ function failedHere(error: unknown) {
   return Boolean(error) && !(error instanceof ApiError && error.kind === "connection");
 }
 
-/** The search box in the top bar, and its results (K1 to K7). */
-export function Search() {
+/** The search box in the top bar, and its results (K1 to K7), in the groups each area gives it. */
+export function Search({ groups }: { groups: SearchGroup[] }) {
   const navigate = useNavigate();
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -221,10 +224,10 @@ export function Search() {
   }, [showing]);
 
   return (
-    <Command shouldFilter={false} label={LABEL}>
+    <Command shouldFilter={false} label={`Search ${kindsOf(groups, "and")}`}>
       <Popover.Root open={showing} onOpenChange={setOpen}>
         <Popover.Anchor asChild>
-          <div ref={box} className="relative w-[240px]">
+          <div ref={box} className="relative w-[180px]">
             <Magnifier size={16} aria-hidden="true" className="absolute top-[10px] left-3 text-muted" />
             <Command.Input
               ref={input}
@@ -252,7 +255,7 @@ export function Search() {
             onMouseDown={(event) => event.preventDefault()}
             className="z-50 w-[420px] rounded-card bg-raised p-1.5 shadow-(--shadow-popover)"
           >
-            <Results found={shown} failed={failed} onOpen={openPage} />
+            <Results groups={groups} found={shown} failed={failed} onOpen={openPage} />
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>

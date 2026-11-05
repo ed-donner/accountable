@@ -5,9 +5,9 @@ the shared app's routes on their own SQLite database, with a stand-in for Supaba
 """
 
 import os
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from pathlib import Path, PurePath
+from pathlib import Path, PurePath, PurePosixPath
 
 import jwt
 from fastapi import APIRouter, Depends, FastAPI, Request
@@ -20,9 +20,13 @@ from starlette.exceptions import HTTPException
 from starlette.responses import Response
 from starlette.types import Scope
 
-from accountable import api, auth, cli, db, settings, users
-from accountable.crm import schemas
-from accountable.crm.routers import activities, contacts, dashboard, deals, meta, organizations, search
+from accountable import api, auth, cli, db, search, settings, users
+from accountable.crm import schemas as crm_schemas
+from accountable.crm import search as crm_search
+from accountable.crm.routers import activities, contacts, dashboard, deals, meta, organizations
+from accountable.products import router as products
+from accountable.products import schemas as products_schemas
+from accountable.products import search as products_search
 
 FRONTEND = db.ROOT / "frontend" / "dist"
 
@@ -66,8 +70,9 @@ def _local_sign_in_paths() -> list[str]:
 def _signed_in_routes() -> APIRouter:
     routes = APIRouter(prefix="/api", dependencies=[Depends(auth.current_user)])
     routes.include_router(auth.router)
-    for module in (meta, organizations, contacts, deals, activities, dashboard, search):
+    for module in (meta, organizations, contacts, deals, activities, dashboard, products):
         routes.include_router(module.router)
+    routes.include_router(search.router([*crm_search.KINDS, *products_search.KINDS]))
     return routes
 
 
@@ -115,8 +120,16 @@ async def _json_only(request: Request, call_next):
     return await call_next(request)
 
 
+def _area_messages(request: Request) -> Mapping[str, str]:
+    """The messages for the fields of the area whose route the request reached. Both
+    areas have a description, and only the CRM's is required."""
+    if PurePosixPath(request.url.path).parts[:3] == ("/", "api", "products"):
+        return products_schemas.FIELD_MESSAGES
+    return crm_schemas.FIELD_MESSAGES
+
+
 async def _invalid_request(request: Request, error: RequestValidationError):
-    fields = api.field_messages(error.errors(), schemas.FIELD_MESSAGES)
+    fields = api.field_messages(error.errors(), _area_messages(request))
     return JSONResponse({"detail": "Check the form.", "fields": fields}, status_code=422)
 
 

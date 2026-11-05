@@ -87,7 +87,7 @@ Stage changes get their own table because they aren't activities: they have no t
 | Column | Type | Notes |
 |---|---|---|
 | name | text | required |
-| name_key | text | the name with its case taken out, by Python's `casefold()`, which the backend sets on every save. Unique, so it's what makes names unique (G2) |
+| name_key | text | the name with its case taken out, by Python's `casefold()`, then written in Unicode's NFC form, so an accented letter typed as one character matches the same letter typed as a letter and an accent. The backend sets it on every save. Unique, so it's what makes names unique (G2) |
 | description | text | optional |
 | unit_price_cents | 64-bit integer | whole US cents, 0 to 100,000,000,000,000, which is $1 trillion |
 | active | boolean | true by default, and false once archived |

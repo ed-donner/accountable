@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from accountable import db
 from accountable.crm.tables import activities, contacts, deals
+from accountable.products.tables import products
 from conftest import TODAY, using_database
 from limits_data import fill
 from sqlalchemy import event, func, select
@@ -46,6 +47,7 @@ def test_the_data_really_is_at_the_limits(full):
         assert conn.scalar(select(func.count()).select_from(contacts)) == 1000
         assert conn.scalar(select(func.count()).select_from(deals)) == 500
         assert conn.scalar(select(func.count()).select_from(activities)) == 5000
+        assert conn.scalar(select(func.count()).select_from(products)) == 500
 
 
 def test_the_dashboard_is_quick(full):
@@ -54,7 +56,7 @@ def test_the_dashboard_is_quick(full):
     assert elapsed < DASHBOARD_LIMIT_MS
 
 
-@pytest.mark.parametrize("path", ["/api/organizations", "/api/contacts", "/api/deals"])
+@pytest.mark.parametrize("path", ["/api/organizations", "/api/contacts", "/api/deals", "/api/products"])
 def test_lists_are_quick(full, path):
     elapsed = median_ms(full, path)
     print(f"{path}: {elapsed:.1f}ms")
@@ -81,6 +83,10 @@ QUERIES = {
     "/api/organizations/{organization}/timeline": 1,
     "/api/contacts/{contact}/timeline": 1,
     "/api/deals/{deal}/timeline": 1,
+    "/api/products": 1,
+    "/api/products/{product}": 1,
+    # Every kind at once (K8).
+    "/api/search?q=a": 1,
 }
 
 
@@ -92,6 +98,8 @@ def test_a_screen_asks_the_database_only_a_few_times(api, make, path, most):
     make.deal("Another", organization_id=organization, main_contact_id=contact)
     make.activity(deal_id=deal, follow_up_date=TODAY)
     make.activity(contact_id=contact)
+    product = make.product()
+    make.product("Archived", active=False)
     api.post(f"/api/deals/{deal}/move", json={"stage": "qualified"})
 
     statements: list[str] = []
@@ -101,7 +109,8 @@ def test_a_screen_asks_the_database_only_a_few_times(api, make, path, most):
 
     event.listen(db.engine(), "before_cursor_execute", count)
     try:
-        assert api.get(path.format(organization=organization, contact=contact, deal=deal)).status_code == 200
+        address = path.format(organization=organization, contact=contact, deal=deal, product=product)
+        assert api.get(address).status_code == 200
     finally:
         event.remove(db.engine(), "before_cursor_execute", count)
     assert len(statements) <= most, statements

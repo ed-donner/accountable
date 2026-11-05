@@ -13,7 +13,18 @@ import {
   type RowData,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, Pencil, Search, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+} from "react";
 import { Link, useNavigate } from "react-router";
 
 import { useAddress, type AddressChange } from "../lib/useAddress";
@@ -48,7 +59,32 @@ export type TableColumn<T> = {
   width?: string;
 };
 
-type Props<T extends RowData> = {
+/** A row's second button, in place of Delete, such as Archive. */
+export type RowAction = {
+  /** What it does, such as "Archive". Screen readers hear it with the row's name. */
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+};
+
+/** Rows that stay out of the table until a box beside the search shows them, such as archived products. */
+export type HiddenRows<T> = {
+  which: (row: T) => boolean;
+  /** The address setting that keeps the box ticked, such as "archived". */
+  param: string;
+  /** The box's label, before its count, such as "Show archived". */
+  label: string;
+  /** What shows when every row is hidden, such as "Every product is archived." */
+  allHidden: string;
+  /** What's added when only hidden rows match a search, such as "2 archived products match." */
+  hiddenMatch: (count: number) => string;
+};
+
+/** A table gives Delete or another button for each row, never both. */
+type SecondButton<T> =
+  { onDelete: (row: T) => void; rowAction?: never } | { rowAction: (row: T) => RowAction; onDelete?: never };
+
+type Props<T extends RowData> = SecondButton<T> & {
   /** Singular and plural words for the messages, such as "organization". */
   noun: string;
   rows: T[] | undefined;
@@ -62,13 +98,13 @@ type Props<T extends RowData> = {
   rowHref: (row: T) => string;
   onAdd: () => void;
   onEdit: (row: T) => void;
-  onDelete: (row: T) => void;
   /** Filters that sit beside the search box, already applied to rows. */
   filters?: (update: (change: AddressChange) => void) => ReactNode;
   /** True when rows is narrowed by those filters. */
   filtered?: boolean;
   /** Address settings to clear along with the search. */
   clearParams?: string[];
+  hidden?: HiddenRows<T>;
 };
 
 function compare(a: string | number, b: string | number) {
@@ -80,6 +116,18 @@ function blankToUndefined<V>(value: V | null | undefined | ""): V | undefined {
   return value === null || value === "" ? undefined : (value as V | undefined);
 }
 
+/** The table's own search, matched as TanStack's includesString does, for rows the table isn't holding. */
+function matchesSearch<T>(row: T, columns: TableColumn<T>[], search: string) {
+  const wanted = search.toLowerCase();
+  return columns.some(
+    (column) =>
+      column.searchable &&
+      String(column.value(row) ?? "")
+        .toLowerCase()
+        .includes(wanted),
+  );
+}
+
 type SearchBoxProps = {
   noun: string;
   /** The search in the address. */
@@ -87,9 +135,13 @@ type SearchBoxProps = {
   /** The newest address asked for, which may not have landed yet. */
   latest: RefObject<URLSearchParams>;
   onChange: (text: string) => void;
+  /** Lets the table move focus here. */
+  ref: Ref<Focusable>;
 };
 
-function SearchBox({ noun, search, latest, onChange }: SearchBoxProps) {
+type Focusable = { focus: () => void };
+
+function SearchBox({ noun, search, latest, onChange, ref }: SearchBoxProps) {
   // The box keeps its own text, because the address updates a moment later and a
   // box fed from it would drop whatever was typed in between. It follows the
   // address only when something else changed it: Clear search, back or forward.
@@ -98,6 +150,7 @@ function SearchBox({ noun, search, latest, onChange }: SearchBoxProps) {
     const input = box.current;
     if (input && input.value !== search && search === (latest.current.get("q") ?? "")) input.value = search;
   }, [search, latest]);
+  useImperativeHandle(ref, () => ({ focus: () => box.current?.focus() }), []);
 
   return (
     <div className="relative w-[320px]">
@@ -115,6 +168,46 @@ function SearchBox({ noun, search, latest, onChange }: SearchBoxProps) {
   );
 }
 
+function ShowHiddenBox({
+  label,
+  count,
+  shown,
+  onChange,
+}: {
+  label: string;
+  count: number;
+  shown: boolean;
+  onChange: (shown: boolean) => void;
+}) {
+  // The box keeps its own tick, because the address updates a moment later and a box
+  // fed from it would untick in between. It follows the address when something else
+  // changes it, such as a button that shows the hidden rows, or back and forward.
+  const [ticked, setTicked] = useState(shown);
+  const [followed, setFollowed] = useState(shown);
+  if (shown !== followed) {
+    setFollowed(shown);
+    setTicked(shown);
+  }
+
+  return (
+    <label className="flex h-[38px] items-center gap-2 font-medium whitespace-nowrap">
+      <input
+        type="checkbox"
+        className="tick"
+        checked={ticked}
+        onChange={(event) => {
+          setTicked(event.target.checked);
+          onChange(event.target.checked);
+        }}
+      />
+      {`${label} (${count})`}
+    </label>
+  );
+}
+
+/** What a table with hidden rows says when they're all it would show. */
+type HiddenNote = { allHidden: string; matching: string | null; showLabel: string; onShow: () => void };
+
 type NoRowsProps = {
   noun: string;
   rows: unknown[] | undefined;
@@ -122,29 +215,61 @@ type NoRowsProps = {
   matching: number;
   /** True when a search or filter is narrowing the rows. */
   narrowed: boolean;
+  hiddenNote: HiddenNote | null;
   onAdd: () => void;
   onClear: () => void;
 };
 
 /** What shows in place of rows: a space while loading, an invitation, or that nothing matches. */
-function NoRows({ noun, rows, error, matching, narrowed, onAdd, onClear }: NoRowsProps) {
+function NoRows({ noun, rows, error, matching, narrowed, hiddenNote, onAdd, onClear }: NoRowsProps) {
   if (rows === undefined) return error ? null : <div className="h-40" aria-busy="true" />;
+  if (matching > 0) return null;
+  const showHidden = hiddenNote && (
+    <button type="button" className="btn btn-secondary" onClick={hiddenNote.onShow}>
+      {hiddenNote.showLabel}
+    </button>
+  );
   if (narrowed) {
-    return matching === 0 ? (
-      <EmptyState message={`No ${noun}s match.`}>
-        <button type="button" className="btn btn-secondary" onClick={onClear}>
-          Clear search
-        </button>
+    return (
+      <EmptyState message={[`No ${noun}s match.`, hiddenNote?.matching].filter(Boolean).join(" ")}>
+        <div className="flex gap-2">
+          <button type="button" className="btn btn-secondary" onClick={onClear}>
+            Clear search
+          </button>
+          {hiddenNote?.matching && showHidden}
+        </div>
       </EmptyState>
-    ) : null;
+    );
   }
-  return rows.length === 0 ? (
+  if (rows.length > 0) return hiddenNote && <EmptyState message={hiddenNote.allHidden}>{showHidden}</EmptyState>;
+  return (
     <EmptyState message={`No ${noun}s yet. Add the first one.`}>
       <button type="button" className="btn btn-primary" onClick={onAdd}>
         Add {noun}
       </button>
     </EmptyState>
-  ) : null;
+  );
+}
+
+/**
+ * Hidden rows stay out of what the table holds until the box is ticked, and their
+ * matches for the search are counted, for when they're all that match (G6, G7).
+ */
+function useHiddenRows<T>(
+  rows: T[] | undefined,
+  hidden: HiddenRows<T> | undefined,
+  params: URLSearchParams,
+  columns: TableColumn<T>[],
+  search: string,
+) {
+  const shown = hidden === undefined || params.has(hidden.param);
+  const held = useMemo(
+    () => (rows && hidden && !shown ? rows.filter((row) => !hidden.which(row)) : (rows ?? [])),
+    [rows, hidden, shown],
+  );
+  const hiddenRows = useMemo(() => (rows && hidden ? rows.filter(hidden.which) : []), [rows, hidden]);
+  const hiddenMatches = shown ? 0 : hiddenRows.filter((row) => matchesSearch(row, columns, search)).length;
+  return { shown, held, hiddenCount: hiddenRows.length, hiddenMatches };
 }
 
 type PagerProps = {
@@ -172,6 +297,81 @@ function Pager({ page, lastPage, matching, onPrevious, onNext }: PagerProps) {
   );
 }
 
+type TableRowProps<T extends RowData> = {
+  row: Row<typeof features, T>;
+  cells: Map<string, TableColumn<T>>;
+  href: string;
+  name: string;
+  second: { label: string; icon: ReactNode; onClick: () => void };
+  onEdit: () => void;
+  /** Called if this row leaves the table while it has focus, so focus is never left on nothing (Q3). */
+  onLeaveWithFocus: () => void;
+};
+
+function TableRow<T extends RowData>({ row, cells, href, name, second, onEdit, onLeaveWithFocus }: TableRowProps<T>) {
+  const navigate = useNavigate();
+  const element = useRef<HTMLTableRowElement>(null);
+
+  // Runs as the row leaves, such as when Archive hides it, while it's still on the page.
+  useLayoutEffect(() => {
+    const current = element.current;
+    return () => {
+      if (current?.contains(document.activeElement)) onLeaveWithFocus();
+    };
+  }, [onLeaveWithFocus]);
+
+  return (
+    <tr ref={element} onClick={() => navigate(href)} className="group h-11 cursor-pointer hover:bg-page">
+      {row.getAllCells().map((cell, index) => {
+        const column = cells.get(cell.column.id)!;
+        const shown = column.cell ? column.cell(row.original) : (column.value(row.original) ?? "");
+        return (
+          <td
+            key={cell.id}
+            className={`truncate px-2.5 first:rounded-l-[10px] ${column.numeric ? "num text-right text-[13px]" : ""}`}
+          >
+            {index === 0 ? (
+              <Link
+                to={href}
+                onClick={(event) => event.stopPropagation()}
+                className="block truncate rounded font-medium"
+              >
+                {shown}
+              </Link>
+            ) : (
+              shown
+            )}
+          </td>
+        );
+      })}
+      <td className="rounded-r-[10px] pr-1 text-right whitespace-nowrap">
+        <button
+          type="button"
+          aria-label={`Edit ${name}`}
+          className="icon-btn"
+          onClick={(event) => {
+            event.stopPropagation();
+            onEdit();
+          }}
+        >
+          <Pencil size={16} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          aria-label={`${second.label} ${name}`}
+          className="icon-btn"
+          onClick={(event) => {
+            event.stopPropagation();
+            second.onClick();
+          }}
+        >
+          {second.icon}
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 export function DataTable<T extends RowData>({
   noun,
   rows,
@@ -185,12 +385,23 @@ export function DataTable<T extends RowData>({
   onAdd,
   onEdit,
   onDelete,
+  rowAction,
   filters,
   filtered = false,
   clearParams = [],
+  hidden,
 }: Props<T>) {
-  const navigate = useNavigate();
   const { params, latest, update } = useAddress();
+  const searchBox = useRef<Focusable>(null);
+
+  // Once the row has gone, and only if the table is still here and nothing else took focus.
+  const focusSearchBox = useCallback(
+    () =>
+      queueMicrotask(() => {
+        if (document.activeElement === document.body) searchBox.current?.focus();
+      }),
+    [],
+  );
 
   function readSort(address: URLSearchParams) {
     const id = address.get("sort");
@@ -204,6 +415,7 @@ export function DataTable<T extends RowData>({
   const search = params.get("q") ?? "";
   const sort = readSort(params);
   const page = readPage(params);
+  const { shown, held, hiddenCount, hiddenMatches } = useHiddenRows(rows, hidden, params, columns, search);
 
   /** Ascending, then descending. A further click never clears the sort. */
   function toggleSort(id: string) {
@@ -224,11 +436,21 @@ export function DataTable<T extends RowData>({
     });
   }
 
+  /** Leaves the hidden rows' box as it was, because ticking it only ever adds rows. */
   function clearSearch() {
     update((next) => {
       next.delete("q");
       next.delete("page");
       clearParams.forEach((name) => next.delete(name));
+    });
+  }
+
+  function showHidden(on: boolean) {
+    if (!hidden) return;
+    update((next) => {
+      if (on) next.set(hidden.param, "1");
+      else next.delete(hidden.param);
+      next.delete("page");
     });
   }
 
@@ -254,12 +476,10 @@ export function DataTable<T extends RowData>({
     [columns],
   );
 
-  const data = useMemo(() => rows ?? [], [rows]);
-
   const table = useTable({
     features,
     columns: columnDefs,
-    data,
+    data: held,
     getRowId: (row) => String(rowId(row)),
     autoResetPageIndex: false,
     globalFilterFn: "includesString",
@@ -296,10 +516,26 @@ export function DataTable<T extends RowData>({
 
   const cells = new Map(columns.map((column) => [column.id, column]));
 
+  function secondButton(row: T) {
+    if (rowAction) return rowAction(row);
+    return { label: "Delete", icon: <Trash2 size={16} aria-hidden="true" />, onClick: () => onDelete!(row) };
+  }
+
+  const hiddenNote: HiddenNote | null =
+    hidden && !shown && hiddenCount > 0
+      ? {
+          allHidden: hidden.allHidden,
+          matching: hiddenMatches > 0 ? hidden.hiddenMatch(hiddenMatches) : null,
+          showLabel: `${hidden.label} ${noun}s`,
+          onShow: () => showHidden(true),
+        }
+      : null;
+
   return (
     <div className="flex flex-col gap-2.5 px-5 pb-4">
       <div className="flex items-center gap-3">
-        <SearchBox noun={noun} search={search} latest={latest} onChange={setSearch} />
+        <SearchBox noun={noun} search={search} latest={latest} onChange={setSearch} ref={searchBox} />
+        {hidden && <ShowHiddenBox label={hidden.label} count={hiddenCount} shown={shown} onChange={showHidden} />}
         {filters?.(update)}
       </div>
 
@@ -311,6 +547,7 @@ export function DataTable<T extends RowData>({
           error={error}
           matching={matching}
           narrowed={search !== "" || filtered}
+          hiddenNote={hiddenNote}
           onAdd={onAdd}
           onClear={clearSearch}
         />
@@ -348,58 +585,16 @@ export function DataTable<T extends RowData>({
             </thead>
             <tbody>
               {visible.map((row) => (
-                <tr
+                <TableRow
                   key={row.id}
-                  onClick={() => navigate(rowHref(row.original))}
-                  className="group h-11 cursor-pointer hover:bg-page"
-                >
-                  {row.getAllCells().map((cell, index) => {
-                    const column = cells.get(cell.column.id)!;
-                    const shown = column.cell ? column.cell(row.original) : (column.value(row.original) ?? "");
-                    return (
-                      <td
-                        key={cell.id}
-                        className={`truncate px-2.5 first:rounded-l-[10px] ${column.numeric ? "num text-right text-[13px]" : ""}`}
-                      >
-                        {index === 0 ? (
-                          <Link
-                            to={rowHref(row.original)}
-                            onClick={(event) => event.stopPropagation()}
-                            className="block truncate rounded font-medium"
-                          >
-                            {shown}
-                          </Link>
-                        ) : (
-                          shown
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="rounded-r-[10px] pr-1 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      aria-label={`Edit ${rowName(row.original)}`}
-                      className="icon-btn"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onEdit(row.original);
-                      }}
-                    >
-                      <Pencil size={16} aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Delete ${rowName(row.original)}`}
-                      className="icon-btn"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDelete(row.original);
-                      }}
-                    >
-                      <Trash2 size={16} aria-hidden="true" />
-                    </button>
-                  </td>
-                </tr>
+                  row={row}
+                  cells={cells}
+                  href={rowHref(row.original)}
+                  name={rowName(row.original)}
+                  second={secondButton(row.original)}
+                  onEdit={() => onEdit(row.original)}
+                  onLeaveWithFocus={focusSearchBox}
+                />
               ))}
             </tbody>
           </table>

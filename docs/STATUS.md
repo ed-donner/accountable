@@ -300,6 +300,20 @@ On the `products` branch, `docs/spec.md` and the area files now describe Account
 
 The build plan is in `docs/changes/products/plan.md`, in four phases. First, search moves to the top level with no visible change. Then come products on the backend, products on the frontend, and the end-to-end tests. It ends with the build. The plan adds three things the spec doesn't say yet, which the build puts in the spec: a top-level `sample.py` for what both areas' sample data share, `name_key` normalized as well as casefolded, and field messages chosen by area.
 
+## Products: build
+
+Built on the `products` branch, following `docs/changes/products/plan.md` through its four phases, each ending with `npm run check:quick` passing. Products is the sixth section: a price list with unit prices in whole cents, unique names, Archive and Restore, a page for each product, and the top bar's search finding active products. Migration `0004` adds the `products` table with no rows, so an existing local copy and the team's Supabase database start with an empty Products section. Every new test was seen to fail by breaking a copy of the code it covers, then putting the copy back.
+
+- **Search moved first, unchanged:** `backend/accountable/search.py` runs the one query over the kinds each area's `search.py` gives it, and `frontend/src/components/Search.tsx` takes its groups from `App.tsx`. `test_search.py` and the moved `Search.test.tsx` passed with nothing they expect changed, and a new cap holds `/api/search` to one query. The plan had each area's select name its own `kind`. The top level adds it instead, from the kind's name, so the two can't disagree.
+- **In the spec now:** `sample.py`, in the file tree and the layout rules. `name_key` in NFC form as well as casefolded, in `backend.md`. Field messages picked by the area whose route a request reached, in the layout rules: a product's bad description gets "Check this field", not the CRM's "Enter a description".
+- **Also in the spec now:** the archived message stays 10 seconds, in G9, and focus moves to the table's search box when Archive takes a row out, in G10. The plan had the Products page move focus. The shared table does it instead: a row that leaves the table while it has focus hands focus to the search box, once the row has gone, and only if focus fell to the page. The page would otherwise need a handle on the table's search box. `quality.spec.ts` now names N1 in `testing.md`, for its check that the top bar stays on one line.
+- **Found by the end-to-end tests:** the Show archived box unticked itself for a moment after a click, because the real app's router updates the address a moment later, and the box was drawn from the address. The unit tests' router updates it at once, so they passed. The box now keeps its own tick and follows the address when something else changes it, as the table's search box already keeps its own text.
+- **Test helpers:** `holdSaves` moved from `crm/forms/forms.test.tsx` to `test-utils.tsx`, for the products tests to share. `test-setup.ts` now dismisses Sonner's messages after each test, because Sonner hands a new `Toaster` every message still showing, so one test's "Product archived." turned up in the next. It also fills in jsdom's missing `setPointerCapture`, which Sonner calls when its message is pressed.
+
+`npm run check` passes: 3,245 tests in 4m 05s, with no unit test at a second or more. At the limits, Products opens in 123ms with 500 products, the top bar's search shows its results in 195ms, and the dashboard's data arrives in 26ms. The first full run failed one end-to-end test, `data.spec.ts`'s check after `npm run empty`: the Pipeline's "No deals yet" took more than its 5 seconds to show, though the screenshot shows it there. That step isn't changed on this branch, the test took 11 seconds in the full run against 3 on its own, it passed twice on its own, and the next full run passed. So it looks like the copy that test starts being slow under the run's load, and it may come back on a busy machine.
+
+Not done yet, as the plan leaves them for after the build: ui-check, the review, `docs/IMPROVE.md` and the walk on Supabase.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -334,7 +348,7 @@ It opens on a sign-in screen listing four made-up teammates: Alex Rivera, Dana W
 
 If it says a port is in use, Accountable is probably already running in another window.
 
-The search box in the top bar finds organizations, contacts and deals by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme and Sign out. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back. The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme and Sign out. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -403,10 +417,10 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity and stage change, and leaves the people and the tables in place:
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change and product, and leaves the people and the tables in place:
 
 ```sql
-truncate table activities, stage_changes, deals, contacts, organizations;
+truncate table activities, stage_changes, deals, contacts, organizations, products;
 ```
 
 New records carry on from the next id, so an old address never opens a different record. There's no undo.

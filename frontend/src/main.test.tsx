@@ -28,7 +28,7 @@ describe("starting the app", () => {
     expect(await page.findByRole("heading", { level: 1, name: "Dashboard" })).toBeTruthy();
     expect(page.getByRole("navigation", { name: "Sections" })).toBeTruthy();
     const bar = within(page.getByRole("banner"));
-    expect(bar.getByLabelText("Search organizations, contacts and deals")).toBeTruthy();
+    expect(bar.getByLabelText("Search organizations, contacts, deals and products")).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
   });
 });

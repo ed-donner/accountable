@@ -1,6 +1,7 @@
 """The top bar's search (K1, K2, K4, K5)."""
 
 import pytest
+from accountable.api import MAX_CENTS
 
 SEARCH = "/api/search"
 
@@ -19,6 +20,7 @@ def test_each_kind_is_found_by_part_of_its_name_in_any_case(api, make):
     harbor = make.organization("Harbor & Pine", industry="Logistics")
     sam = make.contact("Sam Harbinger", organization_id=harbor)
     deal = make.deal("Harbor refit", organization_id=harbor, main_contact_id=sam, stage="proposal")
+    survey = make.product("Harbor survey", unit_price_cents=125050)
     make.organization("Elm Street Bakery")
 
     assert search(api, "HARB") == {
@@ -33,13 +35,14 @@ def test_each_kind_is_found_by_part_of_its_name_in_any_case(api, make):
                 {"id": deal, "name": "Harbor refit", "stage": "proposal", "organization_name": "Harbor & Pine"}
             ],
         },
+        "products": {"count": 1, "results": [{"id": survey, "name": "Harbor survey", "unit_price_cents": 125050}]},
     }
 
 
 def test_no_match_gives_empty_groups(api, make):
     make.organization("Harbor & Pine")
     empty = {"count": 0, "results": []}
-    assert search(api, "harbour") == {"organizations": empty, "contacts": empty, "deals": empty}
+    assert search(api, "harbour") == {"organizations": empty, "contacts": empty, "deals": empty, "products": empty}
 
 
 def test_only_names_are_searched_and_never_activities(api, make):
@@ -139,3 +142,52 @@ def test_a_search_holding_a_nul_character_is_refused(api, query):
 
 def test_text_with_no_valid_encoding_finds_nothing_rather_than_failing(api):
     assert api.get(f"{SEARCH}?q=%FF%FE").status_code == 200
+
+
+# Products (K1, K4, K5, G10)
+
+
+def test_the_groups_come_in_order_with_products_fourth(api):
+    assert list(search(api, "harbor")) == ["organizations", "contacts", "deals", "products"]
+
+
+def test_a_product_is_found_by_part_of_its_name_in_any_case_with_its_price_in_cents(api, make):
+    survey = make.product("Rooftop survey", unit_price_cents=125050)
+    make.product("Label printer", unit_price_cents=28995)
+    assert search(api, "TOP SUR")["products"] == {
+        "count": 1,
+        "results": [{"id": survey, "name": "Rooftop survey", "unit_price_cents": 125050}],
+    }
+
+
+def test_the_largest_price_comes_back_exactly(api, make):
+    make.product("Everything", unit_price_cents=MAX_CENTS)
+    assert search(api, "everything")["products"]["results"][0]["unit_price_cents"] == MAX_CENTS
+
+
+def test_archived_products_are_left_out_of_the_results_and_the_count(api, make):
+    make.product("Label printer", active=False)
+    kept = make.product("Label maker")
+    assert search(api, "label")["products"] == {
+        "count": 1,
+        "results": [{"id": kept, "name": "Label maker", "unit_price_cents": 4950}],
+    }
+
+
+def test_a_products_description_isnt_searched(api, make):
+    make.product("Training day", description="On site, at the harbor")
+    assert search(api, "harbor")["products"]["count"] == 0
+
+
+def test_products_show_five_with_the_count_of_all_in_order(api, make):
+    for name in ["Pro seat", "Basic seat", "Seat pack", "Extra seat", "Team seat", "Annual seat"]:
+        make.product(name)
+    found = search(api, "seat")["products"]
+    assert found["count"] == 6
+    assert [result["name"] for result in found["results"]] == [
+        "Seat pack",
+        "Annual seat",
+        "Basic seat",
+        "Extra seat",
+        "Pro seat",
+    ]

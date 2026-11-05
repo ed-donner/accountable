@@ -29,8 +29,8 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Archiving
 
-- **G9.** Products are archived, never deleted. Archive is on each active product's row and page, and Restore on each archived one's. Neither asks first, because each undoes the other. Archiving shows "Product archived." with a Restore button, so a slip takes one click to put right, and restoring shows "Product restored." Each happens once, however quickly its button is pressed, and one that fails says so and leaves the product as it was. Neither the app nor the API has a way to delete a product. `npm run empty` removes them along with every other record (C4).
-- **G10.** An archived product keeps its name, price and description, and can still be edited. It's left out of the top bar's search ([K1](search.md#search)), and its page and address still work. Archiving a row with Show archived off takes it out of the table.
+- **G9.** Products are archived, never deleted. Archive is on each active product's row and page, and Restore on each archived one's. Neither asks first, because each undoes the other. Archiving shows "Product archived." with a Restore button, so a slip takes one click to put right, and restoring shows "Product restored." The archived message stays for 10 seconds, rather than the usual 4, because reaching its button with Tab doesn't pause it the way pointing at it does. Each happens once, however quickly its button is pressed, and one that fails says so and leaves the product as it was. Neither the app nor the API has a way to delete a product. `npm run empty` removes them along with every other record (C4).
+- **G10.** An archived product keeps its name, price and description, and can still be edited. It's left out of the top bar's search ([K1](search.md#search)), and its page and address still work. Archiving a row with Show archived off takes it out of the table, and focus moves to the table's search box, so it isn't left on nothing (Q3).
 
 ## Product page
 

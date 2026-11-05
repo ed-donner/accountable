@@ -107,6 +107,9 @@ def test_the_routes_were_found():
     assert target("GET", "/api/search") == "/api/search?q=harbor"
     assert ("POST", "/api/organizations", "name") in BODY_TEXT
     assert ("PATCH", "/api/activities/{activity_id}", "description") in BODY_TEXT
+    assert ("PATCH", "/api/products/{product_id}") in ROUTES
+    assert ("PATCH", "/api/products/{product_id}", "description") in BODY_TEXT
+    assert not [path for method, path in ROUTES if method == "DELETE" and path.startswith("/api/products")]
     assert QUERY_TEXT == [("GET", "/api/search", "q")]
     assert LOCAL_SIGN_IN_TEXT == [("POST", "/api/local/sign-in", "user_id")]
     assert len(RECORD_ROUTES) > 15

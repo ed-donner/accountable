@@ -261,6 +261,15 @@ describe("summarize", () => {
     it("leaves the list out when every unit test was quick", () => {
       expect(summarize([typeCheck, slow(backend, []), browser], 5000).text).not.toContain("a second or more");
     });
+
+    it("says under the list when another run was busy at the time, and only then", () => {
+      const note = "Another test run on this computer was busy while these ran";
+      const lines = summarize(layers, 72_000, { othersBusy: true }).text.split("\n");
+      const heading = lines.indexOf("Unit tests that took a second or more");
+      expect(lines[heading + 4]).toContain(note);
+      expect(summarize(layers, 72_000).text).not.toContain(note);
+      expect(summarize([typeCheck, slow(backend, []), browser], 5000, { othersBusy: true }).text).not.toContain(note);
+    });
   });
 
   it("keeps a long list of failures short", () => {

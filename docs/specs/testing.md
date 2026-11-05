@@ -8,7 +8,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 Every test runs as the local copy, on SQLite. The checks never read `.env`, and pass down an environment without the three Supabase settings (C9), so no test can reach Supabase, whether the settings are in `.env` or not, and CI needs no secrets. Where a test needs Supabase, such as the shared app's token check, it stands in for it.
 
-**Speed:** every unit test, backend and frontend, old and new, runs in under a second on the developer's computer, because CI runs on a much slower machine. The summary at the end of `npm test` names any unit test that took a second or more.
+**Speed:** every unit test, backend and frontend, old and new, runs in under a second on the developer's computer, because CI runs on a much slower machine. The summary at the end of `npm test` names any unit test that took a second or more. If another test run on the computer was busy while the unit tests ran, a line under that list says so, because the other run can make them slow.
 
 **Backend (pytest)**, on a fresh temporary database each test:
 
@@ -84,6 +84,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - `scripts/test-plan.test.mjs` checks that no port is shared between workers or runs, even at 16 runs of 64 workers, and that the workers are shared out between runs. `scripts/test-runs.test.mjs` checks, on ports the system picks so it can't disturb a real run, that two runs get different slots, that a slot with a taken port is passed over, that the speed tests wait for a busy run, that a run waits to get busy while another has the speed tests' turn, and that only one run has the turn at a time.
 - Tests reach the app at 127.0.0.1, so a slow lookup of the name `localhost` can't stall them, and Chrome runs with `--disable-gpu`, because browsers compiling shaders side by side can hang on macOS.
 - Each run leaves an HTML report, with a screenshot of each failure, in `playwright-report/main` and `playwright-report/speed`.
+- `npm run e2e` runs only the end-to-end tests it's given, with Playwright's own arguments, such as `npm run e2e -- e2e/settings.spec.ts -g "a save"`. It sets up the run as `npm test` does: a slot, a temporary database, its share of the workers, and its turn around other runs' speed tests. It ends with the same summary, fails if no test matches, and leaves its report in `playwright-report/main`. It doesn't run the speed tests.
 
 | Area | Requirements | Tests |
 |---|---|---|

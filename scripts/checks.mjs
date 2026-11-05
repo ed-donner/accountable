@@ -1,4 +1,5 @@
 // Runs the layers behind npm test and npm run check, in three stages, then one summary.
+// npm run e2e runs only stage 2, for the tests it's given.
 //
 // 1. The quick layers, side by side: the code checks (npm run check only), the type
 //    checks and the unit tests with their coverage.
@@ -155,14 +156,21 @@ function plural(count, word) {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
-/** The end-to-end tests, sharing the machine with any other busy runs, then the speed tests once it's quiet. */
-async function runBrowserTests(thisRun, env, report, text) {
+/** The end-to-end tests, sharing the machine with any other busy runs. Playwright's own args, such as a file or -g, pick which. */
+async function runEndToEnd(thisRun, env, report, text, args = []) {
   const otherRuns = await thisRun.otherBusyRuns();
   const workers = chooseBrowserWorkers(otherRuns);
   const sharing = otherRuns > 0 ? `, sharing this computer with ${plural(otherRuns, "other test run")}` : "";
   console.log(`\nEnd-to-end tests, on ${plural(workers, "worker")}${sharing}\n`);
-  const endToEnd = await run(browserLayer("End-to-end", "main", workers, report, text), env);
+  const layer = browserLayer("End-to-end", "main", workers, report, text);
+  const endToEnd = await run({ ...layer, args: [...layer.args, ...args] }, env);
   thisRun.stopBusy();
+  return endToEnd;
+}
+
+/** The end-to-end tests, then the speed tests once the machine is quiet. */
+async function runBrowserTests(thisRun, env, report, text) {
+  const endToEnd = await runEndToEnd(thisRun, env, report, text);
 
   console.log("\nSpeed tests, on their own\n");
   const handBackTurn = await thisRun
@@ -176,14 +184,13 @@ async function runBrowserTests(thisRun, env, report, text) {
 }
 
 /**
- * Runs the type checks and unit tests, plus the code checks and the browser tests when asked.
- * With failuresOnly, a check that passes shows only its line in the summary.
+ * Takes a slot, makes the temporary folder and the environment every layer runs in, and
+ * waits its turn to get busy. mostWorkers is the most this run could have, and their ports
+ * have to be free in the slot it takes.
  */
-export async function runChecks({ withCodeChecks, withBrowserTests, failuresOnly = false }) {
+async function startRun(mostWorkers) {
   setup();
   const startedAt = performance.now();
-  // The most workers this run could have. Their ports have to be free in the slot it takes.
-  const mostWorkers = withBrowserTests ? chooseBrowserWorkers() : 0;
   const thisRun = await joinTestRuns({ portsFor: (slot) => workerPorts(slot, mostWorkers) }).catch((error) =>
     stop(error.message),
   );
@@ -202,13 +209,52 @@ export async function runChecks({ withCodeChecks, withBrowserTests, failuresOnly
   };
 
   await thisRun.startBusy(() => console.log("\nWaiting for the speed tests of another test run on this computer.\n"));
-  const quickLayers = [...(withCodeChecks ? codeChecks : []), ...unitLayers(report, text)];
-  const finished = await Promise.all(quickLayers.map((layer) => run(layer, env, failuresOnly)));
-  if (withBrowserTests) finished.push(...(await runBrowserTests(thisRun, env, report, text)));
+  return { startedAt, thisRun, folder, report, text, env };
+}
 
+function finishRun({ startedAt, folder }, finished, { othersBusy = false } = {}) {
   rmSync(folder, { recursive: true, force: true });
-
-  const summary = summarize(finished, performance.now() - startedAt);
+  const summary = summarize(finished, performance.now() - startedAt, { othersBusy });
   console.log(summary.text);
   process.exit(summary.passed ? 0 : 1);
+}
+
+/** Looks every few seconds for another busy run. Resolves true, once stopped, if it ever saw one. */
+function watchForOtherRuns(thisRun) {
+  let seen = false;
+  const look = async () => {
+    if ((await thisRun.otherBusyRuns()) > 0) seen = true;
+  };
+  const looking = [look()];
+  const timer = setInterval(() => looking.push(look()), 2000);
+  return async () => {
+    clearInterval(timer);
+    await Promise.all([...looking, look()]);
+    return seen;
+  };
+}
+
+/**
+ * Runs the type checks and unit tests, plus the code checks and the browser tests when asked.
+ * With failuresOnly, a check that passes shows only its line in the summary.
+ */
+export async function runChecks({ withCodeChecks, withBrowserTests, failuresOnly = false }) {
+  const started = await startRun(withBrowserTests ? chooseBrowserWorkers() : 0);
+  const { thisRun, report, text, env } = started;
+
+  // Another run's tests slow these down, and the summary says so beside the slow ones.
+  const stopWatching = watchForOtherRuns(thisRun);
+  const quickLayers = [...(withCodeChecks ? codeChecks : []), ...unitLayers(report, text)];
+  const finished = await Promise.all(quickLayers.map((layer) => run(layer, env, failuresOnly)));
+  const othersBusy = await stopWatching();
+  if (withBrowserTests) finished.push(...(await runBrowserTests(thisRun, env, report, text)));
+
+  finishRun(started, finished, { othersBusy });
+}
+
+/** npm run e2e: only the end-to-end tests that Playwright's args pick, such as a file or -g, on servers and a database of their own. */
+export async function runChosenEndToEnd(args) {
+  const started = await startRun(chooseBrowserWorkers());
+  const { thisRun, report, text, env } = started;
+  finishRun(started, [await runEndToEnd(thisRun, env, report, text, args)]);
 }

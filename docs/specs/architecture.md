@@ -58,7 +58,8 @@ scripts/
   start.mjs                       npm start: reads .env, builds the frontend, runs the shared app on this computer
   test.mjs                        npm test
   check.mjs                       npm run check and npm run check:quick
-  checks.mjs                      runs the layers behind both, side by side where it can, and prints one summary
+  e2e.mjs                         npm run e2e: chosen end-to-end tests only
+  checks.mjs                      runs the layers behind all three, side by side where it can, and prints one summary
   data.mjs                        npm run seed and npm run empty
   test-plan.mjs                   how npm test shares out the machine, and which ports each run's slot and workers use
   test-runs.mjs                   lets the test runs on one computer share it: slots, who's busy, and the speed tests' turn

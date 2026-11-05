@@ -14,7 +14,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 | Sample data | On the first run, and from `npm run seed` | On the first start against an empty database |
 
 - **C8.** The command decides which one runs, never `.env`. The backend reads only its own environment. With none of `DATABASE_URL`, `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` set, it's the local copy. With all three, it's the shared app. With some but not all, it stops at once and names the ones missing.
-- **C9.** `npm run dev`, `npm test`, `npm run check`, `npm run seed` and `npm run empty` never read `.env`, and take the three settings out of the environment they pass on. So they can't reach Supabase, whether the settings are in `.env`, in the shell or nowhere.
+- **C9.** `npm run dev`, `npm test`, `npm run check`, `npm run e2e`, `npm run seed` and `npm run empty` never read `.env`, and take the three settings out of the environment they pass on. So they can't reach Supabase, whether the settings are in `.env`, in the shell or nowhere.
 - **C10.** `npm start` reads the three settings from `.env`, or from the shell if they're set there, and stops if any is missing, naming it. Then it builds the frontend and runs the built app the way Render does, at `http://localhost:8000`, against Supabase. Its migrations change the team's real database, and anything done in it is done to the team's data. Ctrl+C stops it.
 
 ## Sample data
@@ -58,6 +58,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 | `npm test` | Sets up if needed, runs the type checks and all tests, fails if any fail or unit coverage is under 80% |
 | `npm run check` | Runs the code checks in [Testing](testing.md#testing), then everything `npm test` runs, and fails if any of them fail |
 | `npm run check:quick` | The same, without the end-to-end and speed tests |
+| `npm run e2e -- <files>` | Only the end-to-end tests chosen with Playwright's own arguments, such as files or `-g`, on a database and ports of their own |
 | `npm run format` | Fixes the formatting with Prettier and ruff |
 | `npm run seed` | Resets the local copy to the sample data, after asking |
 | `npm run empty` | Empties the local copy, after asking |

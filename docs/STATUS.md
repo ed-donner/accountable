@@ -64,6 +64,16 @@ The second run was on `multi-user`, after the fix for the review's Important fin
 
 Five mistakes seen once are now in `docs/IMPROVE.md`: `python` in a comment, slowness on a remote database, a check on a header the client sets, the Stop hook running all through a team build, and a fixable bug presented as a library's way. "Leave the commits to me" was said again in three sessions, but no agent committed, and `AGENTS.md` already says it, so nothing was added. `AGENTS.md` and the test instructions below now say `npm test` takes about four minutes, not two. `docs/IMPROVE.md` now says how to find a change's sessions, how to leave out teammate messages, where the Stop hook's failures are, and to read the agents' shell commands for what the person never saw.
 
+The third run was on `company-settings`, after its review, which found nothing Important. It used the review, the person's messages, the Stop hook's results and the agents' shell commands from the branch's three sessions, and searched the sessions of earlier changes for the same commands. The Stop hook never failed, and the checks caught only type errors in the new code, fixed during the build. Three mistakes had happened more than once:
+
+- **Stopping the app by name:** agents stopped `npm run dev` with `pkill -f scripts/dev.mjs` on `mvp`, `dark-mode`, `multi-user` and four times on this branch. That stops every copy of the app on the computer, the person's own and other worktrees' included. Nothing else was running each time here, but `products` started its own app 11 minutes after the last one. `AGENTS.md` now says to stop a server by its process ID. A hook could stop `pkill`, but not `kill $(pgrep ...)` and the other ways to do the same, so it's a rule.
+- **Runners of their own for the end-to-end tests:** Playwright refuses to start without the database and slot `npm test` sets up, so on `mvp`, `multi-user` and this branch, agents wrote scripts of their own to run a few spec files, copying that setup. `npm run e2e -- <files>` now does it, taking Playwright's own arguments, and `AGENTS.md` says to use it. Tried on `e2e/settings.spec.ts` alone, with `-g`, and with a name that matches nothing, which fails.
+- **A slow-test list from a shared run:** twice on this branch, `npm run check` listed unit tests as taking a second or more while another worktree's run was going, 1 and then 25, and the agent ran them again alone to show each was quick. The summary now says under that list when another run was busy while the unit tests ran. `scripts/test-report.test.mjs` tests it, and fails with the note taken out.
+
+Two mistakes seen once are now in `docs/IMPROVE.md`: a message that looked like a box to type in, and a review finding the request couldn't reach. "Leave the commits to me" was said in three sessions again, and no agent committed. `docs/IMPROVE.md` now says that a change's sessions can be in more than one folder, that another copy of the repo can hold a branch with the same name, and to search earlier changes' sessions for a mistake before calling it new.
+
+`npm run check` passes, with 3,249 tests. It ran while another worktree's tests were going, and its summary listed 23 unit tests as slow, with the new line under them.
+
 ## Dark mode
 
 Built on the `dark-mode` branch, following `docs/changes/dark-mode/plan.md`. A round button in the top bar, just before the date, switches between light and dark mode on every screen. It shows a moon in light mode and a sun in dark mode. Light mode is the default. The choice is saved in this browser under `accountable-mode`, and a short script at the top of `frontend/index.html` applies it before anything draws, so a reload in dark mode doesn't flash light first.
@@ -316,6 +326,16 @@ Still to do:
 - **The project owner, on the shared app** (plan, By hand): `npm start` against Supabase, which runs migration `0004` there, as the next deploy would. Check that the page asks for the company name and shows nobody as having changed the settings, save the real details and see them as a second teammate, and on a Supabase project that still has the sample data, run the new clearing steps. Then, with the owner's go-ahead, the agent checks row-level security on `company_settings` and runs the security advisors through the Supabase MCP server, reporting only.
 - **Before merging:** the `products` branch also adds migration `0004`. Whichever merges second renumbers its migration to `0005` and runs the migration tests again, which now fail on two heads (plan, risk 2).
 
+## Company settings: review
+
+The reviewer subagent reviewed the branch against `main`, leaving out style. It found nothing Important, and `npm run check` passed afterwards, with 3,248 tests. Three nits are open, for the review fixes:
+
+1. **No test for the save lock:** nothing fails if the read before a save moves outside `db.writing()`, which B5 and the plan's risk 7 rely on.
+2. **The clearing steps aren't tied to the table:** a column added to `company_settings` later could be left out of the clearing SQL below with no test failing.
+3. **The seed prompt** doesn't say how much of the settings it replaces.
+
+A fourth, that a 5,000-digit tax rate gets an odd message, was dropped: Python's JSON parser refuses it first, and FastAPI answers with a 400 before the check runs.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -458,5 +478,7 @@ Accountable has only been used on a Mac. It's built to work the same on Windows 
 The end-to-end tests run side by side, using a number of workers chosen from your computer's cores and memory, so a smaller computer runs fewer at once and takes longer. To set the number yourself, for example while the computer is busy, run `ACCOUNTABLE_TEST_WORKERS=2 npm test`. The speed tests always run last and alone, so their timings are fair.
 
 You can run the tests in several worktrees at once, with nothing to set. Each run uses ports no other run is using, the runs share the workers between them, and each run's speed tests wait until the others have finished their checks and end-to-end tests, printing a line while they wait. So two runs together take longer than one, but both get a fair result.
+
+To run some of the end-to-end tests on their own, such as one file, use `npm run e2e -- e2e/settings.spec.ts`. Playwright's own options work after the file, such as `-g "a save"` to pick tests by name.
 
 Each run leaves a report of the end-to-end tests, with a screenshot of each failure. `npx playwright show-report playwright-report/main` opens it, and `playwright-report/speed` has the speed tests'. CI on GitHub doesn't run the end-to-end tests, so run `npm run check` yourself before merging.

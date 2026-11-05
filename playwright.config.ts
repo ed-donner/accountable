@@ -11,7 +11,9 @@ const database = process.env.ACCOUNTABLE_DB;
 // scripts/test.mjs picks the path once and passes it down. A wrong one here
 // would wipe real records when a test resets the database.
 if (!database) {
-  throw new Error("ACCOUNTABLE_DB isn't set. Run the tests with npm test.");
+  throw new Error(
+    "ACCOUNTABLE_DB isn't set. Run the tests with npm test, or chosen end-to-end tests with npm run e2e.",
+  );
 }
 const fromData = path.relative(path.join(root, "data"), path.resolve(database));
 if (!fromData.startsWith("..") && !path.isAbsolute(fromData)) {
@@ -19,7 +21,9 @@ if (!fromData.startsWith("..") && !path.isAbsolute(fromData)) {
 }
 // The slot holds this run's ports, apart from any other run on this computer, for as long as scripts/test.mjs runs.
 if (!process.env.ACCOUNTABLE_TEST_SLOT) {
-  throw new Error("ACCOUNTABLE_TEST_SLOT isn't set. Run the tests with npm test.");
+  throw new Error(
+    "ACCOUNTABLE_TEST_SLOT isn't set. Run the tests with npm test, or chosen end-to-end tests with npm run e2e.",
+  );
 }
 
 export default defineConfig({

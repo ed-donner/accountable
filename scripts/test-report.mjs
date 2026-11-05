@@ -109,17 +109,23 @@ function resultText(layer, passed) {
 }
 
 /** Information only: a slow test doesn't fail the run. */
-function slowLines(counted) {
+function slowLines(counted, othersBusy) {
   const slow = counted
     .flatMap((row) => (row.results.slow ?? []).map((test) => ({ ...test, layer: row.name })))
     .sort((a, b) => b.ms - a.ms);
   if (slow.length === 0) return [];
   const listed = slow.map((test) => `  ${seconds(test.ms).padStart(5)}  ${test.layer}: ${test.name}`);
-  return ["Unit tests that took a second or more", ...listed, ""];
+  const note = othersBusy
+    ? ["Another test run on this computer was busy while these ran, which slows them, so they may be quick alone."]
+    : [];
+  return ["Unit tests that took a second or more", ...listed, ...note, ""];
 }
 
-/** Layers are { name, code, ms, runsTests, results }, where results is null if none were written. */
-export function summarize(layers, elapsedMs) {
+/**
+ * Layers are { name, code, ms, runsTests, results }, where results is null if none were written.
+ * othersBusy says another test run on this computer was busy while the unit tests ran.
+ */
+export function summarize(layers, elapsedMs, { othersBusy = false } = {}) {
   const rows = layers.map((layer) => {
     const passed = didPass(layer);
     return { ...layer, passed, text: resultText(layer, passed) };
@@ -133,7 +139,7 @@ export function summarize(layers, elapsedMs) {
 
   const counted = rows.filter((row) => row.results !== null && row.results !== undefined);
   const count = (field) => counted.reduce((sum, row) => sum + row.results[field], 0);
-  const lines = ["", "Summary", ...table, "", ...slowLines(counted)];
+  const lines = ["", "Summary", ...table, "", ...slowLines(counted, othersBusy)];
 
   const failing = rows.filter((row) => !row.passed);
   if (failing.length === 0) {

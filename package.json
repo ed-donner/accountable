@@ -15,6 +15,7 @@
     "test": "node scripts/test.mjs",
     "check": "node scripts/check.mjs",
     "check:quick": "node scripts/check.mjs --quick",
+    "e2e": "node scripts/e2e.mjs",
     "format": "prettier --write . && uv run --frozen ruff check --select I --fix --quiet && uv run --frozen ruff format",
     "seed": "node scripts/data.mjs seed",
     "empty": "node scripts/data.mjs empty"

@@ -23,7 +23,7 @@ function isTheme(value: string): value is Theme {
   return (THEMES as string[]).includes(value);
 }
 
-/** The initials button at the end of the top bar, and its menu: who's signed in, the theme and Sign out (N7). */
+/** The initials button at the end of the top bar, and its menu: who's signed in, the theme, Company settings and Sign out (N7). */
 export function UserMenu() {
   const me = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
   const [theme, setShownTheme] = useState(savedTheme);
@@ -86,7 +86,10 @@ export function UserMenu() {
               );
             })}
           </DropdownMenu.RadioGroup>
-          <DropdownMenu.Item onSelect={signOutHere} className={`mt-2.5 ${ITEM}`}>
+          <DropdownMenu.Item onSelect={() => void navigate("/settings")} className={`mt-2.5 ${ITEM}`}>
+            Company settings
+          </DropdownMenu.Item>
+          <DropdownMenu.Item onSelect={signOutHere} className={ITEM}>
             Sign out
           </DropdownMenu.Item>
         </DropdownMenu.Content>

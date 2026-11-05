@@ -288,9 +288,32 @@ Proved twice with the new code, between this checkout and a worktree in `.claude
 
 The speed figures were the same in every run, alone or shared: the dashboard's data in 24 to 26ms, the top bar's search in 178 to 181ms, and the worst task in each drag at a median of 70 to 79ms.
 
-## Company settings: design
+## Company settings: build
 
-On the `company-settings` branch, `docs/spec.md` and the area files now describe Accountable with the company settings in it, as it will be once the branch merges. One area file is new: `settings.md`, with B1 to B14. The intent is in `docs/changes/company-settings/intent.md`. Nothing is built yet, and the plan comes next. When it's built, the steps below for clearing the sample data in Supabase also need to reset the company settings to the blank defaults, in the same transaction (C11).
+Built on the `company-settings` branch from `docs/changes/company-settings/plan.md`, following `settings.md` (B1 to B14). Company settings, in the menu under your initials, opens a page at `/settings` with the business's details for its quotes and invoices. Nothing uses them yet.
+
+- **Backend:** a new area, `company/`, beside `crm/`: the `company_settings` table, `GET` and `PATCH /api/settings`, and the sample company. Migration `0004` adds the table with one row at the blank defaults and nobody recorded, so a database that already exists never gets the made-up company (B13). A new database and `npm run seed` get it through `cli.fill_sample`, and `npm run empty` leaves the settings alone. A save reads the row, checks the name and the prefixes against it and writes, in one transaction under the write lock.
+- **Frontend:** `company/settings.ts` and `company/SettingsPage.tsx`, the `/settings` route, and the menu item. `Field` has an optional hint, and `RecordLayout.tsx` exports `WhoAndWhen` for the page's "Last changed by" line.
+- **Tests:** `shared/settings-cases.json` holds the tax rate, prefix and clash cases, and both unit suites run them. New: `test_company_settings.py`, `settings.test.ts`, `SettingsPage.test.tsx` and `e2e/settings.spec.ts`. Changed: the migration, CLI, sample data, layout and every-route tests, the menu, app, shell and layout unit tests, `menu.spec.ts` and `quality.spec.ts`. Each new check was shown to fail on code broken for it, with the file put back from a copy after.
+- **The clearing steps** below are now one transaction that also resets the company settings, with `DEFAULT`, so their values come from the table. They were run on a throwaway Postgres 16 built from the migrations' Postgres SQL: the records went, the people stayed, the settings went back to B13's defaults with nobody recorded, and a copy broken partway changed nothing. Supabase itself is still to be checked, below.
+
+Where the build settled something or differs from the plan:
+
+- **The company name** has its own check in `company/schemas.py`, not `api.Name`, because `api.Name`'s message is "Enter a name" and B4's is "Enter the company name".
+- **B7** now says trailing zeros don't count as decimal places, so 8.8750 is accepted as 8.875, and that .5 and 5. are numbers. Both sides read the rate from its text with one pattern. The backend's check uses no `Decimal` arithmetic, which rounds past 28 digits: a rate of 99 followed by 32 nines after the point would have been saved as 100. That case is in the shared cases.
+- **A rate that isn't text or a number,** such as `true` or a list, gets the range message. Ruff's TRY004 wanted a TypeError there, which Pydantic doesn't turn into a message, so it would have been a 500.
+- **The page didn't fit at 1280 by 720** at first: it ran 9px past the window. The gap between fields in the panels is now 10px rather than the forms' 14px, and the space under the button 12px. With an error showing, the page grows by a line and can scroll. The rate and terms boxes are short, so % and days sit beside the number, which `settings.md`'s screen now says.
+- **The double-press test** in `SettingsPage.test.tsx` presses twice with nothing between. With user-event's double click, the button had time to disable between the clicks, so the test passed even without the guard.
+- **`quality.spec.ts`'s Tab walk** now names a box by its `<label>` when it has no `aria-label`, so its new test can name the settings boxes.
+
+`npm run check` passes: 3,248 tests, of which 2,032 backend, 953 frontend, 255 end-to-end and 8 speed, with no unit test taking a second or more.
+
+Checked by hand on temporary databases: the page in Chrome at 1280 by 720 and 1440 by 900, in light and dark mode, with a field error, "Settings saved." after Enter, and the keyboard alone from the menu to Save settings, with a focus ring on each box and no console errors. A second database built only to `0003`, with a record in it, then started with `npm run dev`, kept its record, got the blank defaults, and asked for the company name until one was saved.
+
+Still to do:
+
+- **The project owner, on the shared app** (plan, By hand): `npm start` against Supabase, which runs migration `0004` there, as the next deploy would. Check that the page asks for the company name and shows nobody as having changed the settings, save the real details and see them as a second teammate, and on a Supabase project that still has the sample data, run the new clearing steps. Then, with the owner's go-ahead, the agent checks row-level security on `company_settings` and runs the security advisors through the Supabase MCP server, reporting only.
+- **Before merging:** the `products` branch also adds migration `0004`. Whichever merges second renumbers its migration to `0005` and runs the migration tests again, which now fail on two heads (plan, risk 2).
 
 ## Running Accountable
 
@@ -326,7 +349,7 @@ It opens on a sign-in screen listing four made-up teammates: Alex Rivera, Dana W
 
 If it says a port is in use, Accountable is probably already running in another window.
 
-The search box in the top bar finds organizations, contacts and deals by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme and Sign out. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+The search box in the top bar finds organizations, contacts and deals by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices, which come later: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -336,8 +359,8 @@ Click on the terminal window and press Ctrl+C.
 
 Accountable comes with made-up sample data so you can look around.
 
-- `npm run seed` replaces everything with fresh sample data.
-- `npm run empty` removes everything, so you can type in your own records.
+- `npm run seed` replaces everything with fresh sample data, and puts back the made-up company's settings.
+- `npm run empty` removes every record, so you can type in your own. It leaves the company settings as they are.
 
 Both tell you what will be lost and only go ahead if you type `yes`. Both are safe with the app running: refresh the browser to see the result. Both keep the four teammates, so there's still someone to sign in as. They only ever touch the local copy, never the team's data in Supabase.
 
@@ -395,13 +418,20 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity and stage change, and leaves the people and the tables in place:
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity and stage change. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
+begin;
 truncate table activities, stage_changes, deals, contacts, organizations;
+update company_settings set
+  company_name = default, address = default, email = default, phone = default,
+  tax_label = default, tax_rate = default, payment_terms_days = default,
+  quote_prefix = default, invoice_prefix = default, updated_by = default,
+  updated_at = now() at time zone 'utc';
+commit;
 ```
 
-New records carry on from the next id, so an old address never opens a different record. There's no undo.
+Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
 
 #### Put it on Render
 

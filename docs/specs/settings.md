@@ -26,7 +26,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 - **B5.** The backend checks every value, whatever sends it, and refuses a save with any bad value, with a message for each bad field: beside the field on the page (F2), and in the API's 422 reply ([API](backend.md#api)). The page checks the same rules before it sends anything, so most mistakes show without a trip to the backend. The checks apply to the settings as they'd be after the save, so a save that leaves out the company name is refused while none has been saved, and a prefix is checked against the other one as it will be saved.
 - **B6.** The quote and invoice prefixes can't be the same, ignoring capitals, and neither can start with the other, so a quote's number and an invoice's can never be the same, whatever follows the prefix. So QT- and INV- are fine, and INV- and inv-, or Q and QT-, are refused. Prefixes are kept exactly as typed, capitals included.
-- **B7.** The tax rate is checked from the digits as typed, and never passes through a binary fraction, so 8.875 stays exactly 8.875 on the page, in the API and in the database. Once saved, it shows without trailing zeros, so a rate typed as 8.50 shows as 8.5.
+- **B7.** The tax rate is checked from the digits as typed, and never passes through a binary fraction, so 8.875 stays exactly 8.875 on the page, in the API and in the database. Trailing zeros don't count as decimal places, so 8.8750 is accepted as 8.875, and a point with digits on one side only, such as .5 or 5., is a number too. Once saved, it shows without trailing zeros, so a rate typed as 8.50 shows as 8.5.
 
 ### Saving
 
@@ -61,7 +61,7 @@ The page title, "Company settings", sits at the top left, with the line from B9 
 - **Left:** a Company panel with Company name, Address, Email and Phone. The address box is four lines tall, and grows as more lines are typed.
 - **Right:** a Tax panel with Tax label and Tax rate, then a Quotes and invoices panel with Payment terms, Quote prefix and Invoice prefix.
 
-Each panel has its name as a section heading. Fields have their label above them, inputs in the page color, and errors beside the field in Raspberry text, as in the record forms. The tax rate box has % after it and the payment terms box has days after it, in muted ink. Under each prefix, a hint in muted ink says "Up to 10 letters, digits and hyphens." While no company name is saved, B14's message sits in the Company panel under its heading, in ink, on the page color, rounded like inputs, as the sign-in screen's messages are.
+Each panel has its name as a section heading. Fields have their label above them, inputs in the page color, and errors beside the field in Raspberry text, as in the record forms. The tax rate box has % after it and the payment terms box has days after it, in muted ink. Those two boxes are short, so the unit sits beside the number. Under each prefix, a hint in muted ink says "Up to 10 letters, digits and hyphens." While no company name is saved, B14's message sits in the Company panel under its heading, in ink, on the page color, rounded like inputs, as the sign-in screen's messages are.
 
 Save settings sits below the panels at the left, in Sea Green with Midnight text, as main buttons are. Enter in a one-line box saves, and in the address box it starts a new line. At 1280 by 720, the form and its button fit without scrolling.
 

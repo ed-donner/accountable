@@ -27,6 +27,20 @@ describe("the layout rules", () => {
   });
 });
 
+describe("the company settings", () => {
+  it("are named only by App.tsx among the top-level files, components/ and lib/, which every area shares", () => {
+    const shared = code(".")
+      .map((file) => path.relative(SOURCE, file))
+      .filter((file) => !file.includes("/") || file.startsWith("components/") || file.startsWith("lib/"))
+      .filter((file) => !path.basename(file).startsWith("test-"));
+    expect(shared).toContain("components/UserMenu.tsx"); // The check is looking in the right place.
+    const namingCompany = shared.filter((file) =>
+      /from "[^"]*\/company\//.test(readFileSync(path.join(SOURCE, file), "utf8")),
+    );
+    expect(namingCompany).toEqual(["App.tsx"]);
+  });
+});
+
 describe("talking to the backend", () => {
   it("only happens in the fetch client, so every reply gets the same error handling", () => {
     const callers = filesIn(SOURCE)

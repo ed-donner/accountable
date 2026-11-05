@@ -21,7 +21,8 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Sample data meets every line of M3, including when seeded on the 1st of a month, and M7
 - An emptied database stays empty after a restart
 - Migrations build the same tables as `tables.py`
-- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value` a `bigint` and turn on row-level security for every table, Alembic's own included
+- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value` a `bigint`, keep each company setting's default in its table, and turn on row-level security for every table, Alembic's own included
+- The migrations have one head, so two branches that each add the next migration fail the tests rather than the backend's start, and `migrations/env.py` imports every area's tables
 - The startup check for row-level security, given a list of tables with it on and off, refuses to start and names each table that has it off
 - Every route the app has gets the security and bad-input checks, taken from the app's own list of routes. That includes refusing a request with no token, an expired one, one signed with another key and one issued for something other than a signed-in user, in the local copy and in the shared app
 - The shared app's token check against a stand-in for Supabase's public keys, made in the test: a good token, a key it hasn't seen, and keys that can't be fetched

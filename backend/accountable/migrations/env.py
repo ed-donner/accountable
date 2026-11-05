@@ -1,9 +1,11 @@
+from accountable.company import tables as company_tables
 from accountable.crm import tables
 from alembic import context
 
-# Read through tables, since importing tables is what fills the metadata, and
-# tables imports users for its foreign keys. Batch mode is on because SQLite can
+# Read through the areas' tables, since importing them is what fills the metadata,
+# and they import users for their foreign keys. Batch mode is on because SQLite can
 # only make most table changes by rebuilding the table.
+assert company_tables.metadata is tables.metadata
 metadata = tables.metadata
 
 if context.is_offline_mode():

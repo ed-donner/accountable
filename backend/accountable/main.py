@@ -21,7 +21,9 @@ from starlette.responses import Response
 from starlette.types import Scope
 
 from accountable import api, auth, cli, db, settings, users
-from accountable.crm import schemas
+from accountable.company import router as company_settings
+from accountable.company import schemas as company_schemas
+from accountable.crm import schemas as crm_schemas
 from accountable.crm.routers import activities, contacts, dashboard, deals, meta, organizations, search
 
 FRONTEND = db.ROOT / "frontend" / "dist"
@@ -66,7 +68,7 @@ def _local_sign_in_paths() -> list[str]:
 def _signed_in_routes() -> APIRouter:
     routes = APIRouter(prefix="/api", dependencies=[Depends(auth.current_user)])
     routes.include_router(auth.router)
-    for module in (meta, organizations, contacts, deals, activities, dashboard, search):
+    for module in (meta, organizations, contacts, deals, activities, dashboard, search, company_settings):
         routes.include_router(module.router)
     return routes
 
@@ -115,8 +117,12 @@ async def _json_only(request: Request, call_next):
     return await call_next(request)
 
 
+# Each area's messages for its own fields. No two areas share a field name, so none is lost.
+FIELD_MESSAGES = {**crm_schemas.FIELD_MESSAGES, **company_schemas.FIELD_MESSAGES}
+
+
 async def _invalid_request(request: Request, error: RequestValidationError):
-    fields = api.field_messages(error.errors(), schemas.FIELD_MESSAGES)
+    fields = api.field_messages(error.errors(), FIELD_MESSAGES)
     return JSONResponse({"detail": "Check the form.", "fields": fields}, status_code=422)
 
 

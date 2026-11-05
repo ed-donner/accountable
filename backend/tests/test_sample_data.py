@@ -1,9 +1,12 @@
+import re
 from collections import Counter
 from datetime import date, datetime, timedelta
 from itertools import pairwise
+from typing import Any
 
 import pytest
-from accountable import db
+from accountable import cli, db
+from accountable.company.tables import company_settings
 from accountable.crm import rules, sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.users import TEAMMATES, users
@@ -261,3 +264,35 @@ def test_records_nobody_changed_have_one_moment_for_both_times(seeded, kind):
     unchanged = [row for row in seeded[kind] if row.updated_at == row.created_at]
     assert unchanged
     assert all(row.updated_by == row.created_by for row in unchanged)
+
+
+# B12, as the spec lists it.
+SAMPLE_COMPANY: dict[str, Any] = {
+    "company_name": "Plainsong Systems",
+    "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+    "email": "accounts@plainsong.example",
+    "phone": "(718) 555-0142",
+    "tax_label": "Sales tax",
+    "tax_rate": 8875,
+    "payment_terms_days": 30,
+    "quote_prefix": "QT-",
+    "invoice_prefix": "INV-",
+}
+
+
+def test_a_new_database_gets_the_sample_company_from_dana_whitfield_on_the_seeding_day(database, monkeypatch):
+    seeded_at = datetime(2027, 3, 1, 14, 3)
+    monkeypatch.setattr(db, "local_today", lambda: seeded_at.date())
+    monkeypatch.setattr(db, "utc_now", lambda: seeded_at)
+    with db.writing() as conn:
+        cli.fill_sample(conn)
+    with db.reading() as conn:
+        [settings] = [dict(row._mapping) for row in conn.execute(select(company_settings))]
+    assert {name: settings[name] for name in SAMPLE_COMPANY} == SAMPLE_COMPANY
+    assert settings["updated_by"] == "teammate-dana-whitfield"
+    assert settings["updated_at"] == seeded_at
+
+
+def test_the_sample_company_points_at_nothing_real():
+    assert SAMPLE_COMPANY["email"].endswith(".example")
+    assert re.fullmatch(r"\(\d{3}\) 555-01\d\d", SAMPLE_COMPANY["phone"])  # 555-0100 to 555-0199

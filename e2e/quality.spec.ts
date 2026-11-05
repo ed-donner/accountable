@@ -20,15 +20,26 @@ async function recordPaths(request: APIRequestContext) {
   ];
 }
 
+function sidewaysOverflow(page: Page) {
+  return page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+}
+
+/** The Company settings page, once its form has the settings in it. */
+async function openSettings(page: Page) {
+  await page.goto("/settings");
+  await expect(page.getByLabel("Company name")).toHaveValue(/./);
+}
+
 for (const size of SIZES) {
   test(`no screen scrolls sideways at ${size.width} by ${size.height}`, async ({ page, request }) => {
     await page.setViewportSize(size);
     for (const path of [...SECTIONS, ...(await recordPaths(request))]) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow, path).toBeLessThanOrEqual(0);
+      expect(await sidewaysOverflow(page), path).toBeLessThanOrEqual(0);
     }
+    await openSettings(page);
+    expect(await sidewaysOverflow(page), "/settings").toBeLessThanOrEqual(0);
   });
 }
 
@@ -59,6 +70,15 @@ test("a walk through every screen and main action logs no console errors", async
   await dropAtEnd(page, "Walked", "lost");
   await expect(column(page, "lost").locator('[data-deal="Walked"]')).toBeVisible();
   await page.waitForLoadState("networkidle");
+
+  // A save with nothing changed, which leaves the settings as they were.
+  await openSettings(page);
+  const saved = page.waitForResponse(
+    (response) => response.request().method() === "PATCH" && new URL(response.url()).pathname === "/api/settings",
+  );
+  await page.getByRole("button", { name: "Save settings" }).click();
+  expect((await saved).ok()).toBe(true);
+  await expect(page.getByText("Settings saved.")).toBeVisible();
 });
 
 async function tabThrough(page: Page, presses: number) {
@@ -72,7 +92,9 @@ async function tabThrough(page: Page, presses: number) {
       // cmdk labels its input through a hidden label element.
       const labelledBy = element.getAttribute("aria-labelledby");
       const label =
-        element.getAttribute("aria-label") ?? (labelledBy && document.getElementById(labelledBy)?.textContent);
+        element.getAttribute("aria-label") ??
+        (labelledBy && document.getElementById(labelledBy)?.textContent) ??
+        (element as HTMLInputElement).labels?.[0]?.textContent;
       return {
         name: `${element.tagName} ${label || element.textContent?.trim().slice(0, 30)}`,
         ring: style.outlineStyle !== "none" && parseFloat(style.outlineWidth) >= 2,
@@ -114,6 +136,27 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
   const board = await tabThrough(page, 12);
   expect([...board].some((name) => name.startsWith("BUTTON Add deal to "))).toBe(true);
   expect([...board].some((name) => name.startsWith("A $"))).toBe(true);
+});
+
+test("the Company settings form can be tabbed through in order, with a focus ring on each box", async ({ page }) => {
+  await openSettings(page);
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: `Menu for ${SIGNED_IN.name}` })
+    .focus();
+  const reached = [...(await tabThrough(page, 10))];
+  expect(reached).toEqual([
+    "INPUT Company name",
+    "TEXTAREA Address",
+    "INPUT Email",
+    "INPUT Phone",
+    "INPUT Tax label",
+    "INPUT Tax rate",
+    "INPUT Payment terms",
+    "INPUT Quote prefix",
+    "INPUT Invoice prefix",
+    "BUTTON Save settings",
+  ]);
 });
 
 /** Opens the dashboard from another screen and records the revenue line on every frame while it mounts. */

@@ -5,7 +5,8 @@ from pathlib import Path
 
 PACKAGE = Path(__file__).resolve().parents[1] / "accountable"
 # Where the app is put together. Everything else outside crm/, a later area's folder
-# included, gets what it needs from the top level.
+# included, gets what it needs from the top level. The same three are the only top-level
+# files that name company/, which later areas may import.
 MAY_NAME_CRM = {"main.py", "cli.py", "migrations/env.py"}
 
 
@@ -19,6 +20,22 @@ def test_only_main_cli_and_the_migrations_name_crm():
         for path in sources()
         if "crm" not in path.relative_to(PACKAGE).parts[:1]
         and re.search(r"accountable\.crm|import crm", path.read_text())
+    }
+    assert found <= MAY_NAME_CRM
+    assert "main.py" in found  # The check is looking in the right place.
+
+
+def is_top_level(path: Path) -> bool:
+    """The files every area shares, and the migrations, as opposed to an area's own folder."""
+    parts = path.relative_to(PACKAGE).parts
+    return len(parts) == 1 or parts[0] == "migrations"
+
+
+def test_at_the_top_level_only_main_cli_and_the_migrations_name_company():
+    found = {
+        path.relative_to(PACKAGE).as_posix()
+        for path in sources()
+        if is_top_level(path) and re.search(r"accountable\.company|import company", path.read_text())
     }
     assert found <= MAY_NAME_CRM
     assert "main.py" in found  # The check is looking in the right place.

@@ -56,9 +56,14 @@ function SettingsForm({ settings, preview, children }: FormProps) {
   const { reset } = form;
   // A save in the page takes a moment to disable the button, which a quick second press can beat.
   const saving = useRef(false);
+  const filledFrom = useRef(settings);
 
   // A teammate's newer save fills the form only if nothing has been typed since it was filled (B10).
+  // Only settings that have just arrived do: just after a save, these are still the ones from before
+  // it for a moment, and the form, filled from the save's reply, mustn't go back to them.
   useEffect(() => {
+    if (settings === filledFrom.current) return;
+    filledFrom.current = settings;
     if (!isDirty) reset(toForm(settings));
   }, [settings, isDirty, reset]);
 

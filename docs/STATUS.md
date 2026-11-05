@@ -789,6 +789,19 @@ By hand, on a temporary database at 1440 by 900 in both modes: one Money heading
 
 `npm run check` passes: 6,165 tests in 5m 51s, of which 4,199 backend, 1,632 frontend, 317 end-to-end and 17 speed. One unit test took a second or more: `test_the_data_really_is_at_the_limits`, at 1.1s, all of it the setup that fills the limits database once for the module, which now fills quotes, invoices and bills together (1.07s). On `main` it stayed under a second, and on this branch alone it was already at 1.0s in a run while others were busy. Making that fill quicker is still to do.
 
+## Invoices: the settings form went back to the old values after a save
+
+After the merge, `npm run check` failed "saves once, however quickly Save settings is pressed, says so and shows who saved" in `SettingsPage.test.tsx` with "expected '8.875' to be '8.5'", though `check:quick` had passed it minutes before and it passed 15 times in 15 on its own.
+
+- **The cause:** `SettingsForm` filled itself from its `settings` prop whenever nothing was typed in it. A save puts its reply in the settings' query and resets the form to it, so the form has nothing typed in it at once, but TanStack Query tells `SettingsPage` of the reply on a `setTimeout(0)`. Until then the prop is still the settings from before the save, so the form went back to them, 8.875, and then forward again to 8.5 once the page heard. The test read the box between the two.
+- **The evidence:** a trace of each render, commit and reset, on copies of the files since put back. The stand-in backend answers the PATCH and `useWrite`'s read again in the same task, so the reply always reached the form before the page heard of it. In 301 runs of the test the box went back to 8.875 every time, and the test failed when its check landed in that moment: 18 times idle and 2 times with every core busy. In a browser the read again goes over the network, which usually gives the page time to hear first, so a person would rarely have seen it.
+- **The fix:** the form now takes newer settings only when they arrive, as a draft invoice's form does, never just because it has nothing typed in it. `frontend.md` says so. One edge changes: a teammate's save that arrives while someone is typing isn't taken later if they undo their typing, and the next save wins over it, as B10 says.
+- **The test:** "shows what was saved, never the settings from before, however late the page hears of the save" holds back TanStack Query's news until the form has taken the reply, and records every value put in the Tax rate box. It failed 50 runs in 50 before the fix and passed 50 in 50 after. The test that failed passed 301 runs in 301 after it, with every core busy too.
+
+The quote form, `useQuoteForm` in `QuoteForm.tsx`, fills itself the same way from a `quote` prop that `takeSaved` gets ahead of, so it may go back to the quote from before a save for a moment too. Nobody has checked that with a test yet.
+
+`npm run check` passes: 6,166 tests in 6m 07s, of which 4,199 backend, 1,633 frontend, 317 end-to-end and 17 speed. Two unit tests took a second or more: `test_the_data_really_is_at_the_limits` at 1.1s, as before, and `test_other_image_formats_are_refused[WEBP]` at 6.6s, and 4.8s in a `check:quick` afterwards. That one wasn't in the list after the merge, and nothing here touches it.
+
 ## Running Accountable
 
 Accountable runs two ways:

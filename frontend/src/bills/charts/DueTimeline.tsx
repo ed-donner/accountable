@@ -1,21 +1,21 @@
 import { addDays, format, parseISO } from "date-fns";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
 
-import { AXIS_TEXT as CHART_AXIS_TEXT } from "../../components/charts/axes";
 import { ChartTooltip } from "../../components/charts/ChartTooltip";
+import { MONTH_CHART, MUTED_AXIS_TEXT, centsAxis } from "../../components/charts/monthColumns";
 import { useSize } from "../../components/charts/useSize";
 import { formatDate, formatShortDate } from "../../lib/dates";
-import { price, shortMoney } from "../../lib/money";
+import { price } from "../../lib/money";
 import { plural } from "../../lib/words";
 import { CategoryLabel, categoryStyle } from "../categories";
 import type { DueBill } from "../queries";
 import { StackSegment, stackScale } from "./StackSegment";
 
-const AXIS_TEXT = { ...CHART_AXIS_TEXT, fill: "var(--color-muted)" };
 /** Today and the 30 days after it, both ends included (E22). */
 const DAYS = 31;
 const WEEK = 7;
-const MARGIN = { top: 16, right: 48, bottom: 24 };
+// The money axis is as wide as the spending chart's below it, so the two line up.
+const MARGIN = { top: 16, right: MONTH_CHART.axisWidth, bottom: 24 };
 // Room either side for "Today" and the last week's date, centered under their days.
 const AXIS_PADDING = { left: 18, right: 6 };
 const BAR_WIDTH = 6;
@@ -29,11 +29,6 @@ export function dueDays(bills: DueBill[], today: string): DueDay[] {
     const date = format(addDays(start, day), "yyyy-MM-dd");
     return { day, date, bills: bills.filter((bill) => bill.due_date === date) };
   });
-}
-
-/** Money is in cents here, and the axis shows dollars. */
-function centsAxis(cents: number) {
-  return shortMoney(cents / 100);
 }
 
 function BillLabel({ bill }: { bill: DueBill }) {
@@ -145,7 +140,7 @@ export function DueTimeline({ bills, today }: { bills: DueBill[]; today: string 
               tickFormatter={(day: number) => (day === 0 ? "Today" : formatShortDate(days[day].date))}
               axisLine={false}
               tickLine={false}
-              tick={AXIS_TEXT}
+              tick={MUTED_AXIS_TEXT}
               height={MARGIN.bottom}
             />
             <YAxis
@@ -156,7 +151,7 @@ export function DueTimeline({ bills, today }: { bills: DueBill[]; today: string 
               tickFormatter={centsAxis}
               axisLine={false}
               tickLine={false}
-              tick={AXIS_TEXT}
+              tick={MUTED_AXIS_TEXT}
             />
             <Tooltip shared={false} content={<Tip />} cursor={false} />
             {Array.from({ length: layers }, (_, layer) => (

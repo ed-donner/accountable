@@ -50,10 +50,10 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## The Money section
 
-- **E20.** Bills adds the second row of the dashboard's Money section, below invoices' row ([V29](invoices.md#money-on-the-dashboard)), under the dashboard's own part (H10). Its figures come from the bills area's own route, worked out by the backend with its today, and are read again when the day changes, as the dashboard's are. Every figure in the row uses bills' totals, tax included, and is exact to the cent however large it gets, past the 2^53 cents a browser's numbers hold exactly.
+- **E20.** Bills adds the right side of the dashboard's Money section, beside invoices' side ([V29](invoices.md#money-on-the-dashboard)), under the dashboard's own part (H10). Its figures come from the bills area's own route, worked out by the backend with its today, and are read again when the day changes, as the dashboard's are. Every figure in the row uses bills' totals, tax included, and is exact to the cent however large it gets, past the 2^53 cents a browser's numbers hold exactly.
 - **E21.** **What we owe** is the total of every unpaid bill, overdue ones included, with how many there are. **Overdue** is the total of the overdue bills, with how many. Each links to Bills under that filter (E14). With no unpaid bills, both show $0.00.
-- **E22.** **Due in the next 30 days** is a timeline of the unpaid bills due from today to 30 days from today, both days included, with their total and how many there are above it. Each bill is a bar at its due date, as tall as its total, in its category's color, and bills due on the same day stack. A bill too small to see beside the others is drawn 4px tall, so it can still be seen and pointed at. Overdue bills aren't on it, because Overdue already counts them. Pointing at a bar shows the bill's supplier, number, category and total, for that bill alone, not the whole day. A table behind the chart, for screen readers, lists the bills due, with their due date, supplier, number, category and total. With none due, it says "No bills due in the next 30 days."
-- **E23.** **Spending by category** shows, for each of the last 12 months including the current one, the total of the bills dated in that month, paid or not, stacked by category, with a category too small to see drawn 4px tall, as on the timeline. A bill counts in the month of its bill date, so a bill dated in a later month isn't on it yet. Months with no bills show as zero, and the current month is marked "so far". Pointing at a month shows each category's total and the month's. A legend names the six categories beside their swatches. A table behind the chart, for screen readers, gives each month's total for each category, and the month's total. With no bills in the 12 months, it says "Spending will show here once you've added bills."
+- **E22.** **Due in the next 30 days** is a timeline of the unpaid bills due from today to 30 days from today, both days included, with their total and how many there are beside its heading. Each bill is a bar at its due date, as tall as its total, in its category's color, and bills due on the same day stack. A bill too small to see beside the others is drawn 4px tall, so it can still be seen and pointed at. Overdue bills aren't on it, because Overdue already counts them. Pointing at a bar shows the bill's supplier, number, category and total, for that bill alone, not the whole day. A table behind the chart, for screen readers, lists the bills due, with their due date, supplier, number, category and total. With none due, it says "No bills due in the next 30 days."
+- **E23.** **Spending by category** shows, for each of the last 12 months including the current one, the total of the bills dated in that month, paid or not, stacked by category, with a category too small to see drawn 4px tall, as on the timeline. A bill counts in the month of its bill date, so a bill dated in a later month isn't on it yet. Months with no bills show as zero, and the current month is marked "so far". Above the chart, as above the payments chart beside it, the heading names this month, such as "Spending in November", with this month's total beside last month's. Pointing at a month shows each category's total and the month's. A legend names the six categories beside their swatches, and goes with the chart when there's nothing to show. A table behind the chart, for screen readers, gives each month's total for each category, and the month's total. With no bills in the 12 months, it says "Spending will show here once you've added bills."
 - **E24.** At the limits in Q1, the Money section's data arrives in under 200ms, as the dashboard's does.
 
 ## Screens
@@ -80,21 +80,28 @@ In the left column of the organization's page, under its contacts and deals, in 
 
 ### Money section
 
-The dashboard's Money section starts below the dashboard's own part, with the same 12px gap as between its panels, with the section heading "Money" and invoices' row ([Money section](invoices.md#money-section)). Bills' row comes 12px below that, about 380px tall: two panels side by side, Bills to pay on the left, at about 40% of the width, and Spending by category on the right, at about 60%, as in the dashboard's bottom row. At 1440 by 900 the whole section fits in the window once it's scrolled into view.
+Bills' side is the right column of the dashboard's Money section, beside invoices' side and built from the same parts, so the two read across ([Dashboard](dashboard.md#dashboard-1)): What we owe above, 332px tall, level with Owed to us, and Spending by category below, 360px tall, level with Payments received.
 
 ```
-Money
-  invoices' row comes first: Owed to us, and Payments received
-+---------------------------------------+ +------------------------------------------------------+
-| Bills to pay                          | | Spending by category                                 |
-| What we owe           Overdue         | |                                          $18,240.00  |
-| $24,310.00            $3,150.00       | |                                            so far    |
-| 9 unpaid bills        3 bills         | |   stacked columns for 12 months, in category colors  |
-|                                       | |                                                      |
-| Due in the next 30 days   $14,200.00  | |                                                      |
-|                           7 bills     | |                                                      |
-| bars at each due date, Today to Dec 5 | | o Software  o Contractors  o Travel  o Office  ...   |
-+---------------------------------------+ +------------------------------------------------------+
++---------------------------------------------+
+| What we owe             Overdue             |
+| $24,310.00              $3,150.00           |
+| 9 unpaid bills          3 bills             |
+|                                             |
+| Due in the next 30 days  $14,200.00 7 bills |
+|                                       $10k  |
+|   a bar at each due date, in category       |
+|   colors                                    |
+| Today    Nov 12    Nov 19    Nov 26   Dec 3 |
++---------------------------------------------+
++---------------------------------------------+
+| Spending in November        o Software ...  |
+| $1,240.00  October $18,240.00  o Office ... |
+|                                      $20k   |
+|   stacked columns for 12 months, in         |
+|   category colors, "so far" above the last  |
+| Dec  Jan  Feb ...                    Nov    |
++---------------------------------------------+
 ```
 
-What we owe and Overdue are headline figures, in JetBrains Mono at the headline figure size, each with its label above and its count below in muted ink, and each a link. The figures are in ink, Overdue included: the label says what it is, so it needs no alert color. The timeline's axis starts at "Today" and marks each week, such as Nov 12, with its money axis on the right inside the panel. The spending chart follows the charts' rules in [Visual design](visual-design.md#charts).
+The panel leads with What we owe and Overdue, as Owed to us beside it does, with no heading above them. They're headline figures, in JetBrains Mono at the headline figure size, each with its label above and its count below in muted ink, and each a link. The figures are in ink, Overdue included: the label says what it is, so it needs no alert color. Under them, the heading Due in the next 30 days, at the label size, has the total due in JetBrains Mono and how many bills in muted ink at its right, on the same line, level with How late beside it. The timeline's axis starts at "Today" and marks each week, such as Nov 12, with its money axis on the right inside the panel, as wide as the spending chart's below it. Spending by category has the heading "Spending in November", then this month's total at the headline size beside last month's in muted ink, as Payments received beside it does, with the legend at the right of them in three columns of two. The spending chart follows the charts' rules in [Visual design](visual-design.md#charts), laid out as the payments chart beside it.

@@ -6,6 +6,7 @@ import {
   addDeal,
   addLinkedDeal,
   addOrganization,
+  addProduct,
   card,
   column,
   dropAtEnd,
@@ -44,7 +45,7 @@ type Screen = {
   read: (ids: Ids) => string;
   shown: (page: Page) => Locator;
 };
-type Ids = { deal: number; contact: number; organization: number };
+type Ids = { deal: number; contact: number; organization: number; product: number };
 
 const heading = (page: Page, name: string) => page.getByRole("heading", { level: 1, name });
 
@@ -110,12 +111,25 @@ const SCREENS: Screen[] = [
     read: ({ organization }) => `/api/organizations/${organization}/timeline`,
     shown: (page) => page.getByTestId("timeline-entry").first(),
   },
+  {
+    name: "Products",
+    address: () => "/products",
+    read: () => "/api/products",
+    shown: (page) => page.locator("tbody tr").first(),
+  },
+  {
+    name: "a product's page",
+    address: ({ product }) => `/products/${product}`,
+    read: ({ product }) => `/api/products/${product}`,
+    shown: (page) => heading(page, "Solid kit"),
+  },
 ];
 
 async function solidRecords(request: APIRequestContext): Promise<Ids> {
   const { deal, contact, organization } = await addLinkedDeal(request, "Solid");
   await addActivity(request, { deal_id: deal.id, description: "Something happened" });
-  return { deal: deal.id, contact: contact.id, organization: organization.id };
+  const product = await addProduct(request, "Solid kit");
+  return { deal: deal.id, contact: contact.id, organization: organization.id, product: product.id };
 }
 
 for (const screen of SCREENS) {
@@ -317,11 +331,25 @@ test("a deleted record's address stays gone after another record is added", asyn
   await expect(heading(page, "This deal no longer exists")).toBeVisible();
 });
 
+test("a product that isn't there says it no longer exists, with a link back", async ({
+  page,
+  request,
+  expectConsoleError,
+}) => {
+  expectConsoleError(/status of 404/);
+  const product = await addProduct(request, "Here");
+  await page.goto(`/products/${product.id + 1000}`);
+  await expect(heading(page, "This product no longer exists")).toBeVisible();
+  await page.getByRole("link", { name: "Back to Products" }).click();
+  await expect(heading(page, "Products")).toBeVisible();
+});
+
 test.describe("addresses that lead nowhere", () => {
   const SECTIONS = [
     ["deals", "deal", "Deals"],
     ["contacts", "contact", "Contacts"],
     ["organizations", "organization", "Organizations"],
+    ["products", "product", "Products"],
   ];
 
   for (const [folder, word, section] of SECTIONS) {
@@ -533,6 +561,18 @@ test.describe("saves that fail", () => {
     await expect(page.getByRole("region", { name: "Details" })).toContainText("Retail");
   });
 
+  test("a failed archive says so and leaves the product", async ({ page, request, expectConsoleError }) => {
+    expectConsoleError(/status of 500/);
+    const product = await addProduct(request, "Hard to archive");
+    await breakApi(page, `/api/products/${product.id}`, "PATCH");
+    await page.goto(`/products/${product.id}`);
+    await page.getByRole("button", { name: "Archive", exact: true }).click();
+
+    await expect(page.getByText("Something went wrong.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Archive", exact: true })).toBeVisible();
+    expect((await (await request.get(`/api/products/${product.id}`)).json()).active).toBe(true);
+  });
+
   test("a failed tick puts the follow-up back on the dashboard", async ({ page, request, expectConsoleError }) => {
     expectConsoleError(/status of 500/);
     const { deal } = await addLinkedDeal(request, "Tick fails");
@@ -599,6 +639,23 @@ test.describe("pressing twice", () => {
     await confirm.dblclick();
     await expect(heading(page, "Deals")).toBeVisible();
     await expect(page.getByText("Deal not found")).toHaveCount(0);
+  });
+
+  test("a double click on Archive archives once, with no error", async ({ page, request }) => {
+    const product = await addProduct(request, "Archived once");
+    const archives: string[] = [];
+    page.on("request", (sent) => {
+      if (sent.method() === "PATCH" && new URL(sent.url()).pathname === `/api/products/${product.id}`) {
+        archives.push(sent.postData() ?? "");
+      }
+    });
+    await page.goto("/products");
+    await page.getByRole("button", { name: "Archive Archived once" }).dblclick();
+
+    await expect(page.getByText("Product archived.")).toBeVisible();
+    await expect(page.getByRole("row", { name: /^Archived once/ })).toHaveCount(0);
+    expect(archives).toEqual(['{"active":false}']);
+    expect((await (await request.get(`/api/products/${product.id}`)).json()).active).toBe(false);
   });
 
   test("a double click on a card's column button opens one form", async ({ page }) => {

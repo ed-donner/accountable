@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,13 +17,20 @@ function code(folder: string) {
   return filesIn(path.join(SOURCE, folder)).filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file));
 }
 
+// Each business area's folder, found by its queries, so a later area is held to the rules too.
+const AREAS = readdirSync(SOURCE).filter((name) => existsSync(path.join(SOURCE, name, "queries.ts")));
+
 describe("the layout rules", () => {
-  it("lets only App.tsx name crm/, so components/, lib/ and any later area never import it", () => {
-    const namingCrm = code(".")
+  it("find every area", () => {
+    expect(AREAS).toEqual(["crm", "products"]);
+  });
+
+  it.each(AREAS)("let only App.tsx name %s/, so components/, lib/ and every other area never import it", (area) => {
+    const naming = code(".")
       .map((file) => path.relative(SOURCE, file))
-      .filter((file) => !file.startsWith("crm/") && !path.basename(file).startsWith("test-"))
-      .filter((file) => /from "[^"]*\/crm\//.test(readFileSync(path.join(SOURCE, file), "utf8")));
-    expect(namingCrm).toEqual(["App.tsx"]);
+      .filter((file) => !file.startsWith(`${area}/`) && !path.basename(file).startsWith("test-"))
+      .filter((file) => new RegExp(`from "[^"]*/${area}/`).test(readFileSync(path.join(SOURCE, file), "utf8")));
+    expect(naming).toEqual(["App.tsx"]);
   });
 });
 

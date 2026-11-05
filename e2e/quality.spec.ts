@@ -1,11 +1,11 @@
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Locator, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
 import { SIGNED_IN, addActivity, addLinkedDeal, card, column, dropAtEnd, isoDay, resetToSampleData } from "./helpers";
 
 test.beforeAll(resetToSampleData);
 
-const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline"];
+const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products"];
 const SIZES = [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
@@ -17,6 +17,7 @@ async function recordPaths(request: APIRequestContext) {
     `/organizations/${await get("/organizations")}`,
     `/contacts/${await get("/contacts")}`,
     `/deals/${await get("/deals")}`,
+    `/products/${await get("/products")}`,
   ];
 }
 
@@ -69,10 +70,12 @@ async function tabThrough(page: Page, presses: number) {
       const element = document.activeElement as HTMLElement | null;
       if (!element || element === document.body) return null;
       const style = getComputedStyle(element);
-      // cmdk labels its input through a hidden label element.
+      // cmdk labels its input through a hidden label element, and a checkbox sits in its label.
       const labelledBy = element.getAttribute("aria-labelledby");
       const label =
-        element.getAttribute("aria-label") ?? (labelledBy && document.getElementById(labelledBy)?.textContent);
+        element.getAttribute("aria-label") ??
+        (labelledBy && document.getElementById(labelledBy)?.textContent) ??
+        (element as HTMLInputElement).labels?.[0]?.textContent;
       return {
         name: `${element.tagName} ${label || element.textContent?.trim().slice(0, 30)}`,
         ring: style.outlineStyle !== "none" && parseFloat(style.outlineWidth) >= 2,
@@ -88,11 +91,12 @@ async function tabThrough(page: Page, presses: number) {
 test("every control can be reached by Tab and shows a focus ring", async ({ page }) => {
   await page.goto("/organizations");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  const table = await tabThrough(page, 20);
+  const table = await tabThrough(page, 21);
   for (const name of [
     "A Dashboard",
     "A Deals",
-    "INPUT Search organizations, contacts and deals",
+    "A Products",
+    "INPUT Search organizations, contacts, deals and products",
     `BUTTON Menu for ${SIGNED_IN.name}`,
     "BUTTON Add organization",
     "INPUT Search organizations",
@@ -105,15 +109,67 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
 
   await page.goto("/");
   await expect(page.getByTestId("follow-up").first()).toBeVisible();
-  const dashboard = await tabThrough(page, 18);
+  const dashboard = await tabThrough(page, 19);
   expect([...dashboard].some((name) => name.startsWith("INPUT Mark "))).toBe(true);
   expect([...dashboard]).toContain("A Open the pipeline");
 
   await page.goto("/pipeline");
   await expect(page.locator("[data-deal]").first()).toBeVisible();
-  const board = await tabThrough(page, 12);
+  const board = await tabThrough(page, 13);
   expect([...board].some((name) => name.startsWith("BUTTON Add deal to "))).toBe(true);
   expect([...board].some((name) => name.startsWith("A $"))).toBe(true);
+
+  await page.goto("/products");
+  await expect(page.locator("tbody tr").first()).toBeVisible();
+  const products = await tabThrough(page, 18);
+  for (const name of ["BUTTON Add product", "INPUT Search products", "INPUT Show archived (2)", "BUTTON Unit price"]) {
+    expect([...products], name).toContain(name);
+  }
+  expect([...products].some((name) => name.startsWith("BUTTON Archive "))).toBe(true);
+});
+
+/** How many lines each element's text takes up. */
+function linesOf(elements: Locator) {
+  return elements.evaluateAll((found) =>
+    found.map((element) => {
+      const tops = new Set<number>();
+      for (const node of element.childNodes) {
+        if (node.nodeType !== Node.TEXT_NODE) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const rect of range.getClientRects()) tops.add(Math.round(rect.top));
+      }
+      return tops.size;
+    }),
+  );
+}
+
+test("the top bar stays on one line at 1280 by 720, even with the widest date", async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 10, 30, 12, 0) });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/products");
+  const bar = page.getByRole("banner");
+  await expect(bar).toContainText("Nov 30, 2026");
+  await expect(bar.getByRole("button", { name: `Menu for ${SIGNED_IN.name}` })).toBeVisible();
+
+  expect((await bar.boundingBox())!.height).toBe(56);
+  expect(await linesOf(bar.getByRole("navigation", { name: "Sections" }).getByRole("link"))).toEqual([
+    1, 1, 1, 1, 1, 1,
+  ]);
+  const date = bar.getByText("Nov 30, 2026");
+  expect(await linesOf(date)).toEqual([1]);
+  for (const part of [
+    bar.getByRole("navigation", { name: "Sections" }),
+    bar.getByRole("combobox"),
+    date,
+    bar.getByRole("button", { name: `Menu for ${SIGNED_IN.name}` }),
+  ]) {
+    const box = (await part.boundingBox())!;
+    const barBox = (await bar.boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(barBox.y);
+    expect(box.y + box.height).toBeLessThanOrEqual(barBox.y + barBox.height);
+    expect(box.x + box.width).toBeLessThanOrEqual(barBox.x + barBox.width);
+  }
 });
 
 /** Opens the dashboard from another screen and records the revenue line on every frame while it mounts. */

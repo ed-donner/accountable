@@ -60,6 +60,7 @@ _check_database_path()
 from accountable import auth, db, settings, users
 from accountable.crm import rules
 from accountable.crm.tables import activities, contacts, deals, organizations
+from accountable.products.tables import name_key, products
 
 LOCAL = "http://localhost"
 # Where a request from this computer comes from. The local copy's sign-in accepts no
@@ -133,6 +134,12 @@ class Make:
         row = {"type": "note", "description": "Spoke to them", "occurred_at": NOW, **values}
         with db.writing() as conn:
             return insert_row(conn, activities, **row)
+
+    def product(self, name: str = "Pro license", **values: Any) -> int:
+        """Active, by nobody, like a record from before sign-in, unless told otherwise."""
+        row = {"unit_price_cents": 4950, **values}
+        with db.writing() as conn:
+            return insert_row(conn, products, name=name, name_key=name_key(name), **row)
 
 
 @pytest.fixture

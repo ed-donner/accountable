@@ -3,10 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { crmSearchGroups } from "../crm/searchGroups";
+import { productsSearchGroups } from "../products/searchGroups";
 import { mockApi, renderApp, type Call } from "../test-utils";
 import { PAUSE_MS, Search, type SearchResults } from "./Search";
 
 const NONE = { count: 0, results: [] };
+const GROUPS = [...crmSearchGroups, ...productsSearchGroups];
 
 const HARB: SearchResults = {
   organizations: { count: 1, results: [{ id: 1, name: "Harbor & Pine", industry: "Logistics" }] },
@@ -19,10 +22,24 @@ const HARB: SearchResults = {
     })),
   },
   deals: { count: 1, results: [{ id: 7, name: "Harbor refit", stage: "proposal", organization_name: null }] },
+  products: NONE,
 };
 
 const ONLY_DEALS: SearchResults = { ...HARB, organizations: NONE, contacts: NONE };
-const NOTHING: SearchResults = { organizations: NONE, contacts: NONE, deals: NONE };
+const NOTHING: SearchResults = { organizations: NONE, contacts: NONE, deals: NONE, products: NONE };
+const WITH_PRODUCTS: SearchResults = {
+  ...HARB,
+  products: {
+    count: 6,
+    results: [
+      { id: 21, name: "Harbor survey", unit_price_cents: 125000 },
+      { id: 22, name: "Harbor seat", unit_price_cents: 4950 },
+      { id: 23, name: "Harbor kiosk", unit_price_cents: 114999 },
+      { id: 24, name: "Harbor support", unit_price_cents: 360000 },
+      { id: 25, name: "Harbor training", unit_price_cents: 85000 },
+    ],
+  },
+};
 
 function ShowAddress() {
   const { pathname, search } = useLocation();
@@ -32,11 +49,11 @@ function ShowAddress() {
 function openSearch() {
   renderApp(
     <>
-      <Search />
+      <Search groups={GROUPS} />
       <ShowAddress />
     </>,
   );
-  return screen.getByRole<HTMLInputElement>("combobox", { name: "Search organizations, contacts and deals" });
+  return screen.getByRole<HTMLInputElement>("combobox", { name: "Search organizations, contacts, deals and products" });
 }
 
 function typist() {
@@ -155,6 +172,29 @@ describe("the results", () => {
     expect(groups.map((group) => within(group).getAllByRole("option").length)).toEqual([1, 6, 1]);
   });
 
+  it("put Products fourth, each with its price and cents in the figures' typeface", async () => {
+    await searchFor("harb", WITH_PRODUCTS);
+    expect(screen.getAllByRole("group")).toEqual(
+      ["Organizations", "Contacts", "Deals", "Products"].map((name) => screen.getByRole("group", { name })),
+    );
+    const survey = screen.getByRole("option", { name: /^Harbor survey/ });
+    expect(within(survey).getByText("Harb").tagName).toBe("STRONG");
+    const price = within(survey).getByText("$1,250.00");
+    expect(price.className).toContain("num");
+    expect(within(screen.getByRole("option", { name: /^Harbor kiosk/ })).getByText("$1,149.99")).toBeTruthy();
+  });
+
+  it("open a product's page, and See all opens Products with the same search", async () => {
+    await searchFor("harb", WITH_PRODUCTS);
+    await typist().click(screen.getByRole("option", { name: /^Harbor seat/ }));
+    expect(address()).toBe("/products/22");
+
+    await typist().type(screen.getByRole("combobox"), "harb");
+    await wait(PAUSE_MS);
+    await typist().click(screen.getByRole("option", { name: "See all 6 products" }));
+    expect(address()).toBe("/products?q=harb");
+  });
+
   it("leave out a group with no matches", async () => {
     await searchFor("refit", ONLY_DEALS);
     expect(screen.getAllByRole("group")).toEqual([screen.getByRole("group", { name: "Deals" })]);
@@ -187,7 +227,9 @@ describe("the results", () => {
 
   it("say so when nothing matches", async () => {
     await searchFor("harbour", NOTHING);
-    expect(screen.getByRole("status").textContent).toBe('No organizations, contacts or deals match "harbour".');
+    expect(screen.getByRole("status").textContent).toBe(
+      'No organizations, contacts, deals or products match "harbour".',
+    );
   });
 });
 

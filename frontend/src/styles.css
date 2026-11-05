@@ -24,6 +24,7 @@
   --color-late-tint: #fdecf1;
   --color-grid: #e4ecee;
   --color-bar-soft: #839da5;
+  --color-archived: #cdd8db;
   /* The same mix Tailwind makes for bg-midnight/40. */
   --color-veil: color-mix(in oklab, var(--color-midnight) 40%, transparent);
 
@@ -82,6 +83,7 @@
   --color-late-tint: #4b2436;
   --color-grid: #1e4350;
   --color-bar-soft: #6c858e;
+  --color-archived: #3b5862;
   --color-veil: rgb(0 0 0 / 50%);
 
   --shadow-dialog: 0 12px 40px rgb(0 0 0 / 50%);

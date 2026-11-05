@@ -117,6 +117,21 @@ export function addActivity(request: APIRequestContext, values: object) {
   return post<{ id: number }>(request, "/activities", values);
 }
 
+/** A product at $100.00 unless the values say otherwise. active: false archives it once it's added. */
+export async function addProduct(request: APIRequestContext, name: string, values: { active?: boolean } & object = {}) {
+  const { active = true, ...fields } = values;
+  const product = await post<{ id: number; name: string }>(request, "/products", {
+    name,
+    unit_price_cents: 10000,
+    ...fields,
+  });
+  if (!active) {
+    const reply = await request.patch(`${API}/products/${product.id}`, { data: { active: false } });
+    if (!reply.ok()) throw new Error(`Archiving ${name} failed: ${reply.status()} ${await reply.text()}`);
+  }
+  return product;
+}
+
 /** An organization, a contact and a deal, for tests that need one of each. */
 export async function addLinkedDeal(request: APIRequestContext, name: string, deal: Partial<DealFields> = {}) {
   const organization = await addOrganization(request, `${name} Ltd`);

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { toast } from "sonner";
+
+import { useNotify } from "./notify";
 
 type Read = { data: unknown; isError: boolean; isFetching: boolean };
 
@@ -8,11 +9,12 @@ type Read = { data: unknown; isError: boolean; isFetching: boolean };
  * list would look like an empty one, and invite adding a record that already exists.
  */
 export function useCloseIfUnreadable(reads: Read[], onClose: () => void) {
+  const notify = useNotify();
   const failed = reads.some((read) => read.data === undefined && read.isError && !read.isFetching);
 
   useEffect(() => {
     if (!failed) return;
-    toast.error("Couldn't open the form. Try again.", { id: "form-unreadable" });
+    notify.error("Couldn't open the form. Try again.", { id: "form-unreadable" });
     onClose();
-  }, [failed, onClose]);
+  }, [failed, onClose, notify]);
 }

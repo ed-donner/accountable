@@ -20,7 +20,7 @@ Each person's row is added the first time the backend sees their token, and upda
 
 **Who on every record**
 
-Organizations, contacts, deals and activities each also have:
+Organizations, contacts, deals, activities and products each also have:
 
 | Column | Type | Notes |
 |---|---|---|
@@ -82,6 +82,18 @@ A check constraint makes sure exactly one of `contact_id` and `deal_id` is set.
 
 Stage changes get their own table because they aren't activities: they have no type or description, can't be edited, and give the funnel its history.
 
+**products**
+
+| Column | Type | Notes |
+|---|---|---|
+| name | text | required |
+| name_key | text | the name with its case taken out, by Python's `casefold()`, then written in Unicode's NFC form, so an accented letter typed as one character matches the same letter typed as a letter and an accent. The backend sets it on every save. Unique, so it's what makes names unique (G2) |
+| description | text | optional |
+| unit_price_cents | 64-bit integer | whole US cents, 0 to 100,000,000,000,000, which is $1 trillion |
+| active | boolean | true by default, and false once archived |
+
+The products table belongs to the price list, not the CRM, so it's in `products/tables.py` ([Layout rules](architecture.md#layout-rules)). Nothing links to it yet.
+
 Notes:
 
 - **Links:** required links are enforced by the API, not the database, because deletes have to be able to blank them. The database columns allow blank.
@@ -92,8 +104,10 @@ Notes:
 - **Migrations:** these run when the backend starts, all in one transaction, on both databases. On SQLite they run with foreign keys off, because SQLite makes most table changes by rebuilding the table, and dropping the old table with foreign keys on would run its delete rules, blanking links and deleting activities. Steps that only SQLite needs, such as those rebuilds, are skipped on Postgres, where Postgres can change a table in place. Every migration, the first ones included, runs from an empty database on both, so a new Supabase project gets the whole history.
 - **Row-level security:** on Postgres, the migrations turn on row-level security for every table, Alembic's version table included, with no policies ([Security](security.md#the-database)). SQLAlchemy has no way to say this, so it's the one place the migrations use raw SQL, and it runs only on Postgres.
 - **Row-level security check:** on Postgres, once the migrations have run, the backend reads Postgres's catalog through SQLAlchemy Core and refuses to start if any table in the `public` schema has row-level security off. It runs inside the migrations' transaction, so a start that fails it changes nothing. The message names each one, such as "Row-level security is off for these tables: notes. Turn it on in a migration." That catches a later migration that forgot, and a table added in Supabase's dashboard. The check lives in `db.py`.
-- **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)` and `stage_changes (changed_at)`.
+- **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)` and `stage_changes (changed_at)`, and a unique one on `products (name_key)`.
 - **Times:** stored in UTC with no time zone, on both databases, so the API always sends times with a `Z`. Otherwise the browser would read a UTC time as local.
+- **Unique product names:** the database refuses a second product with the same `name_key`, so two saves at once can't both get through, and the API turns that refusal into the message beside the name (G8), never a 500. The key is worked out in Python, so it's the same on both databases. An index on the database's own `lower(name)` would differ between them, because SQLite's `lower()` only knows the letters A to Z, and an index can't use the lowercase function `db.py` gives SQLite. Saves check the key first, inside the write lock, so the usual case never reaches the refusal. Postgres also refuses an index entry over 2,704 bytes, its own few included, and that refusal isn't a duplicate, so it would be a 500. A name has at most 200 characters (G2), and no character's key is more than 12 bytes, so a key is at most 2,400 bytes, inside the 2,690 Postgres 16 took (`INDEXED_KEY_BYTES` in `products/tables.py`).
+- **Prices:** whole cents in a 64-bit integer, as `deals.value` is for whole dollars. The API takes `unit_price_cents` as a whole number and refuses anything else, so `49.5` is refused, not rounded. The browser holds whole numbers exactly up to about 9 quadrillion, far past the limit.
 - **Search:** case is ignored the same way on both databases (K2). SQLite's own `lower()` only knows the letters A to Z, so `db.py` gives SQLite a lowercase function that knows every language, and matching uses it on both sides of the comparison.
 - **Dates:** close dates and follow-up dates are plain dates. In the frontend, always read them with date-fns `parseISO`. `new Date("2026-10-31")` reads as UTC and shows the day before in US time zones.
 - **Probabilities:** the six usual probabilities live in one place in the backend. The frontend reads them from `GET /api/meta`.
@@ -142,7 +156,11 @@ All routes are under `/api` and use JSON. Every route needs a valid token in the
 | `PATCH /activities/{id}` | Edit, including marking a follow-up done |
 | `DELETE /activities/{id}` | Delete |
 | `GET /dashboard` | Everything on the dashboard, in one reply |
-| `GET /search?q=` | Up to 5 organizations, contacts and deals whose names hold `q`, with a count for each kind (K1 to K5). `q` is 1 to 100 characters once the spaces at its ends are gone. |
+| `GET /products` | Every product, archived ones included, each with `active` |
+| `POST /products` | Add, active |
+| `GET /products/{id}` | One product |
+| `PATCH /products/{id}` | Edit the fields sent. `active` set to false archives the product, and set to true restores it. |
+| `GET /search?q=` | Up to 5 organizations, contacts, deals and active products whose names hold `q`, with a count for each kind (K1 to K5). `q` is 1 to 100 characters once the spaces at its ends are gone. |
 
 The local copy also has these two, which need no token and which the shared app doesn't have (U16):
 
@@ -153,7 +171,9 @@ The local copy also has these two, which need no token and which the shared app 
 
 Signing in to the shared app goes from the browser straight to Supabase Auth, so it has no route here.
 
-The single-record replies for organizations, contacts and deals carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way. Names follow U8. A record counts as changed since it was added when its `updated_at` differs from its `created_at`, so an add sets both from one moment, and the changes the app makes around a save, such as renumbering a column, leave the other records' `updated_at` alone as well as their `updated_by` (U10, R6). Records from before sign-in, with no one recorded, can have their two times a moment apart, so on those the record pages treat a difference under a second as no change.
+Products have no delete route, so `DELETE /products/{id}` gets a 405 (G9). A product's name that's taken gets a 422 with a message beside `name`, like any other field (G2).
+
+The single-record replies for organizations, contacts, deals and products carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way. Names follow U8. A record counts as changed since it was added when its `updated_at` differs from its `created_at`, so an add sets both from one moment, and the changes the app makes around a save, such as renumbering a column, leave the other records' `updated_at` alone as well as their `updated_by` (U10, R6). Records from before sign-in, with no one recorded, can have their two times a moment apart, so on those the record pages treat a difference under a second as no change.
 
 The list routes return every row, and the table does its searching, sorting and paging in the browser. At these limits that's small and quick, and it makes typing in the search box feel instant.
 

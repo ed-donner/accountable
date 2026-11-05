@@ -1,3 +1,4 @@
+import { Package } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, Outlet } from "react-router";
 import { Toaster } from "sonner";
@@ -5,15 +6,23 @@ import { Toaster } from "sonner";
 import { formatDate } from "../lib/dates";
 import { useToday } from "../lib/useToday";
 import { ConnectionMessage } from "./ConnectionMessage";
-import { Icon, type IconName } from "./Icon";
+import { Icon } from "./Icon";
 import { UserMenu } from "./UserMenu";
 
-const SECTIONS: { to: string; label: string; icon: IconName }[] = [
-  { to: "/", label: "Dashboard", icon: "dashboard" },
-  { to: "/organizations", label: "Organizations", icon: "organizations" },
-  { to: "/contacts", label: "Contacts", icon: "contacts" },
-  { to: "/deals", label: "Deals", icon: "deals" },
-  { to: "/pipeline", label: "Pipeline", icon: "pipeline" },
+const ICON_SIZE = 17;
+
+// The design reference has icons for the first five. Products takes lucide's, drawn as Icon draws its own.
+const SECTIONS: { to: string; label: string; icon: ReactNode }[] = [
+  { to: "/", label: "Dashboard", icon: <Icon name="dashboard" size={ICON_SIZE} /> },
+  { to: "/organizations", label: "Organizations", icon: <Icon name="organizations" size={ICON_SIZE} /> },
+  { to: "/contacts", label: "Contacts", icon: <Icon name="contacts" size={ICON_SIZE} /> },
+  { to: "/deals", label: "Deals", icon: <Icon name="deals" size={ICON_SIZE} /> },
+  { to: "/pipeline", label: "Pipeline", icon: <Icon name="pipeline" size={ICON_SIZE} /> },
+  {
+    to: "/products",
+    label: "Products",
+    icon: <Package size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
+  },
 ];
 
 /** The top bar and the page under it. The search box comes from App.tsx, because it knows about records. */
@@ -35,14 +44,14 @@ export function Shell({ search }: { search: ReactNode }) {
                 }`
               }
             >
-              <Icon name={icon} size={17} />
+              {icon}
               {label}
             </NavLink>
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-3">
           {search}
-          <span className="num text-[13px] text-muted">{formatDate(today)}</span>
+          <span className="num text-[13px] whitespace-nowrap text-muted">{formatDate(today)}</span>
           <UserMenu />
         </div>
       </header>

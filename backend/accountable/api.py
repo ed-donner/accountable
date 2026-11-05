@@ -13,6 +13,8 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializ
 from accountable import db
 
 MAX_VALUE = 1_000_000_000_000
+# Prices go up to the same $1 trillion, in whole cents (G3).
+MAX_CENTS = MAX_VALUE * 100
 # The largest id both databases can hold: Postgres's integer columns stop here,
 # well before SQLite's. A query given a bigger one crashes instead of finding nothing.
 MAX_ID = 2**31 - 1
@@ -106,6 +108,8 @@ PageOffset = Annotated[int, Query(ge=0, le=MAX_ID)]
 Today = Annotated[date, Depends(db.local_today)]
 Now = Annotated[datetime, Depends(db.utc_now)]
 Dollars = Annotated[StrictInt, Field(ge=0, le=MAX_VALUE)]
+# Strict, so 49.5, "4950" and true are refused rather than rounded or read as numbers.
+Cents = Annotated[StrictInt, Field(ge=0, le=MAX_CENTS)]
 UtcTime = Annotated[datetime, PlainSerializer(_with_z, return_type=str)]
 
 

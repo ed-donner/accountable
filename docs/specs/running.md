@@ -19,7 +19,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Sample data
 
-- **M1.** A new database is filled with sample data. "New" means the database was only just created, not that its tables are empty, so an emptied database stays empty after a restart. For the local copy, that's a new `data/accountable.db`. For the shared app, it's a Supabase database with none of the app's tables yet.
+- **M1.** A new database is filled with sample data. "New" means the database was only just created, not that its tables are empty, so an emptied database stays empty after a restart. For the local copy, that's a new `data/accountable.db`. For the shared app, it's a Supabase database with none of the app's tables yet. A migration that adds a table adds no sample rows to it, so a database from before it gets the new table empty. So a local copy or shared app from before Products gets an empty Products section. In the local copy, `npm run seed` fills it, though it also resets everything else.
 - **M2.** Sample dates are worked out from the day of seeding, so a fresh copy always looks current. Running `npm run seed` later refreshes the local copy.
 - **M3.** The content is fictional, realistic and the same each time, in these rough amounts:
 
@@ -31,6 +31,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 | | | 32 won and 12 lost across the past 12 months, with a win in every month and an upward trend |
 | | | At least 2 wins dated this month, even on the 1st |
 | Activities | 300 | All three types, at least 6 overdue follow-ups and at least 10 upcoming |
+| Products | 12 | Licenses, support plans, training days and services at prices that fit the sample deals, at least 3 of them with cents, such as $49.50, and 2 archived |
 
 - **M4.** Every sample deal has a full stage history, so timelines and the funnel look right from the start.
 - **M5.** Emails and websites use the reserved `.example` domain, so nothing points at a real company.
@@ -42,7 +43,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 - **C1.** `npm run dev` starts the local copy, the same on Mac, Linux and Windows. With Node and uv installed, it fetches what's missing, starts the app and prints its address. It has only been run on a Mac so far: the build avoids anything platform-specific, but Windows and Linux are unproven until someone tries them.
 - **C2.** After the first run, the local copy starts and works with no internet connection. It loads nothing from outside the computer, including fonts. The shared app needs a connection for Supabase, and loads nothing else from outside its own address.
 - **C3.** Every change survives a browser refresh and a restart, in both.
-- **C4.** `npm run seed` resets the local copy to the sample data. `npm run empty` removes every record from it. Both show how many of each record will be lost and go ahead only if `yes` is typed. They leave the made-up teammates in place, so there's still someone to sign in as, and add them if they're missing, as on a database that was never started.
+- **C4.** `npm run seed` resets the local copy to the sample data. `npm run empty` removes every record from it, products included. Both show how many of each record will be lost and go ahead only if `yes` is typed. They leave the made-up teammates in place, so there's still someone to sign in as, and add them if they're missing, as on a database that was never started.
 - **C5.** After `npm run empty`, every screen still works and invites the first record.
 - **C6.** Both commands are safe to run while the local copy is running. A refresh shows the result.
 - **C7.** There are no backups and no export. The local copy keeps everything in `data/accountable.db`, so a reset, `git clean -x`, deleting the folder or losing the computer loses it all, and `docs/STATUS.md` explains that copying the file is the backup. The team's data lives in Supabase, and anything deleted in the shared app is gone.

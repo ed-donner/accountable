@@ -8,10 +8,10 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { toast } from "sonner";
 
 import { api } from "../lib/api";
 import { todayIso } from "../lib/dates";
+import { useNotify } from "../lib/notify";
 import { useWrite, type Authorship, type Person } from "../lib/records";
 import { isSharedApp } from "../lib/session";
 import { useToday } from "../lib/useToday";
@@ -270,6 +270,7 @@ const confirmedDeals = new WeakMap<QueryClient, Deal[]>();
  */
 export function useMoveDeal() {
   const client = useQueryClient();
+  const notify = useNotify();
   const meta = useMeta();
 
   const place = (deals: Deal[], move: Move) => applyMove(deals, move, meta.data?.stages ?? [], todayIso());
@@ -313,12 +314,12 @@ export function useMoveDeal() {
         show(landed, move);
       }
       const message = moveMessage(result);
-      if (message) toast.success(message);
+      if (message) notify.success(message);
     },
     onError: (_error, move) => {
       const confirmed = confirmedDeals.get(client);
       if (confirmed) show(confirmed, move);
-      toast.error("Couldn't move that deal, so it's back where it was.");
+      notify.error("Couldn't move that deal, so it's back where it was.");
     },
     onSettled: () => {
       if (client.isMutating({ mutationKey: MOVE_KEY }) !== 1) return;
@@ -373,6 +374,7 @@ function byDueDate(a: FollowUp, b: FollowUp) {
  */
 export function useTickFollowUp() {
   const client = useQueryClient();
+  const notify = useNotify();
   return useMutation({
     mutationKey: TICK_KEY,
     scope: { id: "follow-up-ticks" },
@@ -390,7 +392,7 @@ export function useTickFollowUp() {
       setTicked(client, id, !done);
       const followUp = context?.followUp;
       if (followUp) setFollowUps(client, (items) => [...items, followUp].sort(byDueDate));
-      toast.error(TICK_FAILED);
+      notify.error(TICK_FAILED);
     },
     onSettled: () => {
       if (client.isMutating({ mutationKey: TICK_KEY }) === 1) return client.invalidateQueries();

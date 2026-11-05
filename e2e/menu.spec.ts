@@ -17,8 +17,8 @@ const RAISED = { light: "rgb(255, 255, 255)", dark: "rgb(18, 64, 79)" };
 const FOCUS = { light: "rgb(17, 138, 178)", dark: "rgb(76, 179, 214)" };
 const MARIGOLD = "rgb(255, 193, 69)";
 const MIDNIGHT = "rgb(7, 59, 76)";
-const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline"];
-const SEARCH_BOX = "Search organizations, contacts and deals";
+const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products"];
+const SEARCH_BOX = "Search organizations, contacts, deals and products";
 
 /** Named for the person once the backend says who's signed in, and plain "Menu" until then. */
 function menuButton(page: Page) {
@@ -109,7 +109,7 @@ test("the menu button can be reached by Tab, shows a focus ring, and its menu wo
   await expect(page.locator("tbody tr").first()).toBeVisible();
 
   const sections = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
-  for (let index = 0; index < 5; index += 1) {
+  for (let index = 0; index < 6; index += 1) {
     await page.keyboard.press("Tab");
     await expect(sections.nth(index)).toBeFocused();
   }
@@ -239,7 +239,7 @@ test("the menu is on every screen and works there", async ({ page, request, expe
   await request.delete(`/api/deals/${gone.id}`);
 
   const screens: [string, RegExp | string][] = [
-    ...SECTIONS.map((path): [string, RegExp] => [path, /^(Dashboard|Organizations|Contacts|Deals|Pipeline)$/]),
+    ...SECTIONS.map((path): [string, RegExp] => [path, /^(Dashboard|Organizations|Contacts|Deals|Pipeline|Products)$/]),
     [`/deals/${deal.id}`, "Menu everywhere"],
     [`/deals/${gone.id}`, "This deal no longer exists"],
     ["/nothing-here", "This page no longer exists"],
@@ -460,6 +460,8 @@ for (const mode of ["light", "dark"] as const) {
       `/contacts/${await firstId("/contacts")}`,
       `/deals/${await firstId("/deals")}`,
     ];
+    const products: { id: number; active: boolean }[] = await (await request.get("/api/products")).json();
+    const archived = products.find((product) => !product.active)!;
     await addLinkedDeal(request, `Late for the ${mode} sweep`, { close_date: isoDay(-3) });
 
     const screens: { path: string; ready: (page: Page) => Promise<void> }[] = [
@@ -473,6 +475,14 @@ for (const mode of ["light", "dark"] as const) {
         ready: (page: Page) => expect(page.getByTestId("timeline-entry").first()).toBeVisible(),
       })),
       { path: "/pipeline", ready: (page) => expect(card(page, `Late for the ${mode} sweep`)).toBeVisible() },
+      {
+        path: "/products?archived=1",
+        ready: (page) => expect(page.locator("tbody").getByText("Archived").first()).toBeVisible(),
+      },
+      {
+        path: `/products/${archived.id}`,
+        ready: (page) => expect(page.getByRole("button", { name: "Restore", exact: true })).toBeVisible(),
+      },
       {
         path: "/deals",
         ready: async (page) => {

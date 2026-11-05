@@ -21,7 +21,7 @@ import {
 const ONE_START_MS = 120_000;
 test.describe.configure({ mode: "serial", timeout: ONE_START_MS });
 
-const SCREENS = ["/", "/organizations", "/contacts", "/deals", "/pipeline"];
+const SCREENS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products"];
 const TEAMMATES = ["Alex Rivera", "Dana Whitfield", "Theo Brandt", "robin@accountable.example"];
 
 let folder: ReturnType<typeof makeCopyFolder>;
@@ -136,6 +136,10 @@ test("npm run seed with the app running brings back the sample data and keeps th
   await goto(page, "/organizations");
   await expect(page.locator("tbody tr")).toHaveCount(24);
 
+  await goto(page, "/products");
+  await expect(page.locator("tbody tr")).toHaveCount(10);
+  await expect(page.getByRole("checkbox", { name: "Show archived (2)" })).not.toBeChecked();
+
   await expectAllTeammatesToChooseFrom(browser);
 });
 
@@ -155,6 +159,8 @@ test("npm run empty with the app running keeps the teammates and leaves every sc
   await expect(page.getByText("No organizations yet. Add the first one.")).toBeVisible();
   await goto(page, "/contacts");
   await expect(page.getByText("No contacts yet. Add the first one.")).toBeVisible();
+  await goto(page, "/products");
+  await expect(page.getByText("No products yet. Add the first one.")).toBeVisible();
   await goto(page, "/");
   await expect(page.getByText("No follow-ups due.")).toBeVisible();
   await goto(page, "/pipeline");
@@ -174,7 +180,7 @@ test("an emptied database stays empty after a restart", async ({ page }) => {
   await expect(page.getByText("No deals yet. Add the first one.")).toBeVisible();
 });
 
-test("from an empty database, the first organization, contact and deal can be added", async ({ page }) => {
+test("from an empty database, the first organization, contact, deal and product can be added", async ({ page }) => {
   await openSignedIn(page, "/organizations");
   await page.getByRole("button", { name: "Add organization" }).first().click();
   await page.getByRole("dialog").getByLabel("Name").fill("First Co");
@@ -200,4 +206,11 @@ test("from an empty database, the first organization, contact and deal can be ad
 
   await goto(page, "/");
   await expect(page.getByTestId("band-new")).toContainText("$5,000");
+
+  await goto(page, "/products");
+  await page.getByRole("button", { name: "Add product" }).first().click();
+  await page.getByRole("dialog").getByLabel("Name").fill("First product");
+  await page.getByRole("dialog").getByLabel("Unit price").fill("49.50");
+  await page.getByRole("dialog").getByRole("button", { name: "Save product" }).click();
+  await expect(page.getByRole("row", { name: /^First product/ })).toContainText("$49.50");
 });

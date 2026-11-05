@@ -1,12 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { Field } from "../../components/Field";
 import { FormDialog } from "../../components/FormDialog";
 import { RecordPicker } from "../../components/RecordPicker";
+import { useNotify } from "../../lib/notify";
 import { showSaveError } from "../../lib/saveErrors";
 import { useCloseIfUnreadable } from "../../lib/useCloseIfUnreadable";
 import { EMAIL_MESSAGE, isEmail, link } from "../../lib/validate";
@@ -55,6 +55,7 @@ export function ContactForm({ record, defaultName, defaultOrganizationId, onClos
   const organizations = useOrganizations();
   useCloseIfUnreadable([organizations], onClose);
   const save = useSaveContact(record?.id);
+  const notify = useNotify();
   const [addingOrganization, setAddingOrganization] = useState<string | null>(null);
 
   const {
@@ -87,11 +88,11 @@ export function ContactForm({ record, defaultName, defaultOrganizationId, onClos
         job_title: values.job_title || null,
         status: values.status,
       });
-      toast.success("Contact saved.");
+      notify.success("Contact saved.");
       onSaved?.(saved);
       onClose();
     } catch (error) {
-      showSaveError(error, { setError, getValues });
+      showSaveError(error, { setError, getValues, notify });
     }
   }
 

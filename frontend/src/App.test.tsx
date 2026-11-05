@@ -5,8 +5,18 @@ import { App } from "./App";
 import { THEME_KEY } from "./lib/theme";
 import { META, mockApi, startSignedIn, user, type Call } from "./test-utils";
 
-const SEARCH_BOX = "Search organizations, contacts and deals";
+const SEARCH_BOX = "Search organizations, contacts, deals and products";
 const ALEX = { id: "alex", name: "Alex Rivera", email: "alex@accountable.example", initials: "AR" };
+const PRODUCT = {
+  name: "Front desk kiosk",
+  description: null,
+  unit_price_cents: 114999,
+  active: true,
+  created_at: "2026-10-12T12:00:00Z",
+  created_by: null,
+  updated_at: "2026-10-12T12:00:00Z",
+  updated_by: null,
+};
 
 let calls: Call[];
 
@@ -99,7 +109,7 @@ describe("the app, signed out", () => {
 
     expect((await heading()).textContent).toBe("Deals");
     expect(window.location.pathname).toBe("/deals");
-    expect(topBar().getAllByRole("link")).toHaveLength(5);
+    expect(topBar().getAllByRole("link")).toHaveLength(6);
   });
 });
 
@@ -110,7 +120,7 @@ describe("the app, signed in", () => {
     visit("/");
     render(<App />);
     expect((await heading()).textContent).toBe("Dashboard");
-    expect(topBar().getAllByRole("link")).toHaveLength(5);
+    expect(topBar().getAllByRole("link")).toHaveLength(6);
     const bar = within(screen.getByRole("banner"));
     expect(bar.getByLabelText(SEARCH_BOX)).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
@@ -121,6 +131,7 @@ describe("the app, signed in", () => {
     ["/contacts", "Contacts"],
     ["/deals", "Deals"],
     ["/pipeline", "Pipeline"],
+    ["/products", "Products"],
   ])("gives %s its own address", async (path, title) => {
     render(<App />);
     visit(path);
@@ -132,6 +143,7 @@ describe("the app, signed in", () => {
     ["/organizations/abc", "This organization no longer exists", "Back to Organizations"],
     ["/contacts/abc", "This contact no longer exists", "Back to Contacts"],
     ["/deals/abc", "This deal no longer exists", "Back to Deals"],
+    ["/products/abc", "This product no longer exists", "Back to Products"],
   ])("says %s couldn't be a record, with a link back to its section", async (path, title, back) => {
     render(<App />);
     visit(path);
@@ -139,11 +151,19 @@ describe("the app, signed in", () => {
     expect(screen.getByRole("link", { name: back })).toBeTruthy();
   });
 
+  it("opens a product's page at its address", async () => {
+    mockApi({ "GET /me": ALEX, "GET /meta": META, "GET /products/7": { ...PRODUCT, id: 7 } });
+    render(<App />);
+    visit("/products/7");
+    expect((await heading()).textContent).toBe("Front desk kiosk");
+    expect(screen.getByText("$1,149.99")).toBeTruthy();
+  });
+
   it("says an unknown address no longer exists, links to the Dashboard and keeps the top bar", async () => {
     render(<App />);
     visit("/no/such/page");
     expect((await heading()).textContent).toBe("This page no longer exists");
-    expect(topBar().getAllByRole("link")).toHaveLength(5);
+    expect(topBar().getAllByRole("link")).toHaveLength(6);
 
     await user().click(screen.getByRole("link", { name: "Back to Dashboard" }));
 

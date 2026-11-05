@@ -6,6 +6,8 @@ import pytest
 from accountable import db
 from accountable.crm import rules, sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
+from accountable.products import sample_data as product_samples
+from accountable.products.tables import name_key, products
 from accountable.users import TEAMMATES, users
 from sqlalchemy import select
 
@@ -28,6 +30,7 @@ def seeded(request, rows_by_day, database):
     if today not in rows_by_day:
         with db.writing() as conn:
             sample_data.fill(conn, today)
+            product_samples.fill(conn, today)
         with db.reading() as conn:
             rows_by_day[today] = {
                 "today": today,
@@ -36,6 +39,7 @@ def seeded(request, rows_by_day, database):
                 "deals": rows_of(conn, deals),
                 "activities": rows_of(conn, activities),
                 "stage_changes": rows_of(conn, stage_changes),
+                "products": rows_of(conn, products),
                 "users": rows_of(conn, users),
             }
     return rows_by_day[today]
@@ -57,6 +61,34 @@ def test_the_amounts(seeded):
     assert len(seeded["contacts"]) == 75
     assert len(seeded["deals"]) == 80
     assert len(seeded["activities"]) == 300
+    assert len(seeded["products"]) == 12
+
+
+def test_products_have_cents_and_archived_ones_and_fit_the_sample_deals(seeded):
+    rows = seeded["products"]
+    assert sum(row.unit_price_cents % 100 != 0 for row in rows) >= 3
+    assert sum(not row.active for row in rows) == 2
+    largest_deal = max(row.value for row in seeded["deals"])
+    assert all(0 < row.unit_price_cents < largest_deal * 100 for row in rows)
+
+
+def test_product_names_are_unique_and_keyed(seeded):
+    rows = seeded["products"]
+    assert all(row.name_key == name_key(row.name) for row in rows)
+    assert len({row.name_key for row in rows}) == len(rows)
+
+
+def test_one_product_description_has_two_lines_and_one_is_blank(seeded):
+    descriptions = [row.description for row in seeded["products"]]
+    assert sum(description is None for description in descriptions) == 1
+    assert sum("\n" in description for description in descriptions if description) == 1
+
+
+def test_archived_products_were_last_changed_by_another_teammate(seeded):
+    for row in seeded["products"]:
+        if not row.active:
+            assert row.updated_by != row.created_by, row.name
+            assert row.updated_at > row.created_at, row.name
 
 
 def test_at_least_six_industries(seeded):
@@ -190,15 +222,23 @@ def test_the_same_content_each_time(database):
             ],
             [tuple(row) for row in conn.execute(select(contacts.c.name, contacts.c.email))],
             [tuple(row) for row in conn.execute(select(activities.c.type, activities.c.description))],
+            [
+                tuple(row)
+                for row in conn.execute(
+                    select(products.c.name, products.c.description, products.c.unit_price_cents, products.c.active)
+                )
+            ],
         )
 
     day = date(2026, 10, 31)
     with db.writing() as conn:
         sample_data.fill(conn, day)
+        product_samples.fill(conn, day)
         first = snapshot(conn)
-        for table in (activities, stage_changes, deals, contacts, organizations):
+        for table in (activities, stage_changes, deals, contacts, organizations, products):
             conn.execute(table.delete())
         sample_data.fill(conn, day)
+        product_samples.fill(conn, day)
         assert snapshot(conn) == first
 
 
@@ -210,7 +250,7 @@ def test_won_and_lost_columns_start_newest_first(seeded):
 
 
 TEAMMATE_IDS = {teammate.id for teammate in TEAMMATES}
-RECORDS = ("organizations", "contacts", "deals", "activities")
+RECORDS = ("organizations", "contacts", "deals", "activities", "products")
 
 
 def test_the_four_made_up_teammates_with_robin_having_no_name(seeded):
@@ -242,10 +282,10 @@ def test_each_teammate_added_some_of_each_kind(seeded):
         assert {row.created_by for row in seeded[kind]} == TEAMMATE_IDS, kind
 
 
-@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals"])
+@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products"])
 def test_some_records_were_last_changed_by_another_teammate_since(seeded, kind):
     changed = [row for row in seeded[kind] if row.updated_by != row.created_by]
-    assert len(changed) >= 5
+    assert len(changed) >= (4 if kind == "products" else 5)
     assert all(row.updated_at > row.created_at for row in changed)
 
 
@@ -256,7 +296,7 @@ def test_nothing_was_changed_before_it_was_added_or_after_today(seeded, kind):
         assert row.created_at <= row.updated_at < limit
 
 
-@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals"])
+@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products"])
 def test_records_nobody_changed_have_one_moment_for_both_times(seeded, kind):
     unchanged = [row for row in seeded[kind] if row.updated_at == row.created_at]
     assert unchanged

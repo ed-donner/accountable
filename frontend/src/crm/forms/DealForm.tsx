@@ -1,13 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo, useRef, useState } from "react";
 import { Controller, useForm, useWatch, type UseFormReturn } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { Field } from "../../components/Field";
 import { FormDialog } from "../../components/FormDialog";
 import { RecordPicker, type PickerOption } from "../../components/RecordPicker";
 import { todayIso } from "../../lib/dates";
+import { useNotify } from "../../lib/notify";
 import { showSaveError } from "../../lib/saveErrors";
 import { useCloseIfUnreadable } from "../../lib/useCloseIfUnreadable";
 import { link } from "../../lib/validate";
@@ -124,6 +124,7 @@ function newDealValues(
 
 function LoadedDealForm({ record, onClose, onSaved, meta, contacts, organizations, ...defaults }: Props & Lists) {
   const save = useSaveDeal(record?.id);
+  const notify = useNotify();
   const start = record ? recordValues(record) : newDealValues(defaults, contacts, meta);
   const form = useForm<Input, unknown, Output>({ resolver: zodResolver(dealSchema(record)), defaultValues: start });
   const {
@@ -138,11 +139,11 @@ function LoadedDealForm({ record, onClose, onSaved, meta, contacts, organization
   async function submit(values: Output) {
     try {
       const saved = await save.mutateAsync(values);
-      toast.success("Deal saved.");
+      notify.success("Deal saved.");
       onSaved?.(saved);
       onClose();
     } catch (error) {
-      showSaveError(error, { setError, getValues });
+      showSaveError(error, { setError, getValues, notify });
     }
   }
 

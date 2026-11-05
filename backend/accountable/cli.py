@@ -22,6 +22,8 @@ import sys
 from sqlalchemy import Connection, delete, func, select
 
 from accountable import db, users
+from accountable.bills import sample_data as bills_sample_data
+from accountable.bills import tables as bills_tables
 from accountable.company import sample_data as company_sample_data
 from accountable.company import tables as company_tables
 from accountable.crm import sample_data as crm_sample_data
@@ -30,9 +32,17 @@ from accountable.invoices import sample_data as invoices_sample_data
 from accountable.invoices import tables as invoices_tables
 from accountable.products import sample_data as products_sample_data
 from accountable.products import tables as products_tables
+from accountable.quotes import sample_data as quotes_sample_data
+from accountable.quotes import tables as quotes_tables
 
 # What seed and empty say they'll delete, area by area, in this order (C4).
-RECORDS = (*crm_tables.RECORDS, *products_tables.RECORDS, *invoices_tables.RECORDS)
+RECORDS = (
+    *crm_tables.RECORDS,
+    *products_tables.RECORDS,
+    *quotes_tables.RECORDS,
+    *invoices_tables.RECORDS,
+    *bills_tables.RECORDS,
+)
 
 # What they leave: the people, so there's still someone to sign in as, and the company
 # settings and logo, which seed writes the sample company's over and empty leaves as they are (C4).
@@ -50,7 +60,9 @@ def fill_sample(conn: Connection) -> None:
     today = db.local_today()
     crm_sample_data.fill(conn, today)
     products_sample_data.fill(conn, today)
+    bills_sample_data.fill(conn, today)
     company_sample_data.fill(conn, db.utc_now())
+    quotes_sample_data.fill(conn, today)
     invoices_sample_data.fill(conn, today)
 
 

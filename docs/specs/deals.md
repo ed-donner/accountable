@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Stage changes
 
-- **S1.** These rules apply however a stage changes: on the board, in the deal form, or anywhere else.
+- **S1.** These rules apply however a stage changes: on the board, in the deal form, by accepting a quote ([Q22](quotes.md#accepting-and-declining)), or anywhere else. Accepting a quote also sets the deal's value to the quote's, in whole dollars.
 
 | Move | Probability | Close date | Main contact | Timeline |
 |---|---|---|---|---|

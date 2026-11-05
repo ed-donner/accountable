@@ -40,20 +40,34 @@ describe("showSaveError", () => {
     expect(failure).toHaveBeenCalledWith("Check this field");
   });
 
-  it("puts a field in a list beside it, as the backend keys it", () => {
-    const shown = form({ bill_to: "Acme", lines: [{ quantity: "1" }, { quantity: "1" }, { quantity: "0" }] });
+  it("puts a line's message beside that line's box, named by its place", () => {
+    const shown = form();
+    vi.mocked(shown.getValues).mockReturnValue({
+      lines: [{ quantity: "1" }, { quantity: "2" }, { quantity: "lots" }],
+    } as never);
     showSaveError(
-      new ApiError("fields", "Check the form.", {
-        "lines.2.quantity": "Enter a whole number from 1 to 1,000,000",
-        "lines.7.quantity": "Enter a whole number from 1 to 1,000,000",
-      }),
+      new ApiError("fields", "Check the form.", { "lines.2.quantity": "Enter a whole number from 1 to 1,000,000" }),
       shown,
     );
     expect(shown.setError).toHaveBeenCalledWith("lines.2.quantity", {
       type: "server",
       message: "Enter a whole number from 1 to 1,000,000",
     });
-    expect(shown.setError).toHaveBeenCalledOnce();
+    expect(shown.notify.error).not.toHaveBeenCalled();
+  });
+
+  it("shows a message for a line's field the form doesn't have, or a line it doesn't have", () => {
+    const shown = form();
+    vi.mocked(shown.getValues).mockReturnValue({ lines: [{ quantity: "1" }] } as never);
+    showSaveError(
+      new ApiError("fields", "Check the form.", {
+        "lines.0.product_id": "This product is archived. Choose another.",
+        "lines.4.quantity": "Enter a whole number from 1 to 1,000,000",
+      }),
+      shown,
+    );
+    expect(shown.setError).not.toHaveBeenCalled();
+    expect(shown.notify.error).toHaveBeenCalledWith("This product is archived. Choose another.");
     expect(shown.notify.error).toHaveBeenCalledWith("Enter a whole number from 1 to 1,000,000");
   });
 

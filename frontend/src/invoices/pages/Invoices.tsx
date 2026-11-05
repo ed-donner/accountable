@@ -126,7 +126,7 @@ export function Invoices() {
         rowName={(row) => row.number ?? "Draft"}
         rowHref={(row) => `/invoices/${row.id}`}
         onAdd={() => setAsking(true)}
-        invitation={{ message: "No invoices yet. Start one from a won deal.", button: "New invoice" }}
+        empty={{ none: "No invoices yet. Start one from a won deal.", add: "New invoice" }}
         filters={filters}
         filtered={shows !== null}
         clearParams={["status"]}

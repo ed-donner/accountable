@@ -48,7 +48,8 @@ lefthook.yml                      the git pre-commit hook
 .claude/settings.json             the coding agent's permissions and hooks
 .claude/agents/                   reviewer.md and ui-check.md, the coding agent's two subagents
 .claude/skills/brand/SKILL.md     the brand skill: fonts, colors and tone
-.mcp.json                         the Playwright MCP server, which ui-check uses
+.mcp.json                         the Playwright MCP server, which ui-check uses, with a browser that keeps nothing
+                                  from one start to the next
 shared/                           expected-revenue-cases.json, website-cases.json, settings-cases.json,
                                   totals-cases.json, accent-cases.json and invoice-layout-cases.json, read by both
                                   unit test suites, and invoice-designs.json and invoice-fonts.json, which both
@@ -99,9 +100,9 @@ backend/accountable/
   cli.py                          seed and empty commands, for the local copy only, across every area: each area's
                                   sample data in order, its records counted, and every table but the people's and
                                   the settings' wiped, in the order their foreign keys allow
-  migrations/                     Alembic, with batch mode on. 0006 adds number_counters, 0007 the invoices
-                                  tables, company_logo, and the design and accent color settings, and 0008 each
-                                  invoice's issue_order
+  migrations/                     Alembic, with batch mode on. 0006 adds number_counters, 0007 bills, 0008 quotes
+                                  and quote_lines, 0009 the invoices tables, company_logo, and the design and accent
+                                  color settings, and 0010 each invoice's issue_order
   crm/
     tables.py                     SQLAlchemy Core tables, and RECORDS, the ones seed and empty count
     schemas.py                    the CRM's Pydantic request and reply models, and the messages for its fields
@@ -126,6 +127,17 @@ backend/accountable/
     logo.py                       the logo's check, with Pillow: a real PNG or JPEG within B21's limits
     sample_data.py                the sample company (B12), with its design, accent color and logo
     sample-logo.png               the sample company's made-up logo
+  quotes/                         quotes (Q5 to Q37), which imports only crm/tables.py, crm/rules.py, products/tables.py
+                                  and company/
+    tables.py                     the quotes and quote_lines tables, RECORDS, and the hold a quote has on its deal
+    schemas.py                    its request and reply models, and the messages for its fields
+    router.py                     the quotes routes and their queries: adding, saving, sending, accepting, declining
+                                  and copying, and the PDF's route
+    document.py                   a quote as its page and its PDF show it, which router.py and pdf.py both use
+    pdf.py                        the quote's PDF, drawn with fpdf2 (Q30 to Q32), and the paper colors
+    fonts/                        Instrument Sans and JetBrains Mono as static TTF files, with their OFL licences, for
+                                  the PDF
+    sample_data.py                the sample quotes, built from the sample products and deals, dated from a given day
   invoices/                       invoices and payments (V1 to V31), which imports crm/tables.py, products/tables.py
                                   and company/
     tables.py                     the invoices, invoice_lines and payments tables, RECORDS, and HOLDS for main.py
@@ -138,10 +150,17 @@ backend/accountable/
     pdf.py                        draws a laid-out invoice with ReportLab
     fonts/                        Instrument Sans, Instrument Serif and JetBrains Mono as TTF files, and their OFL
     sample_data.py                the sample invoices and payments, dated from a given day
+  bills/                          the bills from suppliers (E1 to E24), a later area
+    tables.py                     the bills table, its Hold on the supplier organization, and RECORDS
+    schemas.py                    its request and reply models, the six categories, its checks, and the messages for
+                                  its fields
+    router.py                     the bills routes, the figures for bills' row of the Money section, and their queries
+    sample_data.py                the sample suppliers and their bills, dated from a given day
 backend/tests/
 frontend/index.html               the page, with a short script that applies the saved theme before anything draws
 frontend/src/
-  main.tsx, App.tsx, styles.css   styles.css holds every color, as light and dark tokens
+  main.tsx, App.tsx, styles.css   styles.css holds every color, as light and dark tokens. App.tsx puts
+                                  the areas together, the dashboard's one Money section included
   test-utils.tsx, test-setup.ts   the unit tests' helpers, and test-supabase.ts, which stands in for Supabase's client
   lib/                            fetch client, session, query defaults, money in dollars and in cents, reading a typed
                                   price, date formatting, useToday, validation, files.ts for a file's bytes as base64
@@ -150,10 +169,13 @@ frontend/src/
                                   changed a record and the hooks that save and delete one, saveErrors.ts, which shows a
                                   save's errors beside its fields, useCloseIfUnreadable.ts, and notify.ts, which
                                   shows messages and keeps each to its session
-  components/                     Shell, SignIn, UserMenu, DataTable, RecordPicker, ConfirmDelete, LoadFailed, Chip and
-                                  others, RecordLayout: a record page's header, panels, the panels other areas add and
-                                  who added and changed it, and Search: the top bar's search box, which knows nothing
-                                  about any area's records
+  components/                     Shell, SignIn, UserMenu, DataTable, RecordPicker, LoadFailed, Chip and others,
+                                  Confirm: the dialog that asks before anything that can't be undone, which
+                                  ConfirmDelete builds on, RecordLayout: a record page's header, panels, the panels
+                                  other areas add and who added and changed it, and Search: the top bar's search box,
+                                  which knows nothing about any area's records. DataTable and RecordLayout's header
+                                  take a row's or a page's own button and Delete together, and DataTable says what
+                                  a filter leaves out
     charts/                       what any area's chart can use: ChartTooltip, useSize, and the axes' text and the top
                                   of a money axis
   crm/
@@ -172,15 +194,35 @@ frontend/src/
     DocumentsPanel.tsx            the Documents panel: design, accent color, logo, and the preview App.tsx gives it
     documentPreview.ts            the look the panel's sample is drawn in, and the type of the drawing App.tsx hands the page
     accent.ts                     the accent color's check (B20)
+  quotes/                         quotes, which imports only crm/queries.ts, crm/deals.ts, products/queries.ts and
+                                  company/
+    queries.ts                    the quotes' types, reads and saves
+    status.ts                     the statuses, a sent quote's expiry from today, their chips, and the figures above
+                                  the Quotes table
+    QuoteDocument.tsx             the quote document, as the preview draws it
+    QuoteForm.tsx                 a draft's form and its lines, the preview as it's typed, and taking a save's reply
+    StatusChip.tsx                a quote's status as a chip
+    panels.tsx                    the Quotes panels on a deal's and an organization's page
+    dialogs.tsx                   the deal picker for New quote, and the dialogs for Mark as sent, Accept and Decline
+    pages/                        Quotes and Quote
   invoices/                       invoices and payments, which imports crm/queries.ts, crm/deals.ts, products/queries.ts
                                   and company/
     queries.ts, DraftForm.tsx, PaymentForm.tsx, panels.tsx, status.ts, InvoiceChip.tsx
     characters.ts                 which characters invoices can show, as characters.py says
     layout.ts                     where everything goes on each page, as layout.py does it
     InvoicePreview.tsx            draws laid-out pages as SVG, for an invoice and for the settings' sample
-    MoneySection.tsx              the dashboard's Money section
+    MoneySection.tsx              InvoicesMoney, invoices' row of the dashboard's Money section, above bills'
     charts/                       HowLate and PaymentsChart
     pages/                        Invoices and Invoice
+  bills/                          the bills from suppliers, a later area
+    queries.ts                    its types, reads and saves, the Money figures, and marking a bill paid and unpaid
+    categories.tsx                the six categories in order, with their labels, colors and round swatch
+    status.tsx                    unpaid, overdue and paid from today, their chip, and the paid date's checks
+    BillForm.tsx, MarkPaidDialog.tsx, DeleteBill.tsx, and BillsPanel.tsx, an organization's bills
+    charts/                       MoneySection, with BillsMoney, bills' row of the Money section, DueTimeline and
+                                  SpendingChart, and StackSegment, which draws a segment of a stacked column for
+                                  both and keeps a small one tall enough to see
+    pages/                        Bills and Bill
 frontend/dist/                    the built frontend, from npm start and Render, git-ignored
 e2e/
 data/                             the local copy's database and what it needs to sign its own tokens, created on first
@@ -191,15 +233,15 @@ data/                             the local copy's database and what it needs to
 
 Accountable will grow from a sales CRM into a Business OS, including ERP, so the layout leaves room for the next business area and adds nothing else. `backend/tests/test_layout.py` and `frontend/src/layout.test.ts` enforce the rules a test can check.
 
-- **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, `products/` the price list, and `invoices/` invoices and payments, the first later area. A later area, such as quotes or bills, gets a folder beside them with its own tables, routes and pages. What areas share comes from the top level.
+- **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, and `products/` the price list. A later area gets a folder beside them with its own tables, routes and pages: quotes, invoices and bills have theirs, in `quotes/`, `invoices/` and `bills/` on both sides. What areas share comes from the top level.
 - **Imports between areas go one way.** `crm/`, `products/` and `company/` are the first areas, and import no other area but `company/`, so `crm/` never imports `products/`, and neither ever imports a later area. A later area builds on them, and may import only these of theirs: on the backend, `crm/tables.py` and `products/tables.py`, for foreign keys and reads, and `crm/rules.py`, so a deal changes stage the one way however it's asked for, such as when a quote is accepted; on the frontend, `crm/queries.ts` and `products/queries.ts`, for their types and reads, and `crm/deals.ts`, such as which stages are open. Any area may import `company/`. Later areas never import each other.
-- **A later area shows its records on the CRM's pages through `App.tsx`,** never by changing the CRM's queries or replies. A deal's quotes come from the quotes area's own route, such as `/api/quotes?deal_id=7`, in a panel the quotes area gives `App.tsx`, which hands it to the deal's page (R7). The dashboard takes sections the same way (H10). Every area's routes start with words of their own after `/api`, which `backend/tests/test_layout.py` checks, so `main.py` can give a field error the right area's messages.
-- **A later area's record can hold a deal or an organization** (D4). The area says which of its columns hold one, as a `Hold`, and `main.py` hands every area's holds to the CRM's delete routes through the app, so the CRM never names the area.
+- **A later area shows its records on the CRM's pages through `App.tsx`,** never by changing the CRM's queries or replies. A deal's quotes come from the quotes area's own route, such as `/api/quotes?deal_id=7`, in a panel the quotes area gives `App.tsx`, which hands it to the deal's page (R7). The dashboard takes sections the same way (H10). So an organization's bills come from `/api/bills?organization_id=7`, in the Bills panel, a deal's invoices from `/api/invoices?deal_id=7`, in the Invoices panel, and the Money section's two rows from `/api/invoices/money` and `/api/bills/dashboard`, never from `/api/dashboard`. Every area's routes start with words of their own after `/api`, which `backend/tests/test_layout.py` checks, so `main.py` can give a field error the right area's messages.
+- **A later area's record can hold a deal or an organization** (D4). The area says which of its columns hold one, as a `Hold`, and `main.py` hands every area's holds to the CRM's delete routes through the app, so the CRM never names the area. Quotes give one, on `quotes.deal_id`, with the word `quote`, invoices two, on `invoices.deal_id` and `invoices.organization_id`, with the word `invoice`, and bills one, on `bills.organization_id`, with the word `bill`.
 - **`company/` holds the company settings, on both sides.** It's an area beside `crm/` and `products/`, called `company/` because the backend's `settings.py` already decides which copy runs. It imports only the top level, and never another area. It isn't at the top level because not every area needs it: the CRM and products don't. It's the one area every other can import: later areas that need the company's details, such as quotes and invoices, can import it. `company/documents.py` gives them the settings as saved and each document's next number, and `company/tax.py` and `company/tax.ts` the sums on their lines. The sample company is in `company/sample_data.py`, and the function that fills a new database fills it too.
 - **The top level holds only what every area needs.** Signing in and people are needed by every area, so `auth.py` and `users.py` sit there, and `users.py` holds the made-up teammates that any area's sample records are put down to. `sample.py` gives every area's sample data the same times of day and the same rule for which teammate added and last changed each record. `who.py` gives every area's record tables the same four columns, `created_at`, `updated_at`, `created_by` and `updated_by`, and what saves and replies do with them. `api.py` has the base request model and its checks, the field types such as names, emails, websites, ids, dollars and cents, and the errors shown beside a field. Each area keeps the messages for its own fields, and `main.py` hands the error handler the messages of the area whose route a request reached, from the words the route starts with. Two areas can each have a field of one name with different rules: the CRM's activities need a description, and a product's is optional. The top bar's search spans every area, so `search.py` sits at the top level too: it runs the one query and puts the results in order, and each area's own `search.py` says what to look for in its tables. `holds.py` lets any area's records hold a deal or an organization (D4), and `months.py` gives every area's charts by month the same 12 months. An area can import any of these, but they never import an area, so `main.py` passes `db.py` the function that fills a new database, passes `search.py` each area's kinds and puts each area's holds on the app. `main.py` keeps one list of areas, each with its routers, its fields' messages, its search kinds and its holds, so a later area joins with one entry. Only `main.py`, `cli.py` and the migrations name an area's folder.
 - **One database setup.** All tables share one `metadata` and one migration history, and anything specific to SQLite or Postgres stays in `db.py` and the migrations. There's no raw SQL, check constraints included, apart from turning on row-level security in the migrations, which SQLAlchemy can't say.
-- **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/` and `company/` each have one router, so it's `router.py` in their folder, with no folder around it. In `crm/`, a module outside `routers/` exists only because several files use it, and each area's `search.py` exists because the top-level `search.py` needs it.
-- **How invoices look is split between `company/` and `invoices/`.** The choice of design, the accent color and the logo are company settings, so quotes can use them later, and `company/` keeps and checks them. Drawing the designs is the invoices area's, in `invoices/layout.py`, `invoices/pdf.py` and `invoices/layout.ts`. The Company settings page shows the sample invoice through a component `App.tsx` hands it, so `company/` never imports `invoices/`.
+- **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/`, `company/`, `quotes/` and `bills/` each have one router, so it's `router.py` in their folder, with no folder around it. `invoices/` has four, so they're in `invoices/routers/`, as the CRM's are in `crm/routers/`. In `crm/`, a module outside `routers/` exists only because several files use it, as `quotes/document.py` does, which the router and the PDF both use, and each area's `search.py` exists because the top-level `search.py` needs it.
+- **How invoices look is split between `company/` and `invoices/`.** The choice of design, the accent color and the logo are company settings, so quotes could use them later, and `company/` keeps and checks them. Drawing the designs is the invoices area's, in `invoices/layout.py`, `invoices/pdf.py` and `invoices/layout.ts`. The Company settings page shows the sample invoice through a component `App.tsx` hands it, so `company/` never imports `invoices/`.
 - **`components/` and `lib/` hold only what any area could use.** Anything that knows about deals or contacts goes in `crm/`, and anything that knows about products in `products/`. The search box is in `components/` and knows nothing about records: each area's `searchGroups.tsx` says what its results look like, and `App.tsx` hands them to the box and the box to the shell. `App.tsx` also gives the shell its sections, and the CRM's pages the panels and sections later areas add. What any area's chart needs, such as its tooltip and the axes' text, is in `components/charts/`, and the CRM's charts and their geometry stay in `crm/charts/`. A record page's layout, who added and last changed a record, the hooks that save and delete records, the checks on a form's fields and a save's errors shown beside them are in `components/` and `lib/`, so `products/` and any later area's pages and forms use the same ones. Among the top-level files, `components/` and `lib/`, only `App.tsx` names an area's folder, `company/` included, which it names for the Company settings route. The menu opens the page by its address, so `components/` doesn't name `company/`.
 - **Only `lib/api.ts` talks to the backend,** so every reply gets the same error handling, **and only `lib/session.ts` talks to Supabase.** **Messages go through `lib/notify.ts`,** so each stays with its session (U5). ESLint refuses `toast` from Sonner anywhere else but the tests.
 - **No extra layers.** No service or repository classes, base classes, generic routers that build routes for each record, or a folder per record type. Split a file when it's become hard to work in, not before.
@@ -207,7 +249,7 @@ Accountable will grow from a sales CRM into a Business OS, including ERP, so the
 
 ## Libraries
 
-Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind's Vite plugin and Vitest both accept Vite 8. Several are recent major versions, so check their current docs when working on them rather than relying on memory, especially TanStack Table 9, React Router 8, Vite 8, Vitest 5 and Zod 4.
+Versions were checked on 2026-10-31, and fpdf2's and pypdf's on 2026-11-05. All of them accept React 19.3, and Tailwind's Vite plugin and Vitest both accept Vite 8. Several are recent major versions, so check their current docs when working on them rather than relying on memory, especially TanStack Table 9, React Router 8, Vite 8, Vitest 5 and Zod 4.
 
 | Job | Library |
 |---|---|
@@ -228,11 +270,11 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 | Running both servers | concurrently |
 | Signing in, in the browser | `@supabase/supabase-js` 2, in the shared app only |
 | Backend | FastAPI, Uvicorn, SQLAlchemy Core, Alembic, Pydantic |
-| PDFs | ReportLab 5, with Pillow, which it brings, for the logo |
 | Postgres | psycopg 3, SQLAlchemy's driver for it |
+| PDFs | ReportLab 5 for invoices, with Pillow for the logo, and fpdf2 2.9 for quotes, which brings fontTools and Pillow |
 | Checking tokens | PyJWT, with `cryptography` for Supabase's signing keys |
 | Frontend tools | `typescript`, `@vitejs/plugin-react`, `@tailwindcss/vite` |
-| Test tools | Vitest, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom`, `pytest`, `pytest-cov`, `httpx`, `pypdf`, `@playwright/test` |
+| Test tools | Vitest, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom`, `pytest`, `pytest-cov`, `httpx`, `pypdf` 6, `@playwright/test` |
 | Code checks | Prettier, ESLint 9 with `typescript-eslint`, `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y`, ruff, ty, gitleaks, lefthook for the git hook, GitHub Actions for CI |
 
 - **Fonts:** the brand skill says Google Fonts. The npm packages hold the same fonts, so they look the same and work offline (C2).
@@ -241,6 +283,7 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 - **ESLint 9:** `eslint-plugin-jsx-a11y` doesn't support ESLint 10 yet.
 - **Migrations:** Alembic is here because people have real data in the database, and later features will change the tables. Without migrations, the only way to pick up a new column would be a reset that wipes that data. Migrations run by themselves when the backend starts, on both databases.
 - **Sign-in and Postgres:** these three came with sign-in. `@supabase/supabase-js` is Supabase's own client, and handles signing in, keeping the session and renewing the token, which would otherwise be hand-written against Supabase Auth's API. psycopg is what SQLAlchemy needs to reach Postgres at all. PyJWT checks token signatures against Supabase's public keys, which isn't something to hand-roll.
-- **PDFs:** ReportLab is the most used Python library for making PDFs, under a BSD licence. It and Pillow install from uv as wheels, with nothing for the system to provide, so they run on Render's native Python runtime. WeasyPrint, which turns HTML into PDF, would need Pango from the system, so it can't. Pillow also checks the logo (B21), so it isn't a second new library. The fonts the PDFs carry are the app's own three, as TTF files under the OFL in `invoices/fonts/`, since the npm packages hold only web fonts.
+- **PDFs for invoices:** ReportLab is the most used Python library for making PDFs, under a BSD licence. It and Pillow install from uv as wheels, with nothing for the system to provide, so they run on Render's native Python runtime. WeasyPrint, which turns HTML into PDF, would need Pango from the system, so it can't. Pillow also checks the logo (B21), so it isn't a second new library. The fonts the PDFs carry are the app's own three, as TTF files under the OFL in `invoices/fonts/`, since the npm packages hold only web fonts.
 - **pypdf:** for the tests only. They read a PDF's text back to check its figures, and a cut-down font stores glyph numbers, so it takes a reader that follows the font's map back to letters. Pure Python, with no dependencies, under a BSD licence.
 - **Fonts in the shared app:** the same Fontsource files are built into `frontend/dist`, so the shared app loads nothing from outside its own address but Supabase.
+- **PDFs for quotes:** fpdf2 makes the quotes' PDFs in the backend. It and everything it needs install from wheels with uv, with no system packages, so it runs on Render's native Python runtime, unlike WeasyPrint, which needs Pango from the system. It draws text as plain text unless asked for its HTML or markdown, which the quotes area never uses, so nothing typed is read as markup (Q32). It embeds TrueType fonts, and Fontsource ships the brand fonts as WOFF2 for the browser, so the backend keeps its own static TTF copies in `quotes/fonts/`, from the families' own releases, Instrument Sans Regular and SemiBold and JetBrains Mono Regular and Medium, with their OFL licences beside them. `pdf.py` lays out the lines itself rather than with fpdf2's tables, whose heading row can't take the band's rounded corners, and whose cells would need markdown to set a line's name above its description. It turns off fpdf2's `{nb}`, which would otherwise swap those letters in any typed text for the page count, and draws each page's foot once the pages are counted. Its licence is the LGPL, which asks nothing of an app that's run as a service rather than handed out. Quotes and invoices each have their own PDF library and their own copies of the fonts, in `quotes/fonts/` and `invoices/fonts/`, until the PDFs are brought together after the merges.

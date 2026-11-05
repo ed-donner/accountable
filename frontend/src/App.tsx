@@ -1,8 +1,12 @@
-import { Package, ReceiptText } from "lucide-react";
+import { FileText, Package, Receipt, ReceiptText } from "lucide-react";
 import { useEffect } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { BillsPanel } from "./bills/BillsPanel";
+import { BillsMoney } from "./bills/charts/MoneySection";
+import { Bill } from "./bills/pages/Bill";
+import { Bills } from "./bills/pages/Bills";
 import { SettingsPage } from "./company/SettingsPage";
 import { Icon } from "./components/Icon";
 import { MissingRecord } from "./components/MissingRecord";
@@ -21,7 +25,7 @@ import { Pipeline } from "./crm/pages/Pipeline";
 import { useMeta, type DealDetail, type OrganizationDetail } from "./crm/queries";
 import { crmSearchGroups } from "./crm/searchGroups";
 import { SampleInvoice } from "./invoices/InvoicePreview";
-import { MoneySection } from "./invoices/MoneySection";
+import { InvoicesMoney } from "./invoices/MoneySection";
 import { Invoice } from "./invoices/pages/Invoice";
 import { Invoices } from "./invoices/pages/Invoices";
 import { DealInvoices, OrganizationInvoices } from "./invoices/panels";
@@ -29,11 +33,14 @@ import { applyTheme, savedTheme } from "./lib/theme";
 import { Product } from "./products/pages/Product";
 import { Products } from "./products/pages/Products";
 import { productsSearchGroups } from "./products/searchGroups";
+import { NewDraft, Quote } from "./quotes/pages/Quote";
+import { Quotes } from "./quotes/pages/Quotes";
+import { dealQuotesPanel, organizationQuotesPanel } from "./quotes/panels";
 
 const ICON_SIZE = 17;
 
 // The top bar's sections, area by area. The design reference has icons for the CRM's.
-// Products and Invoices take lucide's, drawn as Icon draws its own.
+// Products, Quotes, Invoices and Bills take lucide's, drawn as Icon draws its own.
 const SECTIONS: Section[] = [
   { to: "/", label: "Dashboard", icon: <Icon name="dashboard" size={ICON_SIZE} /> },
   { to: "/organizations", label: "Organizations", icon: <Icon name="organizations" size={ICON_SIZE} /> },
@@ -46,9 +53,19 @@ const SECTIONS: Section[] = [
     icon: <Package size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
   },
   {
+    to: "/quotes",
+    label: "Quotes",
+    icon: <FileText size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
+  },
+  {
     to: "/invoices",
     label: "Invoices",
     icon: <ReceiptText size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
+  },
+  {
+    to: "/bills",
+    label: "Bills",
+    icon: <Receipt size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
   },
 ];
 
@@ -56,8 +73,27 @@ const SEARCH_GROUPS = [...crmSearchGroups, ...productsSearchGroups];
 
 // What later areas add to the CRM's pages, such as a deal's quotes, an organization's bills
 // or a section of the dashboard (R7, H10).
-const DEAL_PANELS: RecordPanel<DealDetail>[] = [{ name: "invoices", Panel: DealInvoices }];
-const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [{ name: "invoices", Panel: OrganizationInvoices }];
+const DEAL_PANELS: RecordPanel<DealDetail>[] = [dealQuotesPanel, { name: "invoices", Panel: DealInvoices }];
+const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [
+  organizationQuotesPanel,
+  { name: "invoices", Panel: OrganizationInvoices },
+  { name: "bills", Panel: BillsPanel },
+];
+
+/** One Money section, below the dashboard's own part: what customers owe us, from invoices, then what we owe, from bills. */
+function MoneySection() {
+  return (
+    // The dashboard's own part ends 16px above, so this keeps the 12px between its panels.
+    <section aria-labelledby="money-heading" className="-mt-1 flex flex-col gap-3 px-5 pb-4">
+      <h2 id="money-heading" className="text-[20px] leading-7 font-semibold">
+        Money
+      </h2>
+      <InvoicesMoney />
+      <BillsMoney />
+    </section>
+  );
+}
+
 const DASHBOARD_SECTIONS: DashboardSection[] = [{ name: "money", Section: MoneySection }];
 
 function AppShell() {
@@ -79,8 +115,13 @@ const router = createBrowserRouter([
       { path: "/pipeline", element: <Pipeline /> },
       { path: "/products", element: <Products /> },
       { path: "/products/:id", element: <Product /> },
+      { path: "/quotes", element: <Quotes /> },
+      { path: "/quotes/new", element: <NewDraft /> },
+      { path: "/quotes/:id", element: <Quote /> },
       { path: "/invoices", element: <Invoices /> },
       { path: "/invoices/:id", element: <Invoice /> },
+      { path: "/bills", element: <Bills /> },
+      { path: "/bills/:id", element: <Bill /> },
       { path: "/settings", element: <SettingsPage preview={SampleInvoice} /> },
       { path: "*", element: <MissingRecord word="page" to="/" section="Dashboard" /> },
     ],

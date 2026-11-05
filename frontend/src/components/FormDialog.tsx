@@ -8,10 +8,15 @@ type Props = {
   onClose: () => void;
   /** Resolves when the save has finished, so a second press can't start another. */
   onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  /**
+   * Moves focus once the dialog has closed. Without it, Radix puts focus back only on a
+   * Dialog.Trigger, which these dialogs don't have.
+   */
+  onCloseFocus?: () => void;
   children: ReactNode;
 };
 
-export function FormDialog({ title, submitLabel, pending, onClose, onSubmit, children }: Props) {
+export function FormDialog({ title, submitLabel, pending, onClose, onSubmit, onCloseFocus, children }: Props) {
   const saving = useRef(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -36,6 +41,13 @@ export function FormDialog({ title, submitLabel, pending, onClose, onSubmit, chi
         <Dialog.Overlay className="fixed inset-0 z-40 grid animate-fade-in place-items-center overflow-y-auto bg-veil p-6">
           <Dialog.Content
             aria-describedby={undefined}
+            onCloseAutoFocus={
+              onCloseFocus &&
+              ((event) => {
+                event.preventDefault();
+                onCloseFocus();
+              })
+            }
             className="w-full max-w-[520px] rounded-panel bg-raised p-6 shadow-(--shadow-dialog)"
           >
             <Dialog.Title className="text-[20px] leading-7 font-semibold">{title}</Dialog.Title>

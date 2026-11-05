@@ -10,6 +10,7 @@ Read `docs/spec.md` first. It summarizes the whole product as it stands today, h
 - `docs/TECH_STACK.md`: the stack
 - `docs/STATUS.md`: what's done so far
 - `docs/IMPROVE.md`: how to improve this harness. Follow it at Deploy, after the review fixes and before the merge
+- `docs/REVIEW.md`: what a review checks, which the reviewer subagent follows. If its report says it left part of the change unread, run it again on that part before anyone acts on the review
 
 Each change has a folder, `docs/changes/<branch name>/`, holding its `intent.md` and `plan.md`. Read only the folder for the current branch. The others are records of past changes.
 
@@ -25,6 +26,7 @@ The working tree holds the owner's uncommitted work, and `data/accountable.db` h
 - Move, rename and delete files with `mv` and `rm`, not `git mv` or `git rm`, and leave git's index as you found it. Those stage the change, and undoing that with `git reset` also unstages anything the owner had staged in the file. The owner stages what goes in each commit.
 - Run the app on a temporary database unless the person asks for their own: `ACCOUNTABLE_DB=<your scratchpad>/accountable.db npm run dev`. A new database gets the sample data. A branch's migrations upgrade whatever database the app starts on, and nothing takes them back.
 - Stop every server and background command you start once you're done with it, before you end your turn, and check its ports are free. Stop it by its own process ID, never by a name: `pkill -f scripts/dev.mjs` also stops the app in the person's checkout and in every other worktree. If the person wants one left running, say that it is and how to stop it.
+- The shell is zsh, not bash. An unquoted word that starts with `=`, such as `=====`, stops the whole command line. An unquoted glob that matches nothing, such as `--include=*.ts`, stops the command it's in, a whole `for` loop included. A command kept in a variable runs as one word, so `P="psql -h /tmp"; $P` isn't found. Quote such words, and use a function for a command you repeat.
 
 ## Checks and tests
 
@@ -32,11 +34,13 @@ Run `npm run check` from the project root before calling any work finished, and 
 
 It runs Prettier, ESLint, ruff format, ruff check and gitleaks, then everything `npm test` runs, ends with a summary, and exits with an error if any of them failed. `npm run format` fixes the formatting. `npm run check:quick` leaves out the end-to-end tests, for checking as you go.
 
-`npm test` runs the type checks (tsc and ty), the backend unit tests (pytest), the frontend unit tests (Vitest) and the end-to-end tests (Playwright). Unit test coverage under 80% fails it. It takes about four minutes on 10 cores, and uses its own temporary databases. It picks the number of end-to-end workers from the machine's cores and memory. `ACCOUNTABLE_TEST_WORKERS=2 npm test` sets it by hand. Runs in several worktrees can share the computer, with nothing to set: each takes ports of its own, no more than two go at once while the rest wait their turn and say so, and the speed tests wait until no other run is busy. So a run can take several minutes longer while others are going. Let a waiting run wait rather than stop it, and since the wait can outlast a shell tool's time limit, start `npm run check` in the background, or with the longest timeout the tool allows, and wait for it to finish.
+`npm test` runs the type checks (tsc and ty), the backend unit tests (pytest), the frontend unit tests (Vitest) and the end-to-end tests (Playwright). Unit test coverage under 80% fails it. It takes about four minutes on 10 cores, and uses its own temporary databases. It picks the number of end-to-end workers from the machine's cores and memory. `ACCOUNTABLE_TEST_WORKERS=2 npm test` sets it by hand. Runs in several worktrees can share the computer, with nothing to set: each takes ports of its own, no more than two go at once while the rest wait their turn and say so, and the speed tests wait until no other run is busy. So a run can take several minutes longer while others are going. Let a waiting run wait rather than stop it, and since the wait can outlast a shell tool's time limit, start `npm run check` in the background, or with the longest timeout the shell tool allows, and wait for it to finish. That's the tool's own setting: macOS has no `timeout` command.
 
 Pytest and Playwright refuse to start on their own, because `npm test` is what sets up those databases. To run chosen end-to-end tests as you go, use `npm run e2e -- e2e/settings.spec.ts`, which takes Playwright's own arguments, such as `-g` or `--repeat-each`, rather than a runner of your own.
 
 In an end-to-end test, wait for the exact thing the next step needs, such as the row it scrolls to or the reply to the save it checks. A wait for the page to load or the network to go quiet returns at once on a page that has already loaded, so the test passes on its own and fails under the load of a full run.
+
+When a change alters something tests state, such as the number of sections, search all the tests for it, not only the area's own, and list each one in the plan's Files that change. A new section changes the count of the top bar's links in five test files, and only the full run finds one left out.
 
 Hooks run some of this for you. Before each commit, lefthook formats the staged files, then runs the lint, type and secrets checks; don't skip it with `--no-verify`. When you finish a turn, a hook runs `npm run check:quick` and sends any failure back to you, once. Another hook stops any edit to `.env`, including any shell command that names it, and one stops a shell command that runs `python`, `python3` or `pip` without `uv run`.
 

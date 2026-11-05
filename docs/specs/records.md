@@ -35,7 +35,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 So a contact can't be added before their organization exists, and a deal can't be added before its organization and main contact exist. F3 lets the form add them on the spot.
 
-- **F3.** Organization and contact pickers can be searched. If nothing matches, they offer to add the record in a second dialog, then select it. Without this, a required link would mean cancelling a half-filled form to go and add it.
+- **F3.** Organization and contact pickers can be searched. If nothing matches, they offer to add the record in a second dialog, then select it. Without this, a required link would mean cancelling a half-filled form to go and add it. The bill form's supplier picker is the one exception: it doesn't offer to add an organization ([E16](bills.md#adding-editing-and-deleting)).
 - **F4.** In the deal form, choosing an organization narrows the main contact list to that organization's contacts. Choosing a contact first fills in their organization. Nothing forces the two to match, because people change companies.
 - **F5.** A blank link shows as "None" and can stay blank when the record is saved. A link that's set can be changed but not cleared.
 - **F6.** Email must look like an email address if given. Website must be an `http` or `https` address, and `https://` is added if it's left off. Value must be a whole number of dollars, zero or more, which keeps every total exact. Probability must be a whole number from 0 to 100.
@@ -54,22 +54,22 @@ So a contact can't be added before their organization exists, and a deal can't b
 |---|---|
 | Organization | Its contacts and deals stay and are left with no organization |
 | Contact | Their deals stay and are left with no main contact. Activities logged on the contact are deleted. |
-| Deal | Its activities and stage-change entries are deleted. If it was won, its revenue leaves the dashboard. |
+| Deal | Its activities and stage-change entries are deleted. If it was won, its revenue leaves the dashboard. A deal with quotes can't be deleted (D4). |
 | Activity | It's removed from every timeline and from the dashboard |
 
 - **D2.** Won deals stay on the dashboard after their organization or contact is deleted.
 - **D3.** Activities logged on a deal stay when that deal's main contact is deleted, because they belong to the deal.
-- **D4.** A deal or an organization can't be deleted while a record in another area holds it, such as an invoice on the deal or a bill from the organization, so that record is never left pointing at nothing. Each area says which of its records hold a deal or an organization. The delete dialog is then titled "Annual support can't be deleted", says what holds it, such as "This deal has 2 quotes and 1 invoice, so it can't be deleted.", and offers only Close. A delete that gets past the dialog, such as one sent while a teammate adds an invoice, is refused with the same words. Contacts and activities are never held. Today invoices hold: every invoice holds its deal, and an issued one the organization it was issued to ([V21](invoices.md#on-deals-and-organizations)).
+- **D4.** A deal or an organization can't be deleted while a record in another area holds it, such as an invoice on the deal or a bill from the organization, so that record is never left pointing at nothing. Each area says which of its records hold a deal or an organization. The delete dialog is then titled "Annual support can't be deleted", says what holds it, such as "This deal has 2 quotes and 1 invoice, so it can't be deleted.", and offers only Close. A delete that gets past the dialog, such as one sent while a teammate adds an invoice, is refused with the same words. Contacts and activities are never held. A quote holds its deal ([Q27](quotes.md#no-deleting)). Every invoice holds its deal, and an issued one the organization it was issued to ([V21](invoices.md#on-deals-and-organizations)). A bill holds its supplier organization, so an organization with bills says "This organization has 12 bills, so it can't be deleted." ([E2](bills.md#bills)).
 
 ## Record pages
 
-- **R1.** An organization's page shows its details and notes, its contacts, its deals and the combined timeline. It has Add contact and Add deal buttons.
+- **R1.** An organization's page shows its details and notes, its contacts, its deals, its bills (R7) and the combined timeline. It has Add contact and Add deal buttons.
 - **R2.** A contact's page shows their details, status and organization, the deals where they're the main contact, and their timeline. It has an Add deal button.
 - **R3.** A deal's page shows its details, stage, value, probability, expected revenue, close date, organization and main contact, a Late chip if late, and its timeline.
 - **R4.** Each page has Edit and Delete. After a delete, the app returns to the section's table.
 - **R5.** The contacts and deals listed on these pages are short linked lists, not tables, so T1 doesn't apply to them.
 - **R6.** Each page shows who added the record and when, such as "Added by Alex Rivera on Oct 12, 2026", and who last changed it and when, such as "Last changed by Dana Whitfield on Oct 30, 2026", following U8 to U12. The second line is left out if nobody has changed the record since it was added. A record with no one recorded shows the dates alone, such as "Added Oct 12, 2026". Nobody chooses these in a form: the backend sets them from the token of whoever saves.
-- **R7.** Other areas can add panels to a deal's and an organization's page, such as a deal's quotes or an organization's bills. They come below the page's own panels in its side column, each given the record as the page has it, in the order `App.tsx` gives them. Today there's one on each: Invoices ([V20, V21](invoices.md#on-deals-and-organizations)).
+- **R7.** Other areas can add panels to a deal's and an organization's page, such as a deal's quotes or an organization's bills. They come below the page's own panels in its side column, each given the record as the page has it, in the order `App.tsx` gives them. Quotes adds a Quotes panel to both ([Q36, Q37](quotes.md#panels-on-deals-and-organizations)), Invoices adds an Invoices panel to both, below the Quotes panel ([V20, V21](invoices.md#on-deals-and-organizations)), and Bills adds a Bills panel to an organization's page, below its Invoices panel ([E19](bills.md#an-organizations-bills)).
 
 ## Screens
 

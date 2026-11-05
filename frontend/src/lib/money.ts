@@ -13,13 +13,20 @@ export function shortMoney(value: number): string {
 export const MAX_CENTS = 100_000_000_000_000;
 
 /** Whole cents as dollars and cents, by whole numbers only, so nothing drifts by a cent. */
-function dollarsAndCents(cents: number) {
+function dollarsAndCents(cents: number | bigint) {
+  if (typeof cents === "bigint") {
+    const rest = cents % 100n;
+    return { dollars: (cents - rest) / 100n, cents: String(rest).padStart(2, "0") };
+  }
   const rest = cents % 100;
   return { dollars: (cents - rest) / 100, cents: String(rest).padStart(2, "0") };
 }
 
-/** A price from whole cents, always with its cents: $49.50, $1,250.00 (G3). */
-export function price(cents: number): string {
+/**
+ * A price from whole cents, always with its cents: $49.50, $1,250.00 (G3). A sum of many
+ * amounts can pass what a JavaScript number holds exactly, about 9 quadrillion, so it comes as a BigInt.
+ */
+export function price(cents: number | bigint): string {
   const parts = dollarsAndCents(cents);
   return `$${parts.dollars.toLocaleString("en-US")}.${parts.cents}`;
 }

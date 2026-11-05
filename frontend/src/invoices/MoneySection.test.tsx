@@ -2,7 +2,7 @@ import { act, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderApp, type Call } from "../test-utils";
-import { MoneySection } from "./MoneySection";
+import { InvoicesMoney } from "./MoneySection";
 import type { Money } from "./queries";
 
 const LABELS = ["Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov"];
@@ -36,12 +36,12 @@ afterEach(() => vi.useRealTimers());
 
 async function open(money: Money | (() => { body: Money })) {
   const calls: Call[] = mockApi({ "GET /invoices/money": money });
-  renderApp(<MoneySection />);
-  await screen.findByRole("heading", { level: 2, name: "Money" });
+  renderApp(<InvoicesMoney />);
+  await screen.findByRole("region", { name: "Owed to us" });
   return calls;
 }
 
-describe("the Money section", () => {
+describe("invoices' row of the Money section", () => {
   it("shows what's owed and what's overdue, each with how many invoices, Overdue linking to Invoices showing it", async () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 5, 12, 0) });
     await open(MONEY);

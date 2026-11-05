@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Invoices
 
-- **V1.** Invoices is where billing happens: what the business has charged its customers for won deals, what they've paid and what they still owe. It's the seventh section in the top bar, after Products ([N1](shell.md#app-shell)), at `/invoices`, and each invoice has its own page at `/invoices/<id>` (N2).
+- **V1.** Invoices is where billing happens: what the business has charged its customers for won deals, what they've paid and what they still owe. It's the eighth section in the top bar, after Quotes ([N1](shell.md#app-shell)), at `/invoices`, and each invoice has its own page at `/invoices/<id>` (N2).
 - **V2.** An invoice is for one deal, and a deal can have several. Only a deal in Won can start a new one. A deal that moves out of Won later, on the board or in its form, keeps its invoices, and they carry on as usual: a draft can still be edited and issued, and payments can still be recorded.
 - **V3.** An invoice is a draft, issued or void, and an issued invoice is paid once nothing is owed on it. Its chip, its mark and the Invoices table show one of six, the first that fits:
 
@@ -110,7 +110,7 @@ The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, 
 
 ## Money on the dashboard
 
-- **V29.** A Money section sits below the dashboard's own part ([H10](dashboard.md#dashboard)). It counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices.
+- **V29.** Invoices give the first row of the dashboard's Money section, below the dashboard's own part and above bills' row ([H10](dashboard.md#dashboard)). The row counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices.
 
 | Part | What it shows |
 |---|---|
@@ -120,7 +120,7 @@ The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, 
 | Payments received | A bar chart of the payments received in each of the last 12 months, including this one, by the date they were paid, with this month marked "so far" as in H4, and this month's total beside last month's above it |
 
 - **V30.** Each part has a designed empty state, "Nothing owed." for the figures and How late, and "No payments in the last 12 months." for the chart, and nothing divides by zero.
-- **V31.** The section follows today, so invoices move into Overdue, and along the groups, as days pass, and it reads its figures again when the day changes, as the dashboard does.
+- **V31.** The row follows today, so invoices move into Overdue, and along the groups, as days pass, and it reads its figures again when the day changes, as the dashboard does.
 
 ## Screens
 
@@ -140,11 +140,11 @@ Record payment opens a dialog like the other forms, with Date, Amount, which sho
 
 ### Invoices panels
 
-On a deal's or an organization's page, below the page's own panels in the side column (R7), headed Invoices, with New invoice at the right on a won deal. Each invoice is one row of a short linked list (R5): its number in JetBrains Mono, or "Draft" in muted ink, then its chip, with its total at the right and what's owed under it in muted ink. On an organization's page, the deal's name sits under the number, on a line of its own in muted ink, so a long one has the row's width rather than sharing a line with the chip.
+On a deal's or an organization's page, below the page's own panels and its Quotes panel in the side column (R7), headed Invoices, with New invoice at the right on a won deal. Each invoice is one row of a short linked list (R5): its number in JetBrains Mono, or "Draft" in muted ink, then its chip, with its total at the right and what's owed under it in muted ink. On an organization's page, the deal's name sits under the number, on a line of its own in muted ink, so a long one has the row's width rather than sharing a line with the chip.
 
 ### Money section
 
-Below the dashboard's own screen, after 24px, a section heading, Money, then one row of two panels with a 12px gap, about 320px tall, so the whole section shows at 1440 by 900 once the page is scrolled to it.
+Invoices' row is the first in the dashboard's Money section ([Dashboard](dashboard.md#dashboard-1)): under the heading Money, two panels with a 12px gap, about 320px tall, with bills' row 12px below it ([Money section](bills.md#money-section)). The whole section shows at 1440 by 900 once the page is scrolled to it.
 
 ```
 Money
@@ -159,6 +159,7 @@ Money
 | 61 to 90     [=]            $1,000.00 1 | |                                                     |
 | Over 90      [=]            $1,000.00 1 | | Dec  Jan  Feb ...                         Nov      |
 +-----------------------------------------+ +-----------------------------------------------------+
+  bills' row comes below: Bills to pay, and Spending by category
 ```
 
-The left panel takes about 40% of the width and the right the rest. Owed to us and Overdue are figures at the headline size, with their counts under them in muted ink, and Overdue links to Invoices showing Overdue. How late is five rows, each with its group's name in ink, a bar sized by amount against the largest group, its amount in JetBrains Mono and its count in muted ink. The Not yet due bar is in Cerulean, as information, and the four late groups in Raspberry, as alerts, each with its name beside it, so the color never carries the meaning alone. The payments chart follows the deals-won bars ([Charts](visual-design.md#charts)): thin bars in ink with 4px rounded tops, the current month in the soft bar color labeled "so far", a money axis shortened as `$40k`, and a tooltip with the month's total and how many payments.
+The left panel takes about 40% of the width and the right the rest, the same columns as bills' row and the dashboard's bottom row. Owed to us and Overdue are figures at the headline size, with their counts under them in muted ink, and Overdue links to Invoices showing Overdue. How late is five rows, each with its group's name in ink, a bar sized by amount against the largest group, its amount in JetBrains Mono and its count in muted ink. The Not yet due bar is in Cerulean, as information, and the four late groups in Raspberry, as alerts, each with its name beside it, so the color never carries the meaning alone. The payments chart follows the deals-won bars ([Charts](visual-design.md#charts)): thin bars in ink with 4px rounded tops, the current month in the soft bar color labeled "so far", a money axis shortened as `$40k`, and a tooltip with the month's total and how many payments.

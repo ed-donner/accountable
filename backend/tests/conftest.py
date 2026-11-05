@@ -15,7 +15,7 @@ import time
 from collections.abc import Callable, Generator, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +58,7 @@ def _check_database_path() -> None:
 _check_database_path()
 
 from accountable import auth, db, settings, users
+from accountable.bills.tables import bill_number_key, bills
 from accountable.crm import rules
 from accountable.crm.tables import activities, contacts, deals, organizations
 from accountable.invoices.tables import invoices, payments
@@ -152,6 +153,28 @@ class Make:
         row = {"method": "card", **values}
         with db.writing() as conn:
             return insert_row(conn, payments, invoice_id=invoice_id, amount_cents=amount_cents, paid_on=paid_on, **row)
+
+    def bill(self, organization_id: int | None = None, bill_number: str = "INV-0042", **values: Any) -> int:
+        """Unpaid, dated today and due in 30 days, by nobody, like a record from before sign-in,
+        from a supplier of its own unless one is given."""
+        supplier = self.organization("Northwind Software") if organization_id is None else organization_id
+        row = {
+            "bill_date": TODAY,
+            "due_date": TODAY + timedelta(days=30),
+            "amount_cents": 124000,
+            "tax_cents": 0,
+            "category": "software",
+            **values,
+        }
+        with db.writing() as conn:
+            return insert_row(
+                conn,
+                bills,
+                organization_id=supplier,
+                bill_number=bill_number,
+                bill_number_key=bill_number_key(bill_number),
+                **row,
+            )
 
 
 @pytest.fixture

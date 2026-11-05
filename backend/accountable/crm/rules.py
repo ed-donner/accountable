@@ -103,11 +103,14 @@ def change_stage(
     user_id: str | None,
     probability: int | None = None,
     close_date: date | None = None,
+    value: int | None = None,
     to_top: bool = True,
 ) -> StageResult:
     """The one way a deal changes stage, however that's asked for.
 
-    A probability or close date passed in is what this request gave, and is kept.
+    A probability or close date passed in is what this request gave, and is kept. A value
+    passed in is set too, as accepting a quote sets the deal's value to the quote's, so a
+    later area never writes the deal itself.
     The caller's transaction covers all of it, so a failure leaves nothing done.
     """
     deal = conn.execute(select(deals).where(deals.c.id == deal_id)).one()
@@ -138,6 +141,8 @@ def change_stage(
         values["close_date"] = close_date
     if to_top:
         values["position"] = top_position(conn, new_stage)
+    if value is not None:
+        values["value"] = value
 
     conn.execute(update(deals).where(deals.c.id == deal_id).values(**values))
 

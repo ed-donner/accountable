@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { MemoryRouter, useLocation } from "react-router";
+import { MemoryRouter, useLocation, useSearchParams } from "react-router";
 
 import { ApiError } from "../lib/api";
+import { plural } from "../lib/words";
 import { user } from "../test-utils";
-import { DataTable, type HiddenRows, type RowAction, type TableColumn } from "./DataTable";
+import { DataTable, type FilterNote, type HiddenRows, type RowAction, type TableColumn } from "./DataTable";
 
 type Row = { id: number; name: string; city: string | null; stage: string; amount: number | null };
 
@@ -426,6 +427,70 @@ describe("rows", () => {
   });
 });
 
+/** A table whose rows only open their page, as Quotes' do (Q33). */
+function showWithoutButtons(rows: Row[] | undefined, address = "/", extra = {}) {
+  const onAdd = vi.fn();
+  render(
+    <MemoryRouter initialEntries={[address]}>
+      <DataTable
+        noun="thing"
+        rows={rows}
+        columns={COLUMNS}
+        defaultSort={{ id: "name", desc: false }}
+        rowId={(row) => row.id}
+        rowName={(row) => row.name}
+        rowHref={(row) => `/things/${row.id}`}
+        onAdd={onAdd}
+        {...extra}
+      />
+      <Address />
+    </MemoryRouter>,
+  );
+  return onAdd;
+}
+
+describe("rows with no buttons", () => {
+  it("have no Edit, Delete or column for them, and still open their page", () => {
+    showWithoutButtons(ROWS);
+    expect(screen.queryByRole("button", { name: /^(Edit|Delete) / })).toBeNull();
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "Name",
+      "City",
+      "Stage",
+      "Amount",
+    ]);
+    expect(screen.getByRole("link", { name: "Bravo" }).getAttribute("href")).toBe("/things/1");
+  });
+});
+
+describe("a table's own words for no rows", () => {
+  const EMPTY = {
+    none: "No things yet. Add the first one from a deal.",
+    add: "New thing",
+    filtered: { message: "No lost things.", showAll: "Show all things" },
+  };
+
+  it("invite the first record in them", async () => {
+    const onAdd = showWithoutButtons([], "/", { empty: EMPTY });
+    expect(screen.getByText("No things yet. Add the first one from a deal.")).toBeTruthy();
+    await user().click(screen.getByRole("button", { name: "New thing" }));
+    expect(onAdd).toHaveBeenCalled();
+  });
+
+  it("say a filter left nothing, with a button that shows them all", async () => {
+    showWithoutButtons([], "/?status=lost", { filtered: true, clearParams: ["status"], empty: EMPTY });
+    expect(screen.getByText("No lost things.")).toBeTruthy();
+    await user().click(screen.getByRole("button", { name: "Show all things" }));
+    expect(address()).toBe("");
+  });
+
+  it("leave a search that matches nothing to say so as usual", () => {
+    showWithoutButtons(ROWS, "/?status=lost&q=zzz", { filtered: true, clearParams: ["status"], empty: EMPTY });
+    expect(screen.getByText("No things match.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Clear search" })).toBeTruthy();
+  });
+});
+
 // Lost things stay out of the table until Show lost is ticked, as archived products do.
 const LOST: HiddenRows<Row> = {
   which: (row) => row.stage === "lost",
@@ -576,49 +641,132 @@ describe("a row that leaves the table", () => {
   });
 });
 
-describe("a table whose rows change only on their own page, such as invoices", () => {
-  function showBare(rows: Row[], extra = {}) {
-    const onAdd = vi.fn();
-    render(
-      <MemoryRouter>
-        <DataTable
-          noun="thing"
-          rows={rows}
-          columns={[
-            ...COLUMNS,
-            { id: "note", header: "Note", value: () => "kept out of sight", searchable: true, hidden: true },
-          ]}
-          defaultSort={{ id: "name", desc: false }}
-          rowId={(row) => row.id}
-          rowName={(row) => row.name}
-          rowHref={(row) => `/things/${row.id}`}
-          onAdd={onAdd}
-          {...extra}
-        />
-      </MemoryRouter>,
-    );
-    return onAdd;
-  }
+describe("a hidden column, such as an invoice's Bill to", () => {
+  const WITH_NOTE: TableColumn<Row>[] = [
+    ...COLUMNS,
+    { id: "note", header: "Note", value: () => "kept out of sight", searchable: true, hidden: true },
+  ];
 
-  it("has no Edit or Delete on a row, and no column for them", () => {
-    showBare(ROWS);
-    expect(screen.queryByRole("button", { name: /^Edit|^Delete/ })).toBeNull();
-    expect(screen.getAllByRole("columnheader")).toHaveLength(4);
-  });
-
-  it("searches a hidden column without showing it", async () => {
-    showBare(ROWS);
+  it("is searched without being shown", async () => {
+    showWithoutButtons(ROWS, "/", { columns: WITH_NOTE });
     expect(screen.queryByText("kept out of sight")).toBeNull();
+    expect(screen.getAllByRole("columnheader")).toHaveLength(4);
     await user().type(screen.getByRole("searchbox"), "out of sight");
     await waitFor(() => expect(names()).toHaveLength(3));
     await user().type(screen.getByRole("searchbox"), " nowhere");
     expect(await screen.findByText("No things match.")).toBeTruthy();
   });
+});
 
-  it("invites the first record in its own words", async () => {
-    const onAdd = showBare([], { invitation: { message: "No things yet. Start one elsewhere.", button: "New thing" } });
-    expect(screen.getByText("No things yet. Start one elsewhere.")).toBeTruthy();
-    await user().click(screen.getByRole("button", { name: "New thing" }));
-    expect(onAdd).toHaveBeenCalledOnce();
+describe("a row's own button and Delete together", () => {
+  it("come after Edit, in that order, each named with the row", async () => {
+    archived = [];
+    const { onDelete } = show(ROWS, "/", { rowAction: archiving });
+    const row = screen.getByRole("link", { name: "Bravo" }).closest("tr")!;
+    expect(
+      within(row)
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Edit Bravo", "Archive Bravo", "Delete Bravo"]);
+    await user().click(screen.getByRole("button", { name: "Archive Charlie" }));
+    expect(archived).toEqual([3]);
+    await user().click(screen.getByRole("button", { name: "Delete alpha" }));
+    expect(onDelete).toHaveBeenCalledWith(ROWS[1]);
+    expect(address()).toBe("");
+  });
+});
+
+/** Won things only, until the address says to show all, as Bills opens on Unpaid. */
+function WonThings({ all }: { all: Row[] | undefined }) {
+  const [params] = useSearchParams();
+  const showingAll = params.get("stage") === "all";
+  const note: FilterNote<Row> = {
+    all,
+    none: "No won things.",
+    words: "won things",
+    matchUnderAll: (count) => `${plural(count, "thing")} ${count === 1 ? "matches" : "match"} under All.`,
+    showAll: (next) => next.set("stage", "all"),
+  };
+  return (
+    <DataTable
+      noun="thing"
+      rows={showingAll ? all : all?.filter((row) => row.stage === "won")}
+      columns={COLUMNS}
+      defaultSort={{ id: "name", desc: false }}
+      rowId={(row) => row.id}
+      rowName={(row) => row.name}
+      rowHref={(row) => `/things/${row.id}`}
+      onAdd={vi.fn()}
+      onEdit={vi.fn()}
+      onDelete={vi.fn()}
+      filterNote={showingAll ? undefined : note}
+    />
+  );
+}
+
+function showWon(all: Row[] | undefined, at = "/") {
+  render(
+    <MemoryRouter initialEntries={[at]}>
+      <WonThings all={all} />
+      <Address />
+    </MemoryRouter>,
+  );
+}
+
+const NONE_WON = ROWS.filter((row) => row.stage !== "won");
+
+describe("a filter that leaves rows out", () => {
+  it("shows the rows under it as usual", () => {
+    showWon(ROWS);
+    expect(names()).toEqual(["Bravo"]);
+  });
+
+  it("says when none is under it, with a button that shows all", async () => {
+    showWon(NONE_WON, "/?page=2");
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByText("No won things.")).toBeTruthy();
+    expect(screen.queryByText("No things yet. Add the first one.")).toBeNull();
+    await user().click(screen.getByRole("button", { name: "Show all things" }));
+    expect(names()).toEqual(["alpha", "Charlie"]);
+    expect(address()).toBe("?stage=all");
+  });
+
+  it("says when a search matches none under it, and offers to clear the search", () => {
+    showWon(ROWS, "/?q=zzz");
+    expect(screen.getByText('No won things match "zzz".')).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Clear search" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Show all things" })).toBeNull();
+  });
+
+  it("says how many match under all, with the button that shows them", async () => {
+    showWon([...ROWS, { id: 4, name: "Delta", city: "Lima", stage: "new", amount: 5 }], "/?q=lima");
+    expect(screen.getByText('No won things match "lima". 2 things match under All.')).toBeTruthy();
+    await user().click(screen.getByRole("button", { name: "Show all things" }));
+    expect(names()).toEqual(["Charlie", "Delta"]);
+    expect(address()).toBe("?q=lima&stage=all");
+  });
+
+  it("counts a match under all only in the columns the search looks in", () => {
+    showWon(ROWS, "/?q=10");
+    expect(screen.getByText('No won things match "10".')).toBeTruthy();
+  });
+
+  it("stays as it was when the search is cleared", async () => {
+    showWon(ROWS, "/?q=lima");
+    await user().click(screen.getByRole("button", { name: "Clear search" }));
+    expect(address()).toBe("");
+    expect(names()).toEqual(["Bravo"]);
+  });
+
+  it("still invites the first row when there are none at all", () => {
+    showWon([]);
+    expect(screen.getByText("No things yet. Add the first one.")).toBeTruthy();
+    expect(screen.queryByText("No won things.")).toBeNull();
+  });
+
+  it("says nothing while the rows are loading", () => {
+    showWon(undefined);
+    expect(screen.queryByText("No won things.")).toBeNull();
+    expect(screen.queryByText("No things yet. Add the first one.")).toBeNull();
   });
 });

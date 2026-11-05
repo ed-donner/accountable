@@ -46,6 +46,12 @@ describe("price", () => {
   ])("shows %i cents as %s", (cents, shown) => {
     expect(price(cents)).toBe(shown);
   });
+
+  it("shows a sum past what a JavaScript number holds to the cent, from a BigInt", () => {
+    expect(price(9_200_000_000_000_001n)).toBe("$92,000,000,000,000.01");
+    expect(price(7n)).toBe("$0.07");
+    expect(price(0n)).toBe("$0.00");
+  });
 });
 
 describe("priceText", () => {

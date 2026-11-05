@@ -78,24 +78,23 @@ function Received({ money, today }: { money: Money; today: string }) {
 }
 
 /**
- * The dashboard's Money section (V29 to V31): what customers owe, how much is overdue and how
- * late, and the payments received each month. It follows today, so it reads again when the day changes.
+ * Invoices' row of the dashboard's Money section (V29 to V31): what customers owe, how much is
+ * overdue and how late, and the payments received each month. App.tsx puts it in the section, above
+ * bills' row. It follows today, so it reads again when the day changes.
  */
-export function MoneySection() {
+export function InvoicesMoney() {
   const money = useMoney();
   const today = useToday();
   return (
-    <section aria-labelledby="money-heading" className="px-5 pt-6 pb-4">
-      <h2 id="money-heading" className="mb-2 px-1">
-        Money
-      </h2>
+    <>
       <LoadFailed keeping={money.data !== undefined} error={money.error} onRetry={() => money.refetch()} />
       {money.data && (
-        <div className="grid h-[320px] grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3">
+        // The same columns as bills' row below and the dashboard's bottom row above.
+        <div className="grid h-[320px] grid-cols-[minmax(0,0.76fr)_minmax(0,1.24fr)] gap-3">
           <Owed money={money.data} />
           <Received money={money.data} today={today} />
         </div>
       )}
-    </section>
+    </>
   );
 }

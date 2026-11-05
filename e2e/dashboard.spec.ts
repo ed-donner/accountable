@@ -298,7 +298,7 @@ test.describe("with the sample data", () => {
     await expect(funnel.locator(".recharts-tooltip-wrapper")).toContainText("reached New");
   });
 
-  test("the dashboard's own part fits 1440 by 900, and the page scrolls to the Money section below it", async ({
+  test("the dashboard's own part fits 1440 by 900 with no scrolling, and the Money section fits below it", async ({
     page,
   }) => {
     await page.goto("/");
@@ -306,17 +306,23 @@ test.describe("with the sample data", () => {
     for (const name of ["Revenue won", "Open pipeline", "Deals won", "Sales funnel", "Follow-ups", "Recent activity"]) {
       await expect(section(page, name), name).toBeInViewport({ ratio: 1 });
     }
-    const money = page.getByRole("heading", { level: 2, name: "Money" });
-    await expect(money).not.toBeInViewport();
-    const sideways = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(sideways).toBeLessThanOrEqual(0);
+    const money = page.getByRole("region", { name: "Money" });
+    await expect(money.getByRole("link", { name: /^What we owe/ })).toBeVisible();
+    const sizes = await page.evaluate(() => ({
+      windowHeight: window.innerHeight,
+      width: document.documentElement.scrollWidth,
+      windowWidth: window.innerWidth,
+    }));
+    expect(sizes.width).toBeLessThanOrEqual(sizes.windowWidth);
+    // Sections other areas add come below that screen (H10), and the Money section fits a window of its own.
+    expect((await money.boundingBox())!.y).toBeGreaterThanOrEqual(sizes.windowHeight - 40);
+    expect((await money.boundingBox())!.height).toBeLessThanOrEqual(sizes.windowHeight);
 
-    // The whole section shows once the page is scrolled to it.
-    await page.getByRole("region", { name: "Payments received" }).scrollIntoViewIfNeeded();
-    for (const name of ["Owed to us", "Payments received"]) {
+    // The whole section, invoices' row and bills' below it, shows once the page is scrolled to it.
+    await page.getByRole("region", { name: "Spending by category" }).scrollIntoViewIfNeeded();
+    for (const name of ["Owed to us", "Payments received", "Bills to pay", "Spending by category"]) {
       await expect(page.getByRole("region", { name }), name).toBeInViewport({ ratio: 1 });
     }
-    await expect(money).toBeInViewport();
   });
 
   test("the Money section owes what the invoices owe, with How late, and 12 months of payments marked so far", async ({

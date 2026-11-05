@@ -22,6 +22,9 @@ from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from accountable import api, auth, cli, db, search, settings, users
+from accountable.bills import router as bills
+from accountable.bills import schemas as bills_schemas
+from accountable.bills import tables as bills_tables
 from accountable.company import router as company_settings
 from accountable.company import schemas as company_schemas
 from accountable.crm import schemas as crm_schemas
@@ -34,6 +37,9 @@ from accountable.invoices.routers import invoices, money, payments, pdf
 from accountable.products import router as products
 from accountable.products import schemas as products_schemas
 from accountable.products import search as products_search
+from accountable.quotes import router as quotes
+from accountable.quotes import schemas as quotes_schemas
+from accountable.quotes import tables as quotes_tables
 
 FRONTEND = db.ROOT / "frontend" / "dist"
 
@@ -71,12 +77,15 @@ AREAS = [
     ),
     Area(routers=[products.router], messages=products_schemas.FIELD_MESSAGES, kinds=products_search.KINDS),
     Area(routers=[company_settings.router], messages=company_schemas.FIELD_MESSAGES),
+    Area(routers=[quotes.router], messages=quotes_schemas.FIELD_MESSAGES, holds=quotes_tables.HOLDS),
     # Money's route comes first, so /invoices/money is never read as an invoice's id.
     Area(
         routers=[money.router, invoices.router, payments.router, pdf.router],
         messages=invoices_schemas.FIELD_MESSAGES,
         holds=invoices_tables.HOLDS,
     ),
+    # Bills aren't searched from the top bar (K1), and each one holds its supplier (D4).
+    Area(routers=[bills.router], messages=bills_schemas.FIELD_MESSAGES, holds=bills_tables.HOLDS),
 ]
 
 

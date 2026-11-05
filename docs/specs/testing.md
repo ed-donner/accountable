@@ -13,7 +13,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 **Backend (pytest)**, on a fresh temporary database each test:
 
 - Every row of the stage rules, with today's date fixed, including hand-set probabilities, blank main contacts and a value passed in, as accepting a quote passes one
-- Delete outcomes and the counts in `delete-impact`, and a held deal or organization (D4): what holds it in `delete-impact`, the 409 and its words, a record that nothing points at still deleting, and a missing one still a 404. A deal's activities and an organization's contacts and deals stand in for a later area's records, so the rules are tested apart from any area. Also that quotes give the one hold there is, on a deal, so a deal with quotes gets "This deal has 2 quotes, so it can't be deleted.", and an organization with quotes on its deals still deletes
+- Delete outcomes and the counts in `delete-impact`, and a held deal or organization (D4): what holds it in `delete-impact`, the 409 and its words, a record that nothing points at still deleting, and a missing one still a 404. A deal's activities and an organization's contacts and deals stand in for a later area's records, so the rules are tested apart from any area. Also that quotes give a hold on a deal, so a deal with quotes gets "This deal has 2 quotes, so it can't be deleted.", and an organization with quotes on its deals still deletes
 - Required fields, and the rules on blank links
 - Dashboard figures against a small dataset with known answers, including month boundaries, an edited close date and a reopened deal
 - The funnel, including skipped stages, a deal moved backwards, a lost deal and a deal added at Won

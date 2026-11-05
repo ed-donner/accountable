@@ -489,6 +489,8 @@ The owner agreed the choices the spec made where the intent left them open, and 
 
 For the build: the SQL under Clear the sample data needs `quote_lines` and `quotes` in its `truncate`, and the run instructions should mention Quotes.
 
+The build plan is in `docs/changes/quotes/plan.md`, in four phases: the PDF against a fixed document first, because it rests on a library the project hasn't used, then quotes on the backend, on the frontend, and end to end. Writing it settled three things in the spec: the new-draft route is `GET /quotes/new/{deal_id}`, because the every-route test expects a GET with no id in its path to answer on an empty database. The holds test checks that quotes hold deals, not that theirs is the only hold, so the invoices merge doesn't break it. And `quotes/dialogs.tsx` joins the file tree.
+
 ## Running Accountable
 
 Accountable runs two ways:

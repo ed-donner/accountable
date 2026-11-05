@@ -167,6 +167,7 @@ frontend/src/
     QuoteDocument.tsx             the quote document, as the preview draws it
     QuoteForm.tsx                 a draft's form and its lines
     panels.tsx                    the Quotes panels on a deal's and an organization's page
+    dialogs.tsx                   the deal picker for New quote, and the dialogs for Mark as sent, Accept and Decline
     pages/                        Quotes and Quote
 frontend/dist/                    the built frontend, from npm start and Render, git-ignored
 e2e/

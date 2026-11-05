@@ -29,6 +29,19 @@ The chart covers 15 months. The first 12 are the last 12 months including this o
 - Every unit test, old and new, runs in under a second on this computer, because CI runs on a much slower machine.
 - No new dependencies unless the plan makes the case for one.
 
+## Decisions
+
+- **Where it lives:** a new later area, `cashflow/` on both sides, with no tables. Invoices, bills and the CRM each give it their money through `main.py`, in the terms of a new top-level `cash.py`, as they give their holds, so later areas still never import each other.
+- **The Money section:** the `money` branch, which reworks the rest of the section, merges first, and this branch brings it in before the build. The spec says only that the heading and the cash flow's row fit a 1440 by 900 window, and so does everything below the row.
+- **What the forecast holds:** only what the invoices and bills say, so its later months show little money going out, and drafts and won deals not yet invoiced aren't in it.
+- **Likely deals and tax:** a deal's value is before tax, so the band leaves out the tax its invoice would add, as Y14 says.
+- **Sample invoices:** left as they are, though nearly every sample customer pays on time or early. Another branch is reworking the sample data, and the tests prove the days-late rule.
+- **Opening balance:** it can be below zero, for an overdrawn account, up to $1 trillion either way, on a Cash panel under the Company panel, with the fields Opening balance and As of. The sample company's is $40,000.00, as of the first day of the chart's first month, so the balance stays above zero in every month.
+- **The chart:** one money axis, with money in rising from zero in Sea Green and money out dropping below it in Coral. The forecast's bars are in softer shades of those, and the likely deals' band in a soft Marigold. Above it, Cash today and End of February, and With likely deals while the switch is on.
+- **The switch:** hidden without an opening balance, since the band has no line to sit on. It's a checkbox with the switch role, so it needs no new package.
+- **A month's list:** this month and the three forecast months can be clicked, and past months can't. The list opens in a dialog, read from its own route when it opens.
+- **The average for all customers:** over every fully paid invoice, each counting once, and 0 with none at all.
+
 ## Not in this change
 
 - Bank feeds or reconciling with a bank statement.

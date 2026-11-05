@@ -79,8 +79,8 @@ scripts/
   vite-watch.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, the list of areas
-                                  with each one's routes, messages, search kinds and holds, and the built frontend in
-                                  the shared app
+                                  with each one's routes, messages, search kinds, holds and cash, and the built
+                                  frontend in the shared app
   settings.py                     which copy runs, from DATABASE_URL, SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (C8)
   db.py                           engine for SQLite or Postgres, metadata, foreign keys, write lock, migrations on start
   auth.py                         the token check, the signed-in person and GET /me, and the local copy's sign-in routes
@@ -96,19 +96,25 @@ backend/accountable/
                                   which made-up teammate added it and which last changed it (U14)
   holds.py                        what holds a deal or an organization from being deleted: the Hold each area gives,
                                   the counts for the delete dialog and the refusal (D4)
-  months.py                       the last 12 months, which every area's charts by month show
+  months.py                       the last 12 months, which every area's charts by month show, and the 3 after this
+                                  one, for the cash flow's forecast
+  cash.py                         what an area's money gives the cash flow: a total for each day it came in or went
+                                  out, and each item expected, with its expected date, amount and what a month's list
+                                  shows of it (Y2 to Y13)
   cli.py                          seed and empty commands, for the local copy only, across every area: each area's
                                   sample data in order, its records counted, and every table but the people's and
                                   the settings' wiped, in the order their foreign keys allow
   migrations/                     Alembic, with batch mode on. 0006 adds number_counters, 0007 bills, 0008 quotes
                                   and quote_lines, 0009 the invoices tables, company_logo, and the design and accent
-                                  color settings, and 0010 each invoice's issue_order
+                                  color settings, 0010 each invoice's issue_order, and 0011 the opening balance's two
+                                  columns, blank
   crm/
     tables.py                     SQLAlchemy Core tables, and RECORDS, the ones seed and empty count
     schemas.py                    the CRM's Pydantic request and reply models, and the messages for its fields
     rules.py                      stage-change rules, usual probabilities, expected revenue
     timeline.py                   merged timelines and last-activity queries
     search.py                     what the top bar's search looks for in the CRM: organizations, contacts and deals
+    cash.py                       the open deals as the cash flow's likely deals (Y13)
     sample_data.py                sample records, dated from a given day
     routers/                      meta, organizations, contacts, deals, activities, dashboard
   products/                       the price list (G1 to G12), which never imports crm/
@@ -121,11 +127,12 @@ backend/accountable/
     tables.py                     the company_settings, company_logo and number_counters tables
     schemas.py                    the settings' request and reply models, their checks, and the messages for their fields
     router.py                     GET and PATCH /settings, and their queries
-    documents.py                  for quotes and invoices: the settings as saved, the logo, and the next number with its count (B15)
+    documents.py                  the settings as saved, for any area, and for quotes and invoices the logo and the
+                                  next number with its count (B15)
     tax.py                        for quotes and invoices: a line's amount, the subtotal, the tax and the total, and
                                   the quantity's type and limits (B16, B17)
     logo.py                       the logo's check, with Pillow: a real PNG or JPEG within B21's limits
-    sample_data.py                the sample company (B12), with its design, accent color and logo
+    sample_data.py                the sample company (B12), with its design, accent color, logo and opening balance
     sample-logo.png               the sample company's made-up logo
   quotes/                         quotes (Q5 to Q37), which imports only crm/tables.py, crm/rules.py, products/tables.py
                                   and company/
@@ -144,6 +151,8 @@ backend/accountable/
     schemas.py                    request and reply models, and the messages for their fields
     figures.py                    what an invoice shows as, its days late and what's owed (V3), with today passed in
     routers/                      invoices (with drafts, issuing and voiding), payments, pdf and money
+    cash.py                       the payments, and the open invoices with their customers' average days paid late,
+                                  for the cash flow (Y2, Y5, Y6)
     characters.py                 which characters invoices can show, from invoice-fonts.json, and the words for those they can't
     fonts.py                      writes shared/invoice-fonts.json from the font files, with uv run -m accountable.invoices.fonts
     layout.py                     where everything goes on each page, as layout.ts does it, from invoice-designs.json
@@ -155,15 +164,21 @@ backend/accountable/
     schemas.py                    its request and reply models, the six categories, its checks, and the messages for
                                   its fields
     router.py                     the bills routes, the figures for bills' row of the Money section, and their queries
+    cash.py                       the paid and unpaid bills, for the cash flow (Y2, Y7)
     sample_data.py                the sample suppliers and their bills, dated from a given day
+  cashflow/                       the cash flow (Y1 to Y22), a later area that keeps no tables and imports only company/
+    router.py                     GET /cash-flow and GET /cash-flow/{month}: every area's cash folded into the 15
+                                  months, the balances and a month's list
+    schemas.py                    its reply models
 backend/tests/
 frontend/index.html               the page, with a short script that applies the saved theme before anything draws
 frontend/src/
   main.tsx, App.tsx, styles.css   styles.css holds every color, as light and dark tokens. App.tsx puts
-                                  the areas together, the dashboard's one Money section included
+                                  the areas together, the dashboard's one Money section included, with the cash
+                                  flow's row at its top
   test-utils.tsx, test-setup.ts   the unit tests' helpers, and test-supabase.ts, which stands in for Supabase's client
   lib/                            fetch client, session, query defaults, money in dollars and in cents, reading a typed
-                                  price, date formatting, useToday, validation, files.ts for a file's bytes as base64
+                                  price, or an amount with a minus sign, date formatting, useToday, validation, files.ts for a file's bytes as base64
                                   and a picture's size,
                                   the saved theme, and for every area's records and forms: records.ts, with who added and
                                   changed a record and the hooks that save and delete one, saveErrors.ts, which shows a
@@ -223,6 +238,12 @@ frontend/src/
                                   SpendingChart, and StackSegment, which draws a segment of a stacked column for
                                   both and keeps a small one tall enough to see
     pages/                        Bills and Bill
+  cashflow/                       the cash flow, a later area that imports no other area
+    queries.ts                    its types, and reading the months and a month's list, keyed by the day
+    CashFlowRow.tsx               the full-width row at the top of the Money section: the figures, the legend, the
+                                  Likely deals switch, the chart and the table behind it for screen readers
+    CashFlowChart.tsx             the bars, the balance line and the likely deals' band, with Recharts
+    MonthDialog.tsx               what's expected in a month, with links to each invoice, bill and deal
 frontend/dist/                    the built frontend, from npm start and Render, git-ignored
 e2e/
 data/                             the local copy's database and what it needs to sign its own tokens, created on first
@@ -233,14 +254,14 @@ data/                             the local copy's database and what it needs to
 
 Accountable will grow from a sales CRM into a Business OS, including ERP, so the layout leaves room for the next business area and adds nothing else. `backend/tests/test_layout.py` and `frontend/src/layout.test.ts` enforce the rules a test can check.
 
-- **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, and `products/` the price list. A later area gets a folder beside them with its own tables, routes and pages: quotes, invoices and bills have theirs, in `quotes/`, `invoices/` and `bills/` on both sides. What areas share comes from the top level.
-- **Imports between areas go one way.** `crm/`, `products/` and `company/` are the first areas, and import no other area but `company/`, so `crm/` never imports `products/`, and neither ever imports a later area. A later area builds on them, and may import only these of theirs: on the backend, `crm/tables.py` and `products/tables.py`, for foreign keys and reads, and `crm/rules.py`, so a deal changes stage the one way however it's asked for, such as when a quote is accepted; on the frontend, `crm/queries.ts` and `products/queries.ts`, for their types and reads, and `crm/deals.ts`, such as which stages are open. Any area may import `company/`. Later areas never import each other.
-- **A later area shows its records on the CRM's pages through `App.tsx`,** never by changing the CRM's queries or replies. A deal's quotes come from the quotes area's own route, such as `/api/quotes?deal_id=7`, in a panel the quotes area gives `App.tsx`, which hands it to the deal's page (R7). The dashboard takes sections the same way (H10). So an organization's bills come from `/api/bills?organization_id=7`, in the Bills panel, a deal's invoices from `/api/invoices?deal_id=7`, in the Invoices panel, and the Money section's two rows from `/api/invoices/money` and `/api/bills/dashboard`, never from `/api/dashboard`. Every area's routes start with words of their own after `/api`, which `backend/tests/test_layout.py` checks, so `main.py` can give a field error the right area's messages.
+- **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, and `products/` the price list. A later area gets a folder beside them with its own tables, routes and pages: quotes, invoices and bills have theirs, in `quotes/`, `invoices/` and `bills/` on both sides, and the cash flow has `cashflow/`, which keeps no tables of its own. What areas share comes from the top level.
+- **Imports between areas go one way.** `crm/`, `products/` and `company/` are the first areas, and import no other area but `company/`, so `crm/` never imports `products/`, and neither ever imports a later area. A later area builds on them, and may import only these of theirs: on the backend, `crm/tables.py` and `products/tables.py`, for foreign keys and reads, and `crm/rules.py`, so a deal changes stage the one way however it's asked for, such as when a quote is accepted; on the frontend, `crm/queries.ts` and `products/queries.ts`, for their types and reads, and `crm/deals.ts`, such as which stages are open. Any area may import `company/`. Later areas never import each other. The cash flow reads every area's money without importing any of them: each area that moves money gives `main.py` its cash, in the terms of the top-level `cash.py`, as it gives its holds, and `main.py` puts them on the app, where the cash flow's routes read them. So `cashflow/` imports only `company/` and the top level on the backend, and nothing from another area on the frontend, where its links to invoices, bills and deals are addresses, such as `/invoices/7`.
+- **A later area shows its records on the CRM's pages through `App.tsx`,** never by changing the CRM's queries or replies. A deal's quotes come from the quotes area's own route, such as `/api/quotes?deal_id=7`, in a panel the quotes area gives `App.tsx`, which hands it to the deal's page (R7). The dashboard takes sections the same way (H10). So an organization's bills come from `/api/bills?organization_id=7`, in the Bills panel, a deal's invoices from `/api/invoices?deal_id=7`, in the Invoices panel, and the Money section's rows from `/api/cash-flow`, `/api/invoices/money` and `/api/bills/dashboard`, never from `/api/dashboard`. Every area's routes start with words of their own after `/api`, which `backend/tests/test_layout.py` checks, so `main.py` can give a field error the right area's messages.
 - **A later area's record can hold a deal or an organization** (D4). The area says which of its columns hold one, as a `Hold`, and `main.py` hands every area's holds to the CRM's delete routes through the app, so the CRM never names the area. Quotes give one, on `quotes.deal_id`, with the word `quote`, invoices two, on `invoices.deal_id` and `invoices.organization_id`, with the word `invoice`, and bills one, on `bills.organization_id`, with the word `bill`.
 - **`company/` holds the company settings, on both sides.** It's an area beside `crm/` and `products/`, called `company/` because the backend's `settings.py` already decides which copy runs. It imports only the top level, and never another area. It isn't at the top level because not every area needs it: the CRM and products don't. It's the one area every other can import: later areas that need the company's details, such as quotes and invoices, can import it. `company/documents.py` gives them the settings as saved and each document's next number, and `company/tax.py` and `company/tax.ts` the sums on their lines. The sample company is in `company/sample_data.py`, and the function that fills a new database fills it too.
-- **The top level holds only what every area needs.** Signing in and people are needed by every area, so `auth.py` and `users.py` sit there, and `users.py` holds the made-up teammates that any area's sample records are put down to. `sample.py` gives every area's sample data the same times of day and the same rule for which teammate added and last changed each record. `who.py` gives every area's record tables the same four columns, `created_at`, `updated_at`, `created_by` and `updated_by`, and what saves and replies do with them. `api.py` has the base request model and its checks, the field types such as names, emails, websites, ids, dollars and cents, and the errors shown beside a field. Each area keeps the messages for its own fields, and `main.py` hands the error handler the messages of the area whose route a request reached, from the words the route starts with. Two areas can each have a field of one name with different rules: the CRM's activities need a description, and a product's is optional. The top bar's search spans every area, so `search.py` sits at the top level too: it runs the one query and puts the results in order, and each area's own `search.py` says what to look for in its tables. `holds.py` lets any area's records hold a deal or an organization (D4), and `months.py` gives every area's charts by month the same 12 months. An area can import any of these, but they never import an area, so `main.py` passes `db.py` the function that fills a new database, passes `search.py` each area's kinds and puts each area's holds on the app. `main.py` keeps one list of areas, each with its routers, its fields' messages, its search kinds and its holds, so a later area joins with one entry. Only `main.py`, `cli.py` and the migrations name an area's folder.
+- **The top level holds only what every area needs.** Signing in and people are needed by every area, so `auth.py` and `users.py` sit there, and `users.py` holds the made-up teammates that any area's sample records are put down to. `sample.py` gives every area's sample data the same times of day and the same rule for which teammate added and last changed each record. `who.py` gives every area's record tables the same four columns, `created_at`, `updated_at`, `created_by` and `updated_by`, and what saves and replies do with them. `api.py` has the base request model and its checks, the field types such as names, emails, websites, ids, dollars and cents, and the errors shown beside a field. Each area keeps the messages for its own fields, and `main.py` hands the error handler the messages of the area whose route a request reached, from the words the route starts with. Two areas can each have a field of one name with different rules: the CRM's activities need a description, and a product's is optional. The top bar's search spans every area, so `search.py` sits at the top level too: it runs the one query and puts the results in order, and each area's own `search.py` says what to look for in its tables. `holds.py` lets any area's records hold a deal or an organization (D4), `cash.py` lets any area give the cash flow its money, and `months.py` gives every area's charts by month the same 12 months, and the cash flow the 3 after them. An area can import any of these, but they never import an area, so `main.py` passes `db.py` the function that fills a new database, passes `search.py` each area's kinds and puts each area's holds and cash on the app. `main.py` keeps one list of areas, each with its routers, its fields' messages, its search kinds, its holds and its cash, so a later area joins with one entry. Only `main.py`, `cli.py` and the migrations name an area's folder.
 - **One database setup.** All tables share one `metadata` and one migration history, and anything specific to SQLite or Postgres stays in `db.py` and the migrations. There's no raw SQL, check constraints included, apart from turning on row-level security in the migrations, which SQLAlchemy can't say.
-- **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/`, `company/`, `quotes/` and `bills/` each have one router, so it's `router.py` in their folder, with no folder around it. `invoices/` has four, so they're in `invoices/routers/`, as the CRM's are in `crm/routers/`. In `crm/`, a module outside `routers/` exists only because several files use it, as `quotes/document.py` does, which the router and the PDF both use, and each area's `search.py` exists because the top-level `search.py` needs it.
+- **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/`, `company/`, `quotes/`, `bills/` and `cashflow/` each have one router, so it's `router.py` in their folder, with no folder around it. `invoices/` has four, so they're in `invoices/routers/`, as the CRM's are in `crm/routers/`. In `crm/`, a module outside `routers/` exists only because several files use it, as `quotes/document.py` does, which the router and the PDF both use, and each area's `search.py` exists because the top-level `search.py` needs it, as each area's `cash.py` does because the cash flow needs it.
 - **How invoices look is split between `company/` and `invoices/`.** The choice of design, the accent color and the logo are company settings, so quotes could use them later, and `company/` keeps and checks them. Drawing the designs is the invoices area's, in `invoices/layout.py`, `invoices/pdf.py` and `invoices/layout.ts`. The Company settings page shows the sample invoice through a component `App.tsx` hands it, so `company/` never imports `invoices/`.
 - **`components/` and `lib/` hold only what any area could use.** Anything that knows about deals or contacts goes in `crm/`, and anything that knows about products in `products/`. The search box is in `components/` and knows nothing about records: each area's `searchGroups.tsx` says what its results look like, and `App.tsx` hands them to the box and the box to the shell. `App.tsx` also gives the shell its sections, and the CRM's pages the panels and sections later areas add. What any area's chart needs, such as its tooltip and the axes' text, is in `components/charts/`, and the CRM's charts and their geometry stay in `crm/charts/`. A record page's layout, who added and last changed a record, the hooks that save and delete records, the checks on a form's fields and a save's errors shown beside them are in `components/` and `lib/`, so `products/` and any later area's pages and forms use the same ones. Among the top-level files, `components/` and `lib/`, only `App.tsx` names an area's folder, `company/` included, which it names for the Company settings route. The menu opens the page by its address, so `components/` doesn't name `company/`.
 - **Only `lib/api.ts` talks to the backend,** so every reply gets the same error handling, **and only `lib/session.ts` talks to Supabase.** **Messages go through `lib/notify.ts`,** so each stays with its session (U5). ESLint refuses `toast` from Sonner anywhere else but the tests.

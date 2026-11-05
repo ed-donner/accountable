@@ -6,11 +6,11 @@ The look is set by [Visual design](specs/visual-design.md#visual-design) and the
 
 ## Problem
 
-A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next. Prices live in people's heads and old emails too, so the same thing gets quoted at different prices. What's agreed with a customer is in emails and spreadsheets, so nothing ties a quote to its deal, and nobody can see what was offered or whether the customer accepted. Once a deal is won, billing happens somewhere else, so nobody can see what customers owe, which invoices are overdue or who has paid. And nobody can see what the business owes in turn: which supplier bills are unpaid, when they're due, or what the business spends each month.
+A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next. Prices live in people's heads and old emails too, so the same thing gets quoted at different prices. What's agreed with a customer is in emails and spreadsheets, so nothing ties a quote to its deal, and nobody can see what was offered or whether the customer accepted. Once a deal is won, billing happens somewhere else, so nobody can see what customers owe, which invoices are overdue or who has paid. And nobody can see what the business owes in turn: which supplier bills are unpaid, when they're due, or what the business spends each month. Nor, with all that in different places, can anyone answer the question a small business asks every week: how much cash will we have, and when?
 
 ## What Accountable is
 
-Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. Beyond the CRM, it holds the business's price list and the quotes made from it, each on its deal, which a customer's yes turns into a won deal. It bills customers for won deals: invoices made from the price list, the payments against them, and what's still owed. And it keeps the bills the business receives from suppliers, with what it owes and what it spends. It should feel sharp, modern and professional, and be a pleasure to use.
+Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. Beyond the CRM, it holds the business's price list and the quotes made from it, each on its deal, which a customer's yes turns into a won deal. It bills customers for won deals: invoices made from the price list, the payments against them, and what's still owed. And it keeps the bills the business receives from suppliers, with what it owes and what it spends. From the money coming in and going out, it shows the business's cash month by month, and what it's likely to be over the next three months. It should feel sharp, modern and professional, and be a pleasure to use.
 
 **Who uses it:** a small sales team, sharing one Accountable every day with their own real data. Each person signs in with their own email and password, everyone works on the same records, and each record shows who added it. They start from the sample data to look around, then clear it and type in their own records. No other systems are involved yet.
 
@@ -20,7 +20,7 @@ Accountable is a business management system: a sales CRM that will grow into a f
 
 | Section | What it's for |
 |---|---|
-| Dashboard | The landing page: how sales are going at a glance and what needs doing next, with what we're owed, what we owe and what we spend below |
+| Dashboard | The landing page: how sales are going at a glance and what needs doing next, with the cash we have and will have, what we're owed, what we owe and what we spend below |
 | Organizations | The companies we do business with, each with its contacts, its deals and a combined timeline |
 | Contacts | The people we deal with, including leads and customers, each with a timeline |
 | Deals | The potential sales, each with its stage, value, close date and timeline |
@@ -30,7 +30,7 @@ Accountable is a business management system: a sales CRM that will grow into a f
 | Invoices | What customers have been billed for won deals, what they've paid and what they still owe |
 | Bills | The bills the business receives from suppliers: what's unpaid, what's overdue and what's been paid |
 
-Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out. Below the dashboard's own part, a Money section shows what customers owe, how late it is, and the payments received each month, then what the business owes its suppliers, what's overdue, the bills due in the next 30 days, and spending by category.
+Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out. Below the dashboard's own part, a Money section shows the cash flow first: the money in and out in each of the last 12 months and the cash balance at each month's end, carried on as a forecast for the next three from the open invoices and unpaid bills, with the likely deals on top if wanted. Then it shows what customers owe, how late it is, and the payments received each month, then what the business owes its suppliers, what's overdue, the bills due in the next 30 days, and spending by category.
 
 **Nine kinds of record:**
 
@@ -44,7 +44,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - **Payment:** money received against an issued invoice, in full or in part, with a date, an amount, a method and an optional reference.
 - **Bill:** a bill the business has received from a supplier, which is an organization. It has the supplier's own bill number, a bill date and a due date, an amount before tax, the tax, a category and notes, and is unpaid or paid. An unpaid bill is overdue once its due date has passed.
 
-**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms, the prefixes for quote and invoice numbers, and how invoices look, with one of three designs, an accent color and a logo. Quotes and invoices share the counter that numbers them and the sums for their totals ([B15 to B17](specs/settings.md#for-quotes-and-invoices)). Quotes use the settings for their numbers, their tax and the company's details on their PDFs, and keep the details and the tax as they were when each was sent. An invoice keeps them as they were when it was issued, and takes its look from the settings as they are when its PDF is made. Quotes keep Accountable's own look. Bills don't use the settings: a bill's tax is the supplier's, and its due date is 30 days after its bill date.
+**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms, the prefixes for quote and invoice numbers, and how invoices look, with one of three designs, an accent color and a logo. Quotes and invoices share the counter that numbers them and the sums for their totals ([B15 to B17](specs/settings.md#for-quotes-and-invoices)). Quotes use the settings for their numbers, their tax and the company's details on their PDFs, and keep the details and the tax as they were when each was sent. An invoice keeps them as they were when it was issued, and takes its look from the settings as they are when its PDF is made. Quotes keep Accountable's own look. Bills don't use the settings: a bill's tax is the supplier's, and its due date is 30 days after its bill date. The settings also hold the opening balance, the cash the business had at the start of a chosen day, which the dashboard's cash flow counts from, and the cash flow takes the payment terms for when the likely deals would be paid ([B23](specs/settings.md#cash), [Y13](specs/cash-flow.md#likely-deals)).
 
 **Not in Accountable yet:**
 
@@ -75,6 +75,9 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - Stock levels, product categories, units of measure or variants
 - Price lists for particular customers, or discounts
 - Reports beyond the dashboard
+- Bank feeds, reconciling with a bank statement, or more than one bank account. The cash flow counts from one opening balance, entered by hand.
+- Cash flow scenarios, such as what happens if a big customer pays late
+- Forecasting bills that haven't arrived yet, such as next month's rent. The cash flow's forecast has only the bills already entered, so its later months show little money going out.
 - Tags or custom fields
 - Changing the pipeline stages
 - Importing, exporting or backing up data
@@ -141,6 +144,17 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 | What we owe | The total of every unpaid bill, tax included |
 | Bill category | One of Software, Contractors, Travel, Office, Marketing and Other, set on each bill |
 | Spending | The bills' totals, tax included, by the month of their bill date, paid or not |
+| Cash flow | The chart at the top of the dashboard's Money section: money in and money out for each of the last 12 months, the cash balance at each month's end, and a forecast for the next 3 months ([cash-flow.md](specs/cash-flow.md#cash-flow)) |
+| Money in | The payments received against invoices, by the date they were paid |
+| Money out | The bills marked paid, at their totals, tax included, by the date they were paid |
+| Opening balance | The cash the business had at the start of a chosen day, entered in Company settings. The cash flow counts from it |
+| Cash balance | The opening balance, plus the money in, less the money out, since its date. Not to be confused with an invoice's balance, which is what's still owed on it |
+| Cash today | The cash balance now: the opening balance, plus the money in, less the money out, from its date up to and including today |
+| Forecast | The money expected in and out from tomorrow to the end of the third month after this one, and the cash balance it would give: the open invoices and the unpaid bills, never the deals |
+| Open invoice | An issued invoice, not void, with money owed on it, overdue or not |
+| Expected date | When the forecast expects an open invoice, an unpaid bill or a likely deal to be paid, never before tomorrow |
+| Days paid late | For a fully paid invoice, the days from its due date to its last payment. Paying on time or early counts as 0. Not to be confused with an overdue invoice's days late |
+| Likely deals | The open deals' expected revenue, each expected on its close date plus the payment terms, shown as a band on top of the forecast when the switch is on, and never part of the forecast itself |
 
 | Stage | Usual probability |
 |---|---|
@@ -153,7 +167,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 
 ## Quality
 
-- **Q1.** At 1,000 contacts, 500 deals, 5,000 activities, 500 products, 1,000 quotes with 5,000 lines between them, 1,000 invoices with 3,000 lines and 1,500 payments, and 1,000 bills, in the local copy: the dashboard's data, and each part of the Money section's, arrive in under 200ms, a table opens in under a second, an invoice's PDF downloads in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. A quote with 100 lines updates its preview within 100ms of a keystroke, and its PDF downloads in under a second. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
+- **Q1.** At 1,000 contacts, 500 deals, 5,000 activities, 500 products, 1,000 quotes with 5,000 lines between them, 1,000 invoices with 3,000 lines and 1,500 payments, and 1,000 bills, in the local copy: the dashboard's data, and each part of the Money section's, the cash flow and a month's list included, arrive in under 200ms, a table opens in under a second, an invoice's PDF downloads in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. A quote with 100 lines updates its preview within 100ms of a keystroke, and its PDF downloads in under a second. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
 - **Q2.** No errors in the browser's console, on any screen, at any time.
 - **Q3.** All controls can be reached by keyboard, with a visible focus ring. Animations respect the system's reduced motion setting.
 - **Q4.** Chrome is the one supported and tested browser. Safari and Firefox may work, but nobody has checked.
@@ -176,9 +190,10 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [quotes.md](specs/quotes.md) | Quotes: statuses, lines, amounts and tax, Prepared for, sending, accepting and declining, copying, the PDF, the Quotes section, the panels on deals and organizations, and their screens, the quote document included | Q5 to Q37 |
 | [invoices.md](specs/invoices.md) | Invoices and payments: drafts, issuing, voiding, payments, the invoice page, the panels on deals and organizations, the Invoices table, the PDF, the three designs, invoices' row of the dashboard's Money section, and their screens | V1 to V31 |
 | [bills.md](specs/bills.md) | Bills from suppliers: amounts in cents, unique bill numbers, due dates, categories, paid, unpaid and overdue, the table, the form, the bill page, an organization's bills, bills' row of the dashboard's Money section, and their screens | E1 to E24 |
+| [cash-flow.md](specs/cash-flow.md) | The cash flow: money in and out by month, the cash balance from the opening balance, the forecast from open invoices and unpaid bills, likely deals, the cash flow's row at the top of the dashboard's Money section and its month dialog | Y1 to Y22 |
 | [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, the sections other areas add below them, and its screen | H1 to H10 |
 | [running.md](specs/running.md) | The local copy and the shared app, sample data, keeping data, and the commands and first run | M1 to M7, C1 to C11 |
-| [settings.md](specs/settings.md) | The company settings: the page, each field's rules, how invoices look, saving, who last changed them, the sample company and the defaults, the numbers and sums quotes and invoices share, and the page's screen | B1 to B22 |
+| [settings.md](specs/settings.md) | The company settings: the page, each field's rules, how invoices look, the opening balance, saving, who last changed them, the sample company and the defaults, the numbers and sums quotes and invoices share, and the page's screen | B1 to B24 |
 | [deploy.md](specs/deploy.md) | The shared app on Render: `render.yaml`, building, starting, settings and the free plans' limits | W1 to W9 |
 
 **Across every area**

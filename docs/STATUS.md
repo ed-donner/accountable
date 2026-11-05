@@ -802,6 +802,19 @@ The quote form, `useQuoteForm` in `QuoteForm.tsx`, fills itself the same way fro
 
 `npm run check` passes: 6,166 tests in 6m 07s, of which 4,199 backend, 1,633 frontend, 317 end-to-end and 17 speed. Two unit tests took a second or more: `test_the_data_really_is_at_the_limits` at 1.1s, as before, and `test_other_image_formats_are_refused[WEBP]` at 6.6s, and 4.8s in a `check:quick` afterwards. That one wasn't in the list after the merge, and nothing here touches it.
 
+## Cash flow: design
+
+On the `cash-flow` branch, `docs/spec.md` and the area files now describe Accountable with the cash flow in it, as it will be once the branch merges. The intent, with the owner's answers on the 15 months, days paid late and the opening balance's date, is in `docs/changes/cash-flow/intent.md`. One area file is new: `docs/specs/cash-flow.md`, with Y1 to Y22 and the screens of the cash flow's row and its month dialog, and `settings.md` gains B23 and B24 for the opening balance. No code has changed yet.
+
+- **Where it lives:** a new later area, `cashflow/` on both sides, with no tables. It never imports invoices, bills or the CRM: each gives `main.py` its cash through a new top-level `cash.py`, as each gives its holds, and the cash flow's routes read it from the app. `GET /cash-flow` gives the 15 months, and `GET /cash-flow/{month}` what's expected in one of them.
+- **Company settings:** a Cash panel with Opening balance and As of, two new columns on `company_settings` from migration `0011`, blank by default. The sample company's is $40,000.00, as of the first day of the chart's first month. On a sample database built on Nov 5, 2026, that keeps the balance above zero in every month, at about $17,000 at its lowest, at the end of March.
+- **Dashboard:** the cash flow's row is first in the Money section. The `money` branch is reworking the rest of the section, so the spec only says that everything below the cash flow's row fits a 1440 by 900 window. Both branches change `dashboard.md`, `invoices.md`, `bills.md`, `frontend.md`, `testing.md` and `visual-design.md`, and the second to merge will need to bring them together.
+- **Colors:** three new tokens, Soft Sea Green, Soft Coral and Soft Marigold, for the forecast's bars and the likely deals' band. The Likely deals switch is a checkbox with the switch role, so it needs no new package.
+
+The project owner agreed the choices the spec made where the intent left them open, and they're now in the intent's Decisions: the new `cashflow/` area with each area's money given through `main.py` and `cash.py`, an opening balance that can be below zero, the sample company's $40,000.00, the chart's colors and figures, the switch hidden without an opening balance, a dialog for a month's list, and the average over every fully paid invoice. The forecast holds only what the invoices and bills say, the likely deals' band leaves out tax, and the sample invoices stay as they are, since another branch is reworking the sample data.
+
+Before the build: the `money` branch merges first, and this branch brings it in, putting the two branches' edits to the Money section's spec together. Once the reworked sample data is in, check that $40,000.00 still keeps the sample balance above zero in every month, as M3 asks. For the build: the SQL under Clear the sample data needs `opening_balance_cents = default, opening_balance_on = default` in its `update`, and its words should say it removes the opening balance too.
+
 ## Running Accountable
 
 Accountable runs two ways:

@@ -110,7 +110,7 @@ The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, 
 
 ## Money on the dashboard
 
-- **V29.** Invoices give the first row of the dashboard's Money section, below the dashboard's own part and above bills' row ([H10](dashboard.md#dashboard)). The row counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices.
+- **V29.** Invoices give a row of the dashboard's Money section, below the cash flow's row and above bills' row ([H10](dashboard.md#dashboard)). The row counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices.
 
 | Part | What it shows |
 |---|---|
@@ -121,6 +121,8 @@ The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, 
 
 - **V30.** Each part has a designed empty state, "Nothing owed." for the figures and How late, and "No payments in the last 12 months." for the chart, and nothing divides by zero.
 - **V31.** The row follows today, so invoices move into Overdue, and along the groups, as days pass, and it reads its figures again when the day changes, as the dashboard does.
+
+Invoices also give the cash flow at the top of the Money section its money in, the payments by the date they were paid, and its money expected in, the open invoices, each on its due date plus its customer's average days paid late ([Y2, Y5 and Y6](cash-flow.md#the-forecast)).
 
 ## Screens
 
@@ -144,10 +146,10 @@ On a deal's or an organization's page, below the page's own panels and its Quote
 
 ### Money section
 
-Invoices' row is the first in the dashboard's Money section ([Dashboard](dashboard.md#dashboard-1)): under the heading Money, two panels with a 12px gap, about 320px tall, with bills' row 12px below it ([Money section](bills.md#money-section)). The whole section shows at 1440 by 900 once the page is scrolled to it.
+Invoices' row comes in the dashboard's Money section ([Dashboard](dashboard.md#dashboard-1)) 12px below the cash flow's row ([Screens](cash-flow.md#screens)): two panels with a 12px gap, about 320px tall, with bills' row 12px below it ([Money section](bills.md#money-section)). Everything below the cash flow's row shows at 1440 by 900 once the page is scrolled to it.
 
 ```
-Money
+Money, with the cash flow's row first
 +-----------------------------------------+ +-----------------------------------------------------+
 | Owed to us          Overdue             | | Payments received in November              $40k     |
 | $48,250.00          $9,120.00           | | $3,400.00   October $11,250.00                      |

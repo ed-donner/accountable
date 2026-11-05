@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from accountable import db
 from accountable.crm.tables import activities, contacts, deals
+from accountable.invoices.tables import invoice_lines, invoices, payments
 from accountable.products.tables import products
 from conftest import TODAY, using_database
 from limits_data import fill
@@ -48,6 +49,19 @@ def test_the_data_really_is_at_the_limits(full):
         assert conn.scalar(select(func.count()).select_from(deals)) == 500
         assert conn.scalar(select(func.count()).select_from(activities)) == 5000
         assert conn.scalar(select(func.count()).select_from(products)) == 500
+        assert conn.scalar(select(func.count()).select_from(invoices)) == 1000
+        assert conn.scalar(select(func.count()).select_from(invoice_lines)) == 3000
+        assert conn.scalar(select(func.count()).select_from(payments)) == 1500
+        statuses = set(conn.scalars(select(invoices.c.status)))
+    assert statuses == {"draft", "issued", "void"}
+    shown = {invoice["shows_as"] for invoice in full.get("/api/invoices").json()}
+    assert shown == {"draft", "issued", "part_paid", "overdue", "paid", "void"}
+
+
+def test_the_money_section_is_quick(full):
+    elapsed = median_ms(full, "/api/invoices/money")
+    print(f"money: {elapsed:.1f}ms")
+    assert elapsed < DASHBOARD_LIMIT_MS
 
 
 def test_the_dashboard_is_quick(full):
@@ -56,7 +70,9 @@ def test_the_dashboard_is_quick(full):
     assert elapsed < DASHBOARD_LIMIT_MS
 
 
-@pytest.mark.parametrize("path", ["/api/organizations", "/api/contacts", "/api/deals", "/api/products"])
+@pytest.mark.parametrize(
+    "path", ["/api/organizations", "/api/contacts", "/api/deals", "/api/products", "/api/invoices"]
+)
 def test_lists_are_quick(full, path):
     elapsed = median_ms(full, path)
     print(f"{path}: {elapsed:.1f}ms")
@@ -87,6 +103,11 @@ QUERIES = {
     "/api/products/{product}": 1,
     # Every kind at once (K8).
     "/api/search?q=a": 1,
+    # The invoices and their paid totals, then the rate for the drafts.
+    "/api/invoices": 2,
+    "/api/invoices/money": 2,
+    # The invoice, its lines, its payments, and the settings a draft follows.
+    "/api/invoices/{invoice}": 4,
 }
 
 
@@ -100,6 +121,7 @@ def test_a_screen_asks_the_database_only_a_few_times(api, make, path, most):
     make.activity(contact_id=contact)
     product = make.product()
     make.product("Archived", active=False)
+    invoice = make.invoice(deal)
     api.post(f"/api/deals/{deal}/move", json={"stage": "qualified"})
 
     statements: list[str] = []
@@ -109,7 +131,7 @@ def test_a_screen_asks_the_database_only_a_few_times(api, make, path, most):
 
     event.listen(db.engine(), "before_cursor_execute", count)
     try:
-        address = path.format(organization=organization, contact=contact, deal=deal, product=product)
+        address = path.format(organization=organization, contact=contact, deal=deal, product=product, invoice=invoice)
         assert api.get(address).status_code == 200
     finally:
         event.remove(db.engine(), "before_cursor_execute", count)

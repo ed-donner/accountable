@@ -139,12 +139,17 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
 }
 
 /**
- * Saves a file the backend makes, such as a PDF, under this name. A plain link can't
- * fetch it, because the token goes in a header, never a cookie. Its errors are api()'s.
+ * A file the backend sends, such as the logo or a PDF. A plain link or an image's address
+ * can't fetch it, because the token goes in a header, never a cookie. Its errors are api()'s.
  */
-export async function download(path: string, filename: string): Promise<void> {
+export async function fetchFile(path: string): Promise<Blob> {
   const reply = await receive(path, {});
-  const address = URL.createObjectURL(await reply.blob());
+  return reply.blob();
+}
+
+/** Saves a file the backend makes, such as a PDF, under this name. */
+export async function download(path: string, filename: string): Promise<void> {
+  const address = URL.createObjectURL(await fetchFile(path));
   const link = document.createElement("a");
   link.href = address;
   link.download = filename;

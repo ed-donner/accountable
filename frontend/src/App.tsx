@@ -1,4 +1,4 @@
-import { Package } from "lucide-react";
+import { Package, ReceiptText } from "lucide-react";
 import { useEffect } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
@@ -20,6 +20,11 @@ import { Organizations } from "./crm/pages/Organizations";
 import { Pipeline } from "./crm/pages/Pipeline";
 import { useMeta, type DealDetail, type OrganizationDetail } from "./crm/queries";
 import { crmSearchGroups } from "./crm/searchGroups";
+import { SampleInvoice } from "./invoices/InvoicePreview";
+import { MoneySection } from "./invoices/MoneySection";
+import { Invoice } from "./invoices/pages/Invoice";
+import { Invoices } from "./invoices/pages/Invoices";
+import { DealInvoices, OrganizationInvoices } from "./invoices/panels";
 import { applyTheme, savedTheme } from "./lib/theme";
 import { Product } from "./products/pages/Product";
 import { Products } from "./products/pages/Products";
@@ -28,7 +33,7 @@ import { productsSearchGroups } from "./products/searchGroups";
 const ICON_SIZE = 17;
 
 // The top bar's sections, area by area. The design reference has icons for the CRM's.
-// Products takes lucide's, drawn as Icon draws its own.
+// Products and Invoices take lucide's, drawn as Icon draws its own.
 const SECTIONS: Section[] = [
   { to: "/", label: "Dashboard", icon: <Icon name="dashboard" size={ICON_SIZE} /> },
   { to: "/organizations", label: "Organizations", icon: <Icon name="organizations" size={ICON_SIZE} /> },
@@ -40,15 +45,20 @@ const SECTIONS: Section[] = [
     label: "Products",
     icon: <Package size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
   },
+  {
+    to: "/invoices",
+    label: "Invoices",
+    icon: <ReceiptText size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
+  },
 ];
 
 const SEARCH_GROUPS = [...crmSearchGroups, ...productsSearchGroups];
 
 // What later areas add to the CRM's pages, such as a deal's quotes, an organization's bills
-// or a section of the dashboard. None do yet.
-const DEAL_PANELS: RecordPanel<DealDetail>[] = [];
-const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [];
-const DASHBOARD_SECTIONS: DashboardSection[] = [];
+// or a section of the dashboard (R7, H10).
+const DEAL_PANELS: RecordPanel<DealDetail>[] = [{ name: "invoices", Panel: DealInvoices }];
+const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [{ name: "invoices", Panel: OrganizationInvoices }];
+const DASHBOARD_SECTIONS: DashboardSection[] = [{ name: "money", Section: MoneySection }];
 
 function AppShell() {
   useMeta(); // Fetched early, because it never changes and forms need it straight away.
@@ -69,7 +79,9 @@ const router = createBrowserRouter([
       { path: "/pipeline", element: <Pipeline /> },
       { path: "/products", element: <Products /> },
       { path: "/products/:id", element: <Product /> },
-      { path: "/settings", element: <SettingsPage /> },
+      { path: "/invoices", element: <Invoices /> },
+      { path: "/invoices/:id", element: <Invoice /> },
+      { path: "/settings", element: <SettingsPage preview={SampleInvoice} /> },
       { path: "*", element: <MissingRecord word="page" to="/" section="Dashboard" /> },
     ],
   },

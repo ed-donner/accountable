@@ -29,7 +29,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - The migration that adds `number_counters`, run on a database that already has records, keeps them and starts each count at 1, and `number_counters (kind)` is unique
 - The migrations have one head, so two branches that each add the next migration fail the tests rather than the backend's start, and `migrations/env.py` imports every area's tables
 - The startup check for row-level security, given a list of tables with it on and off, refuses to start and names each table that has it off
-- Every route the app has gets the security and bad-input checks, taken from the app's own list of routes. That includes refusing a request with no token, an expired one, one signed with another key and one issued for something other than a signed-in user, in the local copy and in the shared app
+- Every route the app has gets the security and bad-input checks, taken from the app's own list of routes. A route whose body needs fields, such as a move or a payment, is sent a sample body in the checks of its ids, so they reach the route rather than stopping at the body, and every id in a path is filled, a payment's and its invoice's alike. That includes refusing a request with no token, an expired one, one signed with another key and one issued for something other than a signed-in user, in the local copy and in the shared app
 - The shared app's token check against a stand-in for Supabase's public keys, made in the test: a good token, a key it hasn't seen, and keys that can't be fetched
 - The local copy's sign-in routes, and that the shared app doesn't have them
 - Some but not all of the three settings stop the backend, naming the missing ones
@@ -52,9 +52,11 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - The layout (`invoices/layout.py`): the cases in `shared/invoice-layout-cases.json`, where lines break and pages turn, the same as the browser's
 - The logo: a PNG and a JPEG kept, and refused with B21's message: a text file named `logo.png`, an SVG, a GIF, a file over 1 MB, an image over 2,000 pixels on a side, and bytes that aren't base64. Sent back with its checked type and `nosniff`
 - The accent color: the cases in `shared/accent-cases.json`, at and either side of 4.5:1, and kept as capitals
-- A request body over 2 MB refused with a 413 on any route
+- A request body over 2 MB refused with a 413 on any write, with and without a `Content-Length`, one just under it accepted, and one over it without a token still refused for the token
+- A field in a list keyed by its whole place, such as `lines.2.quantity`, with its own name's message, and a flat body's keys as before (`test_api.py`)
+- `shared/invoice-fonts.json` is what `invoices/fonts.py` makes from the font files, each font has its OFL, and the characters invoices can show take in A to Z, accented letters, digits, $, € and ©, and leave out emoji, Chinese, Arabic and controls, each named as the message names it
 - The Money section against a small dataset with known answers: drafts and void invoices left out, each group's edges, payments by month across the turn of a year, and an empty database
-- Sample invoices meet every line of M3 for invoices and payments, including when seeded on the 1st of a month, each draft on a won deal, and each invoice's figures adding up
+- Sample invoices meet every line of M3 for invoices and payments, including when seeded on the 1st of a month, each draft on a won deal, each invoice's figures adding up, the numbers in issue order from INV-0001, a payment in each of the 12 months, none after today or before its invoice was issued, and the sample logo passing the logo's check. Seed and empty count invoices and payments in their question, empty leaves the logo, the design and the accent color, and seed puts the sample ones back
 - The migration that adds the invoices, run on a database that already has records, gives an empty Invoices section, the Classic design in Midnight and no logo
 
 **Frontend (Vitest):** money and date formatting, including dates near midnight and prices with their cents, reading a typed price by its digits, including `0.29`, `1,250.5` and `$1,250.00`, and refusing a third figure after the point, expected revenue and board totals using the same cases as the backend, the deal form's stage behavior, the table's search and sort, and every page, chart and the pipeline board as a user sees them, with the API stood in for by `mockApi` in `src/test-utils.tsx`. The board's tests give jsdom a plain layout, because jsdom lays nothing out, and move cards with the keyboard and the pointer. Also:
@@ -67,7 +69,10 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
 - The delete dialog of a held deal or organization (D4): its title, what holds it in the backend's words, and Close as its only button
 - Panels other areas add to a deal's and an organization's page (R7), below the page's own and each given the record, and sections below the dashboard's own (H10), in their order
-- Downloading a file: the token sent as with any request, the file saved under the name given and let go after, and the same errors as `api()`, with nothing saved
+- Downloading a file: the token sent as with any request, the file saved under the name given and let go after, and the same errors as `api()`, with nothing saved. Fetching a file the same way, as the logo is read
+- A save's errors: a field in a list beside it, and one about the whole form at its top
+- A table whose rows have no Edit or Delete, a column searched but not shown, and an empty table's invitation in the page's own words, as Invoices has them
+- Plurals: a "y" after a consonant becomes "ies", and after a vowel takes an "s", as in 12 days
 - The sums for quotes and invoices, from the same cases as the backend, including two half cents past $900 million that plain JavaScript numbers get a cent wrong, reading the backend's rate by its digits, and reading a typed quantity. Also the top of a money axis
 - Invoices: the table with its filter and counts and its empty state, a draft's page with its figures changing as you type, from the same cases as the backend, characters the fonts lack refused beside their field before anything is sent, Add line with active products only, Save draft, leaving with changes not yet saved, Issue invoice and its question, a refusal naming the field in Company settings to change, an issued invoice with no way to change it, Record payment with each message, deleting a payment, Void offered only with no payments, Download PDF, and a page whose invoice no longer exists
 - The layout (`invoices/layout.ts`), from the same cases as the backend, and the preview drawing each design and each mark
@@ -122,7 +127,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 |---|---|---|
 | Start and land on the dashboard, signed in through a restart | C1, C2, C9, N1 to N5, M1 to M5, M7, U15 | `e2e/start.spec.ts` |
 | Tables, forms, delete, reset, empty | T1 to T9, F1 to F9, D1 to D3, C3 to C6 | `e2e/records.spec.ts`, `e2e/data.spec.ts` |
-| Held records | D4, V21 | `backend/tests/test_delete.py`, `backend/tests/test_invoices.py`, `frontend/src/crm/forms/forms.test.tsx` |
+| Held records | D4, V21 | `backend/tests/test_delete.py`, `backend/tests/test_invoices.py`, `frontend/src/crm/forms/forms.test.tsx`, `e2e/records.spec.ts` |
 | Panels and sections other areas add | R7, H10 | `frontend/src/crm/pages/Deal.test.tsx`, `frontend/src/crm/pages/Organization.test.tsx`, `frontend/src/crm/pages/Dashboard.test.tsx` |
 | Filter and record pages | T6, R1 to R5 | `e2e/records.spec.ts` |
 | Pipeline | P1 to P9, S1 to S6 | `e2e/pipeline.spec.ts` |
@@ -137,8 +142,9 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 | Numbers and sums for quotes and invoices | B15 to B17, C4 | `backend/tests/test_numbers.py`, `backend/tests/test_tax.py`, `backend/tests/test_cli.py`, `frontend/src/company/tax.test.ts` |
 | Documents in Company settings | B18 to B22 | `e2e/settings.spec.ts`, `backend/tests/test_company_settings.py`, `backend/tests/test_logo.py`, `frontend/src/company/DocumentsPanel.test.tsx`, `frontend/src/company/accent.test.ts` |
 | Invoices and payments | V1 to V23 | `e2e/invoices.spec.ts`, `backend/tests/test_invoices.py`, `backend/tests/test_payments.py`, `backend/tests/test_invoice_figures.py`, the tests in `frontend/src/invoices/` |
-| Invoice PDFs and designs | V24 to V28 | `backend/tests/test_invoice_pdf.py`, `backend/tests/test_invoice_layout.py`, `frontend/src/invoices/layout.test.ts`, `e2e/invoices.spec.ts`, then by hand, below |
-| Money on the dashboard | V29 to V31 | `backend/tests/test_money.py`, `frontend/src/invoices/MoneySection.test.tsx`, `e2e/dashboard.spec.ts` |
+| Invoice PDFs and designs | V24 to V28 | `backend/tests/test_invoice_pdf.py`, `backend/tests/test_invoice_layout.py`, `backend/tests/test_invoice_fonts.py`, `frontend/src/invoices/layout.test.ts`, `frontend/src/invoices/InvoicePreview.test.tsx`, `e2e/invoices.spec.ts`, then by hand, below |
+| Money on the dashboard | V29 to V31 | `backend/tests/test_money.py`, `frontend/src/invoices/MoneySection.test.tsx`, `e2e/dashboard.spec.ts`, `e2e/problem.spec.ts` |
+| Field errors in lists, and the 413 | F2, V8, Security | `backend/tests/test_api.py`, `frontend/src/lib/saveErrors.test.ts`, `backend/tests/test_every_route.py` |
 | Look and brand | Visual design, L5 | By hand, against the design reference and the dark mode screenshots |
 | Layout, the top bar on one line at 1280px, its icons only from 1536px, console, keyboard, Chrome | N1, N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
 | Speed at the limits | Q1 | `e2e/stress.spec.ts` |

@@ -1,9 +1,21 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { api } from "../lib/api";
+import { api, fetchFile } from "../lib/api";
+import { base64Of } from "../lib/files";
 import { useWrite, type Person } from "../lib/records";
 import { EMAIL_MESSAGE, isEmail } from "../lib/validate";
+import { accentProblem, keptAccent } from "./accent";
+
+export type InvoiceDesign = "classic" | "banner" | "ledger";
+export const DESIGNS: { key: InvoiceDesign; name: string }[] = [
+  { key: "classic", name: "Classic" },
+  { key: "banner", name: "Banner" },
+  { key: "ledger", name: "Ledger" },
+];
+
+/** The logo's checked type and size. Its bytes come from GET /settings/logo (B22). */
+export type SavedLogo = { media_type: string; width: number; height: number };
 
 /** The company settings (B1), as GET and PATCH /settings reply. The rate is text, such as "8.875" (B7). */
 export type CompanySettings = {
@@ -16,17 +28,38 @@ export type CompanySettings = {
   payment_terms_days: number;
   quote_prefix: string;
   invoice_prefix: string;
+  invoice_design: InvoiceDesign;
+  accent_color: string;
+  logo: SavedLogo | null;
   updated_at: string;
   /** Nobody, until someone saves them (B9, B13). */
   updated_by: Person | null;
 };
 
-export type SettingsRequest = Omit<CompanySettings, "updated_at" | "updated_by">;
+/** The logo goes as base64 text, or null to remove it, and is left out to keep it. */
+export type SettingsRequest = Omit<CompanySettings, "updated_at" | "updated_by" | "logo"> & { logo?: string | null };
 
 const SETTINGS_KEY = ["settings"];
 
 export function useCompanySettings() {
   return useQuery({ queryKey: SETTINGS_KEY, queryFn: () => api<CompanySettings>("/settings") });
+}
+
+/**
+ * The saved logo as an address an image can show, read with the token. It's a data address,
+ * so there's nothing to let go of afterwards. Read again whenever the settings change.
+ */
+export function useSavedLogo(settings: CompanySettings | undefined) {
+  const query = useQuery({
+    queryKey: [...SETTINGS_KEY, "logo", settings?.updated_at],
+    queryFn: async () => {
+      const file = await fetchFile("/settings/logo");
+      return `data:${file.type};base64,${await base64Of(file)}`;
+    },
+    enabled: Boolean(settings?.logo),
+    staleTime: Infinity,
+  });
+  return settings?.logo ? (query.data ?? null) : null;
 }
 
 /** Saves the whole form. The reply shows at once, before everything is read again. */
@@ -89,6 +122,15 @@ export function prefixesClash(quote: string, invoice: string): boolean {
   return q.startsWith(i) || i.startsWith(q);
 }
 
+/**
+ * The logo as the form has it: kept as saved, a new file chosen, or removed. Only a new
+ * one or a removal is sent (B18, B21). A new one's size is null if the browser can't read it.
+ */
+export type LogoChoice =
+  | { kind: "kept" }
+  | { kind: "removed" }
+  | { kind: "new"; name: string; base64: string; url: string; size: { width: number; height: number } | null };
+
 /** The form's boxes, all text as typed, so nothing is rounded or reformatted while it's edited. */
 export type SettingsValues = {
   company_name: string;
@@ -100,6 +142,9 @@ export type SettingsValues = {
   payment_terms_days: string;
   quote_prefix: string;
   invoice_prefix: string;
+  invoice_design: InvoiceDesign;
+  accent_color: string;
+  logo: LogoChoice;
 };
 
 type Problems = Partial<Record<keyof SettingsValues, string>>;
@@ -114,6 +159,7 @@ export function settingsProblems(values: SettingsValues): Problems {
     payment_terms_days: paymentTermsProblem(values.payment_terms_days),
     quote_prefix: prefixProblem(values.quote_prefix, QUOTE_PREFIX_BLANK_MESSAGE),
     invoice_prefix: prefixProblem(values.invoice_prefix, INVOICE_PREFIX_BLANK_MESSAGE),
+    accent_color: accentProblem(values.accent_color),
   };
   const bothFine = !problems.quote_prefix && !problems.invoice_prefix;
   if (bothFine && prefixesClash(values.quote_prefix, values.invoice_prefix)) problems.invoice_prefix = CLASH_MESSAGE;
@@ -131,6 +177,9 @@ export const settingsSchema = z
     payment_terms_days: z.string(),
     quote_prefix: z.string(),
     invoice_prefix: z.string(),
+    invoice_design: z.enum(["classic", "banner", "ledger"]),
+    accent_color: z.string(),
+    logo: z.custom<LogoChoice>(),
   })
   .superRefine((values, context) => {
     for (const [field, message] of Object.entries(settingsProblems(values))) {
@@ -149,6 +198,9 @@ export function toForm(settings: CompanySettings): SettingsValues {
     payment_terms_days: String(settings.payment_terms_days),
     quote_prefix: settings.quote_prefix,
     invoice_prefix: settings.invoice_prefix,
+    invoice_design: settings.invoice_design,
+    accent_color: settings.accent_color,
+    logo: { kind: "kept" },
   };
 }
 
@@ -168,5 +220,15 @@ export function toRequest(values: SettingsValues): SettingsRequest {
     payment_terms_days: Number(values.payment_terms_days.trim()),
     quote_prefix: values.quote_prefix.trim(),
     invoice_prefix: values.invoice_prefix.trim(),
+    invoice_design: values.invoice_design,
+    accent_color: keptAccent(values.accent_color),
+    ...logoRequest(values.logo),
   };
+}
+
+/** Only a change to the logo is sent, so a save of the other settings never sends its bytes again. */
+function logoRequest(logo: LogoChoice): Pick<SettingsRequest, "logo"> {
+  if (logo.kind === "new") return { logo: logo.base64 };
+  if (logo.kind === "removed") return { logo: null };
+  return {};
 }

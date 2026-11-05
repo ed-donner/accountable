@@ -4,6 +4,7 @@ import { expect, test } from "./fixtures";
 import {
   addContact,
   addDeal,
+  addIssuedInvoice,
   addLinkedDeal,
   addOrganization,
   chooseInPicker,
@@ -12,6 +13,7 @@ import {
   resetToSampleData,
   SIGNED_IN,
   signInAs,
+  startInvoice,
 } from "./helpers";
 
 function heading(page: Page, name: string) {
@@ -706,5 +708,28 @@ test.describe("the edges of a table", () => {
     await expect(page.getByText("No contacts match.")).toBeVisible();
     await page.goto("/contacts?status=customer");
     await expect(bodyRows(page)).toHaveCount(1);
+  });
+});
+
+test.describe("held by invoices", () => {
+  test("a deal with a draft can't be deleted, and its dialog offers only Close", async ({ page, request }) => {
+    const { deal } = await addLinkedDeal(request, "Held deal", { stage: "won", close_date: isoDay() });
+    await startInvoice(request, deal.id);
+    await page.goto(`/deals/${deal.id}`);
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Held deal can't be deleted" });
+    await expect(dialog).toContainText("This deal has 1 invoice, so it can't be deleted.");
+    await expect(dialog.getByRole("button")).toHaveText(["Close"]);
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await expect(heading(page, "Held deal")).toBeVisible();
+  });
+
+  test("an organization with an issued invoice can't be deleted", async ({ page, request }) => {
+    const { organization } = await addIssuedInvoice(request, "Held organization");
+    await page.goto(`/organizations/${organization.id}`);
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Held organization Ltd can't be deleted" });
+    await expect(dialog).toContainText("This organization has 1 invoice, so it can't be deleted.");
+    await expect(dialog.getByRole("button")).toHaveText(["Close"]);
   });
 });

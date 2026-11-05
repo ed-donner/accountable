@@ -355,3 +355,31 @@ export async function holdOver(page: Page, name: string, spot: Spot) {
   await page.mouse.move(spot.x, spot.y, { steps: 12 });
   await page.mouse.move(spot.x, spot.y + 1);
 }
+
+type DraftLine = { product_id: number; quantity?: number; unit_price_cents?: number; description?: string | null };
+type Invoice = { id: number; number: string | null; total_cents: number; owed_cents: number };
+
+/** A draft on a won deal, with its Bill to filled in from the deal (V4, V5). */
+export function startInvoice(request: APIRequestContext, dealId: number) {
+  return post<Invoice>(request, "/invoices", { deal_id: dealId });
+}
+
+export async function saveDraft(request: APIRequestContext, invoiceId: number, body: { lines: DraftLine[] }) {
+  const reply = await request.patch(`${API}/invoices/${invoiceId}`, { data: body });
+  if (!reply.ok()) throw new Error(`Saving draft ${invoiceId} failed: ${reply.status()} ${await reply.text()}`);
+  return (await reply.json()) as Invoice;
+}
+
+/** Issues a draft, saving these lines first if any are given. It's issued today, so it's never overdue. */
+export function issueInvoice(request: APIRequestContext, invoiceId: number, body: { lines?: DraftLine[] } = {}) {
+  return post<Invoice>(request, `/invoices/${invoiceId}/issue`, body);
+}
+
+/** A won deal with an issued invoice of one line, for tests that need one. */
+export async function addIssuedInvoice(request: APIRequestContext, name: string, unitPriceCents = 100000) {
+  const linked = await addLinkedDeal(request, name, { stage: "won", close_date: isoDay() });
+  const product = await addProduct(request, `${name} product`, { unit_price_cents: unitPriceCents });
+  const draft = await startInvoice(request, linked.deal.id);
+  const invoice = await issueInvoice(request, draft.id, { lines: [{ product_id: product.id }] });
+  return { ...linked, product, invoice };
+}

@@ -3,10 +3,11 @@ import io
 import pytest
 from accountable import cli, db, users
 from accountable.company import documents
-from accountable.company.sample_data import SAMPLE_COMPANY
-from accountable.company.tables import company_settings
+from accountable.company.sample_data import SAMPLE_COMPANY, SAMPLE_LOGO
+from accountable.company.tables import company_logo, company_settings
 from accountable.crm.tables import organizations
-from sqlalchemy import func, select, update
+from accountable.invoices.tables import invoices
+from sqlalchemy import func, insert, select, update
 
 # Every table seed and empty delete from: all but the people and the company settings.
 WIPED = [table for table in db.metadata.sorted_tables if table not in cli.KEPT]
@@ -41,7 +42,8 @@ EMPTY = {table.name: 0 for table in WIPED}
 
 def test_every_table_but_the_people_and_the_settings_is_wiped():
     assert {"stage_changes", "products", "number_counters"} <= set(EMPTY)  # The check is looking in the right place.
-    assert {"users", "company_settings"}.isdisjoint(EMPTY)
+    assert {"invoices", "invoice_lines", "payments"} <= set(EMPTY)
+    assert {"users", "company_settings", "company_logo"}.isdisjoint(EMPTY)
 
 
 def test_the_wipe_sees_every_areas_tables():
@@ -58,7 +60,7 @@ def test_shows_what_will_be_lost_and_needs_yes(with_records, monkeypatch, capsys
     answer(monkeypatch, "yes\n")
     assert cli.main([command]) == 0
     output = capsys.readouterr().out
-    assert "1 organization, 1 contact, 1 deal, 1 activity, 1 product." in output
+    assert "1 organization, 1 contact, 1 deal, 1 activity, 1 product, 0 invoices, 0 payments." in output
     assert "can't be undone" in output
 
 
@@ -67,7 +69,10 @@ def test_counts_read_naturally_when_there_are_several(make, monkeypatch, capsys)
     make.organization()
     answer(monkeypatch, "no\n")
     cli.main(["empty"])
-    assert "2 organizations, 0 contacts, 0 deals, 0 activities, 0 products." in capsys.readouterr().out
+    assert (
+        "2 organizations, 0 contacts, 0 deals, 0 activities, 0 products, 0 invoices, 0 payments."
+        in capsys.readouterr().out
+    )
 
 
 def test_seed_replaces_everything_with_the_sample_data(with_records, monkeypatch):
@@ -81,6 +86,8 @@ def test_seed_replaces_everything_with_the_sample_data(with_records, monkeypatch
         300,
         12,
     )
+    assert after["invoices"] == 33
+    assert after["payments"] >= 30
 
 
 def test_empty_removes_every_record(with_records, monkeypatch):
@@ -89,15 +96,27 @@ def test_empty_removes_every_record(with_records, monkeypatch):
     assert counts() == EMPTY
 
 
-@pytest.mark.parametrize("command", ["seed", "empty"])
-def test_seed_and_empty_start_each_count_again_at_1(database, command):
+def test_empty_starts_each_count_again_at_1(database):
     for _ in range(3):
         take_number("quote")
     take_number("invoice")
 
-    assert cli.main([command, "--yes"]) == 0
+    assert cli.main(["empty", "--yes"]) == 0
 
     assert (take_number("quote"), take_number("invoice")) == ("QT-0001", "INV-0001")
+
+
+def test_seed_starts_each_count_again_at_1_so_the_sample_invoices_run_from_inv_0001(database):
+    for _ in range(40):
+        take_number("invoice")
+    take_number("quote")
+
+    assert cli.main(["seed", "--yes"]) == 0
+
+    with db.reading() as conn:
+        numbers = sorted(conn.scalars(select(invoices.c.number).where(invoices.c.number.is_not(None))))
+    assert numbers == [f"INV-{number:04d}" for number in range(1, len(numbers) + 1)]
+    assert (take_number("quote"), take_number("invoice")) == ("QT-0001", f"INV-{len(numbers) + 1:04d}")
 
 
 @pytest.mark.parametrize("command", ["seed", "empty"])
@@ -235,3 +254,39 @@ def test_a_seed_that_isnt_confirmed_leaves_the_settings_alone(changed_settings, 
     answer(monkeypatch, "no\n")
     assert cli.main(["seed"]) == 1
     assert the_settings() == before
+
+
+OUR_LOGO = b"our own logo, as it was saved"
+OUR_LOOK = {"invoice_design": "ledger", "accent_color": "#000000"}
+
+
+def the_logo() -> bytes | None:
+    with db.reading() as conn:
+        return conn.scalar(select(company_logo.c.image))
+
+
+@pytest.fixture
+def our_look(changed_settings):
+    with db.writing() as conn:
+        conn.execute(update(company_settings).values(**OUR_LOOK))
+        conn.execute(insert(company_logo).values(id=1, image=OUR_LOGO, media_type="image/png", width=10, height=10))
+
+
+def test_empty_leaves_the_logo_the_design_and_the_accent_color(our_look):
+    assert cli.main(["empty", "--yes"]) == 0
+    assert the_logo() == OUR_LOGO
+    with db.reading() as conn:
+        row = conn.execute(select(company_settings)).one()
+    assert (row.invoice_design, row.accent_color) == ("ledger", "#000000")
+
+
+def test_seed_puts_the_sample_logo_design_and_accent_color_back(our_look):
+    assert cli.main(["seed", "--yes"]) == 0
+    assert the_logo() == SAMPLE_LOGO.read_bytes()
+    assert {name: the_settings()[name] for name in OUR_LOOK} == {"invoice_design": "banner", "accent_color": "#0E6B6B"}
+
+
+def test_seed_and_empty_count_invoices_and_payments_in_their_question(with_records, monkeypatch, capsys):
+    answer(monkeypatch, "no\n")
+    cli.main(["empty"])
+    assert "1 product, 0 invoices, 0 payments." in capsys.readouterr().out

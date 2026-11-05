@@ -1,5 +1,6 @@
 from accountable.company import tables as company_tables
 from accountable.crm import tables as crm_tables
+from accountable.invoices import tables as invoices_tables
 from accountable.products import tables as products_tables
 from alembic import context
 
@@ -9,6 +10,7 @@ from alembic import context
 metadata = crm_tables.metadata
 assert products_tables.metadata is metadata
 assert company_tables.metadata is metadata
+assert invoices_tables.metadata is metadata
 
 if context.is_offline_mode():
     # Writes out the SQL for the database the URL names, which needs no database.

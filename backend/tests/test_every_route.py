@@ -3,18 +3,23 @@ come from the app itself, so a route added later is held to them without anyone
 remembering to add it here.
 """
 
+import io
 import json
+import re
 from typing import Any
 from urllib.parse import urlencode
 
 import pytest
-from accountable import db
+from accountable import db, main
 from accountable.api import MAX_ID
+from accountable.company.tables import company_logo
 from accountable.crm.routers import dashboard
 from accountable.main import app
 from conftest import LOCAL, THIS_COMPUTER
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from PIL import Image
+from sqlalchemy import insert
 
 SIGNED_OUT = {"detail": "Sign in to use Accountable."}
 TOO_BIG = MAX_ID + 1
@@ -40,8 +45,21 @@ TIMELINES = [path for method, path in ROUTES if path.endswith("/timeline")]
 
 
 def with_id(path: str, value: object) -> str:
-    start, end = path.index("{"), path.index("}")
-    return f"{path[:start]}{value}{path[end + 1 :]}"
+    """The path with this value for every id in it, such as a payment's and its invoice's."""
+    return re.sub(r"\{[^}]+\}", str(value), path)
+
+
+# A body each route can read, so a test of its id or its record reaches the route's own
+# checks rather than stopping at a field the body needs. The rest take {}.
+SAMPLE_BODIES: dict[tuple[str, str], dict[str, Any]] = {
+    ("POST", "/api/deals/{deal_id}/move"): {"stage": "new"},
+    ("POST", "/api/invoices"): {"deal_id": 1},
+    ("POST", "/api/invoices/{invoice_id}/payments"): {"paid_on": "2026-10-01", "amount_cents": 100, "method": "card"},
+}
+
+
+def sample_body(method: str, path: str) -> dict[str, Any]:
+    return SAMPLE_BODIES.get((method, path), {})
 
 
 DESCRIBED = app.openapi()
@@ -113,6 +131,20 @@ def test_the_routes_were_found():
     assert ("PATCH", "/api/activities/{activity_id}", "description") in BODY_TEXT
     assert ("PATCH", "/api/products/{product_id}") in ROUTES
     assert ("PATCH", "/api/products/{product_id}", "description") in BODY_TEXT
+    assert ("GET", "/api/invoices/money") in READS
+    assert ("PATCH", "/api/invoices/{invoice_id}", "bill_to") in BODY_TEXT
+    assert ("POST", "/api/invoices/{invoice_id}/issue", "bill_to") in BODY_TEXT
+    assert ("POST", "/api/invoices/{invoice_id}/void") in WRITES
+    assert ("POST", "/api/invoices/{invoice_id}/payments", "reference") in BODY_TEXT
+    assert ("POST", "/api/invoices/{invoice_id}/payments", "method") in BODY_TEXT
+    assert ("POST", "/api/invoices/{invoice_id}/payments", "paid_on") in BODY_TEXT
+    assert ("DELETE", "/api/invoices/{invoice_id}/payments/{payment_id}") in RECORD_ROUTES
+    assert ("DELETE", "/api/invoices/{invoice_id}") in RECORD_ROUTES
+    assert ("GET", "/api/invoices/{invoice_id}/pdf") in RECORD_ROUTES
+    assert ("GET", "/api/settings/logo") in READS
+    assert ("PATCH", "/api/settings", "logo") in BODY_TEXT
+    assert ("PATCH", "/api/settings", "accent_color") in BODY_TEXT
+    assert with_id("/api/invoices/{invoice_id}/payments/{payment_id}", 7) == "/api/invoices/7/payments/7"
     assert not [path for method, path in ROUTES if method == "DELETE" and path.startswith("/api/products")]
     assert QUERY_TEXT == [("GET", "/api/search", "q")]
     assert LOCAL_SIGN_IN_TEXT == [("POST", "/api/local/sign-in", "user_id")]
@@ -157,12 +189,12 @@ def test_a_good_token_gets_past_the_check(copy, method, path):
 @pytest.mark.parametrize("method, path", RECORD_ROUTES)
 @pytest.mark.parametrize("value", [TOO_BIG, -TOO_BIG, 10**30, 0, -1, "abc", "1.5"])
 def test_an_id_that_cant_be_a_record_is_refused(client, method, path, value):
-    assert client.request(method, with_id(path, value), json={"stage": "new"}).status_code == 422
+    assert client.request(method, with_id(path, value), json=sample_body(method, path)).status_code == 422
 
 
 @pytest.mark.parametrize("method, path", RECORD_ROUTES)
 def test_the_largest_possible_id_is_simply_missing(client, method, path):
-    assert client.request(method, with_id(path, MAX_ID), json={"stage": "new"}).status_code == 404
+    assert client.request(method, with_id(path, MAX_ID), json=sample_body(method, path)).status_code == 404
 
 
 @pytest.mark.parametrize("method, path", WRITES)
@@ -207,9 +239,20 @@ def test_a_nul_character_is_refused_in_every_query(client, method, path, name):
     assert name in reply.json()["fields"]
 
 
+@pytest.fixture
+def a_logo(database) -> None:
+    """So the logo's route has a file to send, as every other read has its reply."""
+    made = io.BytesIO()
+    Image.new("RGB", (2, 1)).save(made, "PNG")
+    with db.writing() as conn:
+        conn.execute(
+            insert(company_logo).values(id=1, image=made.getvalue(), media_type="image/png", width=2, height=1)
+        )
+
+
 @pytest.mark.parametrize("method, path", READS)
 @pytest.mark.parametrize("origin", OPEN_ORIGINS)
-def test_no_read_lets_another_origin_see_the_reply(client, method, path, origin):
+def test_no_read_lets_another_origin_see_the_reply(client, a_logo, method, path, origin):
     reply = client.get(target(method, path), headers={"origin": origin})
     assert reply.status_code == 200
     assert not [name for name in reply.headers if name.lower().startswith("access-control-")]
@@ -228,6 +271,41 @@ def test_no_route_agrees_to_a_cross_origin_request(client, method, path):
 def test_a_wrong_host_is_refused_everywhere(copy, method, path):
     reply = copy.client(base_url="http://evil.example").request(method, target(method, path), json={})
     assert reply.status_code == 400
+
+
+@pytest.mark.parametrize("method, path", WRITES)
+def test_a_body_over_2_mb_is_refused_on_every_write(client, method, path):
+    body = json.dumps({"bill_to": "x" * main.MAX_BODY_BYTES})
+    reply = client.request(method, target(method, path), content=body, headers=JSON)
+    assert (reply.status_code, reply.json()) == (413, {"detail": "That's too big to send."})
+
+
+def chunks(body: bytes, size: int = 64 * 1024):
+    """A body sent in pieces, with no Content-Length, as a stream is."""
+    for start in range(0, len(body), size):
+        yield body[start : start + size]
+
+
+def test_a_body_over_2_mb_is_refused_without_a_content_length(client):
+    body = json.dumps({"name": "x" * main.MAX_BODY_BYTES}).encode()
+    reply = client.post("/api/organizations", content=chunks(body), headers=JSON)
+    assert "content-length" not in reply.request.headers
+    assert reply.status_code == 413
+
+
+def test_a_body_just_under_2_mb_gets_through(client):
+    padding = main.MAX_BODY_BYTES - len(json.dumps({"name": "Harbor & Pine", "notes": ""}))
+    body = json.dumps({"name": "Harbor & Pine", "notes": "x" * padding}).encode()
+    assert len(body) == main.MAX_BODY_BYTES
+    reply = client.post("/api/organizations", content=chunks(body), headers=JSON)
+    assert reply.status_code == 201
+    assert len(reply.json()["notes"]) == padding
+
+
+def test_a_body_over_2_mb_without_a_token_is_still_refused_for_the_token(copy):
+    body = json.dumps({"name": "x" * main.MAX_BODY_BYTES})
+    reply = copy.client({}).post("/api/organizations", content=body, headers=JSON)
+    assert (reply.status_code, reply.json()) == (401, SIGNED_OUT)
 
 
 @pytest.mark.parametrize("method, path", LOCAL_SIGN_IN)

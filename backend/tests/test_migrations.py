@@ -4,8 +4,9 @@ from datetime import date, datetime
 import pytest
 from accountable import db
 from accountable.company import documents
-from accountable.company.tables import company_settings, number_counters
+from accountable.company.tables import company_logo, company_settings, number_counters
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
+from accountable.invoices.tables import invoice_lines, invoices, payments
 from accountable.products.tables import products
 from accountable.users import users
 from alembic import command, op
@@ -14,7 +15,7 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from conftest import insert_row
-from sqlalchemy import column, delete, func, insert, inspect, select, table
+from sqlalchemy import column, delete, func, insert, inspect, select, table, update
 
 
 def live() -> dict:
@@ -86,6 +87,15 @@ def test_the_spec_indexes_exist(database):
     assert ("follow_up_date",) in indexes["activities"]
     assert ("deal_id",) in indexes["stage_changes"]
     assert ("changed_at",) in indexes["stage_changes"]
+    assert ("due_date",) in indexes["invoices"]
+    assert ("paid_on",) in indexes["payments"]
+
+
+def test_invoice_numbers_have_a_unique_index(database):
+    unique = {
+        tuple(index["column_names"]): index["unique"] for index in inspect(db.engine()).get_indexes(invoices.name)
+    }
+    assert unique[("number",)]
 
 
 def test_product_names_have_a_unique_index(database):
@@ -118,6 +128,10 @@ def test_users_and_who_added_each_record_are_built(database):
         assert (("created_by",), "users", None) in built[record]["foreign_keys"], record
         assert (("updated_by",), "users", None) in built[record]["foreign_keys"], record
     assert (("created_by",), "users", None) in built["stage_changes"]["foreign_keys"]
+    for record in ("invoices",):
+        assert (("created_by",), "users", None) in built[record]["foreign_keys"], record
+        assert (("updated_by",), "users", None) in built[record]["foreign_keys"], record
+    assert (("created_by",), "users", None) in built["payments"]["foreign_keys"]
     assert built["deals"]["columns"]["value"] == ("BIGINT", False)
     assert built["products"]["columns"]["unit_price_cents"] == ("BIGINT", False)
 
@@ -126,6 +140,7 @@ def test_the_check_constraints_match(database):
     actual, expected = live(), declared()
     assert actual["activities"]["checks"] == {"ck_activities_one_parent": "(contact_id IS NULL) != (deal_id IS NULL)"}
     assert actual["company_settings"]["checks"] == {"ck_company_settings_one_row": "id = 1"}
+    assert actual["company_logo"]["checks"] == {"ck_company_logo_one_row": "id = 1"}
     for name in expected:
         assert actual[name]["checks"] == expected[name]["checks"], name
 
@@ -383,6 +398,8 @@ BLANK_SETTINGS = {
     "payment_terms_days": 30,
     "quote_prefix": "QT-",
     "invoice_prefix": "INV-",
+    "invoice_design": "classic",
+    "accent_color": "#073B4C",
     "updated_by": None,
 }
 
@@ -514,3 +531,75 @@ def test_on_postgres_the_settings_table_keeps_each_default(postgres_sql):
 
 def test_on_postgres_the_settings_row_is_added_with_only_its_times(postgres_sql):
     assert "INSERT INTO company_settings (id, created_at, updated_at) VALUES (1, '" in postgres_sql
+
+
+@pytest.fixture
+def database_from_before_invoices(tmp_path, monkeypatch):
+    path = tmp_path / "before-invoices.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    fill_at(path, "0006")
+    with db.writing() as conn:
+        conn.execute(update(company_settings).values(company_name="Our Real Company", tax_rate=6000))
+    db.dispose()
+    yield path
+    db.dispose()
+
+
+def test_upgrading_from_before_invoices_keeps_every_row_and_adds_empty_invoices_in_classic(
+    database_from_before_invoices,
+):
+    """An existing database gets an empty Invoices section, the Classic design in Midnight and no logo (M1, B13)."""
+    before = everything()
+    assert "invoices" not in inspect(db.engine()).get_table_names()
+    db.dispose()
+
+    assert db.prepare_database(nothing) is False
+
+    assert all(before.values())
+    assert everything() == before
+    [settings] = the_settings()
+    assert (settings["company_name"], settings["tax_rate"]) == ("Our Real Company", 6000)
+    assert (settings["invoice_design"], settings["accent_color"]) == ("classic", "#073B4C")
+    with db.reading() as conn:
+        for empty in (company_logo, invoices, invoice_lines, payments):
+            assert conn.execute(select(func.count()).select_from(empty)).scalar_one() == 0, empty.name
+        assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+
+
+def test_an_invoice_holds_its_deal_and_organization_in_the_database_too(database):
+    """No delete rule, so the database refuses a held delete should one get past the route (D4)."""
+    keys = {
+        key["referred_table"]: key["options"].get("ondelete")
+        for key in inspect(db.engine()).get_foreign_keys("invoices")
+    }
+    assert keys["deals"] is None and keys["organizations"] is None
+    lines = {
+        key["referred_table"]: key["options"].get("ondelete")
+        for key in inspect(db.engine()).get_foreign_keys("invoice_lines")
+    }
+    assert lines["invoices"] == "CASCADE"
+
+
+def created(postgres_sql: str, name: str) -> str:
+    start = postgres_sql.index(f"CREATE TABLE {name} ")
+    return postgres_sql[start : postgres_sql.index(";", start)]
+
+
+def test_on_postgres_money_is_64_bit(postgres_sql):
+    for money in ("subtotal_cents BIGINT", "tax_cents BIGINT", "total_cents BIGINT"):
+        assert money in created(postgres_sql, "invoices"), money
+    assert "unit_price_cents BIGINT NOT NULL" in created(postgres_sql, "invoice_lines")
+    assert "amount_cents BIGINT NOT NULL" in created(postgres_sql, "payments")
+    assert "image BYTEA NOT NULL" in created(postgres_sql, "company_logo")
+
+
+def test_on_postgres_the_design_and_accent_color_keep_their_defaults_in_the_table(postgres_sql):
+    assert "ALTER TABLE company_settings ADD COLUMN invoice_design TEXT DEFAULT 'classic' NOT NULL" in postgres_sql
+    assert "ALTER TABLE company_settings ADD COLUMN accent_color TEXT DEFAULT '#073B4C' NOT NULL" in postgres_sql
+    assert "CONSTRAINT ck_company_logo_one_row CHECK (id = 1)" in created(postgres_sql, "company_logo")
+
+
+def test_on_postgres_the_new_tables_get_row_level_security(postgres_sql):
+    for name in ("company_logo", "invoices", "invoice_lines", "payments"):
+        assert f"ALTER TABLE {name} ENABLE ROW LEVEL SECURITY" in postgres_sql, name

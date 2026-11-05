@@ -7,7 +7,7 @@ from typing import Literal
 
 from sqlalchemy import Connection, Row, insert, select, update
 
-from accountable.company.tables import company_settings, number_counters
+from accountable.company.tables import company_logo, company_settings, number_counters
 
 DocumentKind = Literal["quote", "invoice"]
 
@@ -20,8 +20,16 @@ _the_row = company_settings.c.id == 1
 
 def current_settings(conn: Connection) -> Row:
     """The settings as saved: the company's details, the tax label, the tax rate in thousandths
-    of a percent as the table keeps it (B7), the payment terms and the two prefixes."""
+    of a percent as the table keeps it (B7), the payment terms, the two prefixes, and how
+    documents look: the design and the accent color (B18)."""
     return conn.execute(select(company_settings).where(_the_row)).one()
+
+
+def current_logo(conn: Connection) -> Row | None:
+    """The logo as saved, with its bytes, type, width and height, or None. Only a document's file needs the bytes."""
+    return conn.execute(
+        select(company_logo.c.image, company_logo.c.media_type, company_logo.c.width, company_logo.c.height)
+    ).one_or_none()
 
 
 def take_number(conn: Connection, kind: DocumentKind) -> str:

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
-import { useEffect, useRef, type FormEvent, type HTMLAttributes } from "react";
+import { useEffect, useRef, type FormEvent, type HTMLAttributes, type ReactNode } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 
 import { Field, messageId } from "../components/Field";
@@ -9,6 +9,8 @@ import { PageHeader } from "../components/PageHeader";
 import { SidePanel, WhoAndWhen } from "../components/RecordLayout";
 import { useNotify } from "../lib/notify";
 import { showSaveError } from "../lib/saveErrors";
+import type { DocumentPreview } from "./documentPreview";
+import { DocumentsPanel } from "./DocumentsPanel";
 import {
   settingsSchema,
   toForm,
@@ -21,31 +23,32 @@ import {
 
 const PREFIX_HINT = "Up to 10 letters, digits and hyphens.";
 
-/** The Company settings page (B2). It shows the form only once the settings are read, so blanks can't be saved over them (B11). */
-export function SettingsPage() {
+/**
+ * The Company settings page (B2). It shows the form only once the settings are read, so blanks
+ * can't be saved over them (B11). The sample invoice is drawn by what App.tsx hands it (B19).
+ */
+export function SettingsPage({ preview }: { preview: DocumentPreview }) {
   const settings = useCompanySettings();
   const shown = settings.data;
-  return (
-    <>
-      <PageHeader title="Company settings" />
-      {shown?.updated_by && (
-        <div className="-mt-1.5 px-6 pb-2 text-[13px] leading-[18px] text-muted">
-          <WhoAndWhen action="Last changed" person={shown.updated_by} at={shown.updated_at} />
-        </div>
-      )}
-      {shown ? (
-        <>
-          <LoadFailed onPage keeping error={settings.error} onRetry={() => settings.refetch()} />
-          <SettingsForm settings={shown} />
-        </>
-      ) : (
+  if (!shown) {
+    return (
+      <>
+        <PageHeader title="Company settings" />
         <LoadFailed onPage error={settings.error} onRetry={() => settings.refetch()} />
-      )}
-    </>
+      </>
+    );
+  }
+  return (
+    <SettingsForm settings={shown} preview={preview}>
+      <LoadFailed onPage keeping error={settings.error} onRetry={() => settings.refetch()} />
+    </SettingsForm>
   );
 }
 
-function SettingsForm({ settings }: { settings: CompanySettings }) {
+type FormProps = { settings: CompanySettings; preview: DocumentPreview; children: ReactNode };
+
+/** The header is inside the form, so Save settings is the form's own button and Enter in a box saves. */
+function SettingsForm({ settings, preview, children }: FormProps) {
   const save = useSaveSettings();
   const notify = useNotify();
   const form = useForm<SettingsValues>({ resolver: zodResolver(settingsSchema), defaultValues: toForm(settings) });
@@ -89,41 +92,53 @@ function SettingsForm({ settings }: { settings: CompanySettings }) {
 
   return (
     <FormProvider {...form}>
-      <form noValidate onSubmit={onSubmit} className="px-5 pb-3">
-        <div className="grid grid-cols-2 items-start gap-3">
-          <SidePanel title="Company">
-            <div className="flex flex-col gap-2.5">
-              {settings.company_name === null && (
-                <p className="flex items-center gap-2">
-                  <Info size={16} aria-hidden="true" className="flex-none text-cerulean" />
-                  No company name yet. Enter one below.
-                </p>
-              )}
-              <Box field="company_name" label="Company name" />
-              <AddressBox />
-              <Box field="email" label="Email" />
-              <Box field="phone" label="Phone" />
-            </div>
-          </SidePanel>
-          <div className="flex min-w-0 flex-col gap-3">
-            <SidePanel title="Tax">
-              <div className="flex flex-col gap-2.5">
-                <Box field="tax_label" label="Tax label" />
-                <Box field="tax_rate" label="Tax rate" after="%" inputMode="decimal" />
-              </div>
-            </SidePanel>
-            <SidePanel title="Quotes and invoices">
-              <div className="flex flex-col gap-2.5">
-                <Box field="payment_terms_days" label="Payment terms" after="days" inputMode="numeric" />
-                <Box field="quote_prefix" label="Quote prefix" hint={PREFIX_HINT} />
-                <Box field="invoice_prefix" label="Invoice prefix" hint={PREFIX_HINT} />
-              </div>
-            </SidePanel>
+      <form noValidate onSubmit={onSubmit}>
+        <PageHeader title="Company settings">
+          {/* At the top, so it's in view while the page is at its top, though the form scrolls below it. */}
+          <button type="submit" className="btn btn-primary ml-auto" disabled={save.isPending}>
+            Save settings
+          </button>
+        </PageHeader>
+        {settings.updated_by && (
+          <div className="-mt-1.5 px-6 pb-2 text-[13px] leading-[18px] text-muted">
+            <WhoAndWhen action="Last changed" person={settings.updated_by} at={settings.updated_at} />
           </div>
+        )}
+        {children}
+        <div className="flex flex-col gap-3 px-5 pb-4">
+          <div className="grid grid-cols-2 items-start gap-3">
+            <SidePanel title="Company">
+              <div className="flex flex-col gap-2.5">
+                {settings.company_name === null && (
+                  <p className="flex items-center gap-2">
+                    <Info size={16} aria-hidden="true" className="flex-none text-cerulean" />
+                    No company name yet. Enter one below.
+                  </p>
+                )}
+                <Box field="company_name" label="Company name" />
+                <AddressBox />
+                <Box field="email" label="Email" />
+                <Box field="phone" label="Phone" />
+              </div>
+            </SidePanel>
+            <div className="flex min-w-0 flex-col gap-3">
+              <SidePanel title="Tax">
+                <div className="flex flex-col gap-2.5">
+                  <Box field="tax_label" label="Tax label" />
+                  <Box field="tax_rate" label="Tax rate" after="%" inputMode="decimal" />
+                </div>
+              </SidePanel>
+              <SidePanel title="Quotes and invoices">
+                <div className="flex flex-col gap-2.5">
+                  <Box field="payment_terms_days" label="Payment terms" after="days" inputMode="numeric" />
+                  <Box field="quote_prefix" label="Quote prefix" hint={PREFIX_HINT} />
+                  <Box field="invoice_prefix" label="Invoice prefix" hint={PREFIX_HINT} />
+                </div>
+              </SidePanel>
+            </div>
+          </div>
+          <DocumentsPanel settings={settings} Preview={preview} />
         </div>
-        <button type="submit" className="btn btn-primary mt-3" disabled={save.isPending}>
-          Save settings
-        </button>
       </form>
     </FormProvider>
   );

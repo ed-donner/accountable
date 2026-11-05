@@ -32,8 +32,8 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 | | | At least 2 wins dated this month, even on the 1st |
 | Activities | 300 | All three types, at least 6 overdue follow-ups and at least 10 upcoming |
 | Products | 12 | Licenses, support plans, training days and services at prices that fit the sample deals, at least 3 of them with cents, such as $49.50, and 2 archived |
-| Invoices | 33 | One for each won deal of the last 12 months, its subtotal the deal's value, plus a void one on a deal that was then invoiced again. Most paid. About 4 part paid and not yet due, at least one overdue in each group from 1 to 30 days to over 90 (V29), some issued and not yet due, and drafts on this month's wins, at least 2. Each with 1 to 4 lines from the sample products |
-| Payments | 40 | At least one in each of the last 12 months, including this month even on the 1st, by bank transfer, card and check, some with a reference |
+| Invoices | 33 | One for each won deal of the last 12 months, its subtotal the deal's value, plus a void one on a deal that was then invoiced again. Most paid. 2 to 4 part paid and not yet due, at least 2 issued and not yet due with nothing paid, one overdue in each group from 1 to 30 days to over 90 (V29), two of those part paid, and drafts on this month's wins of the last few days, 2 or 3. Each with 1 to 4 lines from the sample products |
+| Payments | 35 | At least one in each of the last 12 months, including this month even on the 1st, when an older invoice is paid late, by bank transfer, card and check, about half with a reference |
 | Company settings | One set | The made-up company in B12, with the Banner design, its accent color and its logo |
 
 - **M4.** Every sample deal has a full stage history, so timelines and the funnel look right from the start.

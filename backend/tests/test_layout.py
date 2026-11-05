@@ -37,7 +37,7 @@ def names(path: Path, area: str) -> bool:
 
 
 def test_the_areas_are_found():
-    assert AREAS == ["company", "crm", "products"]
+    assert AREAS == ["company", "crm", "invoices", "products"]
 
 
 def imported_areas(source: str) -> set[tuple[str, str]]:
@@ -115,7 +115,8 @@ def test_the_first_areas_import_no_other_area_but_company():
 
 
 def test_a_later_area_imports_only_the_first_areas_tables_and_the_crms_rules():
-    """There's no later area yet, so this checks nothing until quotes, invoices or bills arrive."""
+    # The check is looking in the right place: invoices is a later area and imports the CRM's tables.
+    assert ("crm", "tables") in imported_areas((PACKAGE / "invoices" / "tables.py").read_text())
     for path in sources():
         own = area_of(path)
         if own is not None and own not in FIRST_AREAS:

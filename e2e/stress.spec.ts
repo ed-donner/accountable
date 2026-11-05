@@ -41,6 +41,7 @@ for (const [name, path] of [
   ["Contacts", "/contacts"],
   ["Deals", "/deals"],
   ["Products", "/products"],
+  ["Invoices", "/invoices"],
 ]) {
   test(`${name} opens in under a second`, async ({ page }) => {
     const readings: number[] = [];
@@ -56,6 +57,46 @@ for (const [name, path] of [
     expect(median(readings)).toBeLessThan(1000);
   });
 }
+
+/** The median of five reads of an API route from the page, with the token, each read to its last byte. */
+async function medianRead(page: Page, token: string, route: string) {
+  const { readings, statuses } = await page.evaluate(
+    async ([path, bearer]) => {
+      const times: number[] = [];
+      const codes: number[] = [];
+      for (let reading = 0; reading < 5; reading += 1) {
+        const start = performance.now();
+        const reply = await fetch(path, { headers: { Authorization: `Bearer ${bearer}` } });
+        await reply.arrayBuffer();
+        times.push(performance.now() - start);
+        codes.push(reply.status);
+      }
+      return { readings: times, statuses: codes };
+    },
+    [route, token],
+  );
+  // A refused read comes back fast too, so only real data counts.
+  expect(statuses).toEqual([200, 200, 200, 200, 200]);
+  return median(readings);
+}
+
+test("the Money section's data arrives in under 200ms", async ({ page, sessionToken }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("revenue-this-month")).toBeVisible();
+  const elapsed = await medianRead(page, sessionToken, "/api/invoices/money");
+  console.log(`Money data: ${elapsed.toFixed(1)}ms`);
+  expect(elapsed).toBeLessThan(200);
+});
+
+test("an invoice's PDF downloads in under a second", async ({ page, request, sessionToken }) => {
+  const invoices: { id: number; number: string | null }[] = await (await request.get("/api/invoices")).json();
+  const issued = invoices.find((invoice) => invoice.number !== null)!;
+  await page.goto("/");
+  await expect(page.getByTestId("revenue-this-month")).toBeVisible();
+  const elapsed = await medianRead(page, sessionToken, `/api/invoices/${issued.id}/pdf`);
+  console.log(`PDF: ${elapsed.toFixed(1)}ms`);
+  expect(elapsed).toBeLessThan(1000);
+});
 
 async function keystrokeTime(page: Page, text: string) {
   return page.evaluate(async (value) => {

@@ -57,6 +57,8 @@ export type TableColumn<T> = {
   numeric?: boolean;
   /** Tailwind width for columns that need less room than they'd take. */
   width?: string;
+  /** Searched but not shown, such as an invoice's Bill to. */
+  hidden?: boolean;
 };
 
 /** A row's second button, in place of Delete, such as Archive. */
@@ -80,11 +82,19 @@ export type HiddenRows<T> = {
   hiddenMatch: (count: number) => string;
 };
 
-/** A table gives Delete or another button for each row, never both. */
-type SecondButton<T> =
-  { onDelete: (row: T) => void; rowAction?: never } | { rowAction: (row: T) => RowAction; onDelete?: never };
+/**
+ * A table gives Edit and Delete or another button for each row, never both, or none at all,
+ * as invoices, which change only on their own page.
+ */
+type RowButtons<T> =
+  | { onEdit: (row: T) => void; onDelete: (row: T) => void; rowAction?: never }
+  | { onEdit: (row: T) => void; rowAction: (row: T) => RowAction; onDelete?: never }
+  | { onEdit?: never; onDelete?: never; rowAction?: never };
 
-type Props<T extends RowData> = SecondButton<T> & {
+/** What an empty table says, and its button's label, such as "No invoices yet. Start one from a won deal." */
+type Invitation = { message: string; button: string };
+
+type Props<T extends RowData> = RowButtons<T> & {
   /** Singular and plural words for the messages, such as "organization". */
   noun: string;
   rows: T[] | undefined;
@@ -97,7 +107,8 @@ type Props<T extends RowData> = SecondButton<T> & {
   rowName: (row: T) => string;
   rowHref: (row: T) => string;
   onAdd: () => void;
-  onEdit: (row: T) => void;
+  /** In place of "No organizations yet. Add the first one." and Add organization. */
+  invitation?: Invitation;
   /** Filters that sit beside the search box, already applied to rows. */
   filters?: (update: (change: AddressChange) => void) => ReactNode;
   /** True when rows is narrowed by those filters. */
@@ -210,6 +221,7 @@ type HiddenNote = { allHidden: string; matching: string | null; showLabel: strin
 
 type NoRowsProps = {
   noun: string;
+  invitation?: Invitation;
   rows: unknown[] | undefined;
   error: unknown;
   matching: number;
@@ -221,7 +233,7 @@ type NoRowsProps = {
 };
 
 /** What shows in place of rows: a space while loading, an invitation, or that nothing matches. */
-function NoRows({ noun, rows, error, matching, narrowed, hiddenNote, onAdd, onClear }: NoRowsProps) {
+function NoRows({ noun, invitation, rows, error, matching, narrowed, hiddenNote, onAdd, onClear }: NoRowsProps) {
   if (rows === undefined) return error ? null : <div className="h-40" aria-busy="true" />;
   if (matching > 0) return null;
   const showHidden = hiddenNote && (
@@ -243,9 +255,9 @@ function NoRows({ noun, rows, error, matching, narrowed, hiddenNote, onAdd, onCl
   }
   if (rows.length > 0) return hiddenNote && <EmptyState message={hiddenNote.allHidden}>{showHidden}</EmptyState>;
   return (
-    <EmptyState message={`No ${noun}s yet. Add the first one.`}>
+    <EmptyState message={invitation?.message ?? `No ${noun}s yet. Add the first one.`}>
       <button type="button" className="btn btn-primary" onClick={onAdd}>
-        Add {noun}
+        {invitation?.button ?? `Add ${noun}`}
       </button>
     </EmptyState>
   );
@@ -302,13 +314,13 @@ type TableRowProps<T extends RowData> = {
   cells: Map<string, TableColumn<T>>;
   href: string;
   name: string;
-  second: { label: string; icon: ReactNode; onClick: () => void };
-  onEdit: () => void;
+  /** None for a table whose rows have no buttons. */
+  buttons: { second: RowAction; onEdit: () => void } | null;
   /** Called if this row leaves the table while it has focus, so focus is never left on nothing (Q3). */
   onLeaveWithFocus: () => void;
 };
 
-function TableRow<T extends RowData>({ row, cells, href, name, second, onEdit, onLeaveWithFocus }: TableRowProps<T>) {
+function TableRow<T extends RowData>({ row, cells, href, name, buttons, onLeaveWithFocus }: TableRowProps<T>) {
   const navigate = useNavigate();
   const element = useRef<HTMLTableRowElement>(null);
 
@@ -322,53 +334,62 @@ function TableRow<T extends RowData>({ row, cells, href, name, second, onEdit, o
 
   return (
     <tr ref={element} onClick={() => navigate(href)} className="group h-11 cursor-pointer hover:bg-page">
-      {row.getAllCells().map((cell, index) => {
-        const column = cells.get(cell.column.id)!;
-        const shown = column.cell ? column.cell(row.original) : (column.value(row.original) ?? "");
-        return (
-          <td
-            key={cell.id}
-            className={`truncate px-2.5 first:rounded-l-[10px] ${column.numeric ? "num text-right text-[13px]" : ""}`}
-          >
-            {index === 0 ? (
-              <Link
-                to={href}
-                onClick={(event) => event.stopPropagation()}
-                className="block truncate rounded font-medium"
-              >
-                {shown}
-              </Link>
-            ) : (
-              shown
-            )}
-          </td>
-        );
-      })}
-      <td className="rounded-r-[10px] pr-1 text-right whitespace-nowrap">
-        <button
-          type="button"
-          aria-label={`Edit ${name}`}
-          className="icon-btn"
-          onClick={(event) => {
-            event.stopPropagation();
-            onEdit();
-          }}
-        >
-          <Pencil size={16} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label={`${second.label} ${name}`}
-          className="icon-btn"
-          onClick={(event) => {
-            event.stopPropagation();
-            second.onClick();
-          }}
-        >
-          {second.icon}
-        </button>
-      </td>
+      {row
+        .getAllCells()
+        .filter((cell) => !cells.get(cell.column.id)!.hidden)
+        .map((cell, index) => {
+          const column = cells.get(cell.column.id)!;
+          const shown = column.cell ? column.cell(row.original) : (column.value(row.original) ?? "");
+          return (
+            <td
+              key={cell.id}
+              className={`truncate px-2.5 first:rounded-l-[10px] ${column.numeric ? "num text-right text-[13px]" : ""}`}
+            >
+              {index === 0 ? (
+                <Link
+                  to={href}
+                  onClick={(event) => event.stopPropagation()}
+                  className="block truncate rounded font-medium"
+                >
+                  {shown}
+                </Link>
+              ) : (
+                shown
+              )}
+            </td>
+          );
+        })}
+      {buttons && <RowButtonsCell name={name} {...buttons} />}
     </tr>
+  );
+}
+
+function RowButtonsCell({ name, second, onEdit }: { name: string; second: RowAction; onEdit: () => void }) {
+  return (
+    <td className="rounded-r-[10px] pr-1 text-right whitespace-nowrap">
+      <button
+        type="button"
+        aria-label={`Edit ${name}`}
+        className="icon-btn"
+        onClick={(event) => {
+          event.stopPropagation();
+          onEdit();
+        }}
+      >
+        <Pencil size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label={`${second.label} ${name}`}
+        className="icon-btn"
+        onClick={(event) => {
+          event.stopPropagation();
+          second.onClick();
+        }}
+      >
+        {second.icon}
+      </button>
+    </td>
   );
 }
 
@@ -383,6 +404,7 @@ export function DataTable<T extends RowData>({
   rowName,
   rowHref,
   onAdd,
+  invitation,
   onEdit,
   onDelete,
   rowAction,
@@ -516,9 +538,12 @@ export function DataTable<T extends RowData>({
 
   const cells = new Map(columns.map((column) => [column.id, column]));
 
-  function secondButton(row: T) {
-    if (rowAction) return rowAction(row);
-    return { label: "Delete", icon: <Trash2 size={16} aria-hidden="true" />, onClick: () => onDelete!(row) };
+  function rowButtons(row: T) {
+    if (!onEdit) return null;
+    const second = rowAction
+      ? rowAction(row)
+      : { label: "Delete", icon: <Trash2 size={16} aria-hidden="true" />, onClick: () => onDelete!(row) };
+    return { second, onEdit: () => onEdit(row) };
   }
 
   const hiddenNote: HiddenNote | null =
@@ -543,6 +568,7 @@ export function DataTable<T extends RowData>({
         <LoadFailed keeping={rows !== undefined} error={error} onRetry={onRetry} />
         <NoRows
           noun={noun}
+          invitation={invitation}
           rows={rows}
           error={error}
           matching={matching}
@@ -556,31 +582,36 @@ export function DataTable<T extends RowData>({
           <table className="w-full table-fixed border-separate border-spacing-0">
             <thead>
               <tr>
-                {table.getHeaderGroups()[0].headers.map((header) => {
-                  const column = cells.get(header.column.id)!;
-                  const sorted = header.column.getIsSorted();
-                  return (
-                    <th
-                      key={header.id}
-                      scope="col"
-                      aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
-                      className={`h-9 px-2.5 text-[13px] font-semibold ${column.numeric ? "text-right" : "text-left"} ${column.width ?? ""}`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleSort(column.id)}
-                        className={`inline-flex items-center gap-1 rounded ${column.numeric ? "flex-row-reverse" : ""}`}
+                {table
+                  .getHeaderGroups()[0]
+                  .headers.filter((header) => !cells.get(header.column.id)!.hidden)
+                  .map((header) => {
+                    const column = cells.get(header.column.id)!;
+                    const sorted = header.column.getIsSorted();
+                    return (
+                      <th
+                        key={header.id}
+                        scope="col"
+                        aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                        className={`h-9 px-2.5 text-[13px] font-semibold ${column.numeric ? "text-right" : "text-left"} ${column.width ?? ""}`}
                       >
-                        {column.header}
-                        {sorted === "asc" && <ArrowUp size={13} aria-hidden="true" />}
-                        {sorted === "desc" && <ArrowDown size={13} aria-hidden="true" />}
-                      </button>
-                    </th>
-                  );
-                })}
-                <th scope="col" className="w-[84px]">
-                  <span className="sr-only">Actions</span>
-                </th>
+                        <button
+                          type="button"
+                          onClick={() => toggleSort(column.id)}
+                          className={`inline-flex items-center gap-1 rounded ${column.numeric ? "flex-row-reverse" : ""}`}
+                        >
+                          {column.header}
+                          {sorted === "asc" && <ArrowUp size={13} aria-hidden="true" />}
+                          {sorted === "desc" && <ArrowDown size={13} aria-hidden="true" />}
+                        </button>
+                      </th>
+                    );
+                  })}
+                {onEdit && (
+                  <th scope="col" className="w-[84px]">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -591,8 +622,7 @@ export function DataTable<T extends RowData>({
                   cells={cells}
                   href={rowHref(row.original)}
                   name={rowName(row.original)}
-                  second={secondButton(row.original)}
-                  onEdit={() => onEdit(row.original)}
+                  buttons={rowButtons(row.original)}
                   onLeaveWithFocus={focusSearchBox}
                 />
               ))}

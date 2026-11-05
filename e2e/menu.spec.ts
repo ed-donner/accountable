@@ -17,7 +17,7 @@ const RAISED = { light: "rgb(255, 255, 255)", dark: "rgb(18, 64, 79)" };
 const FOCUS = { light: "rgb(17, 138, 178)", dark: "rgb(76, 179, 214)" };
 const MARIGOLD = "rgb(255, 193, 69)";
 const MIDNIGHT = "rgb(7, 59, 76)";
-const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products"];
+const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/invoices"];
 const SEARCH_BOX = "Search organizations, contacts, deals and products";
 
 /** Named for the person once the backend says who's signed in, and plain "Menu" until then. */
@@ -112,7 +112,7 @@ test("the menu button can be reached by Tab, shows a focus ring, and its menu wo
   await expect(page.locator("tbody tr").first()).toBeVisible();
 
   const sections = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
-  for (let index = 0; index < 6; index += 1) {
+  for (let index = 0; index < 7; index += 1) {
     await page.keyboard.press("Tab");
     await expect(sections.nth(index)).toBeFocused();
   }
@@ -242,7 +242,10 @@ test("the menu is on every screen and works there", async ({ page, request, expe
   await request.delete(`/api/deals/${gone.id}`);
 
   const screens: [string, RegExp | string][] = [
-    ...SECTIONS.map((path): [string, RegExp] => [path, /^(Dashboard|Organizations|Contacts|Deals|Pipeline|Products)$/]),
+    ...SECTIONS.map((path): [string, RegExp] => [
+      path,
+      /^(Dashboard|Organizations|Contacts|Deals|Pipeline|Products|Invoices)$/,
+    ]),
     [`/deals/${deal.id}`, "Menu everywhere"],
     [`/deals/${gone.id}`, "This deal no longer exists"],
     ["/nothing-here", "This page no longer exists"],
@@ -464,6 +467,8 @@ for (const mode of ["light", "dark"] as const) {
       `/deals/${await firstId("/deals")}`,
     ];
     const products: { id: number; active: boolean }[] = await (await request.get("/api/products")).json();
+    const invoices: { id: number; shows_as: string }[] = await (await request.get("/api/invoices")).json();
+    const invoiceShowing = (shows: string) => `/invoices/${invoices.find((invoice) => invoice.shows_as === shows)!.id}`;
     const archived = products.find((product) => !product.active)!;
     await addLinkedDeal(request, `Late for the ${mode} sweep`, { close_date: isoDay(-3) });
 
@@ -485,6 +490,27 @@ for (const mode of ["light", "dark"] as const) {
           await page.getByLabel("Company name").fill("");
           await page.getByRole("button", { name: "Save settings" }).click();
           await expect(page.getByText("Enter the company name")).toBeVisible();
+        },
+      },
+      { path: "/invoices", ready: (page) => expect(page.locator("tbody tr").first()).toBeVisible() },
+      ...["draft", "part_paid", "overdue", "paid", "void"].map((shows) => ({
+        path: invoiceShowing(shows),
+        ready: (page: Page) => expect(page.getByRole("img", { name: /^Invoice preview, page 1/ })).toBeVisible(),
+      })),
+      {
+        path: invoiceShowing("issued"),
+        ready: async (page) => {
+          await page.getByRole("button", { name: "Record payment" }).click();
+          await page.getByRole("dialog").getByLabel("Amount").fill("0");
+          await page.getByRole("dialog").getByRole("button", { name: "Record payment" }).click();
+          await expect(page.getByRole("dialog").getByText("Enter an amount more than $0.00")).toBeVisible();
+        },
+      },
+      {
+        path: "/",
+        ready: async (page) => {
+          await page.getByRole("heading", { level: 2, name: "Money" }).scrollIntoViewIfNeeded();
+          await expect(page.getByRole("list", { name: "How late" })).toBeVisible();
         },
       },
       {

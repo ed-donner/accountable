@@ -36,16 +36,26 @@ class FieldError(Exception):
 
 
 def field_messages(errors: Iterable[Mapping[str, Any]], messages: Mapping[str, str]) -> dict[str, str]:
-    """Each bad field's message: its check's own, or else the one the areas give that field."""
+    """Each bad field's message: its check's own, or else the one the areas give that field.
+
+    A field inside a list is keyed by its whole place, such as lines.2.quantity, which is
+    the form's own path for it, and takes the message of its own name, quantity.
+    """
     fields: dict[str, str] = {}
     for error in errors:
-        location = error["loc"]
-        field = str(location[1]) if len(location) > 1 else "body"
+        place = [str(part) for part in error["loc"][1:]]
+        field = ".".join(place) or "body"
         if error["type"] == "value_error":
             fields.setdefault(field, str(error["ctx"]["error"]))
         else:
-            fields.setdefault(field, messages.get(field, "Check this field"))
+            fields.setdefault(field, messages.get(_own_name(place), "Check this field"))
     return fields
+
+
+def _own_name(place: list[str]) -> str:
+    """The last part of a place that names a field, so lines.2 is lines and lines.2.quantity is quantity."""
+    names = [part for part in place if not part.isdigit()]
+    return names[-1] if names else "body"
 
 
 def _name(value: str) -> str:
@@ -107,6 +117,8 @@ Email = Annotated[str | None, AfterValidator(_email)]
 Website = Annotated[str | None, AfterValidator(_website)]
 Id = Annotated[int, Field(ge=1, le=MAX_ID)]
 PathId = Annotated[int, Path(ge=1, le=MAX_ID)]
+# A record to narrow a list to, such as /api/invoices?deal_id=7, or None for every row.
+QueryId = Annotated[int | None, Query(ge=1, le=MAX_ID)]
 PageLimit = Annotated[int, Query(ge=1, le=500)]
 PageOffset = Annotated[int, Query(ge=0, le=MAX_ID)]
 # Asked for per request, so tests can fix them.

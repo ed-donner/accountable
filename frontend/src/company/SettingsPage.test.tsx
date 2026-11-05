@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
 import { holdSaves, mockApi, renderApp, user, type Call } from "../test-utils";
+import type { SampleLook } from "./documentPreview";
 import type { CompanySettings } from "./settings";
 import { SettingsPage } from "./SettingsPage";
 
@@ -20,6 +21,9 @@ const SAMPLE: CompanySettings = {
   payment_terms_days: 30,
   quote_prefix: "QT-",
   invoice_prefix: "INV-",
+  invoice_design: "banner",
+  accent_color: "#0E6B6B",
+  logo: null,
   updated_at: "2026-11-05T12:00:00Z",
   updated_by: DANA,
 };
@@ -35,9 +39,21 @@ const DEFAULTS: CompanySettings = {
   payment_terms_days: 30,
   quote_prefix: "QT-",
   invoice_prefix: "INV-",
+  invoice_design: "classic",
+  accent_color: "#073B4C",
+  logo: null,
   updated_at: "2026-11-01T12:00:00Z",
   updated_by: null,
 };
+
+/** Stands in for the invoices area's sample, which App.tsx hands the page, saying what it was given. */
+function Preview({ look }: { look: SampleLook }) {
+  return (
+    <p data-testid="preview">
+      {look.design} {look.accent} {look.logo ? `logo ${look.logo.width}x${look.logo.height}` : "no logo"}
+    </p>
+  );
+}
 
 const BOXES = [
   "Company name",
@@ -62,7 +78,7 @@ function saveButton() {
 /** The page, once the settings have been read. */
 async function open(routes: Record<string, unknown>) {
   const calls = mockApi({ "GET /settings": SAMPLE, ...routes });
-  const view = renderApp(<SettingsPage />);
+  const view = renderApp(<SettingsPage preview={Preview} />);
   await screen.findByLabelText("Company name");
   return { calls, ...view };
 }
@@ -232,6 +248,8 @@ describe("saving", () => {
       payment_terms_days: 45,
       quote_prefix: "QT-",
       invoice_prefix: "INV-",
+      invoice_design: "banner",
+      accent_color: "#0E6B6B",
     });
   });
 
@@ -316,7 +334,7 @@ describe("reading the settings", () => {
     mockApi({
       "GET /settings": () => (broken ? { status: 500, body: { detail: "Something went wrong." } } : { body: SAMPLE }),
     });
-    renderApp(<SettingsPage />);
+    renderApp(<SettingsPage preview={Preview} />);
 
     expect(await screen.findByText("Couldn't load this.")).toBeTruthy();
     expect(screen.queryByRole("textbox")).toBeNull();

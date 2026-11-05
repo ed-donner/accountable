@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "./api";
 import { showSaveError } from "./saveErrors";
 
-function form() {
+function form(values: Record<string, unknown> = { name: "Acme", website: "" }) {
   const parts = {
     setError: vi.fn(),
-    getValues: vi.fn(() => ({ name: "Acme", website: "" })),
+    getValues: vi.fn(() => values),
     notify: { success: vi.fn(), error: vi.fn() },
   };
   return parts as unknown as Parameters<typeof showSaveError>[1];
@@ -38,6 +38,31 @@ describe("showSaveError", () => {
     );
     expect(shown.setError).toHaveBeenCalledOnce();
     expect(failure).toHaveBeenCalledWith("Check this field");
+  });
+
+  it("puts a field in a list beside it, as the backend keys it", () => {
+    const shown = form({ bill_to: "Acme", lines: [{ quantity: "1" }, { quantity: "1" }, { quantity: "0" }] });
+    showSaveError(
+      new ApiError("fields", "Check the form.", {
+        "lines.2.quantity": "Enter a whole number from 1 to 1,000,000",
+        "lines.7.quantity": "Enter a whole number from 1 to 1,000,000",
+      }),
+      shown,
+    );
+    expect(shown.setError).toHaveBeenCalledWith("lines.2.quantity", {
+      type: "server",
+      message: "Enter a whole number from 1 to 1,000,000",
+    });
+    expect(shown.setError).toHaveBeenCalledOnce();
+    expect(shown.notify.error).toHaveBeenCalledWith("Enter a whole number from 1 to 1,000,000");
+  });
+
+  it("puts a message about the whole form at its top", () => {
+    const shown = form();
+    const message = "This deal has no organization. Choose one on the deal before issuing.";
+    showSaveError(new ApiError("fields", "Check the form.", { form: message }), shown);
+    expect(shown.setError).toHaveBeenCalledWith("root.form", { type: "server", message });
+    expect(shown.notify.error).not.toHaveBeenCalled();
   });
 
   it("shows anything else as a message", () => {

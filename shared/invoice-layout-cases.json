@@ -1,0 +1,2491 @@
+{
+  "about": "Invoices given to invoices/layout.py and invoices/layout.ts, and the text of every line drawn, page by page, in the order drawn. Both sides must give these exactly.",
+  "cases": [
+    {
+      "name": "a short invoice in Classic",
+      "invoice": {
+        "design": "classic",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "a short invoice in Banner, paid",
+      "invoice": {
+        "design": "banner",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 1453481,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": "paid"
+      },
+      "pages": [
+        [
+          "Invoice",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Balance due",
+          "$0.00",
+          "PAID",
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "Paid",
+          "$14,534.81",
+          "Balance due",
+          "$0.00",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "a short invoice in Ledger, part paid and overdue",
+      "invoice": {
+        "design": "ledger",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 500000,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": "overdue"
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "OVERDUE",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "Paid",
+          "$5,000.00",
+          "Balance due",
+          "$9,534.81",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "a description that wraps",
+      "invoice": {
+        "design": "classic",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Data migration, per system",
+            "description": "Moving the records from one old system, checked line by line, with a report at the end of each day and a sign-off from the customer's team before the old system is switched off for good.",
+            "quantity": 1,
+            "unit_price_cents": 450000
+          }
+        ],
+        "subtotal_cents": 450000,
+        "tax_cents": 39938,
+        "total_cents": 489938,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Data migration, per system",
+          "Moving the records from one old system, checked line by line, with a report at the",
+          "end of each day and a sign-off from the customer's team before the old system is",
+          "switched off for good.",
+          "1",
+          "$4,500.00",
+          "$4,500.00",
+          "Subtotal",
+          "$4,500.00",
+          "Sales tax (8.875%)",
+          "$399.38",
+          "Total",
+          "$4,899.38",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "one word longer than its column",
+      "invoice": {
+        "design": "banner",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Integration",
+            "description": "https://plainsong.example/projects/harbor-and-pine/integration-notes/2026/october/final-version-with-every-attachment",
+            "quantity": 1,
+            "unit_price_cents": 99
+          }
+        ],
+        "subtotal_cents": 99,
+        "tax_cents": 9,
+        "total_cents": 108,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Invoice",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Balance due",
+          "$1.08",
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Integration",
+          "https://plainsong.example/projects/harbor-and-pine/integration-notes/2026/october/fi",
+          "nal-version-with-every-attachment",
+          "1",
+          "$0.99",
+          "$0.99",
+          "Subtotal",
+          "$0.99",
+          "Sales tax (8.875%)",
+          "$0.09",
+          "Total",
+          "$1.08",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "a Bill to of six lines",
+      "invoice": {
+        "design": "ledger",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine Holdings Ltd\nAttn: Sam Carter, Head of Operations\nUnit 4, Dock Road\nRiverside Industrial Estate\nPortland, OR 97201\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine Holdings Ltd",
+          "Attn: Sam Carter, Head of Operations",
+          "Unit 4, Dock Road",
+          "Riverside Industrial Estate",
+          "Portland, OR 97201",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "explicit line breaks",
+      "invoice": {
+        "design": "classic",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Premium support plan",
+            "description": "Phone support around the clock.\nA named account manager.\n\nA yearly review.",
+            "quantity": 1,
+            "unit_price_cents": 780000
+          }
+        ],
+        "subtotal_cents": 780000,
+        "tax_cents": 69225,
+        "total_cents": 849225,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Premium support plan",
+          "Phone support around the clock.",
+          "A named account manager.",
+          "A yearly review.",
+          "1",
+          "$7,800.00",
+          "$7,800.00",
+          "Subtotal",
+          "$7,800.00",
+          "Sales tax (8.875%)",
+          "$692.25",
+          "Total",
+          "$8,492.25",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "a run of spaces",
+      "invoice": {
+        "design": "classic",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor   &   Pine\n   Indented line\nTrailing spaces   ",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor   &   Pine",
+          "   Indented line",
+          "Trailing spaces",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "a company address of many lines",
+      "invoice": {
+        "design": "banner",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "Address line 1\nAddress line 2\nAddress line 3\nAddress line 4\nAddress line 5\nAddress line 6\nAddress line 7\nAddress line 8\nAddress line 9\nAddress line 10",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Invoice",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Balance due",
+          "$14,534.81",
+          "Plainsong Systems",
+          "Address line 1",
+          "Address line 2",
+          "Address line 3",
+          "Address line 4",
+          "Address line 5",
+          "Address line 6",
+          "Address line 7",
+          "Address line 8",
+          "Address line 9",
+          "Address line 10",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "100 lines over several pages",
+      "invoice": {
+        "design": "ledger",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Line 1 for a stretch of work",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 1001
+          },
+          {
+            "name": "Line 2 for a stretch of work",
+            "description": null,
+            "quantity": 2,
+            "unit_price_cents": 1002
+          },
+          {
+            "name": "Line 3 for a stretch of work",
+            "description": null,
+            "quantity": 3,
+            "unit_price_cents": 1003
+          },
+          {
+            "name": "Line 4 for a stretch of work",
+            "description": null,
+            "quantity": 4,
+            "unit_price_cents": 1004
+          },
+          {
+            "name": "Line 5 for a stretch of work",
+            "description": null,
+            "quantity": 5,
+            "unit_price_cents": 1005
+          },
+          {
+            "name": "Line 6 for a stretch of work",
+            "description": null,
+            "quantity": 6,
+            "unit_price_cents": 1006
+          },
+          {
+            "name": "Line 7 for a stretch of work",
+            "description": null,
+            "quantity": 7,
+            "unit_price_cents": 1007
+          },
+          {
+            "name": "Line 8 for a stretch of work",
+            "description": null,
+            "quantity": 8,
+            "unit_price_cents": 1008
+          },
+          {
+            "name": "Line 9 for a stretch of work",
+            "description": null,
+            "quantity": 9,
+            "unit_price_cents": 1009
+          },
+          {
+            "name": "Line 10 for a stretch of work",
+            "description": null,
+            "quantity": 10,
+            "unit_price_cents": 1010
+          },
+          {
+            "name": "Line 11 for a stretch of work",
+            "description": null,
+            "quantity": 11,
+            "unit_price_cents": 1011
+          },
+          {
+            "name": "Line 12 for a stretch of work",
+            "description": null,
+            "quantity": 12,
+            "unit_price_cents": 1012
+          },
+          {
+            "name": "Line 13 for a stretch of work",
+            "description": null,
+            "quantity": 13,
+            "unit_price_cents": 1013
+          },
+          {
+            "name": "Line 14 for a stretch of work",
+            "description": null,
+            "quantity": 14,
+            "unit_price_cents": 1014
+          },
+          {
+            "name": "Line 15 for a stretch of work",
+            "description": null,
+            "quantity": 15,
+            "unit_price_cents": 1015
+          },
+          {
+            "name": "Line 16 for a stretch of work",
+            "description": null,
+            "quantity": 16,
+            "unit_price_cents": 1016
+          },
+          {
+            "name": "Line 17 for a stretch of work",
+            "description": null,
+            "quantity": 17,
+            "unit_price_cents": 1017
+          },
+          {
+            "name": "Line 18 for a stretch of work",
+            "description": null,
+            "quantity": 18,
+            "unit_price_cents": 1018
+          },
+          {
+            "name": "Line 19 for a stretch of work",
+            "description": null,
+            "quantity": 19,
+            "unit_price_cents": 1019
+          },
+          {
+            "name": "Line 20 for a stretch of work",
+            "description": null,
+            "quantity": 20,
+            "unit_price_cents": 1020
+          },
+          {
+            "name": "Line 21 for a stretch of work",
+            "description": null,
+            "quantity": 21,
+            "unit_price_cents": 1021
+          },
+          {
+            "name": "Line 22 for a stretch of work",
+            "description": null,
+            "quantity": 22,
+            "unit_price_cents": 1022
+          },
+          {
+            "name": "Line 23 for a stretch of work",
+            "description": null,
+            "quantity": 23,
+            "unit_price_cents": 1023
+          },
+          {
+            "name": "Line 24 for a stretch of work",
+            "description": null,
+            "quantity": 24,
+            "unit_price_cents": 1024
+          },
+          {
+            "name": "Line 25 for a stretch of work",
+            "description": null,
+            "quantity": 25,
+            "unit_price_cents": 1025
+          },
+          {
+            "name": "Line 26 for a stretch of work",
+            "description": null,
+            "quantity": 26,
+            "unit_price_cents": 1026
+          },
+          {
+            "name": "Line 27 for a stretch of work",
+            "description": null,
+            "quantity": 27,
+            "unit_price_cents": 1027
+          },
+          {
+            "name": "Line 28 for a stretch of work",
+            "description": null,
+            "quantity": 28,
+            "unit_price_cents": 1028
+          },
+          {
+            "name": "Line 29 for a stretch of work",
+            "description": null,
+            "quantity": 29,
+            "unit_price_cents": 1029
+          },
+          {
+            "name": "Line 30 for a stretch of work",
+            "description": null,
+            "quantity": 30,
+            "unit_price_cents": 1030
+          },
+          {
+            "name": "Line 31 for a stretch of work",
+            "description": null,
+            "quantity": 31,
+            "unit_price_cents": 1031
+          },
+          {
+            "name": "Line 32 for a stretch of work",
+            "description": null,
+            "quantity": 32,
+            "unit_price_cents": 1032
+          },
+          {
+            "name": "Line 33 for a stretch of work",
+            "description": null,
+            "quantity": 33,
+            "unit_price_cents": 1033
+          },
+          {
+            "name": "Line 34 for a stretch of work",
+            "description": null,
+            "quantity": 34,
+            "unit_price_cents": 1034
+          },
+          {
+            "name": "Line 35 for a stretch of work",
+            "description": null,
+            "quantity": 35,
+            "unit_price_cents": 1035
+          },
+          {
+            "name": "Line 36 for a stretch of work",
+            "description": null,
+            "quantity": 36,
+            "unit_price_cents": 1036
+          },
+          {
+            "name": "Line 37 for a stretch of work",
+            "description": null,
+            "quantity": 37,
+            "unit_price_cents": 1037
+          },
+          {
+            "name": "Line 38 for a stretch of work",
+            "description": null,
+            "quantity": 38,
+            "unit_price_cents": 1038
+          },
+          {
+            "name": "Line 39 for a stretch of work",
+            "description": null,
+            "quantity": 39,
+            "unit_price_cents": 1039
+          },
+          {
+            "name": "Line 40 for a stretch of work",
+            "description": null,
+            "quantity": 40,
+            "unit_price_cents": 1040
+          },
+          {
+            "name": "Line 41 for a stretch of work",
+            "description": null,
+            "quantity": 41,
+            "unit_price_cents": 1041
+          },
+          {
+            "name": "Line 42 for a stretch of work",
+            "description": null,
+            "quantity": 42,
+            "unit_price_cents": 1042
+          },
+          {
+            "name": "Line 43 for a stretch of work",
+            "description": null,
+            "quantity": 43,
+            "unit_price_cents": 1043
+          },
+          {
+            "name": "Line 44 for a stretch of work",
+            "description": null,
+            "quantity": 44,
+            "unit_price_cents": 1044
+          },
+          {
+            "name": "Line 45 for a stretch of work",
+            "description": null,
+            "quantity": 45,
+            "unit_price_cents": 1045
+          },
+          {
+            "name": "Line 46 for a stretch of work",
+            "description": null,
+            "quantity": 46,
+            "unit_price_cents": 1046
+          },
+          {
+            "name": "Line 47 for a stretch of work",
+            "description": null,
+            "quantity": 47,
+            "unit_price_cents": 1047
+          },
+          {
+            "name": "Line 48 for a stretch of work",
+            "description": null,
+            "quantity": 48,
+            "unit_price_cents": 1048
+          },
+          {
+            "name": "Line 49 for a stretch of work",
+            "description": null,
+            "quantity": 49,
+            "unit_price_cents": 1049
+          },
+          {
+            "name": "Line 50 for a stretch of work",
+            "description": null,
+            "quantity": 50,
+            "unit_price_cents": 1050
+          },
+          {
+            "name": "Line 51 for a stretch of work",
+            "description": null,
+            "quantity": 51,
+            "unit_price_cents": 1051
+          },
+          {
+            "name": "Line 52 for a stretch of work",
+            "description": null,
+            "quantity": 52,
+            "unit_price_cents": 1052
+          },
+          {
+            "name": "Line 53 for a stretch of work",
+            "description": null,
+            "quantity": 53,
+            "unit_price_cents": 1053
+          },
+          {
+            "name": "Line 54 for a stretch of work",
+            "description": null,
+            "quantity": 54,
+            "unit_price_cents": 1054
+          },
+          {
+            "name": "Line 55 for a stretch of work",
+            "description": null,
+            "quantity": 55,
+            "unit_price_cents": 1055
+          },
+          {
+            "name": "Line 56 for a stretch of work",
+            "description": null,
+            "quantity": 56,
+            "unit_price_cents": 1056
+          },
+          {
+            "name": "Line 57 for a stretch of work",
+            "description": null,
+            "quantity": 57,
+            "unit_price_cents": 1057
+          },
+          {
+            "name": "Line 58 for a stretch of work",
+            "description": null,
+            "quantity": 58,
+            "unit_price_cents": 1058
+          },
+          {
+            "name": "Line 59 for a stretch of work",
+            "description": null,
+            "quantity": 59,
+            "unit_price_cents": 1059
+          },
+          {
+            "name": "Line 60 for a stretch of work",
+            "description": null,
+            "quantity": 60,
+            "unit_price_cents": 1060
+          },
+          {
+            "name": "Line 61 for a stretch of work",
+            "description": null,
+            "quantity": 61,
+            "unit_price_cents": 1061
+          },
+          {
+            "name": "Line 62 for a stretch of work",
+            "description": null,
+            "quantity": 62,
+            "unit_price_cents": 1062
+          },
+          {
+            "name": "Line 63 for a stretch of work",
+            "description": null,
+            "quantity": 63,
+            "unit_price_cents": 1063
+          },
+          {
+            "name": "Line 64 for a stretch of work",
+            "description": null,
+            "quantity": 64,
+            "unit_price_cents": 1064
+          },
+          {
+            "name": "Line 65 for a stretch of work",
+            "description": null,
+            "quantity": 65,
+            "unit_price_cents": 1065
+          },
+          {
+            "name": "Line 66 for a stretch of work",
+            "description": null,
+            "quantity": 66,
+            "unit_price_cents": 1066
+          },
+          {
+            "name": "Line 67 for a stretch of work",
+            "description": null,
+            "quantity": 67,
+            "unit_price_cents": 1067
+          },
+          {
+            "name": "Line 68 for a stretch of work",
+            "description": null,
+            "quantity": 68,
+            "unit_price_cents": 1068
+          },
+          {
+            "name": "Line 69 for a stretch of work",
+            "description": null,
+            "quantity": 69,
+            "unit_price_cents": 1069
+          },
+          {
+            "name": "Line 70 for a stretch of work",
+            "description": null,
+            "quantity": 70,
+            "unit_price_cents": 1070
+          },
+          {
+            "name": "Line 71 for a stretch of work",
+            "description": null,
+            "quantity": 71,
+            "unit_price_cents": 1071
+          },
+          {
+            "name": "Line 72 for a stretch of work",
+            "description": null,
+            "quantity": 72,
+            "unit_price_cents": 1072
+          },
+          {
+            "name": "Line 73 for a stretch of work",
+            "description": null,
+            "quantity": 73,
+            "unit_price_cents": 1073
+          },
+          {
+            "name": "Line 74 for a stretch of work",
+            "description": null,
+            "quantity": 74,
+            "unit_price_cents": 1074
+          },
+          {
+            "name": "Line 75 for a stretch of work",
+            "description": null,
+            "quantity": 75,
+            "unit_price_cents": 1075
+          },
+          {
+            "name": "Line 76 for a stretch of work",
+            "description": null,
+            "quantity": 76,
+            "unit_price_cents": 1076
+          },
+          {
+            "name": "Line 77 for a stretch of work",
+            "description": null,
+            "quantity": 77,
+            "unit_price_cents": 1077
+          },
+          {
+            "name": "Line 78 for a stretch of work",
+            "description": null,
+            "quantity": 78,
+            "unit_price_cents": 1078
+          },
+          {
+            "name": "Line 79 for a stretch of work",
+            "description": null,
+            "quantity": 79,
+            "unit_price_cents": 1079
+          },
+          {
+            "name": "Line 80 for a stretch of work",
+            "description": null,
+            "quantity": 80,
+            "unit_price_cents": 1080
+          },
+          {
+            "name": "Line 81 for a stretch of work",
+            "description": null,
+            "quantity": 81,
+            "unit_price_cents": 1081
+          },
+          {
+            "name": "Line 82 for a stretch of work",
+            "description": null,
+            "quantity": 82,
+            "unit_price_cents": 1082
+          },
+          {
+            "name": "Line 83 for a stretch of work",
+            "description": null,
+            "quantity": 83,
+            "unit_price_cents": 1083
+          },
+          {
+            "name": "Line 84 for a stretch of work",
+            "description": null,
+            "quantity": 84,
+            "unit_price_cents": 1084
+          },
+          {
+            "name": "Line 85 for a stretch of work",
+            "description": null,
+            "quantity": 85,
+            "unit_price_cents": 1085
+          },
+          {
+            "name": "Line 86 for a stretch of work",
+            "description": null,
+            "quantity": 86,
+            "unit_price_cents": 1086
+          },
+          {
+            "name": "Line 87 for a stretch of work",
+            "description": null,
+            "quantity": 87,
+            "unit_price_cents": 1087
+          },
+          {
+            "name": "Line 88 for a stretch of work",
+            "description": null,
+            "quantity": 88,
+            "unit_price_cents": 1088
+          },
+          {
+            "name": "Line 89 for a stretch of work",
+            "description": null,
+            "quantity": 89,
+            "unit_price_cents": 1089
+          },
+          {
+            "name": "Line 90 for a stretch of work",
+            "description": null,
+            "quantity": 90,
+            "unit_price_cents": 1090
+          },
+          {
+            "name": "Line 91 for a stretch of work",
+            "description": null,
+            "quantity": 91,
+            "unit_price_cents": 1091
+          },
+          {
+            "name": "Line 92 for a stretch of work",
+            "description": null,
+            "quantity": 92,
+            "unit_price_cents": 1092
+          },
+          {
+            "name": "Line 93 for a stretch of work",
+            "description": null,
+            "quantity": 93,
+            "unit_price_cents": 1093
+          },
+          {
+            "name": "Line 94 for a stretch of work",
+            "description": null,
+            "quantity": 94,
+            "unit_price_cents": 1094
+          },
+          {
+            "name": "Line 95 for a stretch of work",
+            "description": null,
+            "quantity": 95,
+            "unit_price_cents": 1095
+          },
+          {
+            "name": "Line 96 for a stretch of work",
+            "description": null,
+            "quantity": 96,
+            "unit_price_cents": 1096
+          },
+          {
+            "name": "Line 97 for a stretch of work",
+            "description": null,
+            "quantity": 97,
+            "unit_price_cents": 1097
+          },
+          {
+            "name": "Line 98 for a stretch of work",
+            "description": null,
+            "quantity": 98,
+            "unit_price_cents": 1098
+          },
+          {
+            "name": "Line 99 for a stretch of work",
+            "description": null,
+            "quantity": 99,
+            "unit_price_cents": 1099
+          },
+          {
+            "name": "Line 100 for a stretch of work",
+            "description": null,
+            "quantity": 100,
+            "unit_price_cents": 1100
+          }
+        ],
+        "subtotal_cents": 5388350,
+        "tax_cents": 478216,
+        "total_cents": 5866566,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Line 1 for a stretch of work",
+          "1",
+          "$10.01",
+          "$10.01",
+          "Line 2 for a stretch of work",
+          "2",
+          "$10.02",
+          "$20.04",
+          "Line 3 for a stretch of work",
+          "3",
+          "$10.03",
+          "$30.09",
+          "Line 4 for a stretch of work",
+          "4",
+          "$10.04",
+          "$40.16",
+          "Line 5 for a stretch of work",
+          "5",
+          "$10.05",
+          "$50.25",
+          "Line 6 for a stretch of work",
+          "6",
+          "$10.06",
+          "$60.36",
+          "Line 7 for a stretch of work",
+          "7",
+          "$10.07",
+          "$70.49",
+          "Line 8 for a stretch of work",
+          "8",
+          "$10.08",
+          "$80.64",
+          "Line 9 for a stretch of work",
+          "9",
+          "$10.09",
+          "$90.81",
+          "Line 10 for a stretch of work",
+          "10",
+          "$10.10",
+          "$101.00",
+          "Line 11 for a stretch of work",
+          "11",
+          "$10.11",
+          "$111.21",
+          "Line 12 for a stretch of work",
+          "12",
+          "$10.12",
+          "$121.44",
+          "Line 13 for a stretch of work",
+          "13",
+          "$10.13",
+          "$131.69",
+          "Line 14 for a stretch of work",
+          "14",
+          "$10.14",
+          "$141.96",
+          "INV-0042, page 1 of 5"
+        ],
+        [
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Line 15 for a stretch of work",
+          "15",
+          "$10.15",
+          "$152.25",
+          "Line 16 for a stretch of work",
+          "16",
+          "$10.16",
+          "$162.56",
+          "Line 17 for a stretch of work",
+          "17",
+          "$10.17",
+          "$172.89",
+          "Line 18 for a stretch of work",
+          "18",
+          "$10.18",
+          "$183.24",
+          "Line 19 for a stretch of work",
+          "19",
+          "$10.19",
+          "$193.61",
+          "Line 20 for a stretch of work",
+          "20",
+          "$10.20",
+          "$204.00",
+          "Line 21 for a stretch of work",
+          "21",
+          "$10.21",
+          "$214.41",
+          "Line 22 for a stretch of work",
+          "22",
+          "$10.22",
+          "$224.84",
+          "Line 23 for a stretch of work",
+          "23",
+          "$10.23",
+          "$235.29",
+          "Line 24 for a stretch of work",
+          "24",
+          "$10.24",
+          "$245.76",
+          "Line 25 for a stretch of work",
+          "25",
+          "$10.25",
+          "$256.25",
+          "Line 26 for a stretch of work",
+          "26",
+          "$10.26",
+          "$266.76",
+          "Line 27 for a stretch of work",
+          "27",
+          "$10.27",
+          "$277.29",
+          "Line 28 for a stretch of work",
+          "28",
+          "$10.28",
+          "$287.84",
+          "Line 29 for a stretch of work",
+          "29",
+          "$10.29",
+          "$298.41",
+          "Line 30 for a stretch of work",
+          "30",
+          "$10.30",
+          "$309.00",
+          "Line 31 for a stretch of work",
+          "31",
+          "$10.31",
+          "$319.61",
+          "Line 32 for a stretch of work",
+          "32",
+          "$10.32",
+          "$330.24",
+          "Line 33 for a stretch of work",
+          "33",
+          "$10.33",
+          "$340.89",
+          "Line 34 for a stretch of work",
+          "34",
+          "$10.34",
+          "$351.56",
+          "Line 35 for a stretch of work",
+          "35",
+          "$10.35",
+          "$362.25",
+          "Line 36 for a stretch of work",
+          "36",
+          "$10.36",
+          "$372.96",
+          "Line 37 for a stretch of work",
+          "37",
+          "$10.37",
+          "$383.69",
+          "INV-0042, page 2 of 5"
+        ],
+        [
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Line 38 for a stretch of work",
+          "38",
+          "$10.38",
+          "$394.44",
+          "Line 39 for a stretch of work",
+          "39",
+          "$10.39",
+          "$405.21",
+          "Line 40 for a stretch of work",
+          "40",
+          "$10.40",
+          "$416.00",
+          "Line 41 for a stretch of work",
+          "41",
+          "$10.41",
+          "$426.81",
+          "Line 42 for a stretch of work",
+          "42",
+          "$10.42",
+          "$437.64",
+          "Line 43 for a stretch of work",
+          "43",
+          "$10.43",
+          "$448.49",
+          "Line 44 for a stretch of work",
+          "44",
+          "$10.44",
+          "$459.36",
+          "Line 45 for a stretch of work",
+          "45",
+          "$10.45",
+          "$470.25",
+          "Line 46 for a stretch of work",
+          "46",
+          "$10.46",
+          "$481.16",
+          "Line 47 for a stretch of work",
+          "47",
+          "$10.47",
+          "$492.09",
+          "Line 48 for a stretch of work",
+          "48",
+          "$10.48",
+          "$503.04",
+          "Line 49 for a stretch of work",
+          "49",
+          "$10.49",
+          "$514.01",
+          "Line 50 for a stretch of work",
+          "50",
+          "$10.50",
+          "$525.00",
+          "Line 51 for a stretch of work",
+          "51",
+          "$10.51",
+          "$536.01",
+          "Line 52 for a stretch of work",
+          "52",
+          "$10.52",
+          "$547.04",
+          "Line 53 for a stretch of work",
+          "53",
+          "$10.53",
+          "$558.09",
+          "Line 54 for a stretch of work",
+          "54",
+          "$10.54",
+          "$569.16",
+          "Line 55 for a stretch of work",
+          "55",
+          "$10.55",
+          "$580.25",
+          "Line 56 for a stretch of work",
+          "56",
+          "$10.56",
+          "$591.36",
+          "Line 57 for a stretch of work",
+          "57",
+          "$10.57",
+          "$602.49",
+          "Line 58 for a stretch of work",
+          "58",
+          "$10.58",
+          "$613.64",
+          "Line 59 for a stretch of work",
+          "59",
+          "$10.59",
+          "$624.81",
+          "Line 60 for a stretch of work",
+          "60",
+          "$10.60",
+          "$636.00",
+          "INV-0042, page 3 of 5"
+        ],
+        [
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Line 61 for a stretch of work",
+          "61",
+          "$10.61",
+          "$647.21",
+          "Line 62 for a stretch of work",
+          "62",
+          "$10.62",
+          "$658.44",
+          "Line 63 for a stretch of work",
+          "63",
+          "$10.63",
+          "$669.69",
+          "Line 64 for a stretch of work",
+          "64",
+          "$10.64",
+          "$680.96",
+          "Line 65 for a stretch of work",
+          "65",
+          "$10.65",
+          "$692.25",
+          "Line 66 for a stretch of work",
+          "66",
+          "$10.66",
+          "$703.56",
+          "Line 67 for a stretch of work",
+          "67",
+          "$10.67",
+          "$714.89",
+          "Line 68 for a stretch of work",
+          "68",
+          "$10.68",
+          "$726.24",
+          "Line 69 for a stretch of work",
+          "69",
+          "$10.69",
+          "$737.61",
+          "Line 70 for a stretch of work",
+          "70",
+          "$10.70",
+          "$749.00",
+          "Line 71 for a stretch of work",
+          "71",
+          "$10.71",
+          "$760.41",
+          "Line 72 for a stretch of work",
+          "72",
+          "$10.72",
+          "$771.84",
+          "Line 73 for a stretch of work",
+          "73",
+          "$10.73",
+          "$783.29",
+          "Line 74 for a stretch of work",
+          "74",
+          "$10.74",
+          "$794.76",
+          "Line 75 for a stretch of work",
+          "75",
+          "$10.75",
+          "$806.25",
+          "Line 76 for a stretch of work",
+          "76",
+          "$10.76",
+          "$817.76",
+          "Line 77 for a stretch of work",
+          "77",
+          "$10.77",
+          "$829.29",
+          "Line 78 for a stretch of work",
+          "78",
+          "$10.78",
+          "$840.84",
+          "Line 79 for a stretch of work",
+          "79",
+          "$10.79",
+          "$852.41",
+          "Line 80 for a stretch of work",
+          "80",
+          "$10.80",
+          "$864.00",
+          "Line 81 for a stretch of work",
+          "81",
+          "$10.81",
+          "$875.61",
+          "Line 82 for a stretch of work",
+          "82",
+          "$10.82",
+          "$887.24",
+          "Line 83 for a stretch of work",
+          "83",
+          "$10.83",
+          "$898.89",
+          "INV-0042, page 4 of 5"
+        ],
+        [
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Line 84 for a stretch of work",
+          "84",
+          "$10.84",
+          "$910.56",
+          "Line 85 for a stretch of work",
+          "85",
+          "$10.85",
+          "$922.25",
+          "Line 86 for a stretch of work",
+          "86",
+          "$10.86",
+          "$933.96",
+          "Line 87 for a stretch of work",
+          "87",
+          "$10.87",
+          "$945.69",
+          "Line 88 for a stretch of work",
+          "88",
+          "$10.88",
+          "$957.44",
+          "Line 89 for a stretch of work",
+          "89",
+          "$10.89",
+          "$969.21",
+          "Line 90 for a stretch of work",
+          "90",
+          "$10.90",
+          "$981.00",
+          "Line 91 for a stretch of work",
+          "91",
+          "$10.91",
+          "$992.81",
+          "Line 92 for a stretch of work",
+          "92",
+          "$10.92",
+          "$1,004.64",
+          "Line 93 for a stretch of work",
+          "93",
+          "$10.93",
+          "$1,016.49",
+          "Line 94 for a stretch of work",
+          "94",
+          "$10.94",
+          "$1,028.36",
+          "Line 95 for a stretch of work",
+          "95",
+          "$10.95",
+          "$1,040.25",
+          "Line 96 for a stretch of work",
+          "96",
+          "$10.96",
+          "$1,052.16",
+          "Line 97 for a stretch of work",
+          "97",
+          "$10.97",
+          "$1,064.09",
+          "Line 98 for a stretch of work",
+          "98",
+          "$10.98",
+          "$1,076.04",
+          "Line 99 for a stretch of work",
+          "99",
+          "$10.99",
+          "$1,088.01",
+          "Line 100 for a stretch of work",
+          "100",
+          "$11.00",
+          "$1,100.00",
+          "Subtotal",
+          "$53,883.50",
+          "Sales tax (8.875%)",
+          "$4,782.16",
+          "Total",
+          "$58,665.66",
+          "INV-0042, page 5 of 5"
+        ]
+      ]
+    },
+    {
+      "name": "a void invoice",
+      "invoice": {
+        "design": "classic",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": "void"
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "VOID",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "INV-0042, page 1 of 1",
+          "VOID"
+        ]
+      ]
+    },
+    {
+      "name": "a draft",
+      "invoice": {
+        "design": "banner",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": null,
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": null,
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": "draft"
+      },
+      "pages": [
+        [
+          "Invoice",
+          "Draft",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Balance due",
+          "$14,534.81",
+          "DRAFT",
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Bill to",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "Draft, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "no logo, no email or phone",
+      "invoice": {
+        "design": "ledger",
+        "accent": "#0E6B6B",
+        "logo": null,
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": null,
+          "phone": null
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "a tall logo",
+      "invoice": {
+        "design": "ledger",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 100,
+          "height": 400
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "huge figures",
+      "invoice": {
+        "design": "classic",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Everything",
+            "description": null,
+            "quantity": 1000000,
+            "unit_price_cents": 100000000
+          }
+        ],
+        "subtotal_cents": 100000000000000,
+        "tax_cents": 100000000000000,
+        "total_cents": 200000000000000,
+        "paid_cents": 0,
+        "tax_label": null,
+        "tax_rate": "100",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Everything",
+          "1,000,000",
+          "$1,000,000.00",
+          "$1,000,000,000,000.00",
+          "Subtotal",
+          "$1,000,000,000,000.00",
+          "Tax (100%)",
+          "$1,000,000,000,000.00",
+          "Total",
+          "$2,000,000,000,000.00",
+          "INV-0042, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "totals that don't fit after the last line move to a new page",
+      "invoice": {
+        "design": "classic",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "INV-0042",
+        "issue_date": "2026-10-31",
+        "due_date": "2026-11-30",
+        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "lines": [
+          {
+            "name": "Line 1 for a stretch of work",
+            "description": "A short description of the work",
+            "quantity": 1,
+            "unit_price_cents": 1001
+          },
+          {
+            "name": "Line 2 for a stretch of work",
+            "description": "A short description of the work",
+            "quantity": 2,
+            "unit_price_cents": 1002
+          },
+          {
+            "name": "Line 3 for a stretch of work",
+            "description": "A short description of the work",
+            "quantity": 3,
+            "unit_price_cents": 1003
+          },
+          {
+            "name": "Line 4 for a stretch of work",
+            "description": "A short description of the work",
+            "quantity": 4,
+            "unit_price_cents": 1004
+          },
+          {
+            "name": "Line 5 for a stretch of work",
+            "description": "A short description of the work",
+            "quantity": 5,
+            "unit_price_cents": 1005
+          },
+          {
+            "name": "Line 6 for a stretch of work",
+            "description": "A short description of the work",
+            "quantity": 6,
+            "unit_price_cents": 1006
+          },
+          {
+            "name": "Line 7 for a stretch of work",
+            "description": "A short description of the work",
+            "quantity": 7,
+            "unit_price_cents": 1007
+          },
+          {
+            "name": "Line 8 for a stretch of work",
+            "description": "A short description of the work",
+            "quantity": 8,
+            "unit_price_cents": 1008
+          },
+          {
+            "name": "Line 9 for a stretch of work",
+            "description": "A short description of the work",
+            "quantity": 9,
+            "unit_price_cents": 1009
+          }
+        ],
+        "subtotal_cents": 45285,
+        "tax_cents": 4019,
+        "total_cents": 49304,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Invoice",
+          "Number",
+          "INV-0042",
+          "Issued",
+          "Oct 31, 2026",
+          "Due",
+          "Nov 30, 2026",
+          "Bill to",
+          "Harbor & Pine",
+          "Attn: Sam Carter",
+          "sam@harbor.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Line 1 for a stretch of work",
+          "A short description of the work",
+          "1",
+          "$10.01",
+          "$10.01",
+          "Line 2 for a stretch of work",
+          "A short description of the work",
+          "2",
+          "$10.02",
+          "$20.04",
+          "Line 3 for a stretch of work",
+          "A short description of the work",
+          "3",
+          "$10.03",
+          "$30.09",
+          "Line 4 for a stretch of work",
+          "A short description of the work",
+          "4",
+          "$10.04",
+          "$40.16",
+          "Line 5 for a stretch of work",
+          "A short description of the work",
+          "5",
+          "$10.05",
+          "$50.25",
+          "Line 6 for a stretch of work",
+          "A short description of the work",
+          "6",
+          "$10.06",
+          "$60.36",
+          "Line 7 for a stretch of work",
+          "A short description of the work",
+          "7",
+          "$10.07",
+          "$70.49",
+          "Line 8 for a stretch of work",
+          "A short description of the work",
+          "8",
+          "$10.08",
+          "$80.64",
+          "Line 9 for a stretch of work",
+          "A short description of the work",
+          "9",
+          "$10.09",
+          "$90.81",
+          "INV-0042, page 1 of 2"
+        ],
+        ["Subtotal", "$452.85", "Sales tax (8.875%)", "$40.19", "Total", "$493.04", "INV-0042, page 2 of 2"]
+      ]
+    }
+  ]
+}

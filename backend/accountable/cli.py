@@ -26,15 +26,17 @@ from accountable.company import sample_data as company_sample_data
 from accountable.company import tables as company_tables
 from accountable.crm import sample_data as crm_sample_data
 from accountable.crm import tables as crm_tables
+from accountable.invoices import sample_data as invoices_sample_data
+from accountable.invoices import tables as invoices_tables
 from accountable.products import sample_data as products_sample_data
 from accountable.products import tables as products_tables
 
 # What seed and empty say they'll delete, area by area, in this order (C4).
-RECORDS = (*crm_tables.RECORDS, *products_tables.RECORDS)
+RECORDS = (*crm_tables.RECORDS, *products_tables.RECORDS, *invoices_tables.RECORDS)
 
 # What they leave: the people, so there's still someone to sign in as, and the company
-# settings, which seed writes the sample company over and empty leaves as they are (C4).
-KEPT = (users.users, company_tables.company_settings)
+# settings and logo, which seed writes the sample company's over and empty leaves as they are (C4).
+KEPT = (users.users, company_tables.company_settings, company_tables.company_logo)
 
 
 def fill_sample(conn: Connection) -> None:
@@ -42,12 +44,14 @@ def fill_sample(conn: Connection) -> None:
 
     The sample company's settings come with it, so only a new database or a seed ever gets them (B12, B13).
     Each area goes in after the ones its sample records point at, and an area whose sample
-    documents use the company's tax rate or prefixes goes after the company.
+    documents use the company's tax rate or prefixes goes after the company: invoices are
+    issued with the sample company's details and numbered from its prefix.
     """
     today = db.local_today()
     crm_sample_data.fill(conn, today)
     products_sample_data.fill(conn, today)
     company_sample_data.fill(conn, db.utc_now())
+    invoices_sample_data.fill(conn, today)
 
 
 def _counts(conn: Connection) -> dict[str, int]:

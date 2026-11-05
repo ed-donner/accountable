@@ -228,7 +228,7 @@ The function takes today's date as an argument, as the stage rules do, so tests 
 
 Recording a payment reads the invoice and its payments, works out what's owed, and refuses an amount over it, all in one transaction under the write lock, so two payments at once can't overpay (V16). Voiding checks for payments the same way. What an invoice shows as (V3), its days late and what's owed are worked out in `invoices/` from the stored status, total, due date and payments, with today passed in, and the Money section's figures come from grouped queries, not one query per invoice, so they stay quick at the Q1 limits.
 
-The PDF is made when it's asked for, with ReportLab, from the same layout the preview draws (V24). Text is placed as text, never through ReportLab's markup, so nothing typed is read as markup (V25). The fonts are TTF files kept with the backend and carried in the PDF, cut down to the characters it uses.
+The PDF is made when it's asked for, with ReportLab, from the same layout the preview draws (V24). Text is placed as text, never through ReportLab's markup, so nothing typed is read as markup (V25). The fonts are TTF files kept with the backend and carried in the PDF, cut down to the characters it uses. Their widths, and the characters every one of them has, which are the characters invoices can show (V9), are in `shared/invoice-fonts.json`, which `invoices/fonts.py` writes from the files, and a test checks the two still agree.
 
 Saving a logo decodes it from base64, reads it with Pillow, which comes with ReportLab, and keeps it only if Pillow finds a PNG or a JPEG within the limits in B21. A file Pillow can't read, or reads as anything else, gets B21's message.
 
@@ -236,7 +236,7 @@ Reset and empty delete rows inside a transaction and leave the file and tables i
 
 ## API
 
-All routes are under `/api` and use JSON. Every route needs a valid token in the `Authorization` header, and refuses with 401 without one ([Security](security.md#signing-in)). Validation errors return 422 with a message per field, and a missing record returns 404. An id that couldn't be a record, such as one past 2,147,483,647, the largest Postgres's `integer` holds, is a validation error, and the frontend treats such an address as a missing record without asking, and so is text with no valid encoding, or with a NUL character, which Postgres can't store though SQLite can.
+All routes are under `/api` and use JSON. Every route needs a valid token in the `Authorization` header, and refuses with 401 without one ([Security](security.md#signing-in)). Validation errors return 422 with a message per field, and a missing record returns 404. A field inside a list is keyed by its whole place, such as `lines.2.quantity`, which is the page's own path for it, and takes the message of its own name. A refusal of a draft as a whole, such as a deal with no organization, comes under `form` (V10). An id that couldn't be a record, such as one past 2,147,483,647, the largest Postgres's `integer` holds, is a validation error, and the frontend treats such an address as a missing record without asking, and so is text with no valid encoding, or with a NUL character, which Postgres can't store though SQLite can.
 
 | Method and path | Purpose |
 |---|---|
@@ -265,7 +265,7 @@ All routes are under `/api` and use JSON. Every route needs a valid token in the
 | `PATCH /settings` | Change the settings sent. The checks apply to the settings as they'd be after the save (B5), so while no company name is saved, a save that leaves it out is refused. `logo` is the file's bytes in base64, or null to remove it, so the request stays JSON |
 | `GET /settings/logo` | The logo's bytes, with its checked type and `X-Content-Type-Options: nosniff`, or a 404 with no logo |
 | `GET /invoices` | Every invoice, with its deal, organization, what it shows as (V3), total and what's owed. `?deal_id=` or `?organization_id=` gives a record's panel its list (V20, V21) |
-| `POST /invoices` | Body: `deal_id`. Starts a draft on a won deal, with its Bill to filled in (V4, V5). A deal that isn't won gets a 409 |
+| `POST /invoices` | Body: `deal_id`. Starts a draft on a won deal, with its Bill to filled in (V4, V5). A deal that isn't won gets a 409, and one that isn't there a 422 beside `deal_id` |
 | `GET /invoices/{id}` | One invoice with its lines, figures, payments, days late, and who added, issued and voided it |
 | `PATCH /invoices/{id}` | A draft's Bill to and lines, the lines sent as the whole list in order. A 409 once issued (V12) |
 | `DELETE /invoices/{id}` | Delete a draft. A 409 once issued |

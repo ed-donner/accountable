@@ -43,6 +43,9 @@ const FILLED: SettingsValues = {
   payment_terms_days: "30",
   quote_prefix: "QT-",
   invoice_prefix: "INV-",
+  invoice_design: "banner",
+  accent_color: "#0e6b6b",
+  logo: { kind: "kept" },
 };
 
 describe("the tax rate", () => {
@@ -143,6 +146,9 @@ describe("what a save sends", () => {
       payment_terms_days: 30,
       quote_prefix: "QT-",
       invoice_prefix: "INV-",
+      invoice_design: "classic",
+      accent_color: "#073B4C",
+      logo: null,
       updated_at: "2026-11-05T14:03:00Z",
       updated_by: null,
     };
@@ -156,6 +162,31 @@ describe("what a save sends", () => {
       payment_terms_days: "30",
       quote_prefix: "QT-",
       invoice_prefix: "INV-",
+      invoice_design: "classic",
+      accent_color: "#073B4C",
+      logo: { kind: "kept" },
     });
+  });
+
+  it("sends the design, and the accent color in capitals", () => {
+    const sent = toRequest({ ...FILLED, invoice_design: "ledger", accent_color: " #0e6b6b " });
+    expect([sent.invoice_design, sent.accent_color]).toEqual(["ledger", "#0E6B6B"]);
+  });
+
+  it("sends no logo while it's kept, so its bytes aren't sent again", () => {
+    expect("logo" in toRequest(FILLED)).toBe(false);
+  });
+
+  it("sends a new logo's bytes, and null for one removed", () => {
+    const chosen = { kind: "new", name: "logo.png", base64: "iVBORw0KGgo=", url: "data:", size: null } as const;
+    expect(toRequest({ ...FILLED, logo: chosen }).logo).toBe("iVBORw0KGgo=");
+    expect(toRequest({ ...FILLED, logo: { kind: "removed" } }).logo).toBeNull();
+  });
+
+  it("checks the accent color with the rest", () => {
+    expect(settingsProblems({ ...FILLED, accent_color: "#FFC145" }).accent_color).toBe(
+      "Too light to read on white. Choose a darker color",
+    );
+    expect(settingsProblems(FILLED).accent_color).toBeUndefined();
   });
 });

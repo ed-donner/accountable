@@ -17,6 +17,9 @@ const SETTINGS = {
   payment_terms_days: 30,
   quote_prefix: "QT-",
   invoice_prefix: "INV-",
+  invoice_design: "classic",
+  accent_color: "#073B4C",
+  logo: null,
   updated_at: "2026-10-31T12:00:00Z",
   updated_by: null,
 };
@@ -29,6 +32,68 @@ const PRODUCT = {
   created_by: null,
   updated_at: "2026-10-12T12:00:00Z",
   updated_by: null,
+};
+
+const INVOICE = {
+  id: 7,
+  number: "INV-0042",
+  shows_as: "issued",
+  status: "issued",
+  deal: { id: 3, name: "Annual support" },
+  organization: { id: 2, name: "Harbor & Pine" },
+  bill_to: "Harbor & Pine",
+  issue_date: "2026-10-31",
+  due_date: "2026-11-30",
+  total_cents: 100000,
+  owed_cents: 100000,
+  days_late: null,
+  deal_stage: "won",
+  company: { name: "Plainsong Systems", address: null, email: null, phone: null },
+  tax_label: "Sales tax",
+  tax_rate: "0",
+  lines: [],
+  subtotal_cents: 100000,
+  tax_cents: 0,
+  paid_cents: 0,
+  payments: [],
+  issued_by: null,
+  voided_by: null,
+  voided_at: null,
+  created_at: "2026-10-31T12:00:00Z",
+  created_by: null,
+  updated_at: "2026-10-31T12:00:00Z",
+  updated_by: null,
+};
+const WHO = {
+  created_at: "2026-10-12T12:00:00Z",
+  created_by: null,
+  updated_at: "2026-10-12T12:00:00Z",
+  updated_by: null,
+};
+const DEAL = {
+  id: 3,
+  name: "Annual support",
+  organization_id: 2,
+  organization_name: "Harbor & Pine",
+  main_contact_id: null,
+  main_contact_name: null,
+  stage: "won",
+  value: 1000,
+  probability: 100,
+  expected_revenue: 0,
+  close_date: "2026-10-30",
+  position: 0,
+  ...WHO,
+};
+const ORGANIZATION = {
+  id: 2,
+  name: "Harbor & Pine",
+  website: null,
+  industry: null,
+  notes: null,
+  contacts: [],
+  deals: [],
+  ...WHO,
 };
 
 let calls: Call[];
@@ -122,7 +187,7 @@ describe("the app, signed out", () => {
 
     expect((await heading()).textContent).toBe("Deals");
     expect(window.location.pathname).toBe("/deals");
-    expect(topBar().getAllByRole("link")).toHaveLength(6);
+    expect(topBar().getAllByRole("link")).toHaveLength(7);
   });
 });
 
@@ -133,13 +198,13 @@ describe("the app, signed in", () => {
     visit("/");
     render(<App />);
     expect((await heading()).textContent).toBe("Dashboard");
-    expect(topBar().getAllByRole("link")).toHaveLength(6);
+    expect(topBar().getAllByRole("link")).toHaveLength(7);
     const bar = within(screen.getByRole("banner"));
     expect(bar.getByLabelText(SEARCH_BOX)).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
   });
 
-  it("links the top bar to the six sections, in order, Products last", async () => {
+  it("links the top bar to the seven sections, in order, Invoices last", async () => {
     visit("/");
     render(<App />);
     await heading();
@@ -151,6 +216,7 @@ describe("the app, signed in", () => {
       ["Deals", "/deals"],
       ["Pipeline", "/pipeline"],
       ["Products", "/products"],
+      ["Invoices", "/invoices"],
     ]);
   });
 
@@ -170,6 +236,7 @@ describe("the app, signed in", () => {
     ["/deals", "Deals"],
     ["/pipeline", "Pipeline"],
     ["/products", "Products"],
+    ["/invoices", "Invoices"],
   ])("gives %s its own address", async (path, title) => {
     render(<App />);
     visit(path);
@@ -182,6 +249,7 @@ describe("the app, signed in", () => {
     ["/contacts/abc", "This contact no longer exists", "Back to Contacts"],
     ["/deals/abc", "This deal no longer exists", "Back to Deals"],
     ["/products/abc", "This product no longer exists", "Back to Products"],
+    ["/invoices/abc", "This invoice no longer exists", "Back to Invoices"],
   ])("says %s couldn't be a record, with a link back to its section", async (path, title, back) => {
     render(<App />);
     visit(path);
@@ -197,11 +265,49 @@ describe("the app, signed in", () => {
     expect(screen.getByText("$1,149.99")).toBeTruthy();
   });
 
+  it("opens an invoice's page at its address, and says when one no longer exists", async () => {
+    mockApi({
+      "GET /me": ALEX,
+      "GET /meta": META,
+      "GET /settings": SETTINGS,
+      "GET /invoices/7": INVOICE,
+      "GET /invoices/8": () => ({ status: 404, body: { detail: "Invoice not found" } }),
+    });
+    render(<App />);
+    visit("/invoices/7");
+    expect((await heading()).textContent).toBe("INV-0042");
+    visit("/invoices/8");
+    expect((await screen.findByRole("heading", { level: 1, name: "This invoice no longer exists" })).textContent).toBe(
+      "This invoice no longer exists",
+    );
+  });
+
+  it("puts the Invoices panel on a deal's and an organization's page, and Money below the dashboard", async () => {
+    mockApi({
+      "GET /me": ALEX,
+      "GET /meta": META,
+      "GET /deals/3": DEAL,
+      "GET /deals/3/timeline?limit=50&offset=0": { entries: [], total: 0 },
+      "GET /invoices?deal_id=3": [],
+      "GET /organizations/2": ORGANIZATION,
+      "GET /organizations/2/timeline?limit=50&offset=0": { entries: [], total: 0 },
+      "GET /invoices?organization_id=2": [],
+    });
+    render(<App />);
+    visit("/deals/3");
+    expect(await screen.findByRole("region", { name: "Invoices" })).toBeTruthy();
+    expect(await screen.findByText("No invoices yet.")).toBeTruthy();
+    visit("/organizations/2");
+    expect(await screen.findByRole("region", { name: "Invoices" })).toBeTruthy();
+    visit("/");
+    expect(await screen.findByRole("heading", { level: 2, name: "Money" })).toBeTruthy();
+  });
+
   it("says an unknown address no longer exists, links to the Dashboard and keeps the top bar", async () => {
     render(<App />);
     visit("/no/such/page");
     expect((await heading()).textContent).toBe("This page no longer exists");
-    expect(topBar().getAllByRole("link")).toHaveLength(6);
+    expect(topBar().getAllByRole("link")).toHaveLength(7);
 
     await user().click(screen.getByRole("link", { name: "Back to Dashboard" }));
 
@@ -215,7 +321,7 @@ describe("the app, signed in", () => {
     visit("/settings");
     expect((await heading()).textContent).toBe("Company settings");
     expect(window.location.pathname).toBe("/settings");
-    expect(topBar().getAllByRole("link")).toHaveLength(6);
+    expect(topBar().getAllByRole("link")).toHaveLength(7);
     expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
     expect(await screen.findByLabelText("Company name")).toBeTruthy();
   });

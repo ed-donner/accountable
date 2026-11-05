@@ -478,7 +478,7 @@ A trial the same way, before the change to when a waiting run speaks, also passe
 
 Each new check in `scripts/test-runs.test.mjs` was shown to fail on a copy of `test-runs.mjs` broken for it, put back after: no queue order, free turns counted without the busy runs, no turn ports, the speed tests first only while their port is held, none of the speed tests first, and every reason printed at once. Several of them rely on timing, so the file was run 13 times on the working code and passed every time, and the two breaks most open to chance were tried again: the speed tests' place failed six times in six, and every reason printed at once three times in three.
 
-## Invoices: design
+## Invoices: design and build
 
 On the `invoices` branch, `docs/spec.md` and the area files now describe Accountable with invoices and payments in it, as it will be once the branch merges. The intent and the owner's three decisions, on the Bill to, what's fixed at issue and deals leaving Won, are in `docs/changes/invoices/intent.md`. One area file is new: `docs/specs/invoices.md`, with V1 to V31, and `settings.md` gains B18 to B22 for the Documents panel. No code has changed yet.
 
@@ -488,6 +488,43 @@ On the `invoices` branch, `docs/spec.md` and the area files now describe Account
 - **Q1** now includes 1,000 invoices, 3,000 lines and 1,500 payments, the Money section's data and a PDF's download.
 
 The project owner agreed the choices the intent left open: the preview drawn by the browser and the PDF by ReportLab from one description of the designs, with the plan to make the case for ReportLab; a logo of at most 2,000 pixels a side; a 2 MB limit on request bodies; the payment date rules; a total over $0.00 to issue; the field limits in V8; asking before leaving a draft with changes; a void invoice in the sample data; Save settings at the top right; a part-paid invoice past its due date showing as Overdue; and a sample invoice's subtotal matching its deal's value. A draft with characters the invoice's fonts can't draw, such as emoji, isn't saved, with a message beside the field (V9). Company settings still take any characters, but an invoice isn't issued while the company's name, address, email, phone or tax label has one, and the message names the field to change there (V10). Bank details on invoices and invoices in the top bar's search stay under Not in Accountable yet.
+
+### Build
+
+Built on the `invoices` branch, in the plan's six phases, with `npm run check:quick` passing at the end of each. Every requirement in `invoices.md` and B18 to B22 is in, and the spec now says what the build added and settled, listed below.
+
+- **New dependencies:** ReportLab 5.1 and Pillow 13 for the PDF and the logo's check, and pypdf 6.21 for the tests alone, as the plan made the case for. Installed with `uv add`, all as wheels.
+- **Fonts:** static TTFs of Instrument Sans (Regular, SemiBold), Instrument Serif and JetBrains Mono (Regular, Medium), from Instrument's and JetBrains' own repositories and Google Fonts', checked to load in ReportLab and to come with the OFL, in `backend/accountable/invoices/fonts/`. `shared/invoice-fonts.json` is written from them by `invoices/fonts.py`. The characters invoices can show are the 333 all five share: Latin letters with their accents, digits, punctuation, $, £, €, ©, ™ and typographic quotes and dashes.
+- **One layout, two drawings:** `invoices/layout.py` and `invoices/layout.ts` lay an invoice out the same way from `shared/invoice-designs.json`, and the 16 cases in `shared/invoice-layout-cases.json` give the same lines on the same pages on both sides, the 100-line invoice's five pages included. The expected lines were made by `layout.py` and read through before they were kept, so the Python side's tests of where lines break and pages turn also check them by hand-worked widths. Each design was drawn first as a sketch, then as a PDF and looked at.
+- **Sample data:** 33 invoices and 32 to 36 payments, seeded and checked on every day from Jan 1, 2026 to Feb 4, 2027: each status, an invoice in each group of How late, and a payment in each of the 12 months on every one of them.
+
+Where the build settled something the plan or spec left open, or found them wrong, the spec now says so:
+
+- **A day's payment:** the plan paid today one of the invoices not yet due. That left only one part-paid invoice late in a month, so today's payment goes to an older invoice paid late instead. M3 now says about 35 payments, not 40, and 2 to 4 part paid.
+- **The Bill to** drops spaces and line breaks at its ends, as every other field does, and keeps the rest as typed.
+- **Characters no one can see** are named in the message, "a tab", "an unusual space" or "an invisible character", by their Unicode category on both sides, since Python's and JavaScript's ideas of a space differ.
+- **The accent color's messages** live in `shared/accent-cases.json`, since one of them names `#0E6B6B` as an example and `colors.test.ts` refuses a color written into the page's code.
+- **No accent tints:** the plan allowed a tint of the accent for the designs, but none of the three needed one, so the layout has no code for it.
+- **Words the spec didn't give:** "Choose a won deal" and "Choose an active product" beside the picker and the line, "A draft has no PDF. Issue it first.", "A draft is deleted rather than voided.", "This invoice is already void." and the Delete draft question.
+- **`DataTable`** can now leave out a row's buttons, search a column it doesn't show, and word its empty table's invitation, all three for Invoices.
+- **New files the plan didn't list:** `company/documentPreview.ts`, the sample's look and the type of the drawing `App.tsx` hands the settings page, so `company/` still never imports `invoices/`; `invoices/InvoiceChip.tsx`; and `lib/files.ts`, a file's bytes as base64 and a picture's size. The logo is shown from a data address, so there's no object URL to let go of.
+- **The settings page's header is inside its form,** so Save settings at the top right is the form's own button and Enter in a box still saves.
+
+Found and fixed on the way:
+
+- `plural()` wrote "12 daies". A "y" now becomes "ies" only after a consonant.
+- The draft's form refilled itself whenever a change was typed back to what it was, which remounted every line's boxes and lost the focus. It now refills only when a new reply arrives.
+- A test of two payments at once passed with the write lock taken out, because the two requests never overlapped. It now holds each until both have read what's owed, so without the lock both go in.
+
+Each new check of a race or a limit was shown to fail on code broken for it, from a copy put back after: the 2 MB limit taken out, the write lock taken out for 20 drafts issued at once and for two payments at once, and the Money route added after the invoices' own.
+
+By hand, on a scratch database, in Chrome: the Invoices table, a draft's page, issued, part-paid, overdue, paid and void invoices, the panels, the Money section and the Documents panel, at 1440 by 900 and 1280 by 720, in light and dark mode. A draft was changed, asked about on leaving, issued, and became INV-0031 after the sample's 30. Each design, with the sample logo and in `#073B4C` or `#0E6B6B` and in `#767676`, the lightest accent allowed, was downloaded as a PDF and put beside its preview: the same lines on the same pages, the same mark, the logo in the same place. All three still read in greyscale, as a black and white printer gives them. The console logged no errors or warnings.
+
+One end-to-end run failed two of the menu's theme tests, because I edited a source file while its Vite servers were watching the files: Vite's reload then asks for the page's script under a new address, which the test's hold doesn't catch. With nothing changing they passed eight times in eight, and with a file changing through the run they failed eight times in eight.
+
+`npm run check` passes: 4,938 tests in 6m 24s, of which 3,249 backend, 1,387 frontend, 290 end-to-end and 12 speed. Backend unit coverage is 99%. At the Q1 limits, the Invoices table opened in 177ms, the Money section's data arrived in 8ms and a PDF downloaded in 23ms, each the median of five.
+
+Still for the project owner, on the shared app, since no test touches Supabase: run `npm start` against the team's database, which runs migration `0007` on it, then take an invoice from draft to paid with a logo, download its PDF and see it as a second teammate; run the new clearing steps on a project that still has the sample data and check the invoices, payments and logo are gone and the settings are at their defaults. With the owner's go-ahead, the coding agent can then use the Supabase MCP server to confirm row-level security is on for `company_logo`, `invoices`, `invoice_lines` and `payments`, and run the security advisors.
 
 ## Running Accountable
 
@@ -523,7 +560,9 @@ It opens on a sign-in screen listing four made-up teammates: Alex Rivera, Dana W
 
 If it says a port is in use, Accountable is probably already running in another window.
 
-Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back. The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices, which come later: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back. The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. Invoices bills customers for won deals. New invoice on a won deal's page starts a draft: add lines from the price list, change a quantity, a price or a description, and the preview beside the form shows the invoice as the customer will see it. Save draft keeps it. Issue invoice gives it its number and due date, and after that it can't be changed, only voided. Record payment notes money as it arrives, and Download PDF saves the invoice to send. The Invoices section lists every invoice, with a filter for drafts, overdue ones, paid ones and the rest, and each deal's and organization's page shows its invoices. Below the dashboard's charts, the Money section shows what customers owe, how much is overdue and how late, and the payments received each month.
+
+The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. Its Documents panel sets how invoices look: one of three designs, an accent color and the company's logo, with a sample invoice that changes as you choose. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -533,8 +572,8 @@ Click on the terminal window and press Ctrl+C.
 
 Accountable comes with made-up sample data so you can look around.
 
-- `npm run seed` replaces everything with fresh sample data, and puts back the made-up company's settings.
-- `npm run empty` removes every record, so you can type in your own. It leaves the company settings as they are.
+- `npm run seed` replaces everything with fresh sample data, invoices and payments included, and puts back the made-up company's settings and logo.
+- `npm run empty` removes every record, invoices and payments included, so you can type in your own. It leaves the company settings and the logo as they are.
 
 Both tell you what will be lost and only go ahead if you type `yes`. Both are safe with the app running: refresh the browser to see the result. Both keep the four teammates, so there's still someone to sign in as. They only ever touch the local copy, never the team's data in Supabase.
 
@@ -592,16 +631,18 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change and product, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, invoice and payment, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, no logo, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
 begin;
-truncate table activities, stage_changes, deals, contacts, organizations, products, number_counters;
+truncate table payments, invoice_lines, invoices, activities, stage_changes, deals, contacts, organizations,
+  products, number_counters;
+delete from company_logo;
 update company_settings set
   company_name = default, address = default, email = default, phone = default,
   tax_label = default, tax_rate = default, payment_terms_days = default,
-  quote_prefix = default, invoice_prefix = default, updated_by = default,
-  updated_at = now() at time zone 'utc';
+  quote_prefix = default, invoice_prefix = default, invoice_design = default, accent_color = default,
+  updated_by = default, updated_at = now() at time zone 'utc';
 commit;
 ```
 

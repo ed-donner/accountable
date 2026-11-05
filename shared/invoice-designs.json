@@ -1,0 +1,344 @@
+{
+  "about": "How each invoice design looks (V24 to V28), read by backend/accountable/invoices/layout.py and frontend/src/invoices/layout.ts, which lay an invoice out from it the same way. Points from the top left of a US Letter page. A color is a name in colors, accent, mark (the mark's own color), or {\"accent_tint\": strength in hundredths}. A text row's baseline sits at its line's top plus (line height + 0.7 x size) / 2. A block placed below others starts at the lowest of their bottoms plus its gap, where a block with nothing in it counts its top and no gap.",
+  "page": {
+    "width": 612,
+    "height": 792,
+    "left": 48,
+    "right": 564,
+    "top": 48,
+    "bottom": 728,
+    "footer": { "x": 48, "y": 762, "font": "sans", "size": 8, "color": "muted" }
+  },
+  "colors": {
+    "paper": "#FFFFFF",
+    "ink": "#1F2A30",
+    "muted": "#5B6970",
+    "white": "#FFFFFF",
+    "paid": "#047A5B",
+    "overdue": "#D23E62",
+    "void": "#5B6970",
+    "draft": "#5B6970",
+    "stripe": "#EEF1F2"
+  },
+  "logo": { "width": 144, "height": 54 },
+  "watermark": {
+    "text": "VOID",
+    "font": "sans_semibold",
+    "size": 150,
+    "color": "muted",
+    "opacity": 0.14,
+    "angle": 30,
+    "x": 306,
+    "y": 448
+  },
+  "designs": {
+    "classic": {
+      "blocks": [
+        { "id": "logo", "kind": "logo", "x": 48, "y": 48, "align": "start" },
+        {
+          "id": "company",
+          "kind": "text",
+          "x": 48,
+          "below": ["logo"],
+          "gap": 12,
+          "width": 260,
+          "anchor": "start",
+          "rows": [
+            { "field": "company_name", "font": "sans_semibold", "size": 12, "color": "ink", "line_height": 17 },
+            { "field": "company_address", "font": "sans", "size": 9.5, "color": "muted", "line_height": 13.5 },
+            { "field": "company_email", "font": "sans", "size": 9.5, "color": "muted", "line_height": 13.5 },
+            { "field": "company_phone", "font": "sans", "size": 9.5, "color": "muted", "line_height": 13.5 }
+          ]
+        },
+        {
+          "id": "title",
+          "kind": "text",
+          "x": 564,
+          "y": 44,
+          "width": 220,
+          "anchor": "end",
+          "rows": [{ "text": "Invoice", "font": "sans_semibold", "size": 28, "color": "accent", "line_height": 36 }]
+        },
+        {
+          "id": "mark",
+          "kind": "text",
+          "x": 564,
+          "below": ["title"],
+          "gap": 0,
+          "width": 220,
+          "anchor": "end",
+          "rows": [{ "field": "mark", "font": "sans_semibold", "size": 11, "color": "mark", "line_height": 16 }]
+        },
+        {
+          "id": "dates",
+          "kind": "pairs",
+          "x": 384,
+          "below": ["title", "mark"],
+          "gap": 12,
+          "width": 180,
+          "line_height": 15,
+          "label": { "font": "sans", "size": 9.5, "color": "muted" },
+          "value": { "font": "mono", "size": 9.5, "color": "ink" },
+          "rows": [
+            { "label": "Number", "field": "number" },
+            { "label": "Issued", "field": "issue_date" },
+            { "label": "Due", "field": "due_date" }
+          ]
+        },
+        {
+          "id": "bill_to",
+          "kind": "text",
+          "x": 48,
+          "below": ["company", "dates"],
+          "gap": 26,
+          "width": 280,
+          "anchor": "start",
+          "rows": [
+            { "text": "Bill to", "font": "sans_semibold", "size": 9.5, "color": "accent", "line_height": 16 },
+            { "field": "bill_to", "font": "sans", "size": 10, "color": "ink", "line_height": 14 }
+          ]
+        }
+      ],
+      "table": {
+        "below": ["bill_to"],
+        "gap": 28,
+        "inset": 0,
+        "column_gap": 16,
+        "labels": ["Description", "Qty", "Unit price", "Amount"],
+        "heading": { "font": "sans_semibold", "size": 9, "color": "accent", "height": 22 },
+        "name": { "font": "sans_semibold", "size": 10, "color": "ink", "line_height": 14 },
+        "description": { "font": "sans", "size": 9, "color": "muted", "line_height": 12.5 },
+        "figures": { "font": "mono", "size": 9.5, "color": "ink" },
+        "padding": 6,
+        "stripe": null
+      },
+      "totals": {
+        "gap": 18,
+        "x": 340,
+        "right": 564,
+        "line_height": 18,
+        "label": { "font": "sans", "size": 10, "color": "muted" },
+        "value": { "font": "mono", "size": 10, "color": "ink" },
+        "total": {
+          "line_height": 28,
+          "label": { "font": "sans_semibold", "size": 12, "color": "accent" },
+          "value": { "font": "mono_medium", "size": 12, "color": "accent" },
+          "fill": null
+        }
+      }
+    },
+    "banner": {
+      "blocks": [
+        { "id": "band", "kind": "block", "x": 0, "y": 0, "width": 612, "height": 150, "color": "accent", "radius": 0 },
+        {
+          "id": "title",
+          "kind": "text",
+          "x": 48,
+          "y": 40,
+          "width": 300,
+          "anchor": "start",
+          "rows": [
+            { "text": "Invoice", "font": "sans_semibold", "size": 30, "color": "white", "line_height": 38 },
+            { "field": "number", "font": "mono_medium", "size": 13, "color": "white", "line_height": 20 }
+          ]
+        },
+        {
+          "id": "dates",
+          "kind": "pairs",
+          "x": 48,
+          "y": 106,
+          "width": 150,
+          "line_height": 14,
+          "label": { "font": "sans", "size": 9, "color": "white" },
+          "value": { "font": "mono", "size": 9, "color": "white" },
+          "rows": [
+            { "label": "Issued", "field": "issue_date" },
+            { "label": "Due", "field": "due_date" }
+          ]
+        },
+        {
+          "id": "balance",
+          "kind": "text",
+          "x": 564,
+          "y": 44,
+          "width": 240,
+          "anchor": "end",
+          "rows": [
+            { "text": "Balance due", "font": "sans", "size": 10, "color": "white", "line_height": 16 },
+            { "field": "balance_due", "font": "mono_medium", "size": 22, "color": "white", "line_height": 30 }
+          ]
+        },
+        {
+          "id": "mark",
+          "kind": "text",
+          "x": 564,
+          "below": ["balance"],
+          "gap": 10,
+          "width": 240,
+          "anchor": "end",
+          "backing": { "color": "white", "radius": 3, "padding_x": 6, "padding_y": 4 },
+          "rows": [{ "field": "mark", "font": "sans_semibold", "size": 10, "color": "mark", "line_height": 18 }]
+        },
+        { "id": "logo", "kind": "logo", "x": 48, "y": 176, "align": "start" },
+        {
+          "id": "company",
+          "kind": "text",
+          "x": 48,
+          "below": ["logo"],
+          "gap": 12,
+          "width": 250,
+          "anchor": "start",
+          "rows": [
+            { "field": "company_name", "font": "sans_semibold", "size": 12, "color": "ink", "line_height": 17 },
+            { "field": "company_address", "font": "sans", "size": 9.5, "color": "muted", "line_height": 13.5 },
+            { "field": "company_email", "font": "sans", "size": 9.5, "color": "muted", "line_height": 13.5 },
+            { "field": "company_phone", "font": "sans", "size": 9.5, "color": "muted", "line_height": 13.5 }
+          ]
+        },
+        {
+          "id": "bill_to",
+          "kind": "text",
+          "x": 330,
+          "y": 176,
+          "width": 234,
+          "anchor": "start",
+          "rows": [
+            { "text": "Bill to", "font": "sans_semibold", "size": 9.5, "color": "accent", "line_height": 16 },
+            { "field": "bill_to", "font": "sans", "size": 10, "color": "ink", "line_height": 14 }
+          ]
+        }
+      ],
+      "table": {
+        "below": ["company", "bill_to"],
+        "gap": 30,
+        "inset": 0,
+        "column_gap": 16,
+        "labels": ["Description", "Qty", "Unit price", "Amount"],
+        "heading": { "font": "sans_semibold", "size": 9, "color": "ink", "height": 22 },
+        "name": { "font": "sans_semibold", "size": 10, "color": "ink", "line_height": 14 },
+        "description": { "font": "sans", "size": 9, "color": "muted", "line_height": 12.5 },
+        "figures": { "font": "mono", "size": 9.5, "color": "ink" },
+        "padding": 6,
+        "stripe": null
+      },
+      "totals": {
+        "gap": 18,
+        "x": 346,
+        "right": 554,
+        "line_height": 18,
+        "label": { "font": "sans", "size": 10, "color": "muted" },
+        "value": { "font": "mono", "size": 10, "color": "ink" },
+        "total": {
+          "line_height": 34,
+          "label": { "font": "sans_semibold", "size": 12, "color": "white" },
+          "value": { "font": "mono_medium", "size": 12, "color": "white" },
+          "fill": { "color": "accent", "radius": 4, "padding": 10 }
+        }
+      }
+    },
+    "ledger": {
+      "blocks": [
+        {
+          "id": "company",
+          "kind": "text",
+          "x": 48,
+          "y": 40,
+          "width": 350,
+          "anchor": "start",
+          "rows": [{ "field": "company_name", "font": "serif", "size": 30, "color": "ink", "line_height": 36 }]
+        },
+        { "id": "logo", "kind": "logo", "x": 420, "y": 44, "align": "end" },
+        {
+          "id": "details",
+          "kind": "text",
+          "x": 48,
+          "below": ["company"],
+          "gap": 4,
+          "width": 350,
+          "anchor": "start",
+          "rows": [
+            { "field": "company_address", "font": "sans", "size": 9.5, "color": "muted", "line_height": 13.5 },
+            { "field": "company_email", "font": "sans", "size": 9.5, "color": "muted", "line_height": 13.5 },
+            { "field": "company_phone", "font": "sans", "size": 9.5, "color": "muted", "line_height": 13.5 }
+          ]
+        },
+        {
+          "id": "title",
+          "kind": "text",
+          "x": 48,
+          "below": ["company", "details", "logo"],
+          "gap": 26,
+          "width": 280,
+          "anchor": "start",
+          "rows": [{ "text": "Invoice", "font": "serif", "size": 26, "color": "accent", "line_height": 32 }]
+        },
+        {
+          "id": "mark",
+          "kind": "text",
+          "x": 48,
+          "below": ["title"],
+          "gap": 0,
+          "width": 280,
+          "anchor": "start",
+          "rows": [{ "field": "mark", "font": "sans_semibold", "size": 10.5, "color": "mark", "line_height": 16 }]
+        },
+        {
+          "id": "dates",
+          "kind": "pairs",
+          "x": 384,
+          "below": ["company", "details", "logo"],
+          "gap": 30,
+          "width": 180,
+          "line_height": 15,
+          "label": { "font": "sans", "size": 9.5, "color": "muted" },
+          "value": { "font": "mono", "size": 9.5, "color": "ink" },
+          "rows": [
+            { "label": "Number", "field": "number" },
+            { "label": "Issued", "field": "issue_date" },
+            { "label": "Due", "field": "due_date" }
+          ]
+        },
+        {
+          "id": "bill_to",
+          "kind": "text",
+          "x": 48,
+          "below": ["title", "mark"],
+          "gap": 14,
+          "width": 280,
+          "anchor": "start",
+          "rows": [
+            { "text": "Bill to", "font": "serif", "size": 13, "color": "ink", "line_height": 18 },
+            { "field": "bill_to", "font": "sans", "size": 10, "color": "ink", "line_height": 14 }
+          ]
+        }
+      ],
+      "table": {
+        "below": ["bill_to", "dates"],
+        "gap": 28,
+        "inset": 8,
+        "column_gap": 16,
+        "labels": ["Description", "Qty", "Unit price", "Amount"],
+        "heading": { "font": "serif", "size": 11.5, "color": "ink", "height": 24 },
+        "name": { "font": "sans_semibold", "size": 10, "color": "ink", "line_height": 14 },
+        "description": { "font": "sans", "size": 9, "color": "muted", "line_height": 12.5 },
+        "figures": { "font": "mono", "size": 9.5, "color": "ink" },
+        "padding": 7,
+        "stripe": { "color": "stripe", "radius": 3 }
+      },
+      "totals": {
+        "gap": 18,
+        "x": 340,
+        "right": 556,
+        "line_height": 18,
+        "label": { "font": "sans", "size": 10, "color": "muted" },
+        "value": { "font": "mono", "size": 10, "color": "ink" },
+        "total": {
+          "line_height": 30,
+          "label": { "font": "serif", "size": 14, "color": "ink" },
+          "value": { "font": "mono_medium", "size": 12.5, "color": "accent" },
+          "fill": null
+        }
+      }
+    }
+  }
+}

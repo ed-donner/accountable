@@ -39,7 +39,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 ### Requests
 
 - The API accepts only JSON request bodies. The logo travels inside one, as base64 (B21), so no route reads a file upload.
-- A request body over 2 MB is refused with a 413 before it's read, so a large body can't use up the server's memory. The largest the app sends is a 1 MB logo, about 1.4 MB as base64.
+- A request body over 2 MB is refused with a 413 and `{"detail": "That's too big to send."}`, so a large body can't use up the server's memory. The bytes are counted as they arrive, so a body sent without a `Content-Length` is refused too. The check comes after the token's and before the JSON check, so a body sent without a token is still refused for the token. The largest body the app sends is a 1 MB logo, about 1.4 MB as base64.
 - Website links must be `http` or `https`, so a saved value can't run a script when clicked.
 
 ### Invoices and the logo

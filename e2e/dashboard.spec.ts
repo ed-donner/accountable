@@ -255,6 +255,8 @@ test.describe("with a small known dataset", () => {
     await expect(page.getByText("No follow-ups due.")).toBeVisible();
     await expect(page.getByText("Nothing has happened yet.")).toBeVisible();
     await expect(section(page, "Open pipeline")).toContainText("0% of open pipeline");
+    await expect(page.getByText("Nothing owed.")).toBeVisible();
+    await expect(page.getByText("No payments in the last 12 months.")).toBeVisible();
     await expect(page.getByText("NaN")).toHaveCount(0);
     await expect(page.getByText("Infinity")).toHaveCount(0);
   });
@@ -296,17 +298,59 @@ test.describe("with the sample data", () => {
     await expect(funnel.locator(".recharts-tooltip-wrapper")).toContainText("reached New");
   });
 
-  test("the dashboard fits 1440 by 900 with no page scrolling", async ({ page }) => {
+  test("the dashboard's own part fits 1440 by 900, and the page scrolls to the Money section below it", async ({
+    page,
+  }) => {
     await page.goto("/");
     await expect(page.getByTestId("revenue-this-month")).toBeVisible();
-    const sizes = await page.evaluate(() => ({
-      height: document.documentElement.scrollHeight,
-      windowHeight: window.innerHeight,
-      width: document.documentElement.scrollWidth,
-      windowWidth: window.innerWidth,
-    }));
-    expect(sizes.height).toBeLessThanOrEqual(sizes.windowHeight);
-    expect(sizes.width).toBeLessThanOrEqual(sizes.windowWidth);
+    for (const name of ["Revenue won", "Open pipeline", "Deals won", "Sales funnel", "Follow-ups", "Recent activity"]) {
+      await expect(section(page, name), name).toBeInViewport({ ratio: 1 });
+    }
+    const money = page.getByRole("heading", { level: 2, name: "Money" });
+    await expect(money).not.toBeInViewport();
+    const sideways = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(sideways).toBeLessThanOrEqual(0);
+
+    // The whole section shows once the page is scrolled to it.
+    await page.getByRole("region", { name: "Payments received" }).scrollIntoViewIfNeeded();
+    for (const name of ["Owed to us", "Payments received"]) {
+      await expect(page.getByRole("region", { name }), name).toBeInViewport({ ratio: 1 });
+    }
+    await expect(money).toBeInViewport();
+  });
+
+  test("the Money section owes what the invoices owe, with How late, and 12 months of payments marked so far", async ({
+    page,
+    request,
+  }) => {
+    const listed: { shows_as: string; owed_cents: number }[] = await (await request.get(`${API}/invoices`)).json();
+    const owing = listed.filter((row) => row.owed_cents > 0);
+    const total = owing.reduce((sum, row) => sum + row.owed_cents, 0);
+    const overdue = owing.filter((row) => row.shows_as === "overdue");
+    const dollars = (cents: number) =>
+      `$${Math.floor(cents / 100).toLocaleString("en-US")}.${String(cents % 100).padStart(2, "0")}`;
+
+    await page.goto("/");
+    const owed = page.getByRole("region", { name: "Owed to us" });
+    await owed.scrollIntoViewIfNeeded();
+    await expect(owed).toContainText(`Owed to us${dollars(total)}${owing.length} invoices`);
+    const overdueLink = owed.getByRole("link", { name: /Overdue/ });
+    await expect(overdueLink).toContainText(dollars(overdue.reduce((sum, row) => sum + row.owed_cents, 0)));
+    await expect(overdueLink).toContainText(`${overdue.length} invoice`);
+    await expect(owed.getByRole("list", { name: "How late" }).getByRole("listitem")).toHaveText([
+      /^Not yet due/,
+      /^1 to 30 days/,
+      /^31 to 60 days/,
+      /^61 to 90 days/,
+      /^Over 90 days/,
+    ]);
+
+    const received = page.getByRole("region", { name: "Payments received" });
+    await expect(received.locator(".recharts-bar-rectangle")).toHaveCount(12);
+    await expect(received.getByText("so far")).toBeVisible();
+    const bars = (await received.locator(".recharts-surface").boundingBox())!;
+    await page.mouse.move(bars.x + bars.width * 0.5, bars.y + bars.height * 0.8);
+    await expect(received.locator(".recharts-tooltip-wrapper")).toContainText(/\d+ payments?, /);
   });
 
   test("follow-ups and recent activity each scroll by themselves", async ({ page }) => {

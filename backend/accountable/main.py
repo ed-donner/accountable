@@ -19,7 +19,7 @@ from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 from starlette.responses import Response
-from starlette.types import Scope
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from accountable import api, auth, cli, db, search, settings, users
 from accountable.company import router as company_settings
@@ -28,6 +28,9 @@ from accountable.crm import schemas as crm_schemas
 from accountable.crm import search as crm_search
 from accountable.crm.routers import activities, contacts, dashboard, deals, meta, organizations
 from accountable.holds import Hold
+from accountable.invoices import schemas as invoices_schemas
+from accountable.invoices import tables as invoices_tables
+from accountable.invoices.routers import invoices, money, payments, pdf
 from accountable.products import router as products
 from accountable.products import schemas as products_schemas
 from accountable.products import search as products_search
@@ -68,6 +71,12 @@ AREAS = [
     ),
     Area(routers=[products.router], messages=products_schemas.FIELD_MESSAGES, kinds=products_search.KINDS),
     Area(routers=[company_settings.router], messages=company_schemas.FIELD_MESSAGES),
+    # Money's route comes first, so /invoices/money is never read as an invoice's id.
+    Area(
+        routers=[money.router, invoices.router, payments.router, pdf.router],
+        messages=invoices_schemas.FIELD_MESSAGES,
+        holds=invoices_tables.HOLDS,
+    ),
 ]
 
 
@@ -89,10 +98,11 @@ def make_app(
     app.state.holds = [hold for area in AREAS for hold in area.holds]
 
     # Each middleware added goes outside the ones before it, so a request meets these
-    # in the opposite order: the host, then the token, then the body's type. No
-    # cross-origin middleware is added, and tokens travel in a header, never a cookie,
-    # so another website in the same browser can't make a signed-in request.
+    # in the opposite order: the host, then the token, then the body's size, then its
+    # type. No cross-origin middleware is added, and tokens travel in a header, never a
+    # cookie, so another website in the same browser can't make a signed-in request.
     app.middleware("http")(_json_only)
+    app.add_middleware(BodyLimit)
     app.add_middleware(auth.RequireSignIn, open_paths=_local_sign_in_paths() if shared is None else ())
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts())
     app.exception_handler(RequestValidationError)(_invalid_request)
@@ -161,6 +171,54 @@ class BuiltFrontend(StaticFiles):
             # would ask for built files that the next deploy has replaced.
             response.headers["cache-control"] = "no-cache"
         return response
+
+
+MAX_BODY_BYTES = 2 * 1024 * 1024
+TOO_BIG = "That's too big to send."
+
+
+class BodyLimit:
+    """Refuses a body over 2 MB with a 413. A logo of 1 MB in base64 is the largest the app
+    sends. The bytes are counted as they arrive, so a body sent without a Content-Length, or
+    with a false one, is caught too, then handed on to the routes as one piece."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        body = await self._read(receive)
+        if body is None:
+            await JSONResponse({"detail": TOO_BIG}, status_code=413)(scope, receive, send)
+            return
+        handed_on = False
+
+        async def replay() -> Message:
+            nonlocal handed_on
+            if handed_on:
+                return await receive()
+            handed_on = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        await self.app(scope, replay, send)
+
+    @staticmethod
+    async def _read(receive: Receive) -> bytes | None:
+        """The whole body, or None once it passes the limit."""
+        chunks, size, more = [], 0, True
+        while more:
+            message = await receive()
+            if message["type"] != "http.request":
+                break
+            chunk = message.get("body", b"")
+            size += len(chunk)
+            if size > MAX_BODY_BYTES:
+                return None
+            chunks.append(chunk)
+            more = message.get("more_body", False)
+        return b"".join(chunks)
 
 
 async def _json_only(request: Request, call_next):

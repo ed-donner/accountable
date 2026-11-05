@@ -118,7 +118,7 @@ backend/accountable/
     tables.py                     the company_settings, company_logo and number_counters tables
     schemas.py                    the settings' request and reply models, their checks, and the messages for their fields
     router.py                     GET and PATCH /settings, and their queries
-    documents.py                  for quotes and invoices: the settings as saved, and the next number (B15)
+    documents.py                  for quotes and invoices: the settings as saved, the logo, and the next number (B15)
     tax.py                        for quotes and invoices: a line's amount, the subtotal, the tax and the total, and
                                   the quantity's type and limits (B16, B17)
     logo.py                       the logo's check, with Pillow: a real PNG or JPEG within B21's limits
@@ -130,6 +130,8 @@ backend/accountable/
     schemas.py                    request and reply models, and the messages for their fields
     figures.py                    what an invoice shows as, its days late and what's owed (V3), with today passed in
     routers/                      invoices (with drafts, issuing and voiding), payments, pdf and money
+    characters.py                 which characters invoices can show, from invoice-fonts.json, and the words for those they can't
+    fonts.py                      writes shared/invoice-fonts.json from the font files, with uv run -m accountable.invoices.fonts
     layout.py                     where everything goes on each page, as layout.ts does it, from invoice-designs.json
     pdf.py                        draws a laid-out invoice with ReportLab
     fonts/                        Instrument Sans, Instrument Serif and JetBrains Mono as TTF files, and their OFL
@@ -140,7 +142,8 @@ frontend/src/
   main.tsx, App.tsx, styles.css   styles.css holds every color, as light and dark tokens
   test-utils.tsx, test-setup.ts   the unit tests' helpers, and test-supabase.ts, which stands in for Supabase's client
   lib/                            fetch client, session, query defaults, money in dollars and in cents, reading a typed
-                                  price, date formatting, useToday, validation,
+                                  price, date formatting, useToday, validation, files.ts for a file's bytes as base64
+                                  and a picture's size,
                                   the saved theme, and for every area's records and forms: records.ts, with who added and
                                   changed a record and the hooks that save and delete one, saveErrors.ts, which shows a
                                   save's errors beside its fields, useCloseIfUnreadable.ts, and notify.ts, which
@@ -165,10 +168,12 @@ frontend/src/
     settings.ts                   the settings' type, reading and saving them, and the form's checks
     tax.ts                        the sums on quotes and invoices, as tax.py does them, and reading a quantity
     DocumentsPanel.tsx            the Documents panel: design, accent color, logo, and the preview App.tsx gives it
+    documentPreview.ts            the look the panel's sample is drawn in, and the type of the drawing App.tsx hands the page
     accent.ts                     the accent color's check (B20)
   invoices/                       invoices and payments, which imports crm/queries.ts, crm/deals.ts, products/queries.ts
                                   and company/
-    queries.ts, DraftForm.tsx, PaymentForm.tsx, panels.tsx, status.ts
+    queries.ts, DraftForm.tsx, PaymentForm.tsx, panels.tsx, status.ts, InvoiceChip.tsx
+    characters.ts                 which characters invoices can show, as characters.py says
     layout.ts                     where everything goes on each page, as layout.py does it
     InvoicePreview.tsx            draws laid-out pages as SVG, for an invoice and for the settings' sample
     MoneySection.tsx              the dashboard's Money section
@@ -225,7 +230,7 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 | Postgres | psycopg 3, SQLAlchemy's driver for it |
 | Checking tokens | PyJWT, with `cryptography` for Supabase's signing keys |
 | Frontend tools | `typescript`, `@vitejs/plugin-react`, `@tailwindcss/vite` |
-| Test tools | Vitest, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom`, `pytest`, `pytest-cov`, `httpx`, `@playwright/test` |
+| Test tools | Vitest, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom`, `pytest`, `pytest-cov`, `httpx`, `pypdf`, `@playwright/test` |
 | Code checks | Prettier, ESLint 9 with `typescript-eslint`, `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y`, ruff, ty, gitleaks, lefthook for the git hook, GitHub Actions for CI |
 
 - **Fonts:** the brand skill says Google Fonts. The npm packages hold the same fonts, so they look the same and work offline (C2).
@@ -235,4 +240,5 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 - **Migrations:** Alembic is here because people have real data in the database, and later features will change the tables. Without migrations, the only way to pick up a new column would be a reset that wipes that data. Migrations run by themselves when the backend starts, on both databases.
 - **Sign-in and Postgres:** these three came with sign-in. `@supabase/supabase-js` is Supabase's own client, and handles signing in, keeping the session and renewing the token, which would otherwise be hand-written against Supabase Auth's API. psycopg is what SQLAlchemy needs to reach Postgres at all. PyJWT checks token signatures against Supabase's public keys, which isn't something to hand-roll.
 - **PDFs:** ReportLab is the most used Python library for making PDFs, under a BSD licence. It and Pillow install from uv as wheels, with nothing for the system to provide, so they run on Render's native Python runtime. WeasyPrint, which turns HTML into PDF, would need Pango from the system, so it can't. Pillow also checks the logo (B21), so it isn't a second new library. The fonts the PDFs carry are the app's own three, as TTF files under the OFL in `invoices/fonts/`, since the npm packages hold only web fonts.
+- **pypdf:** for the tests only. They read a PDF's text back to check its figures, and a cut-down font stores glyph numbers, so it takes a reader that follows the font's map back to letters. Pure Python, with no dependencies, under a BSD licence.
 - **Fonts in the shared app:** the same Fontsource files are built into `frontend/dist`, so the shared app loads nothing from outside its own address but Supabase.

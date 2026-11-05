@@ -575,3 +575,50 @@ describe("a row that leaves the table", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Edit Alpha" }));
   });
 });
+
+describe("a table whose rows change only on their own page, such as invoices", () => {
+  function showBare(rows: Row[], extra = {}) {
+    const onAdd = vi.fn();
+    render(
+      <MemoryRouter>
+        <DataTable
+          noun="thing"
+          rows={rows}
+          columns={[
+            ...COLUMNS,
+            { id: "note", header: "Note", value: () => "kept out of sight", searchable: true, hidden: true },
+          ]}
+          defaultSort={{ id: "name", desc: false }}
+          rowId={(row) => row.id}
+          rowName={(row) => row.name}
+          rowHref={(row) => `/things/${row.id}`}
+          onAdd={onAdd}
+          {...extra}
+        />
+      </MemoryRouter>,
+    );
+    return onAdd;
+  }
+
+  it("has no Edit or Delete on a row, and no column for them", () => {
+    showBare(ROWS);
+    expect(screen.queryByRole("button", { name: /^Edit|^Delete/ })).toBeNull();
+    expect(screen.getAllByRole("columnheader")).toHaveLength(4);
+  });
+
+  it("searches a hidden column without showing it", async () => {
+    showBare(ROWS);
+    expect(screen.queryByText("kept out of sight")).toBeNull();
+    await user().type(screen.getByRole("searchbox"), "out of sight");
+    await waitFor(() => expect(names()).toHaveLength(3));
+    await user().type(screen.getByRole("searchbox"), " nowhere");
+    expect(await screen.findByText("No things match.")).toBeTruthy();
+  });
+
+  it("invites the first record in its own words", async () => {
+    const onAdd = showBare([], { invitation: { message: "No things yet. Start one elsewhere.", button: "New thing" } });
+    expect(screen.getByText("No things yet. Start one elsewhere.")).toBeTruthy();
+    await user().click(screen.getByRole("button", { name: "New thing" }));
+    expect(onAdd).toHaveBeenCalledOnce();
+  });
+});

@@ -4,8 +4,10 @@ import pytest
 from accountable import db, holds, main
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.holds import Hold
+from accountable.invoices.tables import invoices
 from conftest import NOW, TODAY
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 
 
 def count(table, *where) -> int:
@@ -122,8 +124,8 @@ def test_a_won_deal_stays_counted_after_its_organization_and_contact_go(api, mak
     assert dashboard["deals_won_this_month"] == 1
 
 
-# Nothing holds a deal or an organization yet, so these stand in for a later area's records,
-# such as a deal's invoices: a deal's activities, and an organization's contacts and deals.
+# These stand in for a later area's records, such as a deal's invoices, so the CRM's own tests
+# need no invoices: a deal's activities, and an organization's contacts and deals.
 STAND_IN_HOLDS = [
     Hold(activities.c.deal_id, "activity"),
     Hold(contacts.c.organization_id, "contact"),
@@ -136,9 +138,54 @@ def held(local_app):
     local_app.dependency_overrides[holds.app_holds] = lambda: STAND_IN_HOLDS
 
 
-def test_no_area_holds_a_deal_or_an_organization_yet():
-    assert [hold for area in main.AREAS for hold in area.holds] == []
-    assert main.app.state.holds == []
+def test_invoices_hold_their_deal_and_the_organization_they_were_issued_to():
+    given = [(hold.link, hold.noun) for area in main.AREAS for hold in area.holds]
+    assert given == [(invoices.c.deal_id, "invoice"), (invoices.c.organization_id, "invoice")]
+    assert [hold.held for hold in main.app.state.holds] == [deals, organizations]
+
+
+def test_a_deal_with_only_a_draft_cant_be_deleted(api, make):
+    deal = make.deal(stage="won")
+    make.invoice(deal)
+    make.invoice(deal)
+
+    assert api.get(f"/api/deals/{deal}/delete-impact").json()["held_by"] == [{"noun": "invoice", "count": 2}]
+    refused = api.delete(f"/api/deals/{deal}")
+    assert (refused.status_code, refused.json()) == (
+        409,
+        {"detail": "This deal has 2 invoices, so it can't be deleted."},
+    )
+    assert count(invoices) == 2
+
+
+def test_an_organization_with_an_issued_invoice_cant_be_deleted(api, make):
+    organization = make.organization()
+    deal = make.deal(stage="won")
+    make.invoice(deal, status="issued", organization_id=organization, number="INV-0001")
+
+    impact = api.get(f"/api/organizations/{organization}/delete-impact").json()
+    assert impact["held_by"] == [{"noun": "invoice", "count": 1}]
+    refused = api.delete(f"/api/organizations/{organization}")
+    assert (refused.status_code, refused.json()) == (
+        409,
+        {"detail": "This organization has 1 invoice, so it can't be deleted."},
+    )
+
+
+def test_a_draft_doesnt_hold_its_deals_organization(api, make):
+    """Only an issued invoice belongs to an organization (V11), so a draft holds its deal alone."""
+    organization = make.organization()
+    deal = make.deal(stage="won", organization_id=organization)
+    make.invoice(deal)
+    assert api.delete(f"/api/organizations/{organization}").status_code == 204
+    assert api.get(f"/api/deals/{deal}").json()["organization_id"] is None
+
+
+def test_the_database_refuses_a_held_delete_that_gets_past_the_route(make):
+    deal = make.deal(stage="won")
+    make.invoice(deal)
+    with pytest.raises(IntegrityError), db.writing() as conn:
+        conn.execute(delete(deals).where(deals.c.id == deal))
 
 
 def test_a_hold_holds_the_table_its_link_points_at():

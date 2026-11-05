@@ -3,8 +3,9 @@ deals' panels and the dashboard's Money section look full from the first visit.
 
 They're made from the CRM's won deals and the sample products as the database has them, and
 the company's settings, since this area may read those tables but not the other areas' sample
-data. Each won deal of the last 12 months gets an invoice whose subtotal is the deal's value,
-issued on the day it closed, so INV-0001 is the oldest. Then:
+data. Each won deal of the last 12 months gets an invoice with the lines the deal was sold with,
+which a win of the last three months has on its accepted quote too, so its subtotal is the deal's
+value. It's added after the deal was won, issued that day, so INV-0001 is the oldest. Then:
 
 - the newest of this month's wins are drafts, at least 2 even on the 1st;
 - one deal from about four months ago was invoiced, voided, and invoiced again and paid;
@@ -20,15 +21,15 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import Connection, Row, insert, select
+from sqlalchemy import Connection, Row, func, insert, select
 
 from accountable import months, who
 from accountable.company import documents, tax
-from accountable.crm.tables import contacts, deals, organizations
+from accountable.crm.tables import contacts, deals, organizations, stage_changes
 from accountable.invoices import figures
 from accountable.invoices.tables import DRAFT, ISSUED, VOID, invoice_lines, invoices, payments
 from accountable.products.tables import products
-from accountable.sample import moment
+from accountable.sample import Line, moment, sold_lines
 from accountable.users import add_missing_teammates, teammate
 
 # Days late for the overdue invoices, one in each group of How late, and the share of each paid.
@@ -40,8 +41,9 @@ KEPT_ISSUED = 2
 DRAFTS = (2, 3)
 """At least 2 drafts, and at most 3, from this month's wins of the last few days."""
 METHODS = ["bank_transfer", "card", "check"]
-# A sample invoice is issued an hour after it's added, and paid no sooner than an hour after that.
-ISSUED_AFTER = timedelta(hours=1)
+# A sample invoice is added no sooner than an hour after its deal was won, issued an hour after
+# it's added, and paid no sooner than an hour after that.
+AN_HOUR = timedelta(hours=1)
 
 
 @dataclass
@@ -58,47 +60,28 @@ class Planned:
 
 
 def _won_deals(conn: Connection, today: date) -> Sequence[Row]:
+    """With when each was moved to Won, which is when its quote was accepted, if it has one (M4)."""
     first = date.fromisoformat(f"{months.last_months(today)[0].key}-01")
+    won_at = (
+        select(stage_changes.c.deal_id, func.min(stage_changes.c.changed_at).label("won_at"))
+        .where(stage_changes.c.to_stage == "won")
+        .group_by(stage_changes.c.deal_id)
+        .subquery()
+    )
     return conn.execute(
         select(
             deals,
+            won_at.c.won_at,
             organizations.c.name.label("organization_name"),
             contacts.c.name.label("contact_name"),
             contacts.c.email.label("contact_email"),
         )
+        .join(won_at, won_at.c.deal_id == deals.c.id)
         .outerjoin(organizations, deals.c.organization_id == organizations.c.id)
         .outerjoin(contacts, deals.c.main_contact_id == contacts.c.id)
         .where(deals.c.stage == "won", deals.c.close_date >= first, deals.c.close_date <= today)
         .order_by(deals.c.close_date, deals.c.id)
     ).all()
-
-
-def _lines(number: int, cents: int, priced: Sequence[Row]) -> list[dict[str, Any]]:
-    """1 to 4 lines from the price list, the last priced so the subtotal is the deal's value.
-    The others take at most 60% of it, so the last is always a good part of the work."""
-    flexible = [product for product in priced if product.unit_price_cents >= 200000] or priced
-    last = flexible[number % len(flexible)]
-    chosen, spent = [], 0
-    for step in range(number % 4):
-        product = priced[(number * 3 + step * 5) % len(priced)]
-        quantity = 1 + (number + step) % 3
-        cost = quantity * product.unit_price_cents
-        if product.id == last.id or product.id in {line["product_id"] for line in chosen}:
-            continue
-        if spent + cost <= cents * 3 // 5:
-            chosen.append(_line(product, quantity, product.unit_price_cents))
-            spent += cost
-    return [*chosen, _line(last, 1, cents - spent)]
-
-
-def _line(product: Row, quantity: int, unit_price_cents: int) -> dict[str, Any]:
-    return {
-        "product_id": product.id,
-        "name": product.name,
-        "description": product.description,
-        "quantity": quantity,
-        "unit_price_cents": unit_price_cents,
-    }
 
 
 def _drafts(wins: Sequence[Row], today: date) -> set[int]:
@@ -218,12 +201,12 @@ class _Plan:
 def fill(conn: Connection, today: date) -> None:
     add_missing_teammates(conn)
     wins = _won_deals(conn, today)
-    priced = conn.execute(select(products).where(products.c.active).order_by(products.c.id)).all()
-    if not wins or not priced:
+    price_list = {row.name: row for row in conn.execute(select(products).where(products.c.active))}
+    if not wins or not price_list:
         return
     settings = documents.current_settings(conn)
-    lines = {deal.id: _lines(number, deal.value * 100, priced) for number, deal in enumerate(wins)}
-    totals = {deal.id: tax.totals(_as_lines(lines[deal.id]), settings.tax_rate).total_cents for deal in wins}
+    lines = {deal.id: sold_lines(price_list, deal.value) for deal in wins}
+    totals = {deal.id: tax.totals(lines[deal.id], settings.tax_rate).total_cents for deal in wins}
     planned = _Plan(wins, today, settings.payment_terms_days, totals).plans
     # Numbers go in the order the invoices were issued, so INV-0001 is the oldest (B15).
     in_order = sorted(planned, key=lambda plan: (plan.issue_date or date.max, plan.deal.id))
@@ -231,20 +214,11 @@ def fill(conn: Connection, today: date) -> None:
         _write(conn, plan, lines[plan.deal.id], settings, number)
 
 
-@dataclass(frozen=True)
-class _AsLine:
-    quantity: int
-    unit_price_cents: int
-
-
-def _as_lines(lines: list[dict[str, Any]]) -> list[_AsLine]:
-    return [_AsLine(line["quantity"], line["unit_price_cents"]) for line in lines]
-
-
-def _write(conn: Connection, plan: Planned, lines: list[dict[str, Any]], settings: Row, number: int) -> None:
-    """Added by a made-up teammate on the day it was issued, or for a draft the day its deal was won (M7)."""
+def _write(conn: Connection, plan: Planned, lines: list[Line], settings: Row, number: int) -> None:
+    """Added by a made-up teammate on the day it was issued, or for a draft the day its deal was won (M7),
+    and never before the deal was won and its quote accepted."""
     deal = plan.deal
-    added_at = moment(plan.issue_date or deal.close_date, number)
+    added_at = max(moment(plan.issue_date or deal.close_date, number), deal.won_at + AN_HOUR)
     values: dict[str, Any] = {
         "deal_id": deal.id,
         "status": DRAFT,
@@ -252,12 +226,12 @@ def _write(conn: Connection, plan: Planned, lines: list[dict[str, Any]], setting
         **who.added(teammate(number), added_at),
     }
     if plan.issue_date is not None:
-        values.update(_issued(plan, lines, settings, conn, number, added_at + ISSUED_AFTER))
+        values.update(_issued(plan, lines, settings, conn, number, added_at + AN_HOUR))
     invoice_id = conn.execute(insert(invoices).values(**values).returning(invoices.c.id)).scalar_one()
     conn.execute(
         insert(invoice_lines),
         [
-            {"invoice_id": invoice_id, "position": place, "created_at": added_at, **line}
+            {"invoice_id": invoice_id, "position": place, "created_at": added_at, **vars(line)}
             for place, line in enumerate(lines, start=1)
         ],
     )
@@ -270,18 +244,18 @@ def _write(conn: Connection, plan: Planned, lines: list[dict[str, Any]], setting
                 amount_cents=cents,
                 method=method,
                 reference=_reference(method, number),
-                created_at=max(moment(paid_on, number + paid_number), added_at + 2 * ISSUED_AFTER),
+                created_at=max(moment(paid_on, number + paid_number), added_at + 2 * AN_HOUR),
                 created_by=teammate(number + paid_number + 1),
             )
         )
 
 
 def _issued(
-    plan: Planned, lines: list[dict[str, Any]], settings: Row, conn: Connection, number: int, issued_at: datetime
+    plan: Planned, lines: list[Line], settings: Row, conn: Connection, number: int, issued_at: datetime
 ) -> dict[str, Any]:
     """What issuing writes (V11), by a made-up teammate, and voiding for the void one."""
     assert plan.issue_date is not None
-    totals = tax.totals(_as_lines(lines), settings.tax_rate)
+    totals = tax.totals(lines, settings.tax_rate)
     issuer = teammate(number + 2)
     taken = documents.take(conn, "invoice")
     issued = {

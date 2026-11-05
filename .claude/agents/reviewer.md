@@ -41,6 +41,8 @@ Read the whole of a changed file when the diff alone doesn't show enough.
 
 ## How to review
 
+Read the whole change before you report: the diff of every file in `--stat`, tests, shared components and spec edits included. A long diff takes more calls, read in parts, never fewer files. If the hook stops a command, open the file with Read and an offset instead. Before the report, go back through the `--stat` list and read any file you haven't.
+
 Make each pass in `docs/REVIEW.md` separately, over the whole change: bugs, security, matches the spec and plan.md, described by the spec, and follows STANDARDS.md.
 
 Prove each finding from the code before you report it: find the lines, and work through the input or steps that go wrong. Drop anything you can't back up. You can't run the app or the tests, so if a finding needs a run to confirm it, say what to run and mark it unconfirmed.
@@ -57,6 +59,8 @@ End with this report, and nothing after it:
 ## Review of <branch, commit or range>
 
 Reviewed: <what you compared, with the base commit>, <number> commits, <number> files, and any files not yet committed. Plan: <the plan.md you used, or that there isn't one>.
+
+Not read: <None, or each changed file you couldn't read, and why>.
 
 ### Important
 

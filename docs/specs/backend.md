@@ -20,7 +20,7 @@ Each person's row is added the first time the backend sees their token, and upda
 
 **Who on every record**
 
-Organizations, contacts, deals, activities and products each also have:
+Organizations, contacts, deals, activities, products and bills each also have:
 
 | Column | Type | Notes |
 |---|---|---|
@@ -120,9 +120,26 @@ The table holds one row, with `id` 1. The migration that makes the table adds it
 
 A kind's row is added when it takes its first number, so the migration adds none, and a kind with no row starts at 1. It belongs to `company/`, beside the prefixes, and `company/documents.py`'s `take_number` is the one thing that changes it. Seed, empty and the clearing steps delete its rows, as they delete the documents, so each count starts again at 1.
 
+**bills**
+
+| Column | Type | Notes |
+|---|---|---|
+| organization_id | foreign key to organizations | the supplier. Required, with no delete rule, so it holds the organization (D4) |
+| bill_number | text | required, as typed with the spaces at its ends dropped, 50 characters at most |
+| bill_number_key | text | the bill number with its case taken out, as `products.name_key` is. The backend sets it on every save |
+| bill_date | date | required |
+| due_date | date | required, never before `bill_date` |
+| amount_cents | 64-bit integer | the amount before tax, in whole US cents, 0 to 100,000,000,000,000, which is $1 trillion |
+| tax_cents | 64-bit integer | the tax as it appears on the bill, in whole cents, with the same limits. 0 by default |
+| category | text | `software`, `contractors`, `travel`, `office`, `marketing` or `other` |
+| notes | text | optional, and can hold several lines |
+| paid_on | date | the date it was paid. Blank while it's unpaid |
+
+The bills table belongs to `bills/tables.py`. It has no total column: the backend adds the amount and the tax in its queries and replies, so a total can never disagree with its parts. Overdue isn't kept either, because it changes with the day (E8). A unique index on `(organization_id, bill_number_key)` keeps each supplier's numbers apart (E3), and a check constraint keeps `category` to the six. The rules that need today, such as a paid date not in the future, are the API's, because a database constraint can't know the team's today.
+
 Notes:
 
-- **Links:** required links are enforced by the API, not the database, because deletes have to be able to blank them. The database columns allow blank.
+- **Links:** required links are enforced by the API, not the database, because deletes have to be able to blank them. The database columns allow blank. A bill's supplier is the one exception: no delete can blank it, because the organization's delete is refused (D4), so `bills.organization_id` is required in the database too.
 - **Which database:** `db.py` uses SQLite at `data/accountable.db` in the local copy and Postgres at `DATABASE_URL` in the shared app (C8). Everything specific to either one stays in `db.py` and the migrations. Postgres connections are checked before each use, because Render's sleep leaves dead ones in the pool, the pool holds at most 5, to stay within the session pooler's limit, and connecting gives up after 10 seconds, so a start can't hang on an unreachable Supabase. Reads on Postgres run in autocommit, with no BEGIN or ROLLBACK: its default isolation gives each query its own snapshot anyway, so a read transaction would only add round trips, and from far away each one costs 80ms or more. Writes are still one transaction each.
 - **New database:** the migrations add the company settings' row with the defaults, and the sample data then fills it with the sample company's ([B12](settings.md#starting-values)). A database that already exists gets only the defaults, from the same migration (B13). In the local copy, a first start builds the database under a temporary name and renames it once the migrations and sample data are done, so an interrupted first start can't leave an empty database behind. In the shared app, a database with none of the app's tables is new, and the first start builds the tables and adds the sample data in one transaction, which Postgres can roll back whole.
 - **Ids:** never used twice, so an old address can't open a different record. SQLite would otherwise give the newest record's id to the next one after a delete. Every table gets `TABLE_OPTIONS` from `db.py`. Postgres never reuses an id, so it needs nothing extra. Users keep the id Supabase gave them.
@@ -130,13 +147,14 @@ Notes:
 - **Migrations:** these run when the backend starts, all in one transaction, on both databases. On SQLite they run with foreign keys off, because SQLite makes most table changes by rebuilding the table, and dropping the old table with foreign keys on would run its delete rules, blanking links and deleting activities. Steps that only SQLite needs, such as those rebuilds, are skipped on Postgres, where Postgres can change a table in place. Every migration, the first ones included, runs from an empty database on both, so a new Supabase project gets the whole history.
 - **Row-level security:** on Postgres, the migrations turn on row-level security for every table, Alembic's version table included, with no policies ([Security](security.md#the-database)). SQLAlchemy has no way to say this, so it's the one place the migrations use raw SQL, and it runs only on Postgres.
 - **Row-level security check:** on Postgres, once the migrations have run, the backend reads Postgres's catalog through SQLAlchemy Core and refuses to start if any table in the `public` schema has row-level security off. It runs inside the migrations' transaction, so a start that fails it changes nothing. The message names each one, such as "Row-level security is off for these tables: notes. Turn it on in a migration." That catches a later migration that forgot, and a table added in Supabase's dashboard. The check lives in `db.py`.
-- **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)` and `stage_changes (changed_at)`, and unique ones on `products (name_key)` and `number_counters (kind)`.
-- **Held records:** a later area's column that holds a deal or an organization (D4), such as an invoice's `deal_id`, is a foreign key with no delete rule, so the database refuses the delete too, should one ever get past the route's check.
+- **Indexes:** on every foreign key, `deals (stage, position)`, `activities (occurred_at)`, `activities (follow_up_date)`, `stage_changes (changed_at)`, `bills (due_date)` and `bills (bill_date)`, and unique ones on `products (name_key)`, `number_counters (kind)` and `bills (organization_id, bill_number_key)`.
+- **Held records:** a later area's column that holds a deal or an organization (D4), such as `bills.organization_id`, is a foreign key with no delete rule, so the database refuses the delete too, should one ever get past the route's check.
 - **Times:** stored in UTC with no time zone, on both databases, so the API always sends times with a `Z`. Otherwise the browser would read a UTC time as local.
 - **Unique product names:** the database refuses a second product with the same `name_key`, so two saves at once can't both get through, and the API turns that refusal into the message beside the name (G8), never a 500. The key is worked out in Python, so it's the same on both databases. An index on the database's own `lower(name)` would differ between them, because SQLite's `lower()` only knows the letters A to Z, and an index can't use the lowercase function `db.py` gives SQLite. Saves check the key first, inside the write lock, so the usual case never reaches the refusal. Postgres also refuses an index entry over 2,704 bytes, its own few included, and that refusal isn't a duplicate, so it would be a 500. A name has at most 200 characters (G2), and no character's key is more than 12 bytes, so a key is at most 2,400 bytes, inside the 2,690 Postgres 16 took (`INDEXED_KEY_BYTES` in `products/tables.py`).
-- **Prices:** whole cents in a 64-bit integer, as `deals.value` is for whole dollars. The API takes `unit_price_cents` as a whole number and refuses anything else, so `49.5` is refused, not rounded. The browser holds whole numbers exactly up to about 9 quadrillion, far past the limit.
+- **Unique bill numbers:** the database refuses a second bill from one supplier with the same `bill_number_key`, and the API turns that refusal into the message beside the bill number (E3), never a 500, as it does for product names. Saves check the key first, inside the write lock. A bill number has at most 50 characters, so its key fits Postgres's index with room to spare.
+- **Prices:** whole cents in a 64-bit integer, as `deals.value` is for whole dollars. The API takes `unit_price_cents` as a whole number and refuses anything else, so `49.5` is refused, not rounded. A bill's `amount_cents` and `tax_cents` are taken the same way. The browser holds whole numbers exactly up to about 9 quadrillion, far past the limit, and past a bill's largest total of $2 trillion. A sum of bills can pass that, from 46 bills at the most, so `GET /bills/dashboard` sends its sums as strings of digits, such as `"9200000000000001"`, which the browser reads as a BigInt.
 - **Search:** case is ignored the same way on both databases (K2). SQLite's own `lower()` only knows the letters A to Z, so `db.py` gives SQLite a lowercase function that knows every language, and matching uses it on both sides of the comparison.
-- **Dates:** close dates and follow-up dates are plain dates. In the frontend, always read them with date-fns `parseISO`. `new Date("2026-10-31")` reads as UTC and shows the day before in US time zones.
+- **Dates:** close dates, follow-up dates and a bill's three dates are plain dates. In the frontend, always read them with date-fns `parseISO`. `new Date("2026-10-31")` reads as UTC and shows the day before in US time zones.
 - **Probabilities:** the six usual probabilities live in one place in the backend. The frontend reads them from `GET /api/meta`.
 
 ## Backend rules
@@ -158,6 +176,10 @@ Every add and save sets `created_by` and `updated_by` from the token, never from
 Saving the company settings reads the row, applies what was sent, checks the result against B4 to B7, and writes it, all in one transaction under the write lock. It sets `updated_by` and `updated_at` only if a value changed, as U10 says. The messages for their fields live in `company/schemas.py`, and `main.py` hands them to the error handler for a request to `/api/settings`.
 
 A deal's and an organization's delete check what holds the record first, inside the delete's own transaction, under the write lock, so nothing can come to hold it between the check and the delete. Each area gives `main.py` its holds in `holds.py`'s terms: the column that points at the held record, and the word for one of its records, such as `invoice`. `main.py` puts every area's on the app, and the CRM's routes read them from there, so they never name another area. Those routes' delete-impact replies list what holds the record, kind by kind, and a delete of a held record gets a 409 in the dialog's words (D4).
+
+Saving a bill reads it, applies what was sent, checks the result against E3 to E6 and E9, and writes it, all in one transaction under the write lock, so a paid date is checked against a bill date changed in the same save, and a number against the supplier it will have. The paid date is checked against the backend's today. A bill added without a due date gets its bill date plus 30 days, or the calendar's last day for a bill dated in its last 30. A supplier that doesn't exist gets "Choose a supplier", checked before the database's foreign key could turn it into a 500. Every problem is given at once, each beside its field. A save sets `updated_by` and `updated_at` only if a value changed (U10). The total in every reply is `amount_cents` plus `tax_cents`, and a total sent in a request is ignored, as any unknown field is. The messages for its fields live in `bills/schemas.py`.
+
+The Money section's figures (E20 to E23) come from two queries, never one per bill, using the backend's today: one reads the unpaid bills, from which what we owe, what's overdue and what's due in the next 30 days are all worked out, and one reads the bills dated in the 12 months. Python folds those into months and categories, as the CRM's revenue chart does with `month_series`, because grouping by month in the database needs date functions that differ between SQLite and Postgres. At 1,000 bills that's a few hundred rows, well within Q1.
 
 Every write takes one lock in `db.py`, because FastAPI runs requests on separate threads and renumbering reads a column before writing it, so two quick moves could otherwise undo each other. Teammates' moves on the shared app go through the same lock. It lives in the process, so the shared app runs as one process (W6).
 
@@ -194,6 +216,12 @@ All routes are under `/api` and use JSON. Every route needs a valid token in the
 | `GET /search?q=` | Up to 5 organizations, contacts, deals and active products whose names hold `q`, with a count for each kind (K1 to K5). `q` is 1 to 100 characters once the spaces at its ends are gone. |
 | `GET /settings` | The company settings, with who last changed them and when (B9) |
 | `PATCH /settings` | Change the settings sent. The checks apply to the settings as they'd be after the save (B5), so while no company name is saved, a save that leaves it out is refused. |
+| `GET /bills` | Every bill, each with its supplier's id and name and its `total_cents`. `?organization_id=` gives one organization's, for its Bills panel (E19) |
+| `POST /bills` | Add. Without `due_date`, it's 30 days after `bill_date` (E5). With `paid_on`, it's added paid |
+| `GET /bills/{id}` | One bill, with its supplier's id and name and its `total_cents` |
+| `PATCH /bills/{id}` | Edit the fields sent. `paid_on` set to a date marks the bill paid, and set to null marks it unpaid (E9 to E11) |
+| `DELETE /bills/{id}` | Delete (E17) |
+| `GET /bills/dashboard` | The Money section, in one reply: the backend's `today`, so the page can tell when the day has passed it, what we owe and what's overdue, each as a total and a count, the unpaid bills due from today to 30 days on, in due date order, and each of the last 12 months' spending by category, oldest first (E20 to E23). Its sums are strings of digits (Prices, above); each due bill's total is a number |
 
 The local copy also has these two, which need no token and which the shared app doesn't have (U16):
 
@@ -206,11 +234,13 @@ Signing in to the shared app goes from the browser straight to Supabase Auth, so
 
 `DELETE /organizations/{id}` and `DELETE /deals/{id}` get a 409 while another area's records hold the record (D4), such as `{"detail": "This deal has 2 quotes and 1 invoice, so it can't be deleted."}`, and their `delete-impact` replies carry `held_by`, a list of `{"noun": "quote", "count": 2}`, empty when nothing holds the record. Contacts are never held, so theirs doesn't.
 
-Each area's routes start with words of its own after `/api`, such as `/api/products` or `/api/settings`, never another area's, so `main.py` can give a field error the messages of the area whose route it reached. A later area's lists for a deal or an organization go under its own words, such as `/api/quotes?deal_id=7`, not under `/api/deals`. Routes that belong to no area, such as `/api/search`, have messages of their own or none.
+Each area's routes start with words of its own after `/api`, such as `/api/products` or `/api/settings`, never another area's, so `main.py` can give a field error the messages of the area whose route it reached. A later area's lists for a deal or an organization go under its own words, such as `/api/bills?organization_id=7`, not under `/api/organizations`. Routes that belong to no area, such as `/api/search`, have messages of their own or none.
 
 Products have no delete route, so `DELETE /products/{id}` gets a 405 (G9). A product's name that's taken gets a 422 with a message beside `name`, like any other field (G2).
 
-The single-record replies for organizations, contacts, deals and products carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way, and the company settings carry `updated_by` and `updated_at`, with `updated_by` null until someone saves them, and again after the clearing steps. Names follow U8. A record counts as changed since it was added when its `updated_at` differs from its `created_at`, so an add sets both from one moment, and the changes the app makes around a save, such as renumbering a column, leave the other records' `updated_at` alone as well as their `updated_by` (U10, R6). Records from before sign-in, with no one recorded, can have their two times a moment apart, so on those the record pages treat a difference under a second as no change.
+A bill number the supplier already has gets a 422 with a message beside `bill_number` (E3). Bills have no `delete-impact` route, because nothing is deleted with a bill or left pointing at one. A bill's category travels as its lowercase word, such as `software`, and its dates as `YYYY-MM-DD`. Replies don't say whether a bill is overdue: the page works that out from `due_date`, `paid_on` and its own today, so it changes when the day does (E8).
+
+The single-record replies for organizations, contacts, deals, products and bills carry `created_by` and `updated_by`, each with the person's id and name, or null for a record from before sign-in, and `created_at` and `updated_at` in UTC. Timeline entries carry `created_by` the same way, and the company settings carry `updated_by` and `updated_at`, with `updated_by` null until someone saves them, and again after the clearing steps. Names follow U8. A record counts as changed since it was added when its `updated_at` differs from its `created_at`, so an add sets both from one moment, and the changes the app makes around a save, such as renumbering a column, leave the other records' `updated_at` alone as well as their `updated_by` (U10, R6). Records from before sign-in, with no one recorded, can have their two times a moment apart, so on those the record pages treat a difference under a second as no change.
 
 The tax rate travels as text in replies, such as `"8.875"`, without trailing zeros, so nothing on the way can round it (B7). Requests can send it as text or as a number, and the backend checks it from its digits. Python's JSON reader would make a number with a point a float, which loses digits past about the 16th, so the settings' routes use `api.ExactNumbersRoute`, which reads such a number as a `Decimal` with every digit sent. No other route uses it, so every other area's bodies are read as before.
 

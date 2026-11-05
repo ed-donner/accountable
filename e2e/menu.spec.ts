@@ -17,7 +17,7 @@ const RAISED = { light: "rgb(255, 255, 255)", dark: "rgb(18, 64, 79)" };
 const FOCUS = { light: "rgb(17, 138, 178)", dark: "rgb(76, 179, 214)" };
 const MARIGOLD = "rgb(255, 193, 69)";
 const MIDNIGHT = "rgb(7, 59, 76)";
-const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products"];
+const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/bills"];
 const SEARCH_BOX = "Search organizations, contacts, deals and products";
 
 /** Named for the person once the backend says who's signed in, and plain "Menu" until then. */
@@ -112,7 +112,8 @@ test("the menu button can be reached by Tab, shows a focus ring, and its menu wo
   await expect(page.locator("tbody tr").first()).toBeVisible();
 
   const sections = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
-  for (let index = 0; index < 6; index += 1) {
+  await expect(sections).toHaveCount(7);
+  for (let index = 0; index < 7; index += 1) {
     await page.keyboard.press("Tab");
     await expect(sections.nth(index)).toBeFocused();
   }
@@ -242,7 +243,10 @@ test("the menu is on every screen and works there", async ({ page, request, expe
   await request.delete(`/api/deals/${gone.id}`);
 
   const screens: [string, RegExp | string][] = [
-    ...SECTIONS.map((path): [string, RegExp] => [path, /^(Dashboard|Organizations|Contacts|Deals|Pipeline|Products)$/]),
+    ...SECTIONS.map((path): [string, RegExp] => [
+      path,
+      /^(Dashboard|Organizations|Contacts|Deals|Pipeline|Products|Bills)$/,
+    ]),
     [`/deals/${deal.id}`, "Menu everywhere"],
     [`/deals/${gone.id}`, "This deal no longer exists"],
     ["/nothing-here", "This page no longer exists"],
@@ -465,6 +469,10 @@ for (const mode of ["light", "dark"] as const) {
     ];
     const products: { id: number; active: boolean }[] = await (await request.get("/api/products")).json();
     const archived = products.find((product) => !product.active)!;
+    const bills: { id: number; due_date: string; paid_on: string | null }[] = await (
+      await request.get("/api/bills")
+    ).json();
+    const overdue = bills.find((bill) => bill.paid_on === null && bill.due_date < isoDay())!;
     await addLinkedDeal(request, `Late for the ${mode} sweep`, { close_date: isoDay(-3) });
 
     const screens: { path: string; ready: (page: Page) => Promise<void> }[] = [
@@ -494,6 +502,29 @@ for (const mode of ["light", "dark"] as const) {
       {
         path: `/products/${archived.id}`,
         ready: (page) => expect(page.getByRole("button", { name: "Restore", exact: true })).toBeVisible(),
+      },
+      {
+        // Overdue first, so every status's chip is on the first page.
+        path: "/bills?status=all&sort=status&dir=asc",
+        ready: async (page) => {
+          await expect(page.locator("tbody tr").first()).toBeVisible();
+          for (const status of ["Overdue", "Unpaid", "Paid"]) {
+            await expect(page.locator("tbody").getByText(status, { exact: true }).first()).toBeVisible();
+          }
+        },
+      },
+      {
+        path: `/bills/${overdue.id}`,
+        ready: (page) => expect(page.getByRole("main").getByText("Overdue", { exact: true })).toBeVisible(),
+      },
+      {
+        path: "/",
+        ready: async (page) => {
+          const money = page.getByRole("region", { name: "Money" });
+          await money.getByRole("img", { name: /^Spending by category/ }).scrollIntoViewIfNeeded();
+          await expect(money.getByRole("img", { name: /bills due from today/ })).toBeVisible();
+          await expect(money.getByText("so far", { exact: true })).toBeVisible();
+        },
       },
       {
         path: "/deals",

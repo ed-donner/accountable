@@ -59,7 +59,7 @@ export type TableColumn<T> = {
   width?: string;
 };
 
-/** A row's second button, in place of Delete, such as Archive. */
+/** A row's own button after Edit, such as Archive, in place of Delete or before it. */
 export type RowAction = {
   /** What it does, such as "Archive". Screen readers hear it with the row's name. */
   label: string;
@@ -80,11 +80,35 @@ export type HiddenRows<T> = {
   hiddenMatch: (count: number) => string;
 };
 
-/** A table gives Delete or another button for each row, never both. */
-type SecondButton<T> =
-  { onDelete: (row: T) => void; rowAction?: never } | { rowAction: (row: T) => RowAction; onDelete?: never };
+/**
+ * A filter whose usual view leaves rows out, such as Bills under Unpaid (E15), so a table
+ * with none under it says so and offers All, rather than inviting a first record.
+ */
+export type FilterNote<T> = {
+  /** Every row, before the filter. */
+  all: T[] | undefined;
+  /** What shows when no row is under the filter, such as "No unpaid bills." */
+  none: string;
+  /** The filter's words for a search with no matches, such as "unpaid bills". */
+  words: string;
+  /** What's added when rows match the search under All, such as "4 bills match under All." */
+  matchUnderAll: (count: number) => string;
+  /** The address change that shows All. */
+  showAll: AddressChange;
+};
 
-type Props<T extends RowData> = SecondButton<T> & {
+/** What a page can ask of its table. */
+export type TableHandle = {
+  /** Such as when a dialog's save took the row it was opened from out of the table (Q3). */
+  focusSearch: () => void;
+};
+
+/** Each row has Edit, then its own button, Delete, or both in that order. */
+type RowButtons<T> =
+  | { onDelete: (row: T) => void; rowAction?: (row: T) => RowAction }
+  | { rowAction: (row: T) => RowAction; onDelete?: (row: T) => void };
+
+type Props<T extends RowData> = RowButtons<T> & {
   /** Singular and plural words for the messages, such as "organization". */
   noun: string;
   rows: T[] | undefined;
@@ -105,6 +129,9 @@ type Props<T extends RowData> = SecondButton<T> & {
   /** Address settings to clear along with the search. */
   clearParams?: string[];
   hidden?: HiddenRows<T>;
+  /** For a filter that's leaving rows out, already applied to rows. */
+  filterNote?: FilterNote<T>;
+  ref?: Ref<TableHandle>;
 };
 
 function compare(a: string | number, b: string | number) {
@@ -208,6 +235,17 @@ function ShowHiddenBox({
 /** What a table with hidden rows says when they're all it would show. */
 type HiddenNote = { allHidden: string; matching: string | null; showLabel: string; onShow: () => void };
 
+/** What a table says when its filter leaves out every row it would show. */
+type FilteredNote = {
+  none: string;
+  /** What a search with no matches says, or null with no search. */
+  noMatch: string | null;
+  /** How many match under All, or null if none do. */
+  matching: string | null;
+  showLabel: string;
+  onShow: () => void;
+};
+
 type NoRowsProps = {
   noun: string;
   rows: unknown[] | undefined;
@@ -216,14 +254,35 @@ type NoRowsProps = {
   /** True when a search or filter is narrowing the rows. */
   narrowed: boolean;
   hiddenNote: HiddenNote | null;
+  filteredNote: FilteredNote | null;
   onAdd: () => void;
   onClear: () => void;
 };
 
+function FilteredOut({ note, onClear }: { note: FilteredNote; onClear: () => void }) {
+  const showAll = (
+    <button type="button" className="btn btn-secondary" onClick={note.onShow}>
+      {note.showLabel}
+    </button>
+  );
+  if (!note.noMatch) return <EmptyState message={note.none}>{showAll}</EmptyState>;
+  return (
+    <EmptyState message={[note.noMatch, note.matching].filter(Boolean).join(" ")}>
+      <div className="flex gap-2">
+        <button type="button" className="btn btn-secondary" onClick={onClear}>
+          Clear search
+        </button>
+        {note.matching && showAll}
+      </div>
+    </EmptyState>
+  );
+}
+
 /** What shows in place of rows: a space while loading, an invitation, or that nothing matches. */
-function NoRows({ noun, rows, error, matching, narrowed, hiddenNote, onAdd, onClear }: NoRowsProps) {
+function NoRows({ noun, rows, error, matching, narrowed, hiddenNote, filteredNote, onAdd, onClear }: NoRowsProps) {
   if (rows === undefined) return error ? null : <div className="h-40" aria-busy="true" />;
   if (matching > 0) return null;
+  if (filteredNote) return <FilteredOut note={filteredNote} onClear={onClear} />;
   const showHidden = hiddenNote && (
     <button type="button" className="btn btn-secondary" onClick={hiddenNote.onShow}>
       {hiddenNote.showLabel}
@@ -272,6 +331,36 @@ function useHiddenRows<T>(
   return { shown, held, hiddenCount: hiddenRows.length, hiddenMatches };
 }
 
+/**
+ * What a filter that's leaving rows out says (E15), once there are rows under All to show.
+ * With none at all, the table invites the first one as usual.
+ */
+function useFilteredNote<T>(
+  filterNote: FilterNote<T> | undefined,
+  noun: string,
+  columns: TableColumn<T>[],
+  search: string,
+  update: (change: AddressChange) => void,
+): FilteredNote | null {
+  const all = filterNote?.all;
+  const matchingAll = useMemo(
+    () => (all && search ? all.filter((row) => matchesSearch(row, columns, search)).length : 0),
+    [all, columns, search],
+  );
+  if (!filterNote || !all || all.length === 0) return null;
+  return {
+    none: filterNote.none,
+    noMatch: search ? `No ${filterNote.words} match "${search}".` : null,
+    matching: matchingAll > 0 ? filterNote.matchUnderAll(matchingAll) : null,
+    showLabel: `Show all ${noun}s`,
+    onShow: () =>
+      update((address) => {
+        filterNote.showAll(address);
+        address.delete("page");
+      }),
+  };
+}
+
 type PagerProps = {
   page: number;
   lastPage: number;
@@ -297,18 +386,32 @@ function Pager({ page, lastPage, matching, onPrevious, onNext }: PagerProps) {
   );
 }
 
+/** Room for Edit and one more button, or for two more. */
+function actionsWidth(rowAction?: unknown, onDelete?: unknown) {
+  return rowAction && onDelete ? "w-[116px]" : "w-[84px]";
+}
+
+/** The row's own button, then Delete, after Edit. */
+function rowButtons<T>(row: T, rowAction?: (row: T) => RowAction, onDelete?: (row: T) => void): RowAction[] {
+  const buttons = rowAction ? [rowAction(row)] : [];
+  if (onDelete)
+    buttons.push({ label: "Delete", icon: <Trash2 size={16} aria-hidden="true" />, onClick: () => onDelete(row) });
+  return buttons;
+}
+
 type TableRowProps<T extends RowData> = {
   row: Row<typeof features, T>;
   cells: Map<string, TableColumn<T>>;
   href: string;
   name: string;
-  second: { label: string; icon: ReactNode; onClick: () => void };
+  /** The buttons after Edit, in order. */
+  buttons: RowAction[];
   onEdit: () => void;
   /** Called if this row leaves the table while it has focus, so focus is never left on nothing (Q3). */
   onLeaveWithFocus: () => void;
 };
 
-function TableRow<T extends RowData>({ row, cells, href, name, second, onEdit, onLeaveWithFocus }: TableRowProps<T>) {
+function TableRow<T extends RowData>({ row, cells, href, name, buttons, onEdit, onLeaveWithFocus }: TableRowProps<T>) {
   const navigate = useNavigate();
   const element = useRef<HTMLTableRowElement>(null);
 
@@ -356,17 +459,21 @@ function TableRow<T extends RowData>({ row, cells, href, name, second, onEdit, o
         >
           <Pencil size={16} aria-hidden="true" />
         </button>
-        <button
-          type="button"
-          aria-label={`${second.label} ${name}`}
-          className="icon-btn"
-          onClick={(event) => {
-            event.stopPropagation();
-            second.onClick();
-          }}
-        >
-          {second.icon}
-        </button>
+        {/* Kept in place by position, so a button that changes, such as Mark paid to Mark unpaid, keeps focus. */}
+        {buttons.map((button, place) => (
+          <button
+            key={place}
+            type="button"
+            aria-label={`${button.label} ${name}`}
+            className="icon-btn"
+            onClick={(event) => {
+              event.stopPropagation();
+              button.onClick();
+            }}
+          >
+            {button.icon}
+          </button>
+        ))}
       </td>
     </tr>
   );
@@ -390,9 +497,12 @@ export function DataTable<T extends RowData>({
   filtered = false,
   clearParams = [],
   hidden,
+  filterNote,
+  ref,
 }: Props<T>) {
   const { params, latest, update } = useAddress();
   const searchBox = useRef<Focusable>(null);
+  useImperativeHandle(ref, () => ({ focusSearch: () => searchBox.current?.focus() }), []);
 
   // Once the row has gone, and only if the table is still here and nothing else took focus.
   const focusSearchBox = useCallback(
@@ -516,11 +626,6 @@ export function DataTable<T extends RowData>({
 
   const cells = new Map(columns.map((column) => [column.id, column]));
 
-  function secondButton(row: T) {
-    if (rowAction) return rowAction(row);
-    return { label: "Delete", icon: <Trash2 size={16} aria-hidden="true" />, onClick: () => onDelete!(row) };
-  }
-
   const hiddenNote: HiddenNote | null =
     hidden && !shown && hiddenCount > 0
       ? {
@@ -530,6 +635,8 @@ export function DataTable<T extends RowData>({
           onShow: () => showHidden(true),
         }
       : null;
+
+  const filteredNote = useFilteredNote(filterNote, noun, columns, search, update);
 
   return (
     <div className="flex flex-col gap-2.5 px-5 pb-4">
@@ -548,6 +655,7 @@ export function DataTable<T extends RowData>({
           matching={matching}
           narrowed={search !== "" || filtered}
           hiddenNote={hiddenNote}
+          filteredNote={filteredNote}
           onAdd={onAdd}
           onClear={clearSearch}
         />
@@ -578,7 +686,7 @@ export function DataTable<T extends RowData>({
                     </th>
                   );
                 })}
-                <th scope="col" className="w-[84px]">
+                <th scope="col" className={actionsWidth(rowAction, onDelete)}>
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
@@ -591,7 +699,7 @@ export function DataTable<T extends RowData>({
                   cells={cells}
                   href={rowHref(row.original)}
                   name={rowName(row.original)}
-                  second={secondButton(row.original)}
+                  buttons={rowButtons(row.original, rowAction, onDelete)}
                   onEdit={() => onEdit(row.original)}
                   onLeaveWithFocus={focusSearchBox}
                 />

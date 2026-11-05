@@ -1,8 +1,12 @@
-import { Package } from "lucide-react";
+import { Package, Receipt } from "lucide-react";
 import { useEffect } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { BillsPanel } from "./bills/BillsPanel";
+import { MoneySection } from "./bills/charts/MoneySection";
+import { Bill } from "./bills/pages/Bill";
+import { Bills } from "./bills/pages/Bills";
 import { SettingsPage } from "./company/SettingsPage";
 import { Icon } from "./components/Icon";
 import { MissingRecord } from "./components/MissingRecord";
@@ -28,7 +32,7 @@ import { productsSearchGroups } from "./products/searchGroups";
 const ICON_SIZE = 17;
 
 // The top bar's sections, area by area. The design reference has icons for the CRM's.
-// Products takes lucide's, drawn as Icon draws its own.
+// Products and Bills take lucide's, drawn as Icon draws its own.
 const SECTIONS: Section[] = [
   { to: "/", label: "Dashboard", icon: <Icon name="dashboard" size={ICON_SIZE} /> },
   { to: "/organizations", label: "Organizations", icon: <Icon name="organizations" size={ICON_SIZE} /> },
@@ -40,15 +44,20 @@ const SECTIONS: Section[] = [
     label: "Products",
     icon: <Package size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
   },
+  {
+    to: "/bills",
+    label: "Bills",
+    icon: <Receipt size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
+  },
 ];
 
 const SEARCH_GROUPS = [...crmSearchGroups, ...productsSearchGroups];
 
 // What later areas add to the CRM's pages, such as a deal's quotes, an organization's bills
-// or a section of the dashboard. None do yet.
+// or a section of the dashboard. Nothing adds to a deal's page yet.
 const DEAL_PANELS: RecordPanel<DealDetail>[] = [];
-const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [];
-const DASHBOARD_SECTIONS: DashboardSection[] = [];
+const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [{ name: "bills", Panel: BillsPanel }];
+const DASHBOARD_SECTIONS: DashboardSection[] = [{ name: "money", Section: MoneySection }];
 
 function AppShell() {
   useMeta(); // Fetched early, because it never changes and forms need it straight away.
@@ -69,6 +78,8 @@ const router = createBrowserRouter([
       { path: "/pipeline", element: <Pipeline /> },
       { path: "/products", element: <Products /> },
       { path: "/products/:id", element: <Product /> },
+      { path: "/bills", element: <Bills /> },
+      { path: "/bills/:id", element: <Bill /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "*", element: <MissingRecord word="page" to="/" section="Dashboard" /> },
     ],

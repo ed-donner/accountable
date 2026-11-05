@@ -132,6 +132,29 @@ export async function addProduct(request: APIRequestContext, name: string, value
   return product;
 }
 
+type BillFields = {
+  organization_id: number;
+  bill_number?: string;
+  bill_date?: string;
+  due_date?: string;
+  amount_cents?: number;
+  tax_cents?: number;
+  category?: string;
+  notes?: string;
+  paid_on?: string;
+};
+
+/** A software bill for $100.00, dated today and so due in 30 days, unless the values say otherwise. */
+export function addBill(request: APIRequestContext, values: BillFields) {
+  return post<{ id: number; bill_number: string; total_cents: number; paid_on: string | null }>(request, "/bills", {
+    bill_number: "INV-0001",
+    bill_date: isoDay(),
+    amount_cents: 10000,
+    category: "software",
+    ...values,
+  });
+}
+
 /** An organization, a contact and a deal, for tests that need one of each. */
 export async function addLinkedDeal(request: APIRequestContext, name: string, deal: Partial<DealFields> = {}) {
   const organization = await addOrganization(request, `${name} Ltd`);

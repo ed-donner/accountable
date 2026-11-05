@@ -13,11 +13,12 @@ const NAMES: Record<Money["groups"][number]["key"], string> = {
 /**
  * What's owed in five groups by days late (V29): bars sized against the largest, Not yet due in
  * Cerulean as information and the late ones in Raspberry as alerts, each named beside its bar.
+ * The rows spread over the panel's height, as the timeline beside it does.
  */
 export function HowLate({ groups }: { groups: Money["groups"] }) {
   const largest = Math.max(...groups.map((group) => group.cents), 1);
   return (
-    <ul aria-label="How late" className="flex flex-col gap-2">
+    <ul aria-label="How late" className="flex flex-1 flex-col justify-between pt-2 pb-1">
       {groups.map((group) => (
         <li
           key={group.key}

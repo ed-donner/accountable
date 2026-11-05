@@ -457,6 +457,27 @@ Each new check was shown to fail on code broken for it, from a copy of the file 
 
 `npm run check` passes: 3,800 tests in 4m 28s, of which 2,355 backend, 1,163 frontend, 273 end-to-end and 9 speed.
 
+## Prepare: test runs take turns
+
+Done on the `prepare` branch, so that three or four agents, each in its own worktree, can each run `npm run check` or `npm run check:quick` when they finish a piece of work. Until now every run started its checks straight away, waiting only for another run's speed tests, and shared the workers out between the runs that were busy. Three at once got 2 workers each, next to three sets of unit tests, and the owner saw tests time out on a 10-core Mac.
+
+- **Two turns:** a run waits for a turn before its checks and holds it through its end-to-end tests, by listening on the turn's port, 24113 or 24114. They come after every worker's ports, so no port from before moved. `TURNS` in `scripts/test-plan.mjs` is 2.
+- **A queue:** each waiting run says on its slot's port when it started waiting, and tries for a turn only when fewer runs are ahead of it than turns are free. So runs go first come, first served, whatever their slots, and the port settles two tries at the same moment.
+- **Speed tests first:** a run that has finished its end-to-end tests says so on its slot's port, then gives back its turn. Waiting runs don't take it until every run at that stage has had its speed tests. Without that, a run waiting for the speed tests' turn could lose the turn it gave back to a waiting run, and wait out that run's whole check.
+- **Saying so:** a waiting run prints why, such as "Waiting for a turn. 2 test runs at a time can go on this computer, and 1 other test run is ahead of this one.", once the reason has lasted two looks, a quarter of a second apart. The trial below printed "2 other test runs are ahead" and then, a moment later, "this one is next", because the other two had joined the queue a few milliseconds earlier and were taking the free turns. Once its turn comes it prints how long it waited.
+- **The Stop hook** now has 30 minutes rather than Claude Code's default of 10, in `.claude/settings.json`, because its `npm run check:quick` can wait behind two runs of `npm run check`.
+- **`AGENTS.md`** says to let a waiting run wait, and to start `npm run check` in the background or with the longest timeout a shell tool allows, because the wait can outlast the tool's limit.
+
+Proved by starting `npm run check` in three new worktrees in `.claude/worktrees/` at the same moment, with a script sampling every quarter of a second what each run said on its slot's port and who held the turns. It never saw more than two runs busy or more than two turns held. All three passed every test, 3,806 each:
+
+- **The first two** took the turns at once, had 3 workers each and passed in 6m 36s and 7m 01s. Their end-to-end tests ended two seconds apart, and their speed tests went one after the other.
+- **The third** printed "Waiting for a turn. 2 test runs at a time can go on this computer, and this one is next.", then "Waiting for the speed tests of another test run on this computer." once the first two reached theirs, and didn't take either turn they gave back. It got a turn after 7m 01s, had all 6 workers to itself, and passed in 10m 59s, of which its end-to-end tests took 2m 24s, where the first two's took 4m 42s and 4m 44s.
+- **The speed figures** were the same whether a run had shared the machine or not: the dashboard's data in 23 to 25ms, the top bar's search in 195 to 196ms, and the worst task in each drag at a median of 70 to 75ms, with none over 184ms.
+
+A trial the same way, before the change to when a waiting run speaks, also passed in all three, in 6m 24s, 6m 50s and 10m 39s. That was where the early "2 other test runs are ahead" line turned up.
+
+Each new check in `scripts/test-runs.test.mjs` was shown to fail on a copy of `test-runs.mjs` broken for it, put back after: no queue order, free turns counted without the busy runs, no turn ports, the speed tests first only while their port is held, none of the speed tests first, and every reason printed at once. Several of them rely on timing, so the file was run 13 times on the working code and passed every time, and the two breaks most open to chance were tried again: the speed tests' place failed six times in six, and every reason printed at once three times in three.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -598,7 +619,7 @@ Accountable has only been used on a Mac. It's built to work the same on Windows 
 
 The end-to-end tests run side by side, using a number of workers chosen from your computer's cores and memory, so a smaller computer runs fewer at once and takes longer. To set the number yourself, for example while the computer is busy, run `ACCOUNTABLE_TEST_WORKERS=2 npm test`. The speed tests always run last and alone, so their timings are fair.
 
-You can run the tests in several worktrees at once, with nothing to set. Each run uses ports no other run is using, the runs share the workers between them, and each run's speed tests wait until the others have finished their checks and end-to-end tests, printing a line while they wait. So two runs together take longer than one, but both get a fair result.
+You can run the tests in several worktrees at once, with nothing to set. Each run uses ports no other run is using. No more than two go at once: the rest wait for a turn, in the order they started waiting, printing a line that says so and how many runs are ahead. The two going share the workers, and each run's speed tests wait until the others have finished their checks and end-to-end tests. So runs together take longer than one alone, but each gets a fair result.
 
 To run some of the end-to-end tests on their own, such as one file, use `npm run e2e -- e2e/settings.spec.ts`. Playwright's own options work after the file, such as `-g "a save"` to pick tests by name.
 

@@ -40,6 +40,7 @@
             ],
             "command": "node",
             "statusMessage": "Running npm run check:quick",
+            "timeout": 1800,
             "type": "command"
           }
         ]

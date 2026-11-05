@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_RUNS, MAX_WORKERS, RUN_PORTS, chooseWorkers, stackFor, workerPorts } from "./test-plan.mjs";
+import { MAX_RUNS, MAX_WORKERS, RUN_PORTS, TURNS, chooseWorkers, stackFor, workerPorts } from "./test-plan.mjs";
 
 describe("chooseWorkers", () => {
   it("uses 6 workers on 10 cores, the most that still made the tests faster", () => {
@@ -47,6 +47,7 @@ describe("stackFor", () => {
   const everyPort = [
     RUN_PORTS.speedTurn,
     ...RUN_PORTS.slots,
+    ...RUN_PORTS.turns,
     ...Array.from({ length: MAX_RUNS }, (_, slot) => workerPorts(slot, MAX_WORKERS)).flat(),
   ];
 
@@ -76,7 +77,7 @@ describe("stackFor", () => {
 
   it("never lets one port reach another, at the most runs and workers", () => {
     expect(new Set(everyPort).size).toBe(everyPort.length);
-    expect(everyPort).toHaveLength(1 + MAX_RUNS + MAX_RUNS * MAX_WORKERS * 4);
+    expect(everyPort).toHaveLength(1 + MAX_RUNS + TURNS + MAX_RUNS * MAX_WORKERS * 4);
   });
 
   it("stays clear of the app's own ports, the older test ports and the ports handed out for connections", () => {

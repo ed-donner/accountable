@@ -61,8 +61,8 @@ scripts/
   e2e.mjs                         npm run e2e: chosen end-to-end tests only
   checks.mjs                      runs the layers behind all three, side by side where it can, and prints one summary
   data.mjs                        npm run seed and npm run empty
-  test-plan.mjs                   how npm test shares out the machine, and which ports each run's slot and workers use
-  test-runs.mjs                   lets the test runs on one computer share it: slots, who's busy, and the speed tests' turn
+  test-plan.mjs                   how npm test shares out the machine, and which ports each run's slot, its workers and the turns use
+  test-runs.mjs                   lets the test runs on one computer share it: slots, the two turns to go and their queue, who's busy, and the speed tests' turn
   test-servers.mjs                starts one backend and one Vite server for each Playwright worker
   test-report.mjs                 turns what each test runner wrote into the summary that ends npm test
   agent-check-on-stop.mjs         the coding agent's hook that runs npm run check:quick when it finishes a turn

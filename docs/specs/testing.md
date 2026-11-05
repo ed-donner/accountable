@@ -13,7 +13,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 **Backend (pytest)**, on a fresh temporary database each test:
 
 - Every row of the stage rules, with today's date fixed, including hand-set probabilities and blank main contacts
-- Delete outcomes and the counts in `delete-impact`, and a held deal or organization (D4): what holds it in `delete-impact`, the 409 and its words, a record that nothing points at still deleting, and a missing one still a 404. No area holds anything yet, so a deal's activities and an organization's contacts and deals stand in for a later area's records. Also that no area gives any holds yet
+- Delete outcomes and the counts in `delete-impact`, and a held deal or organization (D4): what holds it in `delete-impact`, the 409 and its words, a record that nothing points at still deleting, and a missing one still a 404. A deal's activities and an organization's contacts and deals stand in for a later area's records, so these checks don't rest on any one area. Also that the areas give exactly the holds they should: the bills' one, on organizations, and none on deals
 - Required fields, and the rules on blank links
 - Dashboard figures against a small dataset with known answers, including month boundaries, an edited close date and a reopened deal
 - The funnel, including skipped stages, a deal moved backwards, a lost deal and a deal added at Won
@@ -24,9 +24,10 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Quote and invoice numbers (B15): each kind counted from 1 on its own with its prefix, the prefix the settings have when the number is taken, a fifth figure after 9999, a save that fails giving its number back, and 20 taken at the same moment with no gaps or repeats. Also the settings as later areas read them
 - The sums for quotes and invoices (B16, B17), from the cases in `shared/totals-cases.json`, including a half cent rounding up and the tax once on the subtotal, and quantities: whole numbers from 1 to a million, refusing 0, 1.5, 2.0, "2", `true` and past the limit
 - The last 12 months that charts by month show, across the turn of a year
-- Migrations build the same tables as `crm/tables.py`, `products/tables.py` and `company/tables.py`
-- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value` and `products.unit_price_cents` `bigint`s, keep each company setting's default in its table, and turn on row-level security for every table, Alembic's own included
+- Migrations build the same tables as `crm/tables.py`, `products/tables.py`, `company/tables.py` and `bills/tables.py`
+- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value`, `products.unit_price_cents`, `bills.amount_cents` and `bills.tax_cents` `bigint`s, keep each company setting's default in its table, and turn on row-level security for every table, Alembic's own included
 - The migration that adds `number_counters`, run on a database that already has records, keeps them and starts each count at 1, and `number_counters (kind)` is unique
+- The migration that adds `bills`, run on a database that already has records, keeps them and gives an empty bills table, with `bills (organization_id, bill_number_key)` unique and an organization with a bill refused a delete by the database itself
 - The migrations have one head, so two branches that each add the next migration fail the tests rather than the backend's start, and `migrations/env.py` imports every area's tables
 - The startup check for row-level security, given a list of tables with it on and off, refuses to start and names each table that has it off
 - Every route the app has gets the security and bad-input checks, taken from the app's own list of routes. That includes refusing a request with no token, an expired one, one signed with another key and one issued for something other than a signed-in user, in the local copy and in the shared app
@@ -35,10 +36,14 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Some but not all of the three settings stop the backend, naming the missing ones
 - Who added and who last changed, through every kind of change in U10, including a won deal's contact, and leaving renumbered cards and blanked links alone. A request body naming someone changes nothing.
 - Names and initials, including no display name, a one-word name and a name changed in Supabase
-- Search: part of a name, any case, accented letters, `%` and `_`, spaces at the ends, the order, the limit of 5 and the counts, for all four kinds, with archived products left out
+- Search: part of a name, any case, accented letters, `%` and `_`, spaces at the ends, the order, the limit of 5 and the counts, for all four kinds, with archived products and bills left out
 - Products: adding, editing, archiving and restoring through the API, who added and last changed each, and no way to delete one
 - Product names: unique ignoring case in any language, against an archived product too, a product changing the case of its own name, and two saves of one name at once, which give one product and a message beside the name, never a 500. At most 200 characters, on add and rename, with spaces at the ends not counted, and 200 of the character whose key is longest still fit what Postgres can index, which SQLite can't show
 - Prices: whole cents from 0 to the limit, refusing a fraction such as `49.5`, a negative number, text and anything past the limit
+- Bills: adding, editing, marking paid and unpaid, and deleting through the API, who added and last changed each, including marking paid and unpaid as changes and a save that alters nothing as none, the total worked out by the backend whatever the request sends, a due date 30 days on when left out, a bill's amount and tax as whole cents from 0 to the limit, each category and nothing else, and an organization with bills refused a delete with D4's words, in `delete-impact` and the 409
+- Bill numbers: unique for a supplier ignoring case in any language, the same number from two suppliers, a bill moved to a supplier that already has its number, and two saves of one number at once, which give one bill and a message beside the number, never a 500. At most 50 characters, with spaces at the ends not counted
+- Bill dates, with today fixed: a due date before the bill date, a paid date in the future, today and before the bill date, and a bill date moved past the paid date in the same save
+- The Money section's figures against a small dataset with known answers: what we owe and what's overdue, with bills due yesterday, today and tomorrow, the 30 days' first and last days and the day after, paid bills left out, and spending by month and category at the month boundaries, paid or not, tax included, with a bill dated in a later month left out
 - Today follows `TZ`
 - The company settings through `GET` and `PATCH /settings`: each rule and message in B4, at and past each limit, including a tax rate of 150% and payment terms of 400 days, the cases in `shared/settings-cases.json`, prefixes that clash either way round and in any capitals, the checks made against what's already saved, a rate kept exact, a rate sent as a JSON number checked from every digit in the request's text, such as 8.8750000000000001 and 1e-999999999, who last changed them, and a save that changes nothing leaving that alone
 - The migration that adds the company settings, run on a database that already has records, gives the defaults in B13 with no one recorded. A new database gets the sample company in B12, `npm run seed` puts it back over changed settings, and `npm run empty` leaves the settings as they were
@@ -50,6 +55,8 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Sessions: a refusal arriving after someone has signed out and in again leaves the new session alone, a token storage can't keep still goes with each request, and a pipeline move still on its way at sign-out, whether it goes through or fails, leaves the next person's deals and their own moves alone, and shows them no message
 - The menu, and the theme: each choice, the saved choice, one that can't be read, and System following the device as it changes, with the browser's `prefers-color-scheme` stood in
 - Products: the table with Show archived and each of its empty states, the form with a taken name, Archive and the Restore button on its message, which stays up for 10 seconds, and the product page, active and archived. After an archive, signing out and in leaves no message or Restore for the next person, even when the archive's reply comes after sign-out. The form refuses a name over 200 characters and counts them as the backend does, so 200 eighth notes, two each in JavaScript, still go
+- Bills: the table with its filter and counts, each empty state and message, and a bill turning overdue when the day changes with no fresh read. The form with the due date following the bill date until it's typed in, the total as the amount and tax are typed, a number the supplier already has, the paid date's checks, and a supplier picker that says when no organization matches and offers no Add. Mark paid's dialog with today filled in, Mark unpaid and the Undo on its message, which stays up for 10 seconds and is gone for the next person after sign-out, the bill page paid, unpaid and overdue, and an organization's Bills panel in its order with the line saying what's unpaid
+- The Money section: what we owe and what's overdue, linking to Bills under their filters, the timeline with bills stacked on one day, the spending chart's stacks, legend and "so far", each panel's empty state, and the figures read again when the day changes
 - The search box: the pause before searching, an older reply arriving late, the groups, including Products with their prices, "See all", the keyboard, each message in K7, trying a failed search again with a click or the down arrow, and telling screen readers whether its results are open
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
 - The delete dialog of a held deal or organization (D4): its title, what holds it in the backend's words, and Close as its only button
@@ -105,8 +112,10 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 |---|---|---|
 | Start and land on the dashboard, signed in through a restart | C1, C2, C9, N1 to N5, M1 to M5, M7, U15 | `e2e/start.spec.ts` |
 | Tables, forms, delete, reset, empty | T1 to T9, F1 to F9, D1 to D3, C3 to C6 | `e2e/records.spec.ts`, `e2e/data.spec.ts` |
-| Held records | D4 | `backend/tests/test_delete.py`, `frontend/src/crm/forms/forms.test.tsx` |
-| Panels and sections other areas add | R7, H10 | `frontend/src/crm/pages/Deal.test.tsx`, `frontend/src/crm/pages/Organization.test.tsx`, `frontend/src/crm/pages/Dashboard.test.tsx` |
+| Held records | D4 | `backend/tests/test_delete.py`, `backend/tests/test_bills.py`, `frontend/src/crm/forms/forms.test.tsx`, `e2e/bills.spec.ts` |
+| Panels and sections other areas add | R7, H10 | `frontend/src/crm/pages/Deal.test.tsx`, `frontend/src/crm/pages/Organization.test.tsx`, `frontend/src/crm/pages/Dashboard.test.tsx`, `frontend/src/App.test.tsx` |
+| Bills | E1 to E19 | `e2e/bills.spec.ts`, `backend/tests/test_bills.py`, the tests in `frontend/src/bills/` |
+| The Money section | E20 to E24 | `backend/tests/test_bills_dashboard.py`, `frontend/src/bills/charts/MoneySection.test.tsx`, `e2e/bills.spec.ts`, `e2e/stress.spec.ts` |
 | Filter and record pages | T6, R1 to R5 | `e2e/records.spec.ts` |
 | Pipeline | P1 to P9, S1 to S6 | `e2e/pipeline.spec.ts` |
 | Activities and timelines | A1 to A5, S2, H6 | `e2e/activities.spec.ts` |

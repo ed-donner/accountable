@@ -6,38 +6,40 @@ The look is set by [Visual design](specs/visual-design.md#visual-design) and the
 
 ## Problem
 
-A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next. Prices live in people's heads and old emails too, so the same thing gets quoted at different prices.
+A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next. Prices live in people's heads and old emails too, so the same thing gets quoted at different prices. The business tracks what customers owe it, but not what it owes: nobody can see which supplier bills are unpaid, when they're due, or what the business spends each month.
 
 ## What Accountable is
 
-Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. It also holds the business's price list, its first step beyond the CRM, which quotes and invoices will use later. It should feel sharp, modern and professional, and be a pleasure to use.
+Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. It also holds the business's price list, its first step beyond the CRM, which quotes and invoices will use later, and the bills it receives from suppliers, with what it owes and what it spends. It should feel sharp, modern and professional, and be a pleasure to use.
 
 **Who uses it:** a small sales team, sharing one Accountable every day with their own real data. Each person signs in with their own email and password, everyone works on the same records, and each record shows who added it. They start from the sample data to look around, then clear it and type in their own records. No other systems are involved yet.
 
 **Two ways to run it:** the **shared app** is the team's, on Render, with its data in Postgres on Supabase. The **local copy** runs on one computer with `npm run dev`, with the sample data and made-up teammates to sign in as, and needs neither Supabase nor the internet. It's where the app is built and tried out, and nothing done in it reaches the team's data. [running.md](specs/running.md) has both.
 
-**Six sections:**
+**Seven sections:**
 
 | Section | What it's for |
 |---|---|
-| Dashboard | The landing page: how sales are going at a glance, and what needs doing next |
+| Dashboard | The landing page: how sales are going at a glance and what needs doing next, with what we owe and spend below |
 | Organizations | The companies we do business with, each with its contacts, its deals and a combined timeline |
 | Contacts | The people we deal with, including leads and customers, each with a timeline |
 | Deals | The potential sales, each with its stage, value, close date and timeline |
 | Pipeline | The deals as cards on a board, one column per stage, moved by dragging |
 | Products | The price list: what the business sells, and at what price |
+| Bills | The bills the business receives from suppliers: what's unpaid, what's overdue and what's been paid |
 
 Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out.
 
-**Five kinds of record:**
+**Six kinds of record:**
 
 - **Organization:** a company we do business with. It has many contacts and many deals.
 - **Contact:** a person we deal with, at an organization, with a status of lead, qualified or customer.
 - **Deal:** a potential sale, with an organization and a main contact, moving through six stages.
 - **Activity:** a note, call or email that happened, or needs to happen, with a contact or a deal, with an optional follow-up date.
 - **Product:** something the business sells, with a unique name, a description and a unit price in dollars and cents. It's archived rather than deleted once it's no longer sold.
+- **Bill:** a bill the business has received from a supplier, which is an organization. It has the supplier's own bill number, a bill date and a due date, an amount before tax, the tax, a category and notes, and is unpaid or paid. An unpaid bill is overdue once its due date has passed.
 
-**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms and the prefixes for quote and invoice numbers. Quotes and invoices come later, so nothing uses the settings yet. What they'll share is ready for them: the counter that numbers them and the sums for their totals ([B15 to B17](specs/settings.md#for-quotes-and-invoices)).
+**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms and the prefixes for quote and invoice numbers. Quotes and invoices come later, so nothing uses the settings yet. Bills don't use them: a bill's tax is the supplier's, and its due date is 30 days after its bill date. What quotes and invoices will share is ready for them: the counter that numbers them and the sums for their totals ([B15 to B17](specs/settings.md#for-quotes-and-invoices)).
 
 **Not in Accountable yet:**
 
@@ -48,12 +50,16 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - A warning when two people edit the same record, or the company settings, at once. The last save wins.
 - A history of every change. Each record keeps who added it and who last changed it, and the company settings keep who last changed them, nothing in between.
 - A layout for phones
-- Quotes, invoices and bills. The counter for quote and invoice numbers and the sums for their totals are ready, but nothing uses them yet.
+- Quotes and invoices. The counter for their numbers and the sums for their totals are ready, but nothing uses them yet.
+- Purchase orders, receipts, or approving bills before they're paid
+- Paying part of a bill, or recurring bills
+- Attaching a scan of a bill
+- Accounting entries
 - A company logo
 - Personal settings. The theme belongs to the browser (L2), and the company settings to the team.
 - AI features
 - Email, calendar or phone integrations
-- Currencies other than US dollars, or more than one tax rate
+- Currencies other than US dollars, or more than one tax rate on what the business sells. A bill's tax is entered as the supplier charged it.
 - Products on deals, quotes or invoices
 - Stock levels, product categories, units of measure or variants
 - Price lists for particular customers, or discounts
@@ -61,7 +67,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - Tags or custom fields
 - Changing the pipeline stages
 - Importing, exporting or backing up data
-- Undo, apart from restoring an archived product
+- Undo, apart from restoring an archived product, and the Undo that marks a bill paid again just after it was marked unpaid
 
 ## Terms
 
@@ -93,7 +99,17 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 | Tax rate | The sales tax as a percentage, from 0 to 100 with up to three decimal places, such as 8.875% |
 | Payment terms | How many days customers have to pay, from 0 to 365 |
 | Number prefix | The start of a quote's or an invoice's number, such as QT- or INV- |
-| Held record | A deal or an organization that a record in another area points at, such as an invoice on the deal. It can't be deleted (D4). Nothing holds one yet. |
+| Held record | A deal or an organization that a record in another area points at, such as a bill from the organization. It can't be deleted (D4). Bills hold their suppliers, and nothing holds a deal yet. |
+| Bill | A bill the business has received from a supplier, for money it owes |
+| Supplier | The organization a bill is from. Any organization can be one, and a customer can be a supplier too. |
+| Bill number | The supplier's own number for its bill, unique among that supplier's bills, ignoring case |
+| Bill total | A bill's amount before tax plus its tax, in dollars and cents, worked out by the backend |
+| Unpaid bill | A bill not yet marked paid, overdue or not |
+| Overdue bill | An unpaid bill whose due date is before today. A bill due today isn't overdue. |
+| Paid bill | A bill marked paid, with the date it was paid |
+| What we owe | The total of every unpaid bill, tax included |
+| Bill category | One of Software, Contractors, Travel, Office, Marketing and Other, set on each bill |
+| Spending | The bills' totals, tax included, by the month of their bill date, paid or not |
 
 | Stage | Usual probability |
 |---|---|
@@ -106,7 +122,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 
 ## Quality
 
-- **Q1.** At 1,000 contacts, 500 deals, 5,000 activities and 500 products, in the local copy: the dashboard's data arrives in under 200ms, a table opens in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
+- **Q1.** At 1,000 contacts, 500 deals, 5,000 activities, 500 products and 1,000 bills, in the local copy: the dashboard's data arrives in under 200ms, a table opens in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
 - **Q2.** No errors in the browser's console, on any screen, at any time.
 - **Q3.** All controls can be reached by keyboard, with a visible focus ring. Animations respect the system's reduced motion setting.
 - **Q4.** Chrome is the one supported and tested browser. Safari and Firefox may work, but nobody has checked.
@@ -126,6 +142,7 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [deals.md](specs/deals.md) | Stage changes, the pipeline board and its screen | S1 to S9, P1 to P11 |
 | [activities.md](specs/activities.md) | Activities, follow-ups and timelines | A1 to A7 |
 | [products.md](specs/products.md) | The price list: unit prices in dollars and cents, unique names, archiving and restoring, the product page, and their screens | G1 to G12 |
+| [bills.md](specs/bills.md) | Bills from suppliers: amounts in cents, unique bill numbers, due dates, categories, paid, unpaid and overdue, the table, the form, the bill page, an organization's bills, the dashboard's Money section, and their screens | E1 to E24 |
 | [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, the sections other areas add below them, and its screen | H1 to H10 |
 | [running.md](specs/running.md) | The local copy and the shared app, sample data, keeping data, and the commands and first run | M1 to M7, C1 to C11 |
 | [settings.md](specs/settings.md) | The company settings: the page, each field's rules, saving, who last changed them, the sample company and the defaults, the numbers and sums quotes and invoices will use, and the page's screen | B1 to B17 |
@@ -138,6 +155,6 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [visual-design.md](specs/visual-design.md) | Color tokens and contrast, stage and chart colors, type, shapes, charts, motion, words, and the design reference |
 | [architecture.md](specs/architecture.md) | How the parts connect in each copy, every file and folder, the layout rules and the libraries |
 | [backend.md](specs/backend.md) | The data model, including users and who added each record, the backend rules and the API |
-| [frontend.md](specs/frontend.md) | Server data, signing in, today's date, instant updates, board figures, dragging, dialogs inside dialogs, search and the theme |
+| [frontend.md](specs/frontend.md) | Server data, signing in, today's date, instant updates, board figures, dragging, dialogs inside dialogs, search, bills and the theme |
 | [security.md](specs/security.md) | Signing in and the token check, keys and settings, row-level security, and which addresses can reach the app |
 | [testing.md](specs/testing.md) | The type checks, tests, code checks, hooks, subagents and CI, and which tests cover which requirements |

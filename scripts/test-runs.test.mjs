@@ -147,6 +147,20 @@ describe("joinTestRuns", () => {
     )();
   });
 
+  it("takes the turn from a run handing it back, which can drop a connection without answering", async () => {
+    const ports = await testPorts();
+    // As a run closes its turn, a connection the system has already taken can end with no answer.
+    const handingBack = net.createServer((socket) => {
+      socket.end();
+      handingBack.close();
+    });
+    await new Promise((resolve) => handingBack.listen(ports.speedTurn, "127.0.0.1", resolve));
+    const run = await join(ports);
+    await (
+      await run.takeSpeedTurn()
+    )();
+  });
+
   it("stops with a message when another program has the speed tests' port", async () => {
     const ports = await testPorts();
     const speedTurn = await anotherProgramsPort();

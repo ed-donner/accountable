@@ -109,12 +109,17 @@ export async function joinTestRuns({ ports = RUN_PORTS, portsFor = () => [], pol
   async function takeSpeedTurn(onWait) {
     const waiting = once(onWait);
     let turn;
+    let strangerAnswered = false;
     while (!(turn = await listen(ports.speedTurn, () => SPEED_TURN))) {
       const holder = await ask(ports.speedTurn);
-      if (holder !== null && holder !== SPEED_TURN) {
+      const stranger = holder !== null && holder !== SPEED_TURN;
+      // A run handing the turn back can drop a connection unanswered as it closes, as another
+      // program would answer. That run is gone by the next try, and another program isn't.
+      if (stranger && strangerAnswered) {
         throw new Error(`Port ${ports.speedTurn} is in use by another program, and the speed tests need it.`);
       }
-      waiting();
+      strangerAnswered = stranger;
+      if (!stranger) waiting();
       await pause(pollMs);
     }
     while ((await otherBusyRuns()) > 0) {

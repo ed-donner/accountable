@@ -12,9 +12,11 @@ from accountable.company import documents, logo, tax
 from accountable.company import sample_data as company_samples
 from accountable.company.tables import company_logo, company_settings
 from accountable.crm import rules, sample_data
+from accountable.crm.routers import dashboard
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.invoices import figures
 from accountable.invoices import sample_data as invoice_samples
+from accountable.invoices.routers import money
 from accountable.invoices.tables import invoice_lines, invoices, payments
 from accountable.products import sample_data as product_samples
 from accountable.products.tables import name_key, products
@@ -67,6 +69,9 @@ def seeded(request, rows_by_day, database):
                 "payments": rows_of(conn, payments),
                 "logo": rows_of(conn, company_logo),
             }
+        # What the dashboard and its Money section show that day.
+        rows_by_day[today]["dashboard"] = dashboard.dashboard(today, datetime.combine(today, time(12)))
+        rows_by_day[today]["money"] = money.money(today)
     return rows_by_day[today]
 
 
@@ -694,7 +699,7 @@ def test_each_invoice_adds_up_to_its_deals_value(seeded):
     rate = 8875
     for row in seeded["invoices"]:
         lines = [line for line in seeded["invoice_lines"] if line.invoice_id == row.id]
-        assert 1 <= len(lines) <= 4
+        assert 2 <= len(lines) <= 4
         assert all(line.unit_price_cents > 0 for line in lines)
         totals = tax.totals(lines, rate)
         assert totals.subtotal_cents == deals_by_id[row.deal_id].value * 100
@@ -738,3 +743,65 @@ def test_the_sample_logo_passes_the_logo_check(seeded):
     [kept] = seeded["logo"]
     assert logo.check(kept.image) == logo.Logo("image/png", 600, 200)
     assert (kept.media_type, kept.width, kept.height) == ("image/png", 600, 200)
+
+
+# One story: each recent win's accepted quote, its invoice and the dashboard agree (M3, M4)
+
+
+def lines_of(rows, owner: str) -> dict[int, list[tuple]]:
+    """Each quote's or invoice's lines in order, as what they bill: product, name, description, quantity and price."""
+    found: dict[int, list[tuple]] = {}
+    for row in sorted(rows, key=lambda line: line.position):
+        line = (row.product_id, row.name, row.description, row.quantity, row.unit_price_cents)
+        found.setdefault(getattr(row, owner), []).append(line)
+    return found
+
+
+def month_of(day: date) -> str:
+    return f"{day.year}-{day.month:02d}"
+
+
+def test_each_win_with_an_accepted_quote_is_invoiced_with_the_quotes_lines(seeded):
+    quoted = lines_of(seeded["quote_lines"], "quote_id")
+    invoiced = lines_of(seeded["invoice_lines"], "invoice_id")
+    accepted = {quote.deal_id: quote for quote in seeded["quotes"] if quote.status == "accepted"}
+    on_accepted = [row for row in seeded["invoices"] if row.deal_id in accepted]
+    assert {row.deal_id for row in on_accepted} == set(accepted)
+    for row in on_accepted:
+        assert invoiced[row.id] == quoted[accepted[row.deal_id].id], accepted[row.deal_id].number
+
+
+def test_an_invoice_is_added_on_its_day_after_its_deal_was_won_and_its_quote_accepted(seeded):
+    accepted = {quote.deal_id: quote.updated_at for quote in seeded["quotes"] if quote.status == "accepted"}
+    closed = {deal.id: deal.close_date for deal in seeded["deals"]}
+    for row in seeded["invoices"]:
+        won = first_move(seeded, row.deal_id, "won").changed_at
+        assert accepted.get(row.deal_id, won) == won < row.created_at, row.number
+        assert local_day(row.created_at) == (row.issue_date or closed[row.deal_id]), row.number
+
+
+def test_the_dashboard_agrees_with_the_invoices_and_the_accepted_quotes(seeded):
+    """Each month's revenue and deals won are what the wins were invoiced for, and in the last three months
+    what their quotes accepted. What customers owe and what they've paid add up to what was issued."""
+    closed = {deal.id: month_of(deal.close_date) for deal in seeded["deals"]}
+    invoiced = lines_of(seeded["invoice_lines"], "invoice_id")
+    billed, invoices_won = Counter(), Counter()
+    for row in seeded["invoices"]:
+        if row.status != "void":
+            billed[closed[row.deal_id]] += sum(quantity * price for *_, quantity, price in invoiced[row.id])
+            invoices_won[closed[row.deal_id]] += 1
+    accepted = Counter()
+    for quote in seeded["quotes"]:
+        if quote.status == "accepted":
+            accepted[closed[quote.deal_id]] += quote.subtotal_cents
+
+    shown = seeded["dashboard"]
+    lately = {f"{year}-{month:02d}" for year, month in months_back(seeded["today"], 3)}
+    for month in shown.months:
+        assert (month.revenue * 100, month.deals) == (billed[month.month], invoices_won[month.month]), month.month
+        assert accepted[month.month] == (month.revenue * 100 if month.month in lately else 0), month.month
+    assert shown.funnel[-1].value == sum(month.revenue for month in shown.months)
+
+    money_shown = seeded["money"]
+    issued = sum(row.total_cents for row in seeded["invoices"] if row.status == "issued")
+    assert money_shown.owed.cents + sum(month.cents for month in money_shown.payments) == issued

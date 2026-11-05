@@ -478,6 +478,107 @@ A trial the same way, before the change to when a waiting run speaks, also passe
 
 Each new check in `scripts/test-runs.test.mjs` was shown to fail on a copy of `test-runs.mjs` broken for it, put back after: no queue order, free turns counted without the busy runs, no turn ports, the speed tests first only while their port is held, none of the speed tests first, and every reason printed at once. Several of them rely on timing, so the file was run 13 times on the working code and passed every time, and the two breaks most open to chance were tried again: the speed tests' place failed six times in six, and every reason printed at once three times in three.
 
+## Bills: build
+
+Built on the `bills` branch, following `docs/changes/bills/plan.md` through its six phases, each ending with `npm run check:quick` passing and the last with `npm run check`. Bills is the seventh section: the bills the business receives from suppliers, each with the supplier's own bill number, a bill date and a due date, an amount, the tax, a category and notes, marked paid on a date or unpaid, with overdue worked out from today. An organization's page lists its bills, and an organization with bills can't be deleted. The dashboard has a Money section below its own part: what we owe, what's overdue, a timeline of the bills due in the next 30 days, and spending by category for 12 months. Migration `0007` adds the `bills` table with no rows, so an existing local copy and the team's Supabase database start with an empty Bills section. The sample data adds six suppliers and 85 bills. Every new test was seen to fail by breaking a copy of the code it covers, then putting the copy back, never through git.
+
+The six points the plan said the build would settle are in the spec now:
+
+- **Spending is folded into months in Python,** from one query for the 12 months' bills, as the CRM's revenue chart does, because grouping by month in the database needs date functions that differ between SQLite and Postgres. In `backend.md`.
+- **The Money reply carries `today`,** so the section reads its figures again once the browser's day has passed it. In the API table in `backend.md`.
+- **Each Money chart has a table behind it for screen readers:** the bills due, and each month's spending by category. In E22 and E23.
+- **Focus after a row leaves the table** goes to the table's search box (E13). Mark unpaid under Paid works as Archive does. Mark paid goes through a dialog, which found something wider: these dialogs open without a Radix `Dialog.Trigger`, so on closing, Radix puts focus nowhere. `FormDialog` now takes `onCloseFocus`, and the Mark paid dialog uses it to go back to the button that opened it, or to the search box, through a `ref` on `DataTable`, when that row has gone. The other forms still leave focus on nothing when they close, as they did before. In `frontend.md`.
+- **Row buttons' labels** read "Mark paid bill INV-0042 from Northwind Software", in the table's pattern. In the Bills table screen.
+- **"Show all bills"** is in the Words table.
+
+Also settled by the build, and in the spec:
+
+- **`bills/categories.tsx` and `bills/status.tsx`** rather than `.ts`, because they hold the swatch and the chip. In the file tree and `frontend.md`. `status.tsx` also has the paid date's checks, which the form and the Mark paid dialog share.
+- **A blank date in the Mark paid dialog** gets "Choose a paid date", which the spec didn't have. In the Words table, with "Keep the bill number to 50 characters or fewer", which the spec had in E3 only.
+- **The filter's counts** read "Unpaid (9)", with a space, as the Words table has them, where Contacts' filter reads "Lead12".
+- **Buttons keep their place** in a row and in the record header, so when Mark paid becomes Mark unpaid, focus stays on the same button.
+- **A bill dated in the calendar's last 30 days** is due on its last day, rather than a crash. A supplier that doesn't exist gets "Choose a supplier" before the database's foreign key can make it a 500, and every problem with a save comes back at once. In `backend.md`.
+- **The timeline** stacks a day's bills in layers, each bar colored by its own bill, and both charts draw their segments with `StackSegment`, for the 2px gaps and rounded tops. Recharts didn't fight it, so there's no hand-drawn SVG.
+
+Changes the plan didn't list:
+
+- **`e2e/dashboard.spec.ts`** checked that the dashboard page didn't scroll at all, which can't hold with a section below it. It now checks that the dashboard's own panels fit 1440 by 900 and that the Money section fits a window of its own below them, as H10 and the Money section's screen say.
+- **`frontend/src/layout.test.ts`** named the areas it finds, so it names `bills` now, and checks the later-area rule is looking at `bills/`. `test_layout.py` does the same on the backend.
+- **The Tab test in `menu.spec.ts`** walks seven section links, not six, and `settings.spec.ts` counts seven links in the top bar. The first full `npm run check` found the second.
+- **`failures.spec.ts`** also covers the dashboard's Money section failing to load and keeping old figures, and a bill that isn't there.
+
+On Postgres: a throwaway Postgres 16, built from the migrations' Postgres SQL, made `bills` with row-level security on, the unique index on `(organization_id, bill_number_key)`, the category check and `bigint` amounts. With a person, an organization, a bill, a product and a count in it, it refused a second "inv-1" from the supplier, a category of "rent" and the organization's delete. The old clearing steps failed with "cannot truncate a table referenced in a foreign key constraint" and changed nothing. The new ones, with `bills` in the same `truncate`, left only the person and the settings' row.
+
+**What the quotes and invoices merges will touch:**
+
+- **The migration's number:** each branch adds the one after `0006`, so the second and third merges renumber theirs, which `test_the_migrations_have_one_head` makes sure of.
+- **The lists each area joins with one entry:** `AREAS` in `main.py`, `RECORDS` and `fill_sample` in `cli.py`, the imports in `migrations/env.py`, and in `App.tsx` the sections, routes, `ORGANIZATION_PANELS`, `DEAL_PANELS` and `DASHBOARD_SECTIONS`.
+- **The Money section** is one component with two panels, Bills to pay and Spending by category, in `bills/charts/MoneySection.tsx`, so invoices' panels can join it there when the areas are brought together.
+- **Shared code bills changed, all with new optional props:** `DataTable` takes a row's own button and Delete together, a `filterNote`, and a `ref` that focuses its search box. `RecordHeader` takes an `action` and `onDelete` together. `FormDialog` takes `onCloseFocus`.
+- **Tests that count sections or Tab stops:** `App.test.tsx`, `start.spec.ts`, `settings.spec.ts`, `menu.spec.ts`'s Tab test, and `quality.spec.ts`'s Tab counts and its check that the top bar stays on one line at 1280px, which will need the merged count.
+- **The clearing steps** gain each area's tables in the same `truncate`.
+
+`npm run check` passes: 4,296 tests in 5m 36s, of which 2,714 backend, 1,281 frontend, 290 end-to-end and 11 speed. At the limits, Bills opens in 133ms and the Money section's data arrives in 8ms. Two unit tests read 1.1s while another test run on the computer was busy: the paging test in `DataTable.test.tsx`, which bills didn't change, and one case of the amount checks in `test_bills.py`. Alone they took 340ms and under 40ms.
+
+## Bills: UI check
+
+ui-check looked at the Bills table under each filter, a bill's page overdue, unpaid and paid, the Add, Edit, Mark paid and Delete dialogs, a supplier's and a customer's page with the Bills panel, the dashboard's Money section with both tooltips, and the top bar at 1280px, at 1440 by 900 on a scratch database. It covered light mode throughout and dark mode for most of them, and found nothing broken or off-brand.
+
+Of its three nits, one is fixed. The due dates in an organization's Bills panel started a few pixels apart from row to row, because "Dec 1, 2026" is shorter than "Oct 31, 2026". The date now takes the width of the longest one, as the total and the chip already had fixed widths, and stays on one line. That's in the Bills panel's screen in `bills.md`. The panel's test in `e2e/bills.spec.ts` now gives two bills due dates of different lengths and checks they start at the same place. It failed by 7px before the fix. The other two are left as they are, at the owner's word: a dark-mode dashboard screenshot caught the revenue line's draw-in partway through, and the Mark paid dialog's label "Paid on" is the spec's.
+
+## Bills: review
+
+The reviewer subagent reviewed the branch against `main`, leaving out style. It found nothing Important, so there was nothing to fix, and `npm run check` passed afterwards: 4,296 tests in 7m 49s, with another test run busy. Two nits are open, for later:
+
+1. **The Add form's due date at the calendar's end:** `dueDateFor` in `BillForm.tsx` adds 30 days with no limit, where the API's `due_date_for` stops at 9999-12-31. A bill dated in the last 30 days of 9999 would get a filled-in due date that the API refuses. The API's own default is right.
+2. **`BillUpdate` defaults `notes` and `paid_on` to `None`**, where its other fields default to `MISSING`. That's safe because `edit_bill` reads only the fields that were sent, and the CRM's update models do the same. A caller that dumped the whole model would clear both.
+
+The review left part of the change unread: the charts, the `DataTable`, `RecordLayout` and `FormDialog` changes, the end-to-end specs and most test bodies. A second pass over those, under the reviewer's new instructions below, hasn't been run.
+
+## Bills: harness improved
+
+`docs/IMPROVE.md` was followed after the review, which had nothing to fix. This run used the review, the owner's messages, the Stop hook's results, the failed and stopped tool calls and the agents' shell commands from the branch's three sessions and two subagents. It searched the sessions of every earlier change, in all four copies of the repo, and of `quotes` and `invoices`, for the same mistakes. The owner corrected nothing. They said "Leave the commits to me" three times, and no agent committed. The Stop hook ran 12 times and never failed. The build ran a bare `python3` once, which the uv hook stopped, and a `sleep 240`, which Claude Code stopped. It ran the app and a throwaway Postgres on scratch data, stopped both by process ID and checked their ports, used git only to read, and broke code only from its own copies.
+
+Three mistakes had happened more than once:
+
+- **A review that leaves part of the change unread:** on `products`, the reviewer left the end-to-end tests, the table rewrite and the search move unread, which was in Seen once. Here, with no command stopped, it made 8 calls and left the charts, the `DataTable`, `RecordLayout` and `FormDialog` changes, the end-to-end specs and most test bodies unread. A `company-settings` review in another copy of the repo skimmed the tests by name. Each said what it skipped. `reviewer.md` now says to read the diff of every file in `--stat`, in parts if it's long, to use Read when the hook stops a command, and to go back through the list before the report. The report now has a Not read line, and `testing.md` says so.
+- **A test count the plan didn't list:** a new section changes the number of top bar links that five test files state. The `company-settings` merge, this branch's plan and the plan for `quotes`, built alongside, all missed the one in `e2e/settings.spec.ts`, and each time only the full `npm run check` found it. `AGENTS.md` now says to search all the tests for what a change alters, and list each one in the plan. Whether five tests should each state the count is for the owner to judge against STANDARDS.md's "Avoid brittle tests", once the three branches have merged.
+- **Shell commands written for bash:** the shell is zsh. In the sessions of every change since `mvp`, 39 tool calls failed for one of three reasons. `echo =====` stopped the whole command line. A glob that matched nothing stopped a `for` loop or a `grep --include=*.ts`. Or a command kept in a variable wasn't found. Here the design session lost one command's output, the build lost six calls to psql through `$P`, and this run hit all three. Nobody had mentioned it. `AGENTS.md` now says how zsh differs, as tried in this shell. A hook could catch the `=` word but not the glob or the variable, so it's a rule.
+
+One mistake seen once is now in `docs/IMPROVE.md`: the form and the API differing on the due date's default. "A review cut short" came out of Seen once, because it's a rule now. `docs/IMPROVE.md` now covers:
+
+- reading what a review says it didn't read
+- where subagents' logs are, and where their types are recorded
+- grouping failed tool results across all the session folders
+- searching the sessions of branches built alongside
+- leaving alone a mistake that a hook or Claude Code already stops, unless it did harm first
+
+**For the merge:** `quotes` changes `.claude/agents/ui-check.md` and `invoices` has an uncommitted change to it. This branch doesn't touch that file, but all three add to this one. The tests that count the sections will need the merged count, nine once all three are in.
+
+`npm run check` passes: 4,296 tests in 6m 21s.
+
+## Bills: independent review fixes
+
+`docs/changes/bills/independent-review.md` found two Important problems, both now fixed. Each new test failed on the code before its fix.
+
+1. **A small bill vanished from a stack.** `StackSegment` took the 2px gap from every segment that sat on another, and drew nothing if that left no height. At 600 by 240, a $49 bill on a $4,500 one is 1.96px tall, so it wasn't drawn and couldn't be pointed at, though the table behind the chart listed it. A small category in the spending chart went the same way.
+   - **The fix:** both charts now stack through `stackScale` in `StackSegment.tsx`. It stacks any value too small to see at 4px plus its gap, raises the axis's top to make room, and shares half the chart among a column's segments when there are too many for that. The gap now takes at most half a segment. Tooltips and the tables behind the charts still give each bill's real figure.
+   - **The spec:** E22 and E23, the two charts' rules in `visual-design.md`, and `frontend.md` say so.
+   - **The tests,** in `MoneySection.test.tsx`: a $49 bill below a $4,500 one and another above it, both drawn, the lower at least 4px and the upper one pointed at. A $40 category on a $9,000 one. And `stackScale`'s least height, raised top and crowded column, and the gap's limit. Four broken copies of `StackSegment.tsx`, one for each rule, each failed its own test.
+2. **Sums past 2^53 cents lost a cent in the browser.** The Money route sent its sums as JSON numbers, and the Bills panel added totals as JavaScript numbers. A bill's total is at most $2 trillion, which fits, but 46 of those and a cent make 9,200,000,000,000,001 cents, which a JavaScript number reads as 9,200,000,000,000,000.
+   - **The fix:** the route now sends every sum as a string of digits, typed `CentsSum` in `bills/schemas.py`, and the browser reads them as BigInts. `price` takes a BigInt, and the Bills panel adds its totals as BigInts. The charts still draw their heights from numbers, which are close enough at any size, but every figure shown comes from the exact sums. Each bill's own total is still a number.
+   - **The spec:** E19 and E20, the Prices section and the API table in `backend.md`, and `frontend.md` say so.
+   - **The tests:** `test_bills_dashboard.py` makes the 47 bills and checks that what we owe, Overdue and October's spending come back as "9200000000000001". `MoneySection.test.tsx` shows that as $92,000,000,000,000.01 in each figure and in the spending table. `BillsPanel.test.tsx` adds the same bills, and `money.test.ts` shows a BigInt. The dashboard tests' other sums now expect digits.
+
+**A test that raced the charts' drawing:** the Stop hook's `npm run check:quick` ran while a full check was going, and failed "gives the total due and how many" on an axis label. Recharts draws a chart's axes, bars and labels a render after the figures above it. Eight tests in `MoneySection.test.tsx` waited for a figure and then read the chart, so on a busy run they could read it before it was drawn. Two of them were new here, and the other six were already there before these fixes: a probe on the committed charts saw the figures on the page before the ticks. Each test now waits for what it reads, through `drawnSegments` or `findByText`. With the test's size reported 30ms late, so the charts draw after the figures, the eight failed before this change and pass after it.
+
+Its two nits are open, for later:
+
+1. **The Unicode normalization test never sends a decomposed é.** Both of the "Café-1" values in `test_bills.py` use U+00E9, so taking out the bill number's NFC normalization fails nothing. `Café-1` as the second value would check it (E3).
+2. **The form's due date at the calendar's end:** the first nit of the review above.
+
+`npm run check` passes: 4,306 tests in 9m 32s, while another worktree's run was busy, of which 2,715 backend, 1,290 frontend, 290 end-to-end and 11 speed. It listed `test_limits.py`'s check that the data is at the limits as taking 1.0s; it took 0.51s in a run of its own earlier in this session.
+
 ## Quotes: design and build
 
 On the `quotes` branch, `docs/spec.md` and the area files now describe Accountable with quotes in it, as it will be once the branch merges. The intent and its decisions are in `docs/changes/quotes/intent.md`. One area file is new: `docs/specs/quotes.md`, with Q5 to Q37 and the screens, the quote document included. Q1 to Q4 were already the quality rules, and the bills branch has E, so the quotes' requirements carry on from Q5. No code has changed yet.
@@ -542,6 +643,20 @@ Checked: the Playwright MCP server starts with `--isolated` and lists its tools,
 
 `npm run check` passes: 4,471 tests in 7m 01s, of which 2,910 backend, 1,266 frontend, 283 end-to-end and 12 speed. One unit test took a second or more, an existing one in `DataTable.test.tsx` at 1.1s, while another worktree's run was busy.
 
+## Quotes: merged with main
+
+`main`, with Bills in it, was merged into `quotes`. What the merge settled:
+
+- **Migrations:** both branches added `0007` on top of `0006`. Bills merged first, so this branch's migration is now `0008_quotes.py`, with `down_revision = "0007"`, and its upgrade test starts from a database at `0007`, with the bills table, as the team's will be. Bills' upgrade test still starts at `0006`. No worktree has a `data/accountable.db`, so no local database had run the old `0007`. The owner's `npm start` against Supabase from this branch was still to do, so the team's database shouldn't have it either.
+- **Sections:** Quotes and Bills are both in the top bar, Quotes first, so there are eight. Quotes comes before Bills everywhere an area joins a list: `AREAS` in `main.py`, `RECORDS` in `cli.py`, so seed and empty name quotes before bills, and in `App.tsx` the sections, the routes and an organization's panels, where the Quotes panel sits above the Bills panel. `fill_sample` already had bills before the company and quotes after it, because quotes need the company's tax.
+- **`DataTable`:** both branches changed the row buttons. A table's rows now have no buttons, as the Quotes table's, or Edit followed by the table's own button, Delete, or both, as the Bills table's Mark paid and Delete. Both branches' empty states are kept: quotes' own words for no rows and for a filter that leaves none, and bills' `filterNote`. The two do much the same for a filter that leaves no rows, so they could become one once invoices has merged. The merged component went one past ESLint's complexity limit, so `actionsWidth` now also gives no width when the rows have no buttons.
+- **Tests that count sections or Tab stops:** `App.test.tsx`, `start.spec.ts`, `settings.spec.ts`, `menu.spec.ts`'s Tab test and `quality.spec.ts` now count eight links, and `quality.spec.ts` presses Tab once more on each page it walks from the top bar. Its check that the top bar stays on one line at 1280px lists one line per link, so it lists eight. The first full run after the merge failed there, because a search for the counts had looked for `7` and `seven`, not a list of seven `1`s. With eight sections the bar still fits at 1280 beside the widest date.
+- **Tests that list the areas or their records:** `test_cli.py`, `test_layout.py`, `layout.test.ts`, `test_migrations.py`, `test_sample_data.py`, `test_limits.py`, `test_every_route.py` and `App.test.tsx` take both areas. The sample data now has 30 organizations, with bills' six suppliers, 40 quotes and 85 bills. `limits_data.py` fills the bills in a function of their own, beside the quotes'. `test_delete.py`'s holds test checks that quotes hold deals and bills hold organizations, without checking they're the only holds.
+- **The clearing steps** put `quote_lines`, `quotes` and `bills` in the one `truncate`.
+- **Harness:** as both branches' notes asked, `reviewer.md` keeps bills' paragraph on reading the whole change and its "Not read:" line with this branch's lines on one file per call and saved outputs, and the reviewer's line in `testing.md` has both branches' sentences. `docs/IMPROVE.md` keeps both branches' changes to its first step, and both branches' Seen once entries, bills' first.
+
+`npm run check` passes: 4,971 tests in 4m 44s, of which 3,270 backend, 1,387 frontend, 300 end-to-end and 14 speed. At the limits, Quotes opens in 126ms and Bills in 131ms. No unit test took a second or more. The owner's checks by hand from both plans are still to do, including `npm start` against an empty Supabase database, which now runs `0007` and `0008` in turn, and the clearing steps with both areas' tables.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -576,7 +691,13 @@ It opens on a sign-in screen listing four made-up teammates: Alex Rivera, Dana W
 
 If it says a port is in use, Accountable is probably already running in another window.
 
-Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back. The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. Quotes are the prices offered on a deal: New quote on an open deal's page, or in the Quotes section, opens a draft with a preview beside it of what the customer will get. Add products from the price list, change their quantities, descriptions and prices, and Save quote. Mark as sent when it's ready, then Accept when the customer says yes, which moves the deal to Won at the quote's value, or Decline. Download PDF saves the quote as a PDF to send. A sent quote can't be changed, so Copy to new draft starts a new version. Quotes are never deleted. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back.
+
+Quotes are the prices offered on a deal: New quote on an open deal's page, or in the Quotes section, opens a draft with a preview beside it of what the customer will get. Add products from the price list, change their quantities, descriptions and prices, and Save quote. Mark as sent when it's ready, then Accept when the customer says yes, which moves the deal to Won at the quote's value, or Decline. Download PDF saves the quote as a PDF to send. A sent quote can't be changed, so Copy to new draft starts a new version. Quotes are never deleted.
+
+Bills holds the bills the business receives from its suppliers. A supplier is any organization, so add a new one in Organizations first. Each bill has the supplier's bill number, a bill date, a due date 30 days later unless you change it, the amount and the tax as they appear on the bill, and a category. Bills opens on the unpaid ones, earliest due first, so overdue bills come first: a bill is overdue once its due date has passed. Mark paid asks the date you paid it, and Mark unpaid undoes it, with Undo on its message for 10 seconds. An organization's page lists its bills, and an organization with bills can't be deleted. Below the dashboard's own part, the Money section shows what we owe and what's overdue, a timeline of the bills due in the next 30 days, and spending by category for the last 12 months.
+
+The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -645,11 +766,11 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product and quote, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, quote and bill, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
 begin;
-truncate table quote_lines, quotes, activities, stage_changes, deals, contacts, organizations, products, number_counters;
+truncate table quote_lines, quotes, activities, stage_changes, deals, contacts, organizations, bills, products, number_counters;
 update company_settings set
   company_name = default, address = default, email = default, phone = default,
   tax_label = default, tax_rate = default, payment_terms_days = default,
@@ -658,7 +779,7 @@ update company_settings set
 commit;
 ```
 
-Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
+Quotes and bills are in the same `truncate` as the deals and organizations because each quote points at its deal and each bill at its supplier, and Postgres won't empty a table that another table's rows still point at. Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
 
 #### Put it on Render
 

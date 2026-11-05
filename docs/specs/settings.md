@@ -5,7 +5,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 ## Company settings
 
 - **B1.** The company settings are one set of details for the whole team, kept in the database: the company name, address, email and phone, a tax label and rate, the payment terms in days, and the prefixes for quote and invoice numbers. They're there for quotes and invoices. Quotes use the company's details on their PDFs, the tax on their totals and the quote prefix in their numbers, and each quote keeps the details and the tax as they were when it was sent, so a later save here never changes a quote a customer has ([Q17](quotes.md#amounts-and-tax), [Q30](quotes.md#the-pdf)). Accountable doesn't have invoices yet.
-- **B2.** Company settings, in the menu under your initials ([N7](shell.md#app-shell)), opens the Company settings page at `/settings`. Like a section, it has its own address (N2) and keeps the top bar, but it isn't one of the five sections, so no section is marked as current while it's open.
+- **B2.** Company settings, in the menu under your initials ([N7](shell.md#app-shell)), opens the Company settings page at `/settings`. Like a section, it has its own address (N2) and keeps the top bar, but it isn't one of the top bar's sections, so no section is marked as current while it's open.
 - **B3.** Anyone who can sign in can see and change the settings, and everyone sees the same ones. A teammate's save shows when the window is used again or the page is refreshed, as with records. If two people save at once, the last save wins.
 
 ### Fields and rules

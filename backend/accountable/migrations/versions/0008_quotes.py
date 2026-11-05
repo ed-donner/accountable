@@ -7,15 +7,15 @@ A quote's deal_id has no delete rule, so a deal with quotes can't be deleted (D4
 partial unique index keeps a deal to one accepted quote (Q23). On Postgres, both tables get
 row-level security with no policies, like every other.
 
-Revision ID: 0007
-Revises: 0006
+Revision ID: 0008
+Revises: 0007
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0007"
-down_revision = "0006"
+revision = "0008"
+down_revision = "0007"
 branch_labels = None
 depends_on = None
 

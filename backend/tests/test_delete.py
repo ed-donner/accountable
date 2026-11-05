@@ -123,8 +123,8 @@ def test_a_won_deal_stays_counted_after_its_organization_and_contact_go(api, mak
     assert dashboard["deals_won_this_month"] == 1
 
 
-# Quotes hold deals, and nothing holds an organization yet, so these stand in for a later
-# area's records, such as an organization's bills: a deal's activities, and an organization's
+# These stand in for a later area's records, such as a deal's invoices or an organization's
+# bills, so the checks don't rest on any one area: a deal's activities, and an organization's
 # contacts and deals.
 STAND_IN_HOLDS = [
     Hold(activities.c.deal_id, "activity"),
@@ -138,12 +138,13 @@ def held(local_app):
     local_app.dependency_overrides[holds.app_holds] = lambda: STAND_IN_HOLDS
 
 
-def test_quotes_hold_deals_and_nothing_holds_an_organization_yet():
-    """Another area's holds join these, so this checks that quotes hold deals, not that theirs is the only hold."""
+def test_quotes_hold_deals_and_bills_hold_their_suppliers():
+    """Another area's holds join these, so this checks that both are there, not that they're the only holds."""
     every = [hold for area in main.AREAS for hold in area.holds]
     assert main.app.state.holds == every
-    assert (quotes.c.deal_id, "quote") in [(hold.link, hold.noun) for hold in every]
-    assert [hold for hold in every if hold.held is organizations] == []
+    given = [(hold.held, hold.noun) for hold in every]
+    assert (deals, "quote") in given
+    assert (organizations, "bill") in given
 
 
 def add_quote(api, deal: int) -> int:

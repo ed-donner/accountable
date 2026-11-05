@@ -69,6 +69,44 @@ const QUOTE = {
   total_cents: 0,
   ...WHO,
 };
+const BILL = {
+  id: 9,
+  organization: { id: 1, name: "Northwind Software" },
+  bill_number: "INV-0042",
+  bill_date: "2026-10-03",
+  due_date: "2026-11-02",
+  amount_cents: 124000,
+  tax_cents: 11005,
+  total_cents: 135005,
+  category: "software",
+  notes: null,
+  paid_on: null,
+  created_at: "2026-10-04T12:00:00Z",
+  created_by: null,
+  updated_at: "2026-10-04T12:00:00Z",
+  updated_by: null,
+};
+const NORTHWIND = {
+  id: 1,
+  name: "Northwind Software",
+  website: null,
+  industry: "Software",
+  notes: null,
+  contacts: [],
+  deals: [],
+  created_at: "2026-01-04T12:00:00Z",
+  created_by: null,
+  updated_at: "2026-01-04T12:00:00Z",
+  updated_by: null,
+};
+
+const NO_MONEY = {
+  today: "2026-10-31",
+  owed: { total_cents: "0", count: 0 },
+  overdue: { total_cents: "0", count: 0 },
+  due: { total_cents: "0", count: 0, bills: [] },
+  months: [],
+};
 
 let calls: Call[];
 
@@ -80,6 +118,7 @@ beforeEach(() => {
     "GET /me": ALEX,
     "GET /local/teammates": [ALEX],
     "POST /local/sign-in": { token: "alex-token" },
+    "GET /bills/dashboard": NO_MONEY,
   });
 });
 
@@ -161,7 +200,7 @@ describe("the app, signed out", () => {
 
     expect((await heading()).textContent).toBe("Deals");
     expect(window.location.pathname).toBe("/deals");
-    expect(topBar().getAllByRole("link")).toHaveLength(7);
+    expect(topBar().getAllByRole("link")).toHaveLength(8);
   });
 });
 
@@ -172,13 +211,13 @@ describe("the app, signed in", () => {
     visit("/");
     render(<App />);
     expect((await heading()).textContent).toBe("Dashboard");
-    expect(topBar().getAllByRole("link")).toHaveLength(7);
+    expect(topBar().getAllByRole("link")).toHaveLength(8);
     const bar = within(screen.getByRole("banner"));
     expect(bar.getByLabelText(SEARCH_BOX)).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
   });
 
-  it("links the top bar to the seven sections, in order, Quotes last", async () => {
+  it("links the top bar to the eight sections, in order, Quotes and Bills last", async () => {
     visit("/");
     render(<App />);
     await heading();
@@ -191,6 +230,7 @@ describe("the app, signed in", () => {
       ["Pipeline", "/pipeline"],
       ["Products", "/products"],
       ["Quotes", "/quotes"],
+      ["Bills", "/bills"],
     ]);
   });
 
@@ -211,6 +251,7 @@ describe("the app, signed in", () => {
     ["/pipeline", "Pipeline"],
     ["/products", "Products"],
     ["/quotes", "Quotes"],
+    ["/bills", "Bills"],
   ])("gives %s its own address", async (path, title) => {
     render(<App />);
     visit(path);
@@ -225,6 +266,7 @@ describe("the app, signed in", () => {
     ["/products/abc", "This product no longer exists", "Back to Products"],
     ["/quotes/abc", "This quote no longer exists", "Back to Quotes"],
     ["/quotes/new?deal=abc", "This deal no longer exists", "Back to Quotes"],
+    ["/bills/abc", "This bill no longer exists", "Back to Bills"],
   ])("says %s couldn't be a record, with a link back to its section", async (path, title, back) => {
     render(<App />);
     visit(path);
@@ -284,11 +326,49 @@ describe("the app, signed in", () => {
     expect(await panel.findByText("No quotes yet.")).toBeTruthy();
   });
 
+  it("has the Money section on the dashboard, below its own part", async () => {
+    visit("/");
+    render(<App />);
+    expect((await heading()).textContent).toBe("Dashboard");
+    const money = await screen.findByRole("region", { name: "Money" });
+    expect(within(money).getByRole("link", { name: /^What we owe/ }).textContent).toBe(
+      "What we owe$0.000 unpaid bills",
+    );
+    expect(screen.getAllByRole("heading", { level: 2 }).at(-1)?.textContent).toBe("Money");
+  });
+
+  it("opens a bill's page at its address", async () => {
+    mockApi({ "GET /me": ALEX, "GET /meta": META, "GET /bills/9": BILL });
+    render(<App />);
+    visit("/bills/9");
+    expect((await heading()).textContent).toBe("Bill INV-0042");
+    expect(screen.getByText("$1,350.05")).toBeTruthy();
+    expect(topBar().getByRole("link", { current: "page" }).textContent).toBe("Bills");
+  });
+
+  it("shows an organization's bills on its page, below its own panels", async () => {
+    mockApi({
+      "GET /me": ALEX,
+      "GET /meta": META,
+      "GET /organizations/1": NORTHWIND,
+      "GET /organizations/1/timeline?limit=50&offset=0": { entries: [], total: 0 },
+      "GET /quotes?organization_id=1": [],
+      "GET /bills?organization_id=1": [BILL],
+    });
+    render(<App />);
+    visit("/organizations/1");
+    expect((await heading()).textContent).toBe("Northwind Software");
+    const panels = screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"));
+    expect(panels.slice(0, 5)).toEqual(["Details", "Contacts", "Deals", "Quotes", "Bills"]);
+    const bills = within(screen.getByRole("region", { name: "Bills" }));
+    expect((await bills.findByRole("link", { name: "INV-0042" })).getAttribute("href")).toBe("/bills/9");
+  });
+
   it("says an unknown address no longer exists, links to the Dashboard and keeps the top bar", async () => {
     render(<App />);
     visit("/no/such/page");
     expect((await heading()).textContent).toBe("This page no longer exists");
-    expect(topBar().getAllByRole("link")).toHaveLength(7);
+    expect(topBar().getAllByRole("link")).toHaveLength(8);
 
     await user().click(screen.getByRole("link", { name: "Back to Dashboard" }));
 
@@ -302,7 +382,7 @@ describe("the app, signed in", () => {
     visit("/settings");
     expect((await heading()).textContent).toBe("Company settings");
     expect(window.location.pathname).toBe("/settings");
-    expect(topBar().getAllByRole("link")).toHaveLength(7);
+    expect(topBar().getAllByRole("link")).toHaveLength(8);
     expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
     expect(await screen.findByLabelText("Company name")).toBeTruthy();
   });

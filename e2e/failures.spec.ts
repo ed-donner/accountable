@@ -3,6 +3,7 @@ import type { APIRequestContext, Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import {
   addActivity,
+  addBill,
   addDeal,
   addLinkedDeal,
   addOrganization,
@@ -45,7 +46,7 @@ type Screen = {
   read: (ids: Ids) => string;
   shown: (page: Page) => Locator;
 };
-type Ids = { deal: number; contact: number; organization: number; product: number };
+type Ids = { deal: number; contact: number; organization: number; product: number; bill: number };
 
 const heading = (page: Page, name: string) => page.getByRole("heading", { level: 1, name });
 
@@ -123,13 +124,34 @@ const SCREENS: Screen[] = [
     read: ({ product }) => `/api/products/${product}`,
     shown: (page) => heading(page, "Solid kit"),
   },
+  {
+    name: "Bills",
+    address: () => "/bills",
+    read: () => "/api/bills",
+    shown: (page) => page.locator("tbody tr").first(),
+  },
+  {
+    name: "a bill's page",
+    address: ({ bill }) => `/bills/${bill}`,
+    read: ({ bill }) => `/api/bills/${bill}`,
+    shown: (page) => heading(page, "Bill SOLID-1"),
+  },
+  {
+    name: "the dashboard's Money section",
+    address: () => "/",
+    read: () => "/api/bills/dashboard",
+    shown: (page) => page.getByRole("link", { name: /^What we owe/ }),
+  },
 ];
 
 async function solidRecords(request: APIRequestContext): Promise<Ids> {
   const { deal, contact, organization } = await addLinkedDeal(request, "Solid");
   await addActivity(request, { deal_id: deal.id, description: "Something happened" });
   const product = await addProduct(request, "Solid kit");
-  return { deal: deal.id, contact: contact.id, organization: organization.id, product: product.id };
+  // From a supplier of its own, so the organization above stays free to delete.
+  const supplier = await addOrganization(request, "Solid Supplies");
+  const bill = await addBill(request, { organization_id: supplier.id, bill_number: "SOLID-1" });
+  return { deal: deal.id, contact: contact.id, organization: organization.id, product: product.id, bill: bill.id };
 }
 
 for (const screen of SCREENS) {
@@ -344,12 +366,27 @@ test("a product that isn't there says it no longer exists, with a link back", as
   await expect(heading(page, "Products")).toBeVisible();
 });
 
+test("a bill that isn't there says it no longer exists, with a link back", async ({
+  page,
+  request,
+  expectConsoleError,
+}) => {
+  expectConsoleError(/status of 404/);
+  const supplier = await addOrganization(request, "Here Supplies");
+  const bill = await addBill(request, { organization_id: supplier.id });
+  await page.goto(`/bills/${bill.id + 1000}`);
+  await expect(heading(page, "This bill no longer exists")).toBeVisible();
+  await page.getByRole("link", { name: "Back to Bills" }).click();
+  await expect(heading(page, "Bills")).toBeVisible();
+});
+
 test.describe("addresses that lead nowhere", () => {
   const SECTIONS = [
     ["deals", "deal", "Deals"],
     ["contacts", "contact", "Contacts"],
     ["organizations", "organization", "Organizations"],
     ["products", "product", "Products"],
+    ["bills", "bill", "Bills"],
   ];
 
   for (const [folder, word, section] of SECTIONS) {
@@ -573,6 +610,22 @@ test.describe("saves that fail", () => {
     expect((await (await request.get(`/api/products/${product.id}`)).json()).active).toBe(true);
   });
 
+  test("a failed Mark paid says so and leaves the bill unpaid", async ({ page, request, expectConsoleError }) => {
+    expectConsoleError(/status of 500/);
+    const supplier = await addOrganization(request, "Hard to pay");
+    const bill = await addBill(request, { organization_id: supplier.id, bill_number: "HTP-1" });
+    await breakApi(page, `/api/bills/${bill.id}`, "PATCH");
+    await page.goto("/bills");
+    await page.getByRole("button", { name: "Mark paid bill HTP-1 from Hard to pay" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Mark paid" }).click();
+
+    await expect(page.getByText("Something went wrong.")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Mark bill HTP-1 paid" })).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("row", { name: /^Hard to pay/ }).getByText("Unpaid")).toBeVisible();
+    expect((await (await request.get(`/api/bills/${bill.id}`)).json()).paid_on).toBeNull();
+  });
+
   test("a failed tick puts the follow-up back on the dashboard", async ({ page, request, expectConsoleError }) => {
     expectConsoleError(/status of 500/);
     const { deal } = await addLinkedDeal(request, "Tick fails");
@@ -656,6 +709,28 @@ test.describe("pressing twice", () => {
     await expect(page.getByRole("row", { name: /^Archived once/ })).toHaveCount(0);
     expect(archives).toEqual(['{"active":false}']);
     expect((await (await request.get(`/api/products/${product.id}`)).json()).active).toBe(false);
+  });
+
+  test("a double click on Mark paid in its dialog marks the bill paid once, with no error", async ({
+    page,
+    request,
+  }) => {
+    const supplier = await addOrganization(request, "Paid once");
+    const bill = await addBill(request, { organization_id: supplier.id, bill_number: "PO-1" });
+    const payments: string[] = [];
+    page.on("request", (sent) => {
+      if (sent.method() === "PATCH" && new URL(sent.url()).pathname === `/api/bills/${bill.id}`) {
+        payments.push(sent.postData() ?? "");
+      }
+    });
+    await page.goto("/bills");
+    await page.getByRole("button", { name: "Mark paid bill PO-1 from Paid once" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Mark paid" }).dblclick();
+
+    await expect(page.getByText("Bill marked paid.")).toBeVisible();
+    await expect(page.getByText("No unpaid bills.")).toBeVisible();
+    expect(payments).toEqual([JSON.stringify({ paid_on: isoDay() })]);
+    expect((await (await request.get(`/api/bills/${bill.id}`)).json()).paid_on).toBe(isoDay());
   });
 
   test("a double click on a card's column button opens one form", async ({ page }) => {

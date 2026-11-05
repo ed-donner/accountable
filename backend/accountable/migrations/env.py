@@ -1,3 +1,4 @@
+from accountable.bills import tables as bills_tables
 from accountable.company import tables as company_tables
 from accountable.crm import tables as crm_tables
 from accountable.products import tables as products_tables
@@ -10,6 +11,7 @@ from alembic import context
 metadata = crm_tables.metadata
 assert products_tables.metadata is metadata
 assert company_tables.metadata is metadata
+assert bills_tables.metadata is metadata
 assert quotes_tables.metadata is metadata
 
 if context.is_offline_mode():

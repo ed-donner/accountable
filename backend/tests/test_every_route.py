@@ -130,6 +130,10 @@ def test_the_routes_were_found():
     assert ("POST", "/api/quotes", "valid_until") in BODY_TEXT
     assert ("PATCH", "/api/quotes/{quote_id}", "valid_until") in BODY_TEXT
     assert not [path for method, path in ROUTES if method == "DELETE" and path.startswith("/api/quotes")]
+    assert ("DELETE", "/api/bills/{bill_id}") in RECORD_ROUTES
+    assert ("PATCH", "/api/bills/{bill_id}", "paid_on") in BODY_TEXT
+    assert ("POST", "/api/bills", "bill_number") in BODY_TEXT
+    assert ("GET", "/api/bills/dashboard") in READS
     assert QUERY_TEXT == [("GET", "/api/search", "q")]
     assert LOCAL_SIGN_IN_TEXT == [("POST", "/api/local/sign-in", "user_id")]
     assert len(RECORD_ROUTES) > 15

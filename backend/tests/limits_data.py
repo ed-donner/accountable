@@ -1,5 +1,6 @@
-"""Fills a database to the Q1 limits: 1,000 contacts, 500 deals, 5,000 activities, 500 products, and
-1,000 quotes with 5,000 lines between them, the last a draft with 100 lines for the speed tests.
+"""Fills a database to the Q1 limits: 1,000 contacts, 500 deals, 5,000 activities, 500 products,
+1,000 quotes with 5,000 lines between them, the last a draft with 100 lines for the speed tests,
+and 1,000 bills.
 
 Run on its own, it replaces everything in the ACCOUNTABLE_DB database, for the
 end-to-end stress tests. It refuses to touch the real data folder.
@@ -22,6 +23,8 @@ QUOTES = 1000
 LINES = 5000
 LONGEST_QUOTE = 100
 """The last quote's lines, the most a quote can have. The other quotes share the rest."""
+BILLS = 1000
+CATEGORIES = ("software", "contractors", "travel", "office", "marketing", "other")
 
 # Won and Lost get long columns, the worst case for dragging.
 STAGE_SHARE = (
@@ -34,11 +37,15 @@ def fill(conn: Connection, today: date) -> None:
     from accountable import sample
 
     now = sample.moment(today - timedelta(days=1), 3)
-    deal_ids, product_ids = _crm_and_products(conn, today, now)
+    organization_ids, deal_ids, product_ids = _crm_and_products(conn, today, now)
     _quotes(conn, today, now, deal_ids, product_ids)
+    _bills(conn, today, now, organization_ids)
 
 
-def _crm_and_products(conn: Connection, today: date, now: datetime) -> tuple[Sequence[int], Sequence[int]]:
+def _crm_and_products(
+    conn: Connection, today: date, now: datetime
+) -> tuple[Sequence[int], Sequence[int], Sequence[int]]:
+    """The organizations', deals' and products' ids, in the order they were added."""
     from accountable import users, who
     from accountable.crm import rules
     from accountable.crm.tables import activities, contacts, organizations
@@ -146,7 +153,7 @@ def _crm_and_products(conn: Connection, today: date, now: datetime) -> tuple[Seq
             for number in range(PRODUCTS)
         ],
     ).all()
-    return deal_ids, product_ids
+    return organization_ids, deal_ids, product_ids
 
 
 def _quotes(conn: Connection, today: date, now: datetime, deal_ids: Sequence[int], product_ids: Sequence[int]) -> None:
@@ -207,6 +214,35 @@ def _quotes(conn: Connection, today: date, now: datetime, deal_ids: Sequence[int
             for line in range(count)
         ],
     )
+
+
+def _bills(conn: Connection, today: date, now: datetime, organization_ids: Sequence[int]) -> None:
+    """Dated over the last year, due 30 days on. Those due before today are paid, but for one in 10."""
+    from accountable import users, who
+    from accountable.bills.tables import bill_number_key, bills
+
+    bill_rows = []
+    for number in range(BILLS):
+        bill_date = today - timedelta(days=number * 7 % 360)
+        due_date = bill_date + timedelta(days=30)
+        paid = due_date < today and number % 10 != 0
+        bill_number = f"LIM-{number:05d} for a long stretch of work"
+        bill_rows.append(
+            {
+                "organization_id": organization_ids[number % ORGANIZATIONS],
+                "bill_number": bill_number,
+                "bill_number_key": bill_number_key(bill_number),
+                "bill_date": bill_date,
+                "due_date": due_date,
+                "amount_cents": 3800 + number * 13_757 % 900_000,
+                "tax_cents": number * 311 % 8000,
+                "category": CATEGORIES[number % len(CATEGORIES)],
+                "notes": f"Notes on bill {number}" if number % 3 == 0 else None,
+                "paid_on": due_date - timedelta(days=2) if paid else None,
+                **who.added(users.teammate(number), now),
+            }
+        )
+    conn.execute(insert(bills), bill_rows)
 
 
 def main() -> int:

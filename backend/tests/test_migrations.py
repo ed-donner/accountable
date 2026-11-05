@@ -3,6 +3,7 @@ from datetime import date, datetime
 
 import pytest
 from accountable import db
+from accountable.bills.tables import bill_number_key, bills
 from accountable.company import documents
 from accountable.company.tables import company_settings, number_counters
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
@@ -16,6 +17,7 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from conftest import insert_row
 from sqlalchemy import column, delete, func, insert, inspect, select, table
+from sqlalchemy.exc import IntegrityError
 
 
 def live() -> dict:
@@ -90,6 +92,8 @@ def test_the_spec_indexes_exist(database):
     assert ("deal_id",) in indexes["quotes"]
     assert ("quote_id", "position") in indexes["quote_lines"]
     assert ("product_id",) in indexes["quote_lines"]
+    assert ("due_date",) in indexes["bills"]
+    assert ("bill_date",) in indexes["bills"]
 
 
 def test_product_names_have_a_unique_index(database):
@@ -97,6 +101,11 @@ def test_product_names_have_a_unique_index(database):
         tuple(index["column_names"]): index["unique"] for index in inspect(db.engine()).get_indexes(products.name)
     }
     assert unique[("name_key",)]
+
+
+def test_each_suppliers_bill_numbers_have_a_unique_index(database):
+    unique = {tuple(index["column_names"]): index["unique"] for index in inspect(db.engine()).get_indexes(bills.name)}
+    assert unique[("organization_id", "bill_number_key")]
 
 
 def test_each_kind_of_document_has_one_counter(database):
@@ -129,7 +138,7 @@ def test_users_and_who_added_each_record_are_built(database):
     built = live()
     assert built["users"]["columns"]["id"] == ("TEXT", False)
     assert built["users"]["columns"]["email"] == ("TEXT", False)
-    for record in ("organizations", "contacts", "deals", "activities", "products", "quotes"):
+    for record in ("organizations", "contacts", "deals", "activities", "products", "quotes", "bills"):
         assert (("created_by",), "users", None) in built[record]["foreign_keys"], record
         assert (("updated_by",), "users", None) in built[record]["foreign_keys"], record
     assert (("created_by",), "users", None) in built["stage_changes"]["foreign_keys"]
@@ -137,6 +146,8 @@ def test_users_and_who_added_each_record_are_built(database):
     assert built["products"]["columns"]["unit_price_cents"] == ("BIGINT", False)
     assert built["quotes"]["columns"]["subtotal_cents"] == ("BIGINT", False)
     assert built["quote_lines"]["columns"]["unit_price_cents"] == ("BIGINT", False)
+    assert built["bills"]["columns"]["amount_cents"] == ("BIGINT", False)
+    assert built["bills"]["columns"]["tax_cents"] == ("BIGINT", False)
 
 
 def test_a_quote_holds_its_deal_and_its_lines_go_with_it(database):
@@ -151,6 +162,9 @@ def test_the_check_constraints_match(database):
     assert actual["activities"]["checks"] == {"ck_activities_one_parent": "(contact_id IS NULL) != (deal_id IS NULL)"}
     assert actual["company_settings"]["checks"] == {"ck_company_settings_one_row": "id = 1"}
     assert actual["quotes"]["checks"] == {"ck_quotes_status": "status IN ('draft', 'sent', 'accepted', 'declined')"}
+    assert actual["bills"]["checks"] == {
+        "ck_bills_category": "category IN ('software', 'contractors', 'travel', 'office', 'marketing', 'other')"
+    }
     for name in expected:
         assert actual[name]["checks"] == expected[name]["checks"], name
 
@@ -472,11 +486,63 @@ def test_upgrading_from_before_the_counters_keeps_every_row_and_starts_each_coun
 
 
 @pytest.fixture
-def database_from_before_quotes(tmp_path, monkeypatch):
-    path = tmp_path / "before-quotes.db"
+def database_from_before_bills(tmp_path, monkeypatch):
+    path = tmp_path / "before-bills.db"
     monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
     db.dispose()
     fill_at(path, "0006")
+    yield path
+    db.dispose()
+
+
+def a_bill(organization_id: int, number: str) -> dict:
+    return {
+        "organization_id": organization_id,
+        "bill_number": number,
+        "bill_number_key": bill_number_key(number),
+        "bill_date": date(2026, 10, 1),
+        "due_date": date(2026, 10, 31),
+        "amount_cents": 124000,
+        "category": "software",
+    }
+
+
+def test_upgrading_from_before_bills_keeps_every_row_and_adds_an_empty_bills_table(database_from_before_bills):
+    """Sample bills only go into a new database (M1), so an existing one starts with none."""
+    before = everything()
+    assert "bills" not in inspect(db.engine()).get_table_names()
+    db.dispose()
+
+    assert db.prepare_database(nothing) is False
+
+    assert all(before.values())
+    assert everything() == before
+    with db.reading() as conn:
+        assert conn.execute(select(func.count()).select_from(bills)).scalar_one() == 0
+        assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+
+
+def test_after_the_upgrade_the_database_keeps_bill_numbers_apart_and_holds_suppliers(database_from_before_bills):
+    db.prepare_database(nothing)
+    with db.writing() as conn:
+        supplier = conn.execute(select(organizations.c.id)).scalar_one()
+        conn.execute(insert(bills).values(**a_bill(supplier, "INV-0042")))
+
+    with pytest.raises(IntegrityError), db.writing() as conn:
+        conn.execute(insert(bills).values(**a_bill(supplier, "inv-0042")))
+    with pytest.raises(IntegrityError), db.writing() as conn:
+        conn.execute(delete(organizations))
+    with db.reading() as conn:
+        assert conn.execute(select(func.count()).select_from(organizations)).scalar_one() == 1
+
+
+@pytest.fixture
+def database_from_before_quotes(tmp_path, monkeypatch):
+    """At 0007, with bills, as the team's database is when quotes arrive."""
+    path = tmp_path / "before-quotes.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    fill_at(path, "0007")
     with db.writing() as conn:
         documents.take_number(conn, "quote")
         documents.take_number(conn, "quote")
@@ -517,7 +583,8 @@ def test_the_migrations_see_every_areas_tables():
     """A table is in the metadata only once its module is imported. Without its import, autogenerate would drop it."""
     env = (db.MIGRATIONS / "env.py").read_text()
     areas = sorted(path.parent.name for path in db.MIGRATIONS.parent.glob("*/tables.py"))
-    assert {"company", "crm", "products", "quotes"} <= set(areas)  # The check is looking in the right place.
+    # The check is looking in the right place.
+    assert {"bills", "company", "crm", "products", "quotes"} <= set(areas)
     for area in areas:
         assert f"from accountable.{area} import tables" in env, area
 
@@ -567,6 +634,12 @@ def test_on_postgres_a_deal_has_one_accepted_quote_at_most(postgres_sql):
     assert "CONSTRAINT ck_quotes_status CHECK (status IN ('draft', 'sent', 'accepted', 'declined'))" in created(
         postgres_sql, "quotes"
     )
+
+
+def test_on_postgres_bill_amounts_are_64_bit(postgres_sql):
+    """A bill's amount and tax each go up to $1 trillion in cents, as a price does (E4)."""
+    assert "amount_cents BIGINT NOT NULL" in created(postgres_sql, "bills")
+    assert "tax_cents BIGINT NOT NULL" in created(postgres_sql, "bills")
 
 
 def test_on_postgres_every_table_gets_row_level_security(postgres_sql):

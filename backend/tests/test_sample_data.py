@@ -6,6 +6,8 @@ from typing import Any
 
 import pytest
 from accountable import cli, db
+from accountable.bills import sample_data as bill_samples
+from accountable.bills.tables import CATEGORIES, bill_number_key, bills
 from accountable.company import documents
 from accountable.company import sample_data as company_samples
 from accountable.company.tables import company_settings
@@ -38,6 +40,7 @@ def seeded(request, rows_by_day, database):
         with db.writing() as conn:
             sample_data.fill(conn, today)
             product_samples.fill(conn, today)
+            bill_samples.fill(conn, today)
             company_samples.fill(conn, datetime.combine(today, time(12)))
             quote_samples.fill(conn, today)
             next_number = documents.take_number(conn, "quote")
@@ -50,6 +53,7 @@ def seeded(request, rows_by_day, database):
                 "activities": rows_of(conn, activities),
                 "stage_changes": rows_of(conn, stage_changes),
                 "products": rows_of(conn, products),
+                "bills": rows_of(conn, bills),
                 "users": rows_of(conn, users),
                 "quotes": conn.execute(select(quotes).order_by(quotes.c.id)).all(),
                 "quote_lines": rows_of(conn, quote_lines),
@@ -70,12 +74,13 @@ def test_activity_types_are_spread_through_the_working_day(seeded):
 
 
 def test_the_amounts(seeded):
-    assert len(seeded["organizations"]) == 24
+    assert len(seeded["organizations"]) == 30
     assert len(seeded["contacts"]) == 75
     assert len(seeded["deals"]) == 80
     assert len(seeded["activities"]) == 300
     assert len(seeded["products"]) == 12
     assert len(seeded["quotes"]) == 40
+    assert len(seeded["bills"]) == 85
 
 
 def test_products_have_cents_and_archived_ones_and_fit_the_sample_deals(seeded):
@@ -103,6 +108,70 @@ def test_archived_products_were_last_changed_by_another_teammate(seeded):
         if not row.active:
             assert row.updated_by != row.created_by, row.name
             assert row.updated_at > row.created_at, row.name
+
+
+# Bills (M3)
+
+
+def test_six_suppliers_with_bills_and_no_deals_and_customers_that_send_bills_too(seeded):
+    sends_bills = {row.organization_id for row in seeded["bills"]}
+    has_deals = {row.organization_id for row in seeded["deals"]}
+    names = {row.id: row.name for row in seeded["organizations"]}
+    assert len(sends_bills - has_deals) == 6
+    assert {names[organization] for organization in sends_bills - has_deals} == {
+        name for name, *_rest in bill_samples.SUPPLIERS
+    }
+    assert sends_bills & has_deals
+    has_contacts = {row.organization_id for row in seeded["contacts"]}
+    assert not (sends_bills - has_deals) & has_contacts
+
+
+def test_bills_in_every_category_in_each_of_the_last_12_months(seeded):
+    today = seeded["today"]
+    rows = seeded["bills"]
+    assert {row.category for row in rows} == set(CATEGORIES)
+    months = Counter((row.bill_date.year, row.bill_date.month) for row in rows)
+    assert all(months[month] >= 1 for month in months_back(today, 12))
+    assert months[(today.year, today.month)] >= 2
+    assert all(row.bill_date <= today for row in rows)
+
+
+def test_regular_bills_and_at_least_four_large_ones(seeded):
+    rows = seeded["bills"]
+    assert sum(row.amount_cents > 500000 for row in rows) >= 4
+    assert sum(row.amount_cents == 450000 and row.category == "office" for row in rows) == 12
+    assert sum(row.tax_cents > 0 for row in rows) >= 10
+    assert sum(row.tax_cents == 0 for row in rows) >= 10
+    assert sum(row.amount_cents % 100 != 0 for row in rows) >= 3
+
+
+def test_every_bill_is_due_30_days_after_its_bill_date(seeded):
+    assert all(row.due_date == row.bill_date + timedelta(days=30) for row in seeded["bills"])
+
+
+def test_bills_unpaid_due_soon_overdue_and_paid(seeded):
+    today = seeded["today"]
+    unpaid = [row for row in seeded["bills"] if row.paid_on is None]
+    assert sum(today <= row.due_date <= today + timedelta(days=30) for row in unpaid) >= 6
+    assert len({row.due_date for row in unpaid if row.due_date >= today}) >= 4
+    assert sum(row.due_date < today for row in unpaid) >= 3
+    paid = [row for row in seeded["bills"] if row.paid_on is not None]
+    assert len(paid) > len(unpaid)
+    assert all(row.bill_date <= row.paid_on <= today for row in paid)
+    assert all(row.due_date < today for row in paid)
+
+
+def test_no_supplier_has_two_bills_with_one_number(seeded):
+    rows = seeded["bills"]
+    assert all(row.bill_number_key == bill_number_key(row.bill_number) for row in rows)
+    assert len({(row.organization_id, row.bill_number_key) for row in rows}) == len(rows)
+
+
+def test_a_paid_bill_was_last_changed_when_it_was_marked_paid(seeded):
+    for row in seeded["bills"]:
+        if row.paid_on is not None:
+            assert row.updated_by != row.created_by
+            assert row.updated_at.date() >= row.paid_on - timedelta(days=1)
 
 
 def test_at_least_six_industries(seeded):
@@ -248,11 +317,20 @@ def test_the_same_content_each_time(database):
                     select(quotes.c.number, quotes.c.status, quotes.c.quote_date, quotes.c.subtotal_cents)
                 )
             ],
+            [
+                tuple(row)
+                for row in conn.execute(
+                    select(organizations.c.name, *(column for column in bills.c if not column.name.endswith("id")))
+                    .join(organizations, organizations.c.id == bills.c.organization_id)
+                    .order_by(bills.c.id)
+                )
+            ],
         )
 
     def fill(conn) -> None:
         sample_data.fill(conn, day)
         product_samples.fill(conn, day)
+        bill_samples.fill(conn, day)
         company_samples.fill(conn, datetime.combine(day, time(12)))
         quote_samples.fill(conn, day)
 
@@ -273,7 +351,7 @@ def test_won_and_lost_columns_start_newest_first(seeded):
 
 
 TEAMMATE_IDS = {teammate.id for teammate in TEAMMATES}
-RECORDS = ("organizations", "contacts", "deals", "activities", "products", "quotes")
+RECORDS = ("organizations", "contacts", "deals", "activities", "products", "quotes", "bills")
 
 
 def test_the_four_made_up_teammates_with_robin_having_no_name(seeded):
@@ -305,7 +383,7 @@ def test_each_teammate_added_some_of_each_kind(seeded):
         assert {row.created_by for row in seeded[kind]} == TEAMMATE_IDS, kind
 
 
-@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products", "quotes"])
+@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products", "quotes", "bills"])
 def test_some_records_were_last_changed_by_another_teammate_since(seeded, kind):
     changed = [row for row in seeded[kind] if row.updated_by != row.created_by]
     assert len(changed) >= (4 if kind == "products" else 5)
@@ -319,7 +397,7 @@ def test_nothing_was_changed_before_it_was_added_or_after_today(seeded, kind):
         assert row.created_at <= row.updated_at < limit
 
 
-@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products", "quotes"])
+@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products", "quotes", "bills"])
 def test_records_nobody_changed_have_one_moment_for_both_times(seeded, kind):
     unchanged = [row for row in seeded[kind] if row.updated_at == row.created_at]
     assert unchanged

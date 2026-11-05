@@ -7,20 +7,17 @@ import { formatDate } from "../lib/dates";
 import type { Authorship, Person } from "../lib/records";
 import { PageHeader } from "./PageHeader";
 
-/** A record page's second button, in place of Delete, such as Archive. */
+/** A record page's own button after Edit, such as Archive, in place of Delete or before it. */
 export type HeaderAction = { label: string; icon: ReactNode; onClick: () => void; pending?: boolean };
 
-/** A page gives Delete or another button, never both. */
-type SecondButton = { onDelete: () => void; action?: never } | { action: HeaderAction; onDelete?: never };
+/** A page has Edit, then its own button, Delete, or both in that order. */
+type HeaderButtons = { onDelete: () => void; action?: HeaderAction } | { action: HeaderAction; onDelete?: () => void };
 
-type HeaderProps = SecondButton & { title: string; chips?: ReactNode; onEdit: () => void };
+type HeaderProps = HeaderButtons & { title: string; chips?: ReactNode; onEdit: () => void };
 
 export function RecordHeader({ title, chips, onEdit, onDelete, action }: HeaderProps) {
-  const second: HeaderAction = action ?? {
-    label: "Delete",
-    icon: <Trash2 size={15} aria-hidden="true" />,
-    onClick: onDelete!,
-  };
+  const remove = onDelete && { label: "Delete", icon: <Trash2 size={15} aria-hidden="true" />, onClick: onDelete };
+  const buttons: HeaderAction[] = [action, remove].filter((button) => button !== undefined);
   return (
     <PageHeader title={title}>
       {chips}
@@ -29,10 +26,19 @@ export function RecordHeader({ title, chips, onEdit, onDelete, action }: HeaderP
           <Pencil size={15} aria-hidden="true" />
           Edit
         </button>
-        <button type="button" className="btn btn-secondary bg-panel" disabled={second.pending} onClick={second.onClick}>
-          {second.icon}
-          {second.label}
-        </button>
+        {/* Kept in place by position, so a button that changes, such as Mark paid to Mark unpaid, keeps focus. */}
+        {buttons.map((button, place) => (
+          <button
+            key={place}
+            type="button"
+            className="btn btn-secondary bg-panel"
+            disabled={button.pending}
+            onClick={button.onClick}
+          >
+            {button.icon}
+            {button.label}
+          </button>
+        ))}
       </div>
     </PageHeader>
   );

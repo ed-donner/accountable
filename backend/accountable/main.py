@@ -22,6 +22,9 @@ from starlette.responses import Response
 from starlette.types import Scope
 
 from accountable import api, auth, cli, db, search, settings, users
+from accountable.bills import router as bills
+from accountable.bills import schemas as bills_schemas
+from accountable.bills import tables as bills_tables
 from accountable.company import router as company_settings
 from accountable.company import schemas as company_schemas
 from accountable.crm import schemas as crm_schemas
@@ -68,6 +71,8 @@ AREAS = [
     ),
     Area(routers=[products.router], messages=products_schemas.FIELD_MESSAGES, kinds=products_search.KINDS),
     Area(routers=[company_settings.router], messages=company_schemas.FIELD_MESSAGES),
+    # Bills aren't searched from the top bar (K1), and each one holds its supplier (D4).
+    Area(routers=[bills.router], messages=bills_schemas.FIELD_MESSAGES, holds=bills_tables.HOLDS),
 ]
 
 

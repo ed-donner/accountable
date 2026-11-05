@@ -191,3 +191,14 @@ def test_products_show_five_with_the_count_of_all_in_order(api, make):
         "Extra seat",
         "Pro seat",
     ]
+
+
+# Bills (K1)
+
+
+def test_a_bills_number_and_notes_find_nothing(api, make):
+    """Bills are found from their own table's search, not the top bar's."""
+    supplier = make.organization("Northwind Software")
+    make.bill(supplier, "HARBOR-0042", notes="Harbor office rent")
+    empty = {"count": 0, "results": []}
+    assert search(api, "harbor") == {"organizations": empty, "contacts": empty, "deals": empty, "products": empty}

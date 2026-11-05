@@ -1,4 +1,4 @@
-"""Fills a database to the Q1 limits: 1,000 contacts, 500 deals, 5,000 activities and 500 products.
+"""Fills a database to the Q1 limits: 1,000 contacts, 500 deals, 5,000 activities, 500 products and 1,000 bills.
 
 Run on its own, it replaces everything in the ACCOUNTABLE_DB database, for the
 end-to-end stress tests. It refuses to touch the real data folder.
@@ -16,6 +16,8 @@ CONTACTS = 1000
 DEALS = 500
 ACTIVITIES = 5000
 PRODUCTS = 500
+BILLS = 1000
+CATEGORIES = ("software", "contractors", "travel", "office", "marketing", "other")
 
 # Won and Lost get long columns, the worst case for dragging.
 STAGE_SHARE = (
@@ -26,6 +28,7 @@ STAGE_SHARE = (
 def fill(conn: Connection, today: date) -> None:
     """Every record is put down to one of the made-up teammates, as in the sample data."""
     from accountable import sample, users, who
+    from accountable.bills.tables import bill_number_key, bills
     from accountable.crm import rules
     from accountable.crm.tables import activities, contacts, organizations
     from accountable.products.tables import name_key, products
@@ -133,6 +136,30 @@ def fill(conn: Connection, today: date) -> None:
             for number in range(PRODUCTS)
         ],
     )
+
+    # Dated over the last year, due 30 days on. Those due before today are paid, but for one in 10.
+    bill_rows = []
+    for number in range(BILLS):
+        bill_date = today - timedelta(days=number * 7 % 360)
+        due_date = bill_date + timedelta(days=30)
+        paid = due_date < today and number % 10 != 0
+        bill_number = f"LIM-{number:05d} for a long stretch of work"
+        bill_rows.append(
+            {
+                "organization_id": organization_ids[number % ORGANIZATIONS],
+                "bill_number": bill_number,
+                "bill_number_key": bill_number_key(bill_number),
+                "bill_date": bill_date,
+                "due_date": due_date,
+                "amount_cents": 3800 + number * 13_757 % 900_000,
+                "tax_cents": number * 311 % 8000,
+                "category": CATEGORIES[number % len(CATEGORIES)],
+                "notes": f"Notes on bill {number}" if number % 3 == 0 else None,
+                "paid_on": due_date - timedelta(days=2) if paid else None,
+                **who.added(users.teammate(number), now),
+            }
+        )
+    conn.execute(insert(bills), bill_rows)
 
 
 def main() -> int:

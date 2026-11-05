@@ -12,6 +12,13 @@ describe("starting the app", () => {
       "GET /me": { id: "alex", name: "Alex Rivera", email: "alex@accountable.example", initials: "AR" },
       "GET /local/teammates": [{ id: "alex", name: "Alex Rivera", email: "alex@accountable.example", initials: "AR" }],
       "POST /local/sign-in": { token: "alex-token" },
+      "GET /bills/dashboard": {
+        today: "2026-10-31",
+        owed: { total_cents: 0, count: 0 },
+        overdue: { total_cents: 0, count: 0 },
+        due: { total_cents: 0, count: 0, bills: [] },
+        months: [],
+      },
     });
     const root = document.createElement("div");
     root.id = "root";
@@ -30,5 +37,6 @@ describe("starting the app", () => {
     const bar = within(page.getByRole("banner"));
     expect(bar.getByLabelText("Search organizations, contacts, deals and products")).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
+    expect(await page.findByRole("region", { name: "Money" })).toBeTruthy();
   });
 });

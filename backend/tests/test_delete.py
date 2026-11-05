@@ -122,8 +122,9 @@ def test_a_won_deal_stays_counted_after_its_organization_and_contact_go(api, mak
     assert dashboard["deals_won_this_month"] == 1
 
 
-# Nothing holds a deal or an organization yet, so these stand in for a later area's records,
-# such as a deal's invoices: a deal's activities, and an organization's contacts and deals.
+# These stand in for a later area's records, such as a deal's invoices or an organization's
+# bills, so the checks don't rest on any one area: a deal's activities, and an organization's
+# contacts and deals.
 STAND_IN_HOLDS = [
     Hold(activities.c.deal_id, "activity"),
     Hold(contacts.c.organization_id, "contact"),
@@ -136,9 +137,10 @@ def held(local_app):
     local_app.dependency_overrides[holds.app_holds] = lambda: STAND_IN_HOLDS
 
 
-def test_no_area_holds_a_deal_or_an_organization_yet():
-    assert [hold for area in main.AREAS for hold in area.holds] == []
-    assert main.app.state.holds == []
+def test_the_only_hold_is_the_bills_on_their_suppliers():
+    given = [hold for area in main.AREAS for hold in area.holds]
+    assert [(hold.held, hold.noun) for hold in given] == [(organizations, "bill")]
+    assert main.app.state.holds == given
 
 
 def test_a_hold_holds_the_table_its_link_points_at():

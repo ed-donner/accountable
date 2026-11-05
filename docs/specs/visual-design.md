@@ -161,7 +161,7 @@ Plain business English, short labels, no exclamation marks.
 
 | Where | Text |
 |---|---|
-| Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore, Add bill, Save bill, Delete bill, Mark paid, Mark unpaid, Undo |
+| Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore, Add bill, Save bill, Delete bill, Mark paid, Mark unpaid, Undo, Show all bills |
 | Menu button, for screen readers | Menu for Alex Rivera |
 | Menu | Theme. Light. Dark. System. Company settings. Sign out. |
 | Sign-in | Sign in. Email. Password. |
@@ -179,7 +179,7 @@ Plain business English, short labels, no exclamation marks.
 | Search failed | Couldn't search. Try again. |
 | More search results | See all 12 contacts |
 | Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. Bill saved. Bill deleted. Bill marked paid. Bill marked unpaid. |
-| Errors | Enter a name. Choose an organization. Enter your email. Enter a price in dollars and cents, such as 49.50. Enter a rate from 0 to 100%. Clashes with the quote prefix. Neither can start with the other, ignoring capitals. Choose a supplier. Enter the bill number. Choose a bill date. Choose a due date. Choose a category. Enter an amount in dollars and cents, such as 49.50. The due date can't be before the bill date. The paid date can't be in the future. The paid date can't be before the bill date. |
+| Errors | Enter a name. Choose an organization. Enter your email. Enter a price in dollars and cents, such as 49.50. Enter a rate from 0 to 100%. Clashes with the quote prefix. Neither can start with the other, ignoring capitals. Choose a supplier. Enter the bill number. Keep the bill number to 50 characters or fewer. Choose a bill date. Choose a due date. Choose a category. Choose a paid date. Enter an amount in dollars and cents, such as 49.50. The due date can't be before the bill date. The paid date can't be in the future. The paid date can't be before the bill date. |
 | Product name taken | A product with this name already exists. An archived product has this name. Restore it or choose another. |
 | Bill number taken | This supplier already has a bill with this number. |
 | Empty table | No deals yet. Add the first one. |

@@ -33,6 +33,7 @@ def with_records(make):
     deal = make.deal(organization_id=organization, main_contact_id=contact)
     make.activity(deal_id=deal)
     make.product()
+    make.bill(organization)
     take_number("quote")
 
 
@@ -40,7 +41,9 @@ EMPTY = {table.name: 0 for table in WIPED}
 
 
 def test_every_table_but_the_people_and_the_settings_is_wiped():
-    assert {"stage_changes", "products", "number_counters"} <= set(EMPTY)  # The check is looking in the right place.
+    assert {"stage_changes", "products", "number_counters", "bills"} <= set(
+        EMPTY
+    )  # The check is looking in the right place.
     assert {"users", "company_settings"}.isdisjoint(EMPTY)
 
 
@@ -48,7 +51,7 @@ def test_the_wipe_sees_every_areas_tables():
     """A table is in the metadata only once its module is imported, and the wipe goes by the metadata."""
     source = (db.ROOT / "backend" / "accountable" / "cli.py").read_text()
     areas = sorted(path.parent.name for path in (db.ROOT / "backend" / "accountable").glob("*/tables.py"))
-    assert {"company", "crm", "products"} <= set(areas)  # The check is looking in the right place.
+    assert {"bills", "company", "crm", "products"} <= set(areas)  # The check is looking in the right place.
     for area in areas:
         assert f"from accountable.{area} import tables" in source, area
 
@@ -58,7 +61,7 @@ def test_shows_what_will_be_lost_and_needs_yes(with_records, monkeypatch, capsys
     answer(monkeypatch, "yes\n")
     assert cli.main([command]) == 0
     output = capsys.readouterr().out
-    assert "1 organization, 1 contact, 1 deal, 1 activity, 1 product." in output
+    assert "1 organization, 1 contact, 1 deal, 1 activity, 1 product, 1 bill." in output
     assert "can't be undone" in output
 
 
@@ -67,20 +70,21 @@ def test_counts_read_naturally_when_there_are_several(make, monkeypatch, capsys)
     make.organization()
     answer(monkeypatch, "no\n")
     cli.main(["empty"])
-    assert "2 organizations, 0 contacts, 0 deals, 0 activities, 0 products." in capsys.readouterr().out
+    assert "2 organizations, 0 contacts, 0 deals, 0 activities, 0 products, 0 bills." in capsys.readouterr().out
 
 
 def test_seed_replaces_everything_with_the_sample_data(with_records, monkeypatch):
     answer(monkeypatch, "yes\n")
     cli.main(["seed"])
     after = counts()
-    assert (after["organizations"], after["contacts"], after["deals"], after["activities"], after["products"]) == (
-        24,
-        75,
-        80,
-        300,
-        12,
-    )
+    assert (
+        after["organizations"],
+        after["contacts"],
+        after["deals"],
+        after["activities"],
+        after["products"],
+        after["bills"],
+    ) == (30, 75, 80, 300, 12, 85)
 
 
 def test_empty_removes_every_record(with_records, monkeypatch):
@@ -176,7 +180,7 @@ def test_seed_before_the_first_start_builds_the_database(tmp_path, monkeypatch, 
     monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
     db.dispose()
     assert cli.main(["seed"]) == 0
-    assert (counts()["deals"], counts()["products"]) == (80, 12)
+    assert (counts()["deals"], counts()["products"], counts()["bills"]) == (80, 12, 85)
     assert everyone() == {teammate.id for teammate in users.TEAMMATES}
     assert "Sample data added" in capsys.readouterr().out
     db.dispose()

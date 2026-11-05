@@ -478,6 +478,48 @@ A trial the same way, before the change to when a waiting run speaks, also passe
 
 Each new check in `scripts/test-runs.test.mjs` was shown to fail on a copy of `test-runs.mjs` broken for it, put back after: no queue order, free turns counted without the busy runs, no turn ports, the speed tests first only while their port is held, none of the speed tests first, and every reason printed at once. Several of them rely on timing, so the file was run 13 times on the working code and passed every time, and the two breaks most open to chance were tried again: the speed tests' place failed six times in six, and every reason printed at once three times in three.
 
+## Bills: build
+
+Built on the `bills` branch, following `docs/changes/bills/plan.md` through its six phases, each ending with `npm run check:quick` passing and the last with `npm run check`. Bills is the seventh section: the bills the business receives from suppliers, each with the supplier's own bill number, a bill date and a due date, an amount, the tax, a category and notes, marked paid on a date or unpaid, with overdue worked out from today. An organization's page lists its bills, and an organization with bills can't be deleted. The dashboard has a Money section below its own part: what we owe, what's overdue, a timeline of the bills due in the next 30 days, and spending by category for 12 months. Migration `0007` adds the `bills` table with no rows, so an existing local copy and the team's Supabase database start with an empty Bills section. The sample data adds six suppliers and 85 bills. Every new test was seen to fail by breaking a copy of the code it covers, then putting the copy back, never through git.
+
+The six points the plan said the build would settle are in the spec now:
+
+- **Spending is folded into months in Python,** from one query for the 12 months' bills, as the CRM's revenue chart does, because grouping by month in the database needs date functions that differ between SQLite and Postgres. In `backend.md`.
+- **The Money reply carries `today`,** so the section reads its figures again once the browser's day has passed it. In the API table in `backend.md`.
+- **Each Money chart has a table behind it for screen readers:** the bills due, and each month's spending by category. In E22 and E23.
+- **Focus after a row leaves the table** goes to the table's search box (E13). Mark unpaid under Paid works as Archive does. Mark paid goes through a dialog, which found something wider: these dialogs open without a Radix `Dialog.Trigger`, so on closing, Radix puts focus nowhere. `FormDialog` now takes `onCloseFocus`, and the Mark paid dialog uses it to go back to the button that opened it, or to the search box, through a `ref` on `DataTable`, when that row has gone. The other forms still leave focus on nothing when they close, as they did before. In `frontend.md`.
+- **Row buttons' labels** read "Mark paid bill INV-0042 from Northwind Software", in the table's pattern. In the Bills table screen.
+- **"Show all bills"** is in the Words table.
+
+Also settled by the build, and in the spec:
+
+- **`bills/categories.tsx` and `bills/status.tsx`** rather than `.ts`, because they hold the swatch and the chip. In the file tree and `frontend.md`. `status.tsx` also has the paid date's checks, which the form and the Mark paid dialog share.
+- **A blank date in the Mark paid dialog** gets "Choose a paid date", which the spec didn't have. In the Words table, with "Keep the bill number to 50 characters or fewer", which the spec had in E3 only.
+- **The filter's counts** read "Unpaid (9)", with a space, as the Words table has them, where Contacts' filter reads "Lead12".
+- **Buttons keep their place** in a row and in the record header, so when Mark paid becomes Mark unpaid, focus stays on the same button.
+- **A bill dated in the calendar's last 30 days** is due on its last day, rather than a crash. A supplier that doesn't exist gets "Choose a supplier" before the database's foreign key can make it a 500, and every problem with a save comes back at once. In `backend.md`.
+- **The timeline** stacks a day's bills in layers, each bar colored by its own bill, and both charts draw their segments with `StackSegment`, for the 2px gaps and rounded tops. Recharts didn't fight it, so there's no hand-drawn SVG.
+
+Changes the plan didn't list:
+
+- **`e2e/dashboard.spec.ts`** checked that the dashboard page didn't scroll at all, which can't hold with a section below it. It now checks that the dashboard's own panels fit 1440 by 900 and that the Money section fits a window of its own below them, as H10 and the Money section's screen say.
+- **`frontend/src/layout.test.ts`** named the areas it finds, so it names `bills` now, and checks the later-area rule is looking at `bills/`. `test_layout.py` does the same on the backend.
+- **The Tab test in `menu.spec.ts`** walks seven section links, not six, and `settings.spec.ts` counts seven links in the top bar. The first full `npm run check` found the second.
+- **`failures.spec.ts`** also covers the dashboard's Money section failing to load and keeping old figures, and a bill that isn't there.
+
+On Postgres: a throwaway Postgres 16, built from the migrations' Postgres SQL, made `bills` with row-level security on, the unique index on `(organization_id, bill_number_key)`, the category check and `bigint` amounts. With a person, an organization, a bill, a product and a count in it, it refused a second "inv-1" from the supplier, a category of "rent" and the organization's delete. The old clearing steps failed with "cannot truncate a table referenced in a foreign key constraint" and changed nothing. The new ones, with `bills` in the same `truncate`, left only the person and the settings' row.
+
+**What the quotes and invoices merges will touch:**
+
+- **The migration's number:** each branch adds the one after `0006`, so the second and third merges renumber theirs, which `test_the_migrations_have_one_head` makes sure of.
+- **The lists each area joins with one entry:** `AREAS` in `main.py`, `RECORDS` and `fill_sample` in `cli.py`, the imports in `migrations/env.py`, and in `App.tsx` the sections, routes, `ORGANIZATION_PANELS`, `DEAL_PANELS` and `DASHBOARD_SECTIONS`.
+- **The Money section** is one component with two panels, Bills to pay and Spending by category, in `bills/charts/MoneySection.tsx`, so invoices' panels can join it there when the areas are brought together.
+- **Shared code bills changed, all with new optional props:** `DataTable` takes a row's own button and Delete together, a `filterNote`, and a `ref` that focuses its search box. `RecordHeader` takes an `action` and `onDelete` together. `FormDialog` takes `onCloseFocus`.
+- **Tests that count sections or Tab stops:** `App.test.tsx`, `start.spec.ts`, `settings.spec.ts`, `menu.spec.ts`'s Tab test, and `quality.spec.ts`'s Tab counts and its check that the top bar stays on one line at 1280px, which will need the merged count.
+- **The clearing steps** gain each area's tables in the same `truncate`.
+
+`npm run check` passes: 4,296 tests in 5m 36s, of which 2,714 backend, 1,281 frontend, 290 end-to-end and 11 speed. At the limits, Bills opens in 133ms and the Money section's data arrives in 8ms. Two unit tests read 1.1s while another test run on the computer was busy: the paging test in `DataTable.test.tsx`, which bills didn't change, and one case of the amount checks in `test_bills.py`. Alone they took 340ms and under 40ms.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -512,7 +554,9 @@ It opens on a sign-in screen listing four made-up teammates: Alex Rivera, Dana W
 
 If it says a port is in use, Accountable is probably already running in another window.
 
-Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back. The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices, which come later: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+Products is the price list: what the business sells, each with a unit price in dollars and cents. Archive takes a product off the list without deleting it. Tick Show archived to see archived products, and Restore puts one back.
+
+Bills holds the bills the business receives from its suppliers. A supplier is any organization, so add a new one in Organizations first. Each bill has the supplier's bill number, a bill date, a due date 30 days later unless you change it, the amount and the tax as they appear on the bill, and a category. Bills opens on the unpaid ones, earliest due first, so overdue bills come first: a bill is overdue once its due date has passed. Mark paid asks the date you paid it, and Mark unpaid undoes it, with Undo on its message for 10 seconds. An organization's page lists its bills, and an organization with bills can't be deleted. Below the dashboard's own part, the Money section shows what we owe and what's overdue, a timeline of the bills due in the next 30 days, and spending by category for the last 12 months. The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices, which come later: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -581,11 +625,11 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change and product, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product and bill, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
 begin;
-truncate table activities, stage_changes, deals, contacts, organizations, products, number_counters;
+truncate table activities, stage_changes, deals, contacts, organizations, bills, products, number_counters;
 update company_settings set
   company_name = default, address = default, email = default, phone = default,
   tax_label = default, tax_rate = default, payment_terms_days = default,
@@ -594,7 +638,7 @@ update company_settings set
 commit;
 ```
 
-Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
+Bills are in the same `truncate` as the organizations because each bill points at its supplier, and Postgres won't empty a table that another table's rows still point at. Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
 
 #### Put it on Render
 

@@ -31,12 +31,13 @@ const SHARED_APP_SETTINGS = {
   VITE_SUPABASE_PUBLISHABLE_KEY: "nothing",
 };
 
-test("the top bar links to the six sections and the app opens on the dashboard", async ({ page }) => {
+test("the top bar links to the seven sections and the app opens on the dashboard", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
 
   const sections = page.getByRole("navigation", { name: "Sections" });
-  for (const name of ["Organizations", "Contacts", "Deals", "Pipeline", "Products", "Dashboard"]) {
+  await expect(sections.getByRole("link")).toHaveCount(7);
+  for (const name of ["Organizations", "Contacts", "Deals", "Pipeline", "Products", "Bills", "Dashboard"]) {
     await sections.getByRole("link", { name }).click();
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
     await expect(sections.getByRole("link", { name })).toHaveAttribute("aria-current", "page");

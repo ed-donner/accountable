@@ -296,17 +296,26 @@ test.describe("with the sample data", () => {
     await expect(funnel.locator(".recharts-tooltip-wrapper")).toContainText("reached New");
   });
 
-  test("the dashboard fits 1440 by 900 with no page scrolling", async ({ page }) => {
+  test("the dashboard's own part fits 1440 by 900 with no scrolling, and the Money section fits below it", async ({
+    page,
+  }) => {
     await page.goto("/");
     await expect(page.getByTestId("revenue-this-month")).toBeVisible();
+    const money = page.getByRole("region", { name: "Money" });
+    await expect(money.getByRole("link", { name: /^What we owe/ })).toBeVisible();
     const sizes = await page.evaluate(() => ({
-      height: document.documentElement.scrollHeight,
       windowHeight: window.innerHeight,
       width: document.documentElement.scrollWidth,
       windowWidth: window.innerWidth,
     }));
-    expect(sizes.height).toBeLessThanOrEqual(sizes.windowHeight);
     expect(sizes.width).toBeLessThanOrEqual(sizes.windowWidth);
+    for (const name of ["Revenue won", "Deals won", "Sales funnel", "Follow-ups", "Recent activity"]) {
+      const box = (await section(page, name).boundingBox())!;
+      expect(box.y + box.height, name).toBeLessThanOrEqual(sizes.windowHeight);
+    }
+    // Sections other areas add come below that screen (H10), and the Money section fits a window of its own.
+    expect((await money.boundingBox())!.y).toBeGreaterThanOrEqual(sizes.windowHeight - 40);
+    expect((await money.boundingBox())!.height).toBeLessThanOrEqual(sizes.windowHeight);
   });
 
   test("follow-ups and recent activity each scroll by themselves", async ({ page }) => {

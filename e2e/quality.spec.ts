@@ -1,11 +1,22 @@
 import type { APIRequestContext, Locator, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { SIGNED_IN, addActivity, addLinkedDeal, card, column, dropAtEnd, isoDay, resetToSampleData } from "./helpers";
+import {
+  SIGNED_IN,
+  addActivity,
+  addBill,
+  addLinkedDeal,
+  addOrganization,
+  card,
+  column,
+  dropAtEnd,
+  isoDay,
+  resetToSampleData,
+} from "./helpers";
 
 test.beforeAll(resetToSampleData);
 
-const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products"];
+const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/bills"];
 const SIZES = [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
@@ -18,6 +29,7 @@ async function recordPaths(request: APIRequestContext) {
     `/contacts/${await get("/contacts")}`,
     `/deals/${await get("/deals")}`,
     `/products/${await get("/products")}`,
+    `/bills/${await get("/bills")}`,
   ];
 }
 
@@ -48,7 +60,7 @@ test("the top bar's sections show their icons from 1536px wide, and only their l
   await page.setViewportSize({ width: 1536, height: 900 });
   await page.goto("/");
   const links = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
-  await expect(links).toHaveCount(6);
+  await expect(links).toHaveCount(7);
   for (const link of await links.all()) await expect(link.locator("svg")).toBeVisible();
 
   for (const width of [1535, 1440, 1280]) {
@@ -59,11 +71,19 @@ test("the top bar's sections show their icons from 1536px wide, and only their l
 
 test("a walk through every screen and main action logs no console errors", async ({ page, request }) => {
   const { deal, contact, organization } = await addLinkedDeal(request, "Walked");
+  // From a supplier of its own, because a bill holds its organization, whose delete would then be refused.
+  const supplier = await addOrganization(request, "Walked Supplies");
+  const bill = await addBill(request, { organization_id: supplier.id, bill_number: "WALK-1" });
   for (const path of SECTIONS) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
   }
-  for (const path of [`/organizations/${organization.id}`, `/contacts/${contact.id}`, `/deals/${deal.id}`]) {
+  for (const path of [
+    `/organizations/${organization.id}`,
+    `/contacts/${contact.id}`,
+    `/deals/${deal.id}`,
+    `/bills/${bill.id}`,
+  ]) {
     await page.goto(path);
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
@@ -78,6 +98,11 @@ test("a walk through every screen and main action logs no console errors", async
   await page.getByRole("dialog").getByLabel("Description").fill("Walked through it");
   await page.getByRole("dialog").getByRole("button", { name: "Save activity" }).click();
   await expect(page.getByTestId("timeline-entry").first()).toContainText("Walked through it");
+
+  await page.goto(`/bills/${bill.id}`);
+  await page.getByRole("button", { name: "Mark paid" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Mark paid" }).click();
+  await expect(page.getByRole("button", { name: "Mark unpaid" })).toBeVisible();
 
   await page.goto("/pipeline");
   await expect(card(page, "Walked")).toBeVisible();
@@ -124,11 +149,12 @@ async function tabThrough(page: Page, presses: number) {
 test("every control can be reached by Tab and shows a focus ring", async ({ page }) => {
   await page.goto("/organizations");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  const table = await tabThrough(page, 21);
+  const table = await tabThrough(page, 22);
   for (const name of [
     "A Dashboard",
     "A Deals",
     "A Products",
+    "A Bills",
     "INPUT Search organizations, contacts, deals and products",
     `BUTTON Menu for ${SIGNED_IN.name}`,
     "BUTTON Add organization",
@@ -142,23 +168,37 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
 
   await page.goto("/");
   await expect(page.getByTestId("follow-up").first()).toBeVisible();
-  const dashboard = await tabThrough(page, 19);
+  const dashboard = await tabThrough(page, 20);
   expect([...dashboard].some((name) => name.startsWith("INPUT Mark "))).toBe(true);
   expect([...dashboard]).toContain("A Open the pipeline");
 
   await page.goto("/pipeline");
   await expect(page.locator("[data-deal]").first()).toBeVisible();
-  const board = await tabThrough(page, 13);
+  const board = await tabThrough(page, 14);
   expect([...board].some((name) => name.startsWith("BUTTON Add deal to "))).toBe(true);
   expect([...board].some((name) => name.startsWith("A $"))).toBe(true);
 
   await page.goto("/products");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  const products = await tabThrough(page, 18);
+  const products = await tabThrough(page, 19);
   for (const name of ["BUTTON Add product", "INPUT Search products", "INPUT Show archived (2)", "BUTTON Unit price"]) {
     expect([...products], name).toContain(name);
   }
   expect([...products].some((name) => name.startsWith("BUTTON Archive "))).toBe(true);
+
+  await page.goto("/bills");
+  await expect(page.locator("tbody tr").first()).toBeVisible();
+  const bills = await tabThrough(page, 26);
+  for (const name of ["BUTTON Add bill", "INPUT Search bills", "BUTTON Total"]) {
+    expect([...bills], name).toContain(name);
+  }
+  for (const filter of ["All", "Unpaid", "Overdue", "Paid"]) {
+    expect(
+      [...bills].some((name) => name.startsWith(`BUTTON ${filter} (`)),
+      filter,
+    ).toBe(true);
+  }
+  expect([...bills].some((name) => name.startsWith("BUTTON Mark paid bill "))).toBe(true);
 });
 
 /** How many lines each element's text takes up. */
@@ -187,7 +227,7 @@ test("the top bar stays on one line at 1280 by 720, even with the widest date", 
 
   expect((await bar.boundingBox())!.height).toBe(56);
   expect(await linesOf(bar.getByRole("navigation", { name: "Sections" }).getByRole("link"))).toEqual([
-    1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
   ]);
   const date = bar.getByText("Nov 30, 2026");
   expect(await linesOf(date)).toEqual([1]);

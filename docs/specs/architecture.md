@@ -138,7 +138,8 @@ frontend/src/
   components/                     Shell, SignIn, UserMenu, DataTable, RecordPicker, ConfirmDelete, LoadFailed, Chip and
                                   others, RecordLayout: a record page's header, panels, the panels other areas add and
                                   who added and changed it, and Search: the top bar's search box, which knows nothing
-                                  about any area's records
+                                  about any area's records. DataTable and RecordLayout's header take a row's or a page's
+                                  own button and Delete together, and DataTable says what a filter leaves out
     charts/                       what any area's chart can use: ChartTooltip, useSize, and the axes' text and the top
                                   of a money axis
   crm/
@@ -155,8 +156,12 @@ frontend/src/
     settings.ts                   the settings' type, reading and saving them, and the form's checks
     tax.ts                        the sums on quotes and invoices, as tax.py does them, and reading a quantity
   bills/                          the bills from suppliers, a later area
-    queries.ts, categories.ts, status.ts, BillForm.tsx, MarkPaidDialog.tsx, and BillsPanel.tsx, an organization's bills
-    charts/                       MoneySection, DueTimeline and SpendingChart
+    queries.ts                    its types, reads and saves, the Money figures, and marking a bill paid and unpaid
+    categories.tsx                the six categories in order, with their labels, colors and round swatch
+    status.tsx                    unpaid, overdue and paid from today, their chip, and the paid date's checks
+    BillForm.tsx, MarkPaidDialog.tsx, DeleteBill.tsx, and BillsPanel.tsx, an organization's bills
+    charts/                       MoneySection, DueTimeline and SpendingChart, and StackSegment, which draws a
+                                  segment of a stacked column for both
     pages/                        Bills and Bill
 frontend/dist/                    the built frontend, from npm start and Render, git-ignored
 e2e/

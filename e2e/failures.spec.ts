@@ -159,7 +159,7 @@ const SCREENS: Screen[] = [
     shown: (page) => heading(page, "Draft invoice"),
   },
   {
-    name: "invoices' row of the Money section",
+    name: "invoices' side of the Money section",
     address: () => "/",
     read: () => "/api/invoices/money",
     shown: (page) => page.getByRole("region", { name: "Owed to us" }),
@@ -177,7 +177,7 @@ const SCREENS: Screen[] = [
     shown: (page) => heading(page, "Bill SOLID-1"),
   },
   {
-    name: "bills' row of the Money section",
+    name: "bills' side of the Money section",
     address: () => "/",
     read: () => "/api/bills/dashboard",
     shown: (page) => page.getByRole("link", { name: /^What we owe/ }),

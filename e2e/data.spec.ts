@@ -150,7 +150,7 @@ test("npm run seed with the app running brings back the sample data and keeps th
   await expect(page.locator("tbody tr")).toHaveCount(10);
   await expect(page.getByRole("checkbox", { name: "Show archived (2)" })).not.toBeChecked();
 
-  // The sample quotes and invoices, with payments against them, filling invoices' row of the Money section (M3).
+  // The sample quotes and invoices, with payments against them, filling invoices' side of the Money section (M3).
   await goto(page, "/quotes");
   await expect(page.locator("tbody tr").first()).toBeVisible();
   await goto(page, "/invoices");
@@ -169,7 +169,7 @@ test("npm run seed with the app running brings back the sample data and keeps th
   const money = page.getByRole("region", { name: "Money" });
   await expect(money.getByRole("link", { name: /^What we owe/ })).toContainText(/\$[1-9][\d,]*\.\d\d/);
   await expect(
-    money.getByRole("region", { name: "Bills to pay" }).getByRole("link", { name: /^Overdue/ }),
+    money.getByRole("region", { name: "What we owe" }).getByRole("link", { name: /^Overdue/ }),
   ).toContainText(/\$[1-9][\d,]*\.\d\d/);
   await expect(money.getByRole("img", { name: /bills due from today/ })).toBeVisible();
   await expect(money.getByRole("img", { name: /^Spending by category/ })).toBeVisible();

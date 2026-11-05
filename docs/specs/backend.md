@@ -275,7 +275,7 @@ The PDF is made by `quotes/pdf.py` from the same reply `GET /quotes/{id}` gives,
 
 Saving a bill reads it, applies what was sent, checks the result against E3 to E6 and E9, and writes it, all in one transaction under the write lock, so a paid date is checked against a bill date changed in the same save, and a number against the supplier it will have. The paid date is checked against the backend's today. A bill added without a due date gets its bill date plus 30 days, or the calendar's last day for a bill dated in its last 30. A supplier that doesn't exist gets "Choose a supplier", checked before the database's foreign key could turn it into a 500. Every problem is given at once, each beside its field. A save sets `updated_by` and `updated_at` only if a value changed (U10). The total in every reply is `amount_cents` plus `tax_cents`, and a total sent in a request is ignored, as any unknown field is. The messages for its fields live in `bills/schemas.py`.
 
-The figures for bills' row of the Money section (E20 to E23) come from two queries, never one per bill, using the backend's today: one reads the unpaid bills, from which what we owe, what's overdue and what's due in the next 30 days are all worked out, and one reads the bills dated in the 12 months. Python folds those into months and categories, as the CRM's revenue chart does with `month_series`, because grouping by month in the database needs date functions that differ between SQLite and Postgres. At 1,000 bills that's a few hundred rows, well within Q1.
+The figures for bills' side of the Money section (E20 to E23) come from two queries, never one per bill, using the backend's today: one reads the unpaid bills, from which what we owe, what's overdue and what's due in the next 30 days are all worked out, and one reads the bills dated in the 12 months. Python folds those into months and categories, as the CRM's revenue chart does with `month_series`, because grouping by month in the database needs date functions that differ between SQLite and Postgres. At 1,000 bills that's a few hundred rows, well within Q1.
 
 Every write takes one lock in `db.py`, because FastAPI runs requests on separate threads and renumbering reads a column before writing it, so two quick moves could otherwise undo each other. Teammates' moves on the shared app go through the same lock. It lives in the process, so the shared app runs as one process (W6).
 
@@ -291,7 +291,7 @@ Saving a draft reads the invoice, refuses with a 409 if it's no longer a draft (
 
 The function takes today's date as an argument, as the stage rules do, so tests can fix it. Twenty drafts issued at once go through the lock one at a time and get twenty numbers in a row.
 
-Recording a payment reads the invoice and its payments, works out what's owed, and refuses an amount over it, all in one transaction under the write lock, so two payments at once can't overpay (V16). Voiding checks for payments the same way. What an invoice shows as (V3), its days late and what's owed are worked out in `invoices/` from the stored status, total, due date and payments, with today passed in, and the figures for invoices' row of the Money section come from grouped queries, not one query per invoice, so they stay quick at the Q1 limits.
+Recording a payment reads the invoice and its payments, works out what's owed, and refuses an amount over it, all in one transaction under the write lock, so two payments at once can't overpay (V16). Voiding checks for payments the same way. What an invoice shows as (V3), its days late and what's owed are worked out in `invoices/` from the stored status, total, due date and payments, with today passed in, and the figures for invoices' side of the Money section come from grouped queries, not one query per invoice, so they stay quick at the Q1 limits.
 
 The PDF is made when it's asked for, with ReportLab, from the same layout the preview draws (V24). Text is placed as text, never through ReportLab's markup, so nothing typed is read as markup (V25). The fonts are TTF files kept with the backend and carried in the PDF, cut down to the characters it uses. Their widths, and the characters every one of them has, which are the characters invoices can show (V9), are in `shared/invoice-fonts.json`, which `invoices/fonts.py` writes from the files, and a test checks the two still agree.
 
@@ -349,13 +349,13 @@ All routes are under `/api` and use JSON. Every route needs a valid token in the
 | `POST /invoices/{id}/payments` | Body: `paid_on`, `amount_cents`, `method`, `reference`. Records a payment (V15, V16) |
 | `DELETE /invoices/{id}/payments/{payment_id}` | Delete a payment (V17) |
 | `GET /invoices/{id}/pdf` | The PDF, made now, as `application/pdf` named after the number (V24). A draft gets a 409 |
-| `GET /invoices/money` | Invoices' row of the dashboard's Money section, in one reply (V29). Its sums are strings of digits (Prices, above); each count is a number |
+| `GET /invoices/money` | Invoices' side of the dashboard's Money section, in one reply (V29). Its sums are strings of digits (Prices, above); each count is a number |
 | `GET /bills` | Every bill, each with its supplier's id and name and its `total_cents`. `?organization_id=` gives one organization's, for its Bills panel (E19) |
 | `POST /bills` | Add. Without `due_date`, it's 30 days after `bill_date` (E5). With `paid_on`, it's added paid |
 | `GET /bills/{id}` | One bill, with its supplier's id and name and its `total_cents` |
 | `PATCH /bills/{id}` | Edit the fields sent. `paid_on` set to a date marks the bill paid, and set to null marks it unpaid (E9 to E11) |
 | `DELETE /bills/{id}` | Delete (E17) |
-| `GET /bills/dashboard` | Bills' row of the Money section, in one reply: the backend's `today`, so the page can tell when the day has passed it, what we owe and what's overdue, each as a total and a count, the unpaid bills due from today to 30 days on, in due date order, and each of the last 12 months' spending by category, oldest first (E20 to E23). Its sums are strings of digits (Prices, above); each due bill's total is a number |
+| `GET /bills/dashboard` | Bills' side of the Money section, in one reply: the backend's `today`, so the page can tell when the day has passed it, what we owe and what's overdue, each as a total and a count, the unpaid bills due from today to 30 days on, in due date order, and each of the last 12 months' spending by category, oldest first (E20 to E23). Its sums are strings of digits (Prices, above); each due bill's total is a number |
 
 The local copy also has these two, which need no token and which the shared app doesn't have (U16):
 

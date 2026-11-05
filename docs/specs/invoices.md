@@ -110,16 +110,16 @@ The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, 
 
 ## Money on the dashboard
 
-- **V29.** Invoices give the first row of the dashboard's Money section, below the dashboard's own part and above bills' row ([H10](dashboard.md#dashboard)). The row counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices. Every figure in it is exact to the cent however large it gets, past the 2^53 cents a browser's numbers hold exactly, as in bills' row (E20).
+- **V29.** Invoices give the left side of the dashboard's Money section, below the dashboard's own part and beside bills' side ([H10](dashboard.md#dashboard)). The row counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices. Every figure in it is exact to the cent however large it gets, past the 2^53 cents a browser's numbers hold exactly, as on bills' side (E20).
 
 | Part | What it shows |
 |---|---|
 | Owed to us | What customers still owe, every issued invoice's balance added up, with how many invoices that is |
 | Overdue | How much of that is overdue, with how many invoices, linking to Invoices showing Overdue |
 | How late | What's owed in five groups by days late: Not yet due, 1 to 30 days, 31 to 60 days, 61 to 90 days and Over 90 days, each with its amount and how many invoices. Not yet due includes invoices due today |
-| Payments received | A bar chart of the payments received in each of the last 12 months, including this one, by the date they were paid, with this month marked "so far" as in H4, and this month's total beside last month's above it |
+| Payments received | A bar chart of the payments received in each of the last 12 months, including this one, by the date they were paid, with this month marked "so far" as in H4, and this month's total beside last month's above it, as Spending by category has beside it |
 
-- **V30.** Each part has a designed empty state, "Nothing owed." for the figures and How late, and "No payments in the last 12 months." for the chart, and nothing divides by zero.
+- **V30.** Each part has a designed empty state, and nothing divides by zero. With nothing owed, Owed to us and Overdue show $0.00 and 0 invoices, as What we owe does beside them, and "Nothing owed." takes How late's place. With no payments in the 12 months, the figures show $0.00 and "No payments in the last 12 months." takes the chart's place.
 - **V31.** The row follows today, so invoices move into Overdue, and along the groups, as days pass, and it reads its figures again when the day changes, as the dashboard does.
 
 ## Screens
@@ -144,22 +144,29 @@ On a deal's or an organization's page, below the page's own panels and its Quote
 
 ### Money section
 
-Invoices' row is the first in the dashboard's Money section ([Dashboard](dashboard.md#dashboard-1)): under the heading Money, two panels with a 12px gap, about 320px tall, with bills' row 12px below it ([Money section](bills.md#money-section)). The whole section shows at 1440 by 900 once the page is scrolled to it.
+Invoices' side is the left column of the dashboard's Money section, with bills' side beside it, built from the same parts so the two read across ([Dashboard](dashboard.md#dashboard-1)): Owed to us above, 332px tall, level with What we owe, and Payments received below, 360px tall, level with Spending by category.
 
 ```
-Money
-+-----------------------------------------+ +-----------------------------------------------------+
-| Owed to us          Overdue             | | Payments received in November              $40k     |
-| $48,250.00          $9,120.00           | | $3,400.00   October $11,250.00                      |
-| 14 invoices         5 invoices          | |                                                     |
-|                                         | |   thin bars in ink for 12 months, the last         |
-| Not yet due  [=========]   $39,130.00 9 | |   in the soft bar color, "so far"                   |
-| 1 to 30      [===]          $4,800.00 2 | |                                                     |
-| 31 to 60     [==]           $2,320.00 1 | |                                                     |
-| 61 to 90     [=]            $1,000.00 1 | |                                                     |
-| Over 90      [=]            $1,000.00 1 | | Dec  Jan  Feb ...                         Nov      |
-+-----------------------------------------+ +-----------------------------------------------------+
-  bills' row comes below: Bills to pay, and Spending by category
++---------------------------------------------+
+| Owed to us              Overdue             |
+| $48,250.00              $9,120.00           |
+| 14 invoices             5 invoices          |
+|                                             |
+| How late                                    |
+| Not yet due   [==========]   $39,130.00   9 |
+| 1 to 30 days  [==]            $4,800.00   2 |
+| 31 to 60 days [=]             $2,320.00   1 |
+| 61 to 90 days [=]             $1,000.00   1 |
+| Over 90 days  [=]             $1,000.00   1 |
++---------------------------------------------+
++---------------------------------------------+
+| Payments received in November               |
+| $3,400.00   October $11,250.00              |
+|                                      $40k   |
+|   a column a month in ink, the last in      |
+|   the soft bar color, "so far" above it     |
+| Dec  Jan  Feb ...                    Nov    |
++---------------------------------------------+
 ```
 
-The left panel takes about 40% of the width and the right the rest, the same columns as bills' row and the dashboard's bottom row. Owed to us and Overdue are figures at the headline size, with their counts under them in muted ink, and Overdue links to Invoices showing Overdue. How late is five rows, each with its group's name in ink, a bar sized by amount against the largest group, its amount in JetBrains Mono and its count in muted ink. The Not yet due bar is in Cerulean, as information, and the four late groups in Raspberry, as alerts, each with its name beside it, so the color never carries the meaning alone. The payments chart follows the deals-won bars ([Charts](visual-design.md#charts)): thin bars in ink with 4px rounded tops, the current month in the soft bar color labeled "so far", a money axis shortened as `$40k`, and a tooltip with the month's total and how many payments.
+Owed to us and Overdue are figures at the headline size, each with its label above and its count under it in muted ink, and Overdue links to Invoices showing Overdue. Under them, the heading How late, at the label size, sits level with Due in the next 30 days beside it. How late is five rows spread over the rest of the panel, as the timeline beside it fills its own, each with its group's name in ink, a bar sized by amount against the largest group, its amount in JetBrains Mono and its count in muted ink. The Not yet due bar is in Cerulean, as information, and the four late groups in Raspberry, as alerts, each with its name beside it, so the color never carries the meaning alone. Payments received has the heading "Payments received in November", then this month's total at the headline size beside last month's, "October $11,250.00", in muted ink, as Spending by category beside it does. Its chart is laid out as the spending chart ([Charts](visual-design.md#charts)): a column a month in ink with 4px rounded tops, every month named, the current month in the soft bar color with "so far" above it, a money axis on the right shortened as `$40k`, and a tooltip with the month's total and how many payments.

@@ -26,7 +26,13 @@ describe("starting the app", () => {
         owed: { total_cents: "0", count: 0 },
         overdue: { total_cents: "0", count: 0 },
         due: { total_cents: "0", count: 0, bills: [] },
-        months: [],
+        // The route always gives 12 months. The section reads the last two.
+        months: ["Sep", "Oct"].map((label, index) => ({
+          month: `2026-${index === 0 ? "09" : "10"}`,
+          label,
+          total_cents: "0",
+          categories: { software: "0", contractors: "0", travel: "0", office: "0", marketing: "0", other: "0" },
+        })),
       },
     });
     const root = document.createElement("div");
@@ -48,6 +54,6 @@ describe("starting the app", () => {
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
     const money = within(await page.findByRole("region", { name: "Money" }));
     expect(await money.findByRole("region", { name: "Owed to us" })).toBeTruthy();
-    expect(await money.findByRole("region", { name: "Bills to pay" })).toBeTruthy();
+    expect(await money.findByRole("region", { name: "What we owe" })).toBeTruthy();
   });
 });

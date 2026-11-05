@@ -1,17 +1,12 @@
 import { Bar, BarChart, CartesianGrid, LabelList, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
 
-import { AXIS_TEXT as CHART_AXIS_TEXT } from "../../components/charts/axes";
 import { ChartTooltip } from "../../components/charts/ChartTooltip";
+import { MONTH_CHART, MUTED_AXIS_TEXT, centsAxis, soFarOver } from "../../components/charts/monthColumns";
 import { useSize } from "../../components/charts/useSize";
-import { price, shortMoney } from "../../lib/money";
+import { price } from "../../lib/money";
 import { CATEGORIES, CategoryLabel, Swatch } from "../categories";
 import type { Category, SpendingMonth } from "../queries";
 import { StackSegment, stackScale } from "./StackSegment";
-
-const AXIS_TEXT = { ...CHART_AXIS_TEXT, fill: "var(--color-muted)" };
-// The top keeps room for this month's total and "so far", so they never sit on a column.
-const MARGIN = { top: 44, right: 52, bottom: 24 };
-const COLUMN_WIDTH = 22;
 
 /**
  * A month as the chart draws it, in numbers, which are close enough for heights at any size,
@@ -40,11 +35,6 @@ function exact(cents: string) {
 
 function monthName(column: Pick<Column, "label" | "current">) {
   return column.current ? `${column.label} so far` : column.label;
-}
-
-/** Money is in cents here, and the axis shows dollars. */
-function centsAxis(cents: number) {
-  return shortMoney(cents / 100);
 }
 
 type TipProps = { active?: boolean; payload?: { payload: Column }[] };
@@ -104,9 +94,13 @@ function SpendingTable({ columns }: { columns: Column[] }) {
   );
 }
 
+/** The six categories in three columns of two, to sit beside the panel's heading. */
 export function Legend() {
   return (
-    <ul aria-label="Categories" className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] leading-[18px]">
+    <ul
+      aria-label="Categories"
+      className="grid flex-none grid-cols-[repeat(3,auto)] gap-x-4 gap-y-1.5 pt-1 text-[13px] leading-[18px]"
+    >
       {CATEGORIES.map((category) => (
         <li key={category.value} className="flex items-center gap-2">
           <Swatch category={category.value} />
@@ -117,14 +111,12 @@ export function Legend() {
   );
 }
 
-type LabelProps = { x?: number | string; width?: number | string; index?: number };
-
 /** One column a month, stacked from Software at the bottom to Other at the top (E23). */
 export function SpendingChart({ months }: { months: SpendingMonth[] }) {
   const { ref, size } = useSize();
   const columns = columnsOf(months);
   const last = columns.length - 1;
-  const plotHeight = size.height - MARGIN.top - MARGIN.bottom;
+  const plotHeight = size.height - MONTH_CHART.top - MONTH_CHART.monthsHeight;
   const { top, drawn } = stackScale(
     columns.map((column) => CATEGORIES.map((category) => column[category.value])),
     plotHeight,
@@ -146,27 +138,6 @@ export function SpendingChart({ months }: { months: SpendingMonth[] }) {
     };
   }
 
-  /** This month's total, with "so far" under it, above its column and clear of the others. */
-  function soFar({ x = 0, width = 0, index }: LabelProps) {
-    if (index !== last) return null;
-    const right = Number(x) + Number(width);
-    return (
-      <g>
-        <text
-          x={right}
-          y={16}
-          textAnchor="end"
-          style={{ ...CHART_AXIS_TEXT, fontSize: 13, fill: "var(--color-ink)", fontWeight: 500 }}
-        >
-          {exact(columns[last].spent.total_cents)}
-        </text>
-        <text x={right} y={32} textAnchor="end" style={{ ...AXIS_TEXT, fill: "var(--color-ink)" }}>
-          so far
-        </text>
-      </g>
-    );
-  }
-
   return (
     <>
       <div
@@ -180,7 +151,7 @@ export function SpendingChart({ months }: { months: SpendingMonth[] }) {
             width={size.width}
             height={size.height}
             data={columns}
-            margin={{ top: MARGIN.top, right: 0, bottom: 0, left: 0 }}
+            margin={{ top: MONTH_CHART.top, right: 0, bottom: 0, left: 0 }}
           >
             <CartesianGrid vertical={false} stroke="var(--color-grid)" horizontalValues={[top / 2, top]} />
             <XAxis
@@ -188,18 +159,18 @@ export function SpendingChart({ months }: { months: SpendingMonth[] }) {
               interval={0}
               axisLine={false}
               tickLine={false}
-              tick={AXIS_TEXT}
-              height={MARGIN.bottom}
+              tick={MUTED_AXIS_TEXT}
+              height={MONTH_CHART.monthsHeight}
             />
             <YAxis
               orientation="right"
-              width={MARGIN.right}
+              width={MONTH_CHART.axisWidth}
               domain={[0, top]}
               ticks={[top / 2, top]}
               tickFormatter={centsAxis}
               axisLine={false}
               tickLine={false}
-              tick={AXIS_TEXT}
+              tick={MUTED_AXIS_TEXT}
             />
             <Tooltip content={<Tip />} cursor={{ fill: "var(--color-page)" }} />
             {CATEGORIES.map((category, place) => (
@@ -207,17 +178,17 @@ export function SpendingChart({ months }: { months: SpendingMonth[] }) {
                 key={category.value}
                 dataKey={(column: Column) => drawn(column[category.value])}
                 stackId="spending"
-                barSize={COLUMN_WIDTH}
+                barSize={MONTH_CHART.columnWidth}
                 isAnimationActive={false}
                 shape={categoryShape(place)}
               >
-                {place === CATEGORIES.length - 1 && <LabelList dataKey="total" content={soFar} />}
+                {/* The top category's segment ends where the column does, even with nothing in it. */}
+                {place === CATEGORIES.length - 1 && <LabelList dataKey="total" content={soFarOver(last)} />}
               </Bar>
             ))}
           </BarChart>
         )}
       </div>
-      <Legend />
       <SpendingTable columns={columns} />
     </>
   );

@@ -31,6 +31,45 @@ const PRODUCT = {
   updated_by: null,
 };
 
+const WHO = {
+  created_at: "2026-10-12T12:00:00Z",
+  created_by: null,
+  updated_at: "2026-10-12T12:00:00Z",
+  updated_by: null,
+};
+const DEAL = {
+  name: "Harbor & Pine renewal",
+  organization_id: null,
+  organization_name: null,
+  main_contact_id: null,
+  main_contact_name: null,
+  stage: "proposal",
+  value: 24000,
+  probability: 40,
+  expected_revenue: 9600,
+  close_date: "2026-12-01",
+  position: 0,
+};
+const QUOTE = {
+  id: 4,
+  number: "QT-0004",
+  status: "draft",
+  deal: { id: 12, name: "Harbor & Pine renewal", stage: "proposal" },
+  quote_date: "2026-10-31",
+  valid_until: "2026-11-30",
+  sent_on: null,
+  decided_on: null,
+  company: { name: "Plainsong Systems", address: null, email: null, phone: null },
+  prepared_for: { organization: null, contact: null, email: null },
+  tax_label: null,
+  tax_rate: "0",
+  lines: [],
+  subtotal_cents: 0,
+  tax_cents: 0,
+  total_cents: 0,
+  ...WHO,
+};
+
 let calls: Call[];
 
 beforeEach(() => {
@@ -122,7 +161,7 @@ describe("the app, signed out", () => {
 
     expect((await heading()).textContent).toBe("Deals");
     expect(window.location.pathname).toBe("/deals");
-    expect(topBar().getAllByRole("link")).toHaveLength(6);
+    expect(topBar().getAllByRole("link")).toHaveLength(7);
   });
 });
 
@@ -133,13 +172,13 @@ describe("the app, signed in", () => {
     visit("/");
     render(<App />);
     expect((await heading()).textContent).toBe("Dashboard");
-    expect(topBar().getAllByRole("link")).toHaveLength(6);
+    expect(topBar().getAllByRole("link")).toHaveLength(7);
     const bar = within(screen.getByRole("banner"));
     expect(bar.getByLabelText(SEARCH_BOX)).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
   });
 
-  it("links the top bar to the six sections, in order, Products last", async () => {
+  it("links the top bar to the seven sections, in order, Quotes last", async () => {
     visit("/");
     render(<App />);
     await heading();
@@ -151,6 +190,7 @@ describe("the app, signed in", () => {
       ["Deals", "/deals"],
       ["Pipeline", "/pipeline"],
       ["Products", "/products"],
+      ["Quotes", "/quotes"],
     ]);
   });
 
@@ -170,6 +210,7 @@ describe("the app, signed in", () => {
     ["/deals", "Deals"],
     ["/pipeline", "Pipeline"],
     ["/products", "Products"],
+    ["/quotes", "Quotes"],
   ])("gives %s its own address", async (path, title) => {
     render(<App />);
     visit(path);
@@ -182,6 +223,8 @@ describe("the app, signed in", () => {
     ["/contacts/abc", "This contact no longer exists", "Back to Contacts"],
     ["/deals/abc", "This deal no longer exists", "Back to Deals"],
     ["/products/abc", "This product no longer exists", "Back to Products"],
+    ["/quotes/abc", "This quote no longer exists", "Back to Quotes"],
+    ["/quotes/new?deal=abc", "This deal no longer exists", "Back to Quotes"],
   ])("says %s couldn't be a record, with a link back to its section", async (path, title, back) => {
     render(<App />);
     visit(path);
@@ -197,11 +240,55 @@ describe("the app, signed in", () => {
     expect(screen.getByText("$1,149.99")).toBeTruthy();
   });
 
+  it("opens a quote's page at its address, and a new draft's for a deal", async () => {
+    mockApi({
+      "GET /me": ALEX,
+      "GET /meta": META,
+      "GET /quotes/4": QUOTE,
+      "GET /quotes?deal_id=12": [],
+      "GET /quotes/new/12": {
+        deal: QUOTE.deal,
+        company: QUOTE.company,
+        prepared_for: QUOTE.prepared_for,
+        tax_label: null,
+        tax_rate: "0",
+      },
+      "GET /products": [],
+    });
+    render(<App />);
+    visit("/quotes/4");
+    expect((await heading()).textContent).toBe("QT-0004");
+    expect(topBar().getByRole("link", { name: "Quotes" }).getAttribute("aria-current")).toBe("page");
+    visit("/quotes/new?deal=12");
+    expect((await screen.findByRole("heading", { level: 1, name: "New quote" })).textContent).toBe("New quote");
+  });
+
+  it.each([
+    ["/deals/12", { ...DEAL, id: 12 }, "/quotes?deal_id=12"],
+    [
+      "/organizations/3",
+      { id: 3, name: "Harbor & Pine", website: null, industry: null, notes: null, contacts: [], deals: [] },
+      "/quotes?organization_id=3",
+    ],
+  ])("gives %s a Quotes panel", async (path, record, quotes) => {
+    mockApi({
+      "GET /me": ALEX,
+      "GET /meta": META,
+      [`GET ${path}`]: { ...record, ...WHO },
+      [`GET ${path}/timeline?limit=20&offset=0`]: { entries: [], total: 0 },
+      [`GET ${quotes}`]: [],
+    });
+    render(<App />);
+    visit(path);
+    const panel = within(await screen.findByRole("region", { name: "Quotes" }));
+    expect(await panel.findByText("No quotes yet.")).toBeTruthy();
+  });
+
   it("says an unknown address no longer exists, links to the Dashboard and keeps the top bar", async () => {
     render(<App />);
     visit("/no/such/page");
     expect((await heading()).textContent).toBe("This page no longer exists");
-    expect(topBar().getAllByRole("link")).toHaveLength(6);
+    expect(topBar().getAllByRole("link")).toHaveLength(7);
 
     await user().click(screen.getByRole("link", { name: "Back to Dashboard" }));
 
@@ -215,7 +302,7 @@ describe("the app, signed in", () => {
     visit("/settings");
     expect((await heading()).textContent).toBe("Company settings");
     expect(window.location.pathname).toBe("/settings");
-    expect(topBar().getAllByRole("link")).toHaveLength(6);
+    expect(topBar().getAllByRole("link")).toHaveLength(7);
     expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
     expect(await screen.findByLabelText("Company name")).toBeTruthy();
   });

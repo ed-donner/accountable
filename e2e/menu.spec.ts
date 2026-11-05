@@ -17,7 +17,7 @@ const RAISED = { light: "rgb(255, 255, 255)", dark: "rgb(18, 64, 79)" };
 const FOCUS = { light: "rgb(17, 138, 178)", dark: "rgb(76, 179, 214)" };
 const MARIGOLD = "rgb(255, 193, 69)";
 const MIDNIGHT = "rgb(7, 59, 76)";
-const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products"];
+const SECTIONS = ["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/quotes"];
 const SEARCH_BOX = "Search organizations, contacts, deals and products";
 
 /** Named for the person once the backend says who's signed in, and plain "Menu" until then. */
@@ -112,7 +112,7 @@ test("the menu button can be reached by Tab, shows a focus ring, and its menu wo
   await expect(page.locator("tbody tr").first()).toBeVisible();
 
   const sections = page.getByRole("navigation", { name: "Sections" }).getByRole("link");
-  for (let index = 0; index < 6; index += 1) {
+  for (let index = 0; index < 7; index += 1) {
     await page.keyboard.press("Tab");
     await expect(sections.nth(index)).toBeFocused();
   }
@@ -242,7 +242,10 @@ test("the menu is on every screen and works there", async ({ page, request, expe
   await request.delete(`/api/deals/${gone.id}`);
 
   const screens: [string, RegExp | string][] = [
-    ...SECTIONS.map((path): [string, RegExp] => [path, /^(Dashboard|Organizations|Contacts|Deals|Pipeline|Products)$/]),
+    ...SECTIONS.map((path): [string, RegExp] => [
+      path,
+      /^(Dashboard|Organizations|Contacts|Deals|Pipeline|Products|Quotes)$/,
+    ]),
     [`/deals/${deal.id}`, "Menu everywhere"],
     [`/deals/${gone.id}`, "This deal no longer exists"],
     ["/nothing-here", "This page no longer exists"],
@@ -465,6 +468,9 @@ for (const mode of ["light", "dark"] as const) {
     ];
     const products: { id: number; active: boolean }[] = await (await request.get("/api/products")).json();
     const archived = products.find((product) => !product.active)!;
+    const quotes: { id: number; status: string }[] = await (await request.get("/api/quotes")).json();
+    const draft = quotes.find((quote) => quote.status === "draft")!;
+    const sent = quotes.find((quote) => quote.status === "sent")!;
     await addLinkedDeal(request, `Late for the ${mode} sweep`, { close_date: isoDay(-3) });
 
     const screens: { path: string; ready: (page: Page) => Promise<void> }[] = [
@@ -485,6 +491,20 @@ for (const mode of ["light", "dark"] as const) {
           await page.getByLabel("Company name").fill("");
           await page.getByRole("button", { name: "Save settings" }).click();
           await expect(page.getByText("Enter the company name")).toBeVisible();
+        },
+      },
+      { path: "/quotes", ready: (page) => expect(page.locator("tbody tr").first()).toBeVisible() },
+      { path: "/quotes?status=sent", ready: (page) => expect(page.locator("tbody tr").first()).toBeVisible() },
+      ...[draft, sent].map((quote) => ({
+        path: `/quotes/${quote.id}`,
+        ready: (page: Page) => expect(page.getByRole("article", { name: "Preview" })).toContainText("Total"),
+      })),
+      {
+        path: `/quotes/${draft.id}`,
+        ready: async (page: Page) => {
+          await page.locator("#quote-line-0-quantity").fill("lots");
+          await page.getByRole("button", { name: "Save quote" }).click();
+          await expect(page.getByText("Enter a whole number from 1 to 1,000,000")).toBeVisible();
         },
       },
       {

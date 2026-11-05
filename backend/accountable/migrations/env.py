@@ -1,6 +1,7 @@
 from accountable.company import tables as company_tables
 from accountable.crm import tables as crm_tables
 from accountable.products import tables as products_tables
+from accountable.quotes import tables as quotes_tables
 from alembic import context
 
 # Every area's tables share one metadata, and importing an area's tables is what adds
@@ -9,6 +10,7 @@ from alembic import context
 metadata = crm_tables.metadata
 assert products_tables.metadata is metadata
 assert company_tables.metadata is metadata
+assert quotes_tables.metadata is metadata
 
 if context.is_offline_mode():
     # Writes out the SQL for the database the URL names, which needs no database.

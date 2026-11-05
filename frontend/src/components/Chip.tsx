@@ -8,6 +8,8 @@ const TONES = {
   won: "bg-ink text-on-won",
   alert: "bg-chip-alert text-white",
   quiet: "bg-page text-muted",
+  // The quiet chip where it sits on the page rather than a panel, such as beside a quote's number.
+  quietOnPage: "bg-panel text-muted",
   archived: "bg-archived text-ink",
 };
 

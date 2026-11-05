@@ -4,6 +4,7 @@ import pytest
 from accountable import db, holds, main
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.holds import Hold
+from accountable.quotes.tables import quotes
 from conftest import NOW, TODAY
 from sqlalchemy import func, select
 
@@ -122,8 +123,9 @@ def test_a_won_deal_stays_counted_after_its_organization_and_contact_go(api, mak
     assert dashboard["deals_won_this_month"] == 1
 
 
-# Nothing holds a deal or an organization yet, so these stand in for a later area's records,
-# such as a deal's invoices: a deal's activities, and an organization's contacts and deals.
+# Quotes hold deals, and nothing holds an organization yet, so these stand in for a later
+# area's records, such as an organization's bills: a deal's activities, and an organization's
+# contacts and deals.
 STAND_IN_HOLDS = [
     Hold(activities.c.deal_id, "activity"),
     Hold(contacts.c.organization_id, "contact"),
@@ -136,9 +138,42 @@ def held(local_app):
     local_app.dependency_overrides[holds.app_holds] = lambda: STAND_IN_HOLDS
 
 
-def test_no_area_holds_a_deal_or_an_organization_yet():
-    assert [hold for area in main.AREAS for hold in area.holds] == []
-    assert main.app.state.holds == []
+def test_quotes_hold_deals_and_nothing_holds_an_organization_yet():
+    """Another area's holds join these, so this checks that quotes hold deals, not that theirs is the only hold."""
+    every = [hold for area in main.AREAS for hold in area.holds]
+    assert main.app.state.holds == every
+    assert (quotes.c.deal_id, "quote") in [(hold.link, hold.noun) for hold in every]
+    assert [hold for hold in every if hold.held is organizations] == []
+
+
+def add_quote(api, deal: int) -> int:
+    reply = api.post("/api/quotes", json={"deal_id": deal})
+    assert reply.status_code == 201, reply.text
+    return reply.json()["id"]
+
+
+def test_a_deal_with_quotes_cant_be_deleted(api, make):
+    deal = make.deal()
+    for _ in range(2):
+        add_quote(api, deal)
+
+    assert api.get(f"/api/deals/{deal}/delete-impact").json()["held_by"] == [{"noun": "quote", "count": 2}]
+    refused = api.delete(f"/api/deals/{deal}")
+    assert (refused.status_code, refused.json()) == (409, {"detail": "This deal has 2 quotes, so it can't be deleted."})
+    assert api.get(f"/api/deals/{deal}").status_code == 200
+    assert count(quotes) == 2
+
+
+def test_an_organization_whose_deals_have_quotes_still_deletes_leaving_the_deals_and_quotes(api, make, deal_row):
+    organization = make.organization()
+    deal = make.deal(organization_id=organization)
+    quote = add_quote(api, deal)
+
+    assert api.get(f"/api/organizations/{organization}/delete-impact").json()["held_by"] == []
+    assert api.delete(f"/api/organizations/{organization}").status_code == 204
+
+    assert deal_row(deal).organization_id is None
+    assert api.get(f"/api/quotes/{quote}").json()["prepared_for"]["organization"] is None
 
 
 def test_a_hold_holds_the_table_its_link_points_at():

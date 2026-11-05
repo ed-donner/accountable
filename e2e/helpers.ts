@@ -144,6 +144,43 @@ export async function addLinkedDeal(request: APIRequestContext, name: string, de
   return { organization, contact, deal: added };
 }
 
+/** A deal by its name, such as one from the sample data. */
+export async function findDeal(request: APIRequestContext, name: string) {
+  const reply = await request.get(`${API}/deals`);
+  const deals: { id: number; name: string; stage: string; organization_id: number | null }[] = await reply.json();
+  const found = deals.find((deal) => deal.name === name);
+  if (!found) throw new Error(`No deal is called ${name}`);
+  return found;
+}
+
+/** A product from the price list by its name, such as one from the sample data. */
+export async function findProduct(request: APIRequestContext, name: string) {
+  const reply = await request.get(`${API}/products`);
+  const products: { id: number; name: string; unit_price_cents: number }[] = await reply.json();
+  const found = products.find((product) => product.name === name);
+  if (!found) throw new Error(`No product is called ${name}`);
+  return found;
+}
+
+export type QuoteLineFields = { product_id: number; quantity: number; unit_price_cents: number };
+
+/** A new draft on the deal, with these lines, for tests that need a quote in a given state. */
+export function addQuote(request: APIRequestContext, deal_id: number, lines: QuoteLineFields[]) {
+  return post<{ id: number; number: string }>(request, "/quotes", { deal_id, lines });
+}
+
+export function sendQuote(request: APIRequestContext, id: number) {
+  return post<{ id: number; number: string }>(request, `/quotes/${id}/send`, {});
+}
+
+/** A downloaded PDF's text, page by page with a form feed between, read back with pypdf. */
+export function pdfText(file: string) {
+  return execFileSync("uv", ["run", "--no-sync", "python", "backend/tests/pdf_text.py", file], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+}
+
 export async function chooseInPicker(page: Page, label: string, name: string) {
   // Exact, or "Organization" would also find the top bar's search box.
   await page.getByRole("combobox", { name: label, exact: true }).click();

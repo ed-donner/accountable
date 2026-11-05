@@ -31,6 +31,9 @@ from accountable.holds import Hold
 from accountable.products import router as products
 from accountable.products import schemas as products_schemas
 from accountable.products import search as products_search
+from accountable.quotes import router as quotes
+from accountable.quotes import schemas as quotes_schemas
+from accountable.quotes import tables as quotes_tables
 
 FRONTEND = db.ROOT / "frontend" / "dist"
 
@@ -68,6 +71,7 @@ AREAS = [
     ),
     Area(routers=[products.router], messages=products_schemas.FIELD_MESSAGES, kinds=products_search.KINDS),
     Area(routers=[company_settings.router], messages=company_schemas.FIELD_MESSAGES),
+    Area(routers=[quotes.router], messages=quotes_schemas.FIELD_MESSAGES, holds=quotes_tables.HOLDS),
 ]
 
 

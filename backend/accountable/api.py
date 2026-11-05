@@ -39,13 +39,25 @@ def field_messages(errors: Iterable[Mapping[str, Any]], messages: Mapping[str, s
     """Each bad field's message: its check's own, or else the one the areas give that field."""
     fields: dict[str, str] = {}
     for error in errors:
-        location = error["loc"]
-        field = str(location[1]) if len(location) > 1 else "body"
+        field, name = _field(error["loc"])
         if error["type"] == "value_error":
             fields.setdefault(field, str(error["ctx"]["error"]))
         else:
-            fields.setdefault(field, messages.get(field, "Check this field"))
+            fields.setdefault(field, messages.get(name, "Check this field"))
     return fields
+
+
+def _field(location: tuple[Any, ...]) -> tuple[str, str]:
+    """Where a bad field is, and the name its message goes by: "name" for a field of the body,
+    and for one inside a list, its place, such as "lines.2.quantity", with "quantity" as its name.
+    Anything deeper, such as which kind of value pydantic tried, isn't part of the field."""
+    if len(location) < 2:
+        return "body", "body"
+    parts, name, rest = [str(location[1])], str(location[1]), location[2:]
+    while len(rest) >= 2 and isinstance(rest[0], int) and isinstance(rest[1], str):
+        parts += [str(rest[0]), rest[1]]
+        name, rest = rest[1], rest[2:]
+    return ".".join(parts), name
 
 
 def _name(value: str) -> str:

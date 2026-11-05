@@ -1,4 +1,5 @@
-"""Fills a database to the Q1 limits: 1,000 contacts, 500 deals, 5,000 activities and 500 products.
+"""Fills a database to the Q1 limits: 1,000 contacts, 500 deals, 5,000 activities, 500 products, and
+1,000 quotes with 5,000 lines between them, the last a draft with 100 lines for the speed tests.
 
 Run on its own, it replaces everything in the ACCOUNTABLE_DB database, for the
 end-to-end stress tests. It refuses to touch the real data folder.
@@ -6,16 +7,21 @@ end-to-end stress tests. It refuses to touch the real data folder.
 
 import os
 import sys
-from datetime import date, timedelta
+from collections.abc import Sequence
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import Connection, insert
+from sqlalchemy import Connection, insert, select, update
 
 ORGANIZATIONS = 120
 CONTACTS = 1000
 DEALS = 500
 ACTIVITIES = 5000
 PRODUCTS = 500
+QUOTES = 1000
+LINES = 5000
+LONGEST_QUOTE = 100
+"""The last quote's lines, the most a quote can have. The other quotes share the rest."""
 
 # Won and Lost get long columns, the worst case for dragging.
 STAGE_SHARE = (
@@ -25,12 +31,19 @@ STAGE_SHARE = (
 
 def fill(conn: Connection, today: date) -> None:
     """Every record is put down to one of the made-up teammates, as in the sample data."""
-    from accountable import sample, users, who
+    from accountable import sample
+
+    now = sample.moment(today - timedelta(days=1), 3)
+    deal_ids, product_ids = _crm_and_products(conn, today, now)
+    _quotes(conn, today, now, deal_ids, product_ids)
+
+
+def _crm_and_products(conn: Connection, today: date, now: datetime) -> tuple[Sequence[int], Sequence[int]]:
+    from accountable import users, who
     from accountable.crm import rules
     from accountable.crm.tables import activities, contacts, organizations
     from accountable.products.tables import name_key, products
 
-    now = sample.moment(today - timedelta(days=1), 3)
     users.add_missing_teammates(conn)
 
     organization_ids = conn.scalars(
@@ -119,8 +132,8 @@ def fill(conn: Connection, today: date) -> None:
         )
     conn.execute(insert(activities), rows)
 
-    conn.execute(
-        insert(products),
+    product_ids = conn.scalars(
+        insert(products).returning(products.c.id, sort_by_parameter_order=True),
         [
             {
                 "name": f"Product {number:03d} for a long stretch of work",
@@ -131,6 +144,67 @@ def fill(conn: Connection, today: date) -> None:
                 **who.added(users.teammate(number), now),
             }
             for number in range(PRODUCTS)
+        ],
+    ).all()
+    return deal_ids, product_ids
+
+
+def _quotes(conn: Connection, today: date, now: datetime, deal_ids: Sequence[int], product_ids: Sequence[int]) -> None:
+    """Two quotes on each deal, all four statuses among them with no deal accepting two, and a
+    company name, so the 100-line draft's PDF can be made."""
+    from accountable import users, who
+    from accountable.company.tables import company_settings, number_counters
+    from accountable.crm.tables import deals
+    from accountable.quotes.tables import quote_lines, quotes
+
+    conn.execute(update(company_settings).values(company_name="Limits Company", tax_rate=8875))
+    stages = {row.id: row.stage for row in conn.execute(select(deals.c.id, deals.c.stage))}
+    # The other quotes share the lines the longest leaves, four or five each.
+    each, extra = divmod(LINES - LONGEST_QUOTE, QUOTES - 1)
+    counts = [each + 1 if number < extra else each for number in range(QUOTES - 1)] + [LONGEST_QUOTE]
+    rows = []
+    for number in range(QUOTES):
+        deal_id = deal_ids[number % len(deal_ids)]
+        first_on_its_deal = number < len(deal_ids)
+        status = ("draft", "sent", "declined")[number % 3]
+        if stages[deal_id] == "won" and first_on_its_deal:
+            status = "accepted"
+        if number == QUOTES - 1:
+            status = "draft"
+        # Every row has every column, because a bulk insert takes its columns from the first.
+        fixed = {"company_name": "Limits Company", "tax_label": "Sales tax", "tax_rate": 8875}
+        if status == "draft":
+            fixed = dict.fromkeys(fixed)
+        rows.append(
+            {
+                "number": f"QT-{number + 1:04d}",
+                "deal_id": deal_id,
+                "status": status,
+                "quote_date": today - timedelta(days=number % 60),
+                "valid_until": today - timedelta(days=number % 60) + timedelta(days=30),
+                "subtotal_cents": sum(4950 * (line + 1) for line in range(counts[number])),
+                **fixed,
+                **who.added(users.teammate(number), now),
+            }
+        )
+    quote_ids = conn.scalars(insert(quotes).returning(quotes.c.id, sort_by_parameter_order=True), rows).all()
+    conn.execute(insert(number_counters).values(kind="quote", last_number=QUOTES))
+    conn.execute(
+        insert(quote_lines),
+        [
+            {
+                "quote_id": quote_id,
+                "position": line + 1,
+                "product_id": product_ids[(number + line) % len(product_ids)],
+                "name": f"Product {(number + line) % len(product_ids):03d} for a long stretch of work",
+                "description": f"Line {line + 1} of quote {number + 1}, with a description long enough to wrap",
+                "quantity": line + 1,
+                "unit_price_cents": 4950,
+                "created_at": now,
+                "updated_at": now,
+            }
+            for number, (quote_id, count) in enumerate(zip(quote_ids, counts, strict=True))
+            for line in range(count)
         ],
     )
 

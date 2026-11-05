@@ -426,6 +426,70 @@ describe("rows", () => {
   });
 });
 
+/** A table whose rows only open their page, as Quotes' do (Q33). */
+function showWithoutButtons(rows: Row[] | undefined, address = "/", extra = {}) {
+  const onAdd = vi.fn();
+  render(
+    <MemoryRouter initialEntries={[address]}>
+      <DataTable
+        noun="thing"
+        rows={rows}
+        columns={COLUMNS}
+        defaultSort={{ id: "name", desc: false }}
+        rowId={(row) => row.id}
+        rowName={(row) => row.name}
+        rowHref={(row) => `/things/${row.id}`}
+        onAdd={onAdd}
+        {...extra}
+      />
+      <Address />
+    </MemoryRouter>,
+  );
+  return onAdd;
+}
+
+describe("rows with no buttons", () => {
+  it("have no Edit, Delete or column for them, and still open their page", () => {
+    showWithoutButtons(ROWS);
+    expect(screen.queryByRole("button", { name: /^(Edit|Delete) / })).toBeNull();
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "Name",
+      "City",
+      "Stage",
+      "Amount",
+    ]);
+    expect(screen.getByRole("link", { name: "Bravo" }).getAttribute("href")).toBe("/things/1");
+  });
+});
+
+describe("a table's own words for no rows", () => {
+  const EMPTY = {
+    none: "No things yet. Add the first one from a deal.",
+    add: "New thing",
+    filtered: { message: "No lost things.", showAll: "Show all things" },
+  };
+
+  it("invite the first record in them", async () => {
+    const onAdd = showWithoutButtons([], "/", { empty: EMPTY });
+    expect(screen.getByText("No things yet. Add the first one from a deal.")).toBeTruthy();
+    await user().click(screen.getByRole("button", { name: "New thing" }));
+    expect(onAdd).toHaveBeenCalled();
+  });
+
+  it("say a filter left nothing, with a button that shows them all", async () => {
+    showWithoutButtons([], "/?status=lost", { filtered: true, clearParams: ["status"], empty: EMPTY });
+    expect(screen.getByText("No lost things.")).toBeTruthy();
+    await user().click(screen.getByRole("button", { name: "Show all things" }));
+    expect(address()).toBe("");
+  });
+
+  it("leave a search that matches nothing to say so as usual", () => {
+    showWithoutButtons(ROWS, "/?status=lost&q=zzz", { filtered: true, clearParams: ["status"], empty: EMPTY });
+    expect(screen.getByText("No things match.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Clear search" })).toBeTruthy();
+  });
+});
+
 // Lost things stay out of the table until Show lost is ticked, as archived products do.
 const LOST: HiddenRows<Row> = {
   which: (row) => row.stage === "lost",

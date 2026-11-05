@@ -1,16 +1,20 @@
 import re
 from collections import Counter
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from itertools import pairwise
 from typing import Any
 
 import pytest
 from accountable import cli, db
+from accountable.company import documents
+from accountable.company import sample_data as company_samples
 from accountable.company.tables import company_settings
 from accountable.crm import rules, sample_data
 from accountable.crm.tables import activities, contacts, deals, organizations, stage_changes
 from accountable.products import sample_data as product_samples
 from accountable.products.tables import name_key, products
+from accountable.quotes import sample_data as quote_samples
+from accountable.quotes.tables import quote_lines, quotes
 from accountable.users import TEAMMATES, users
 from sqlalchemy import select
 
@@ -34,6 +38,9 @@ def seeded(request, rows_by_day, database):
         with db.writing() as conn:
             sample_data.fill(conn, today)
             product_samples.fill(conn, today)
+            company_samples.fill(conn, datetime.combine(today, time(12)))
+            quote_samples.fill(conn, today)
+            next_number = documents.take_number(conn, "quote")
         with db.reading() as conn:
             rows_by_day[today] = {
                 "today": today,
@@ -44,6 +51,9 @@ def seeded(request, rows_by_day, database):
                 "stage_changes": rows_of(conn, stage_changes),
                 "products": rows_of(conn, products),
                 "users": rows_of(conn, users),
+                "quotes": conn.execute(select(quotes).order_by(quotes.c.id)).all(),
+                "quote_lines": rows_of(conn, quote_lines),
+                "next_number": next_number,
             }
     return rows_by_day[today]
 
@@ -65,6 +75,7 @@ def test_the_amounts(seeded):
     assert len(seeded["deals"]) == 80
     assert len(seeded["activities"]) == 300
     assert len(seeded["products"]) == 12
+    assert len(seeded["quotes"]) == 40
 
 
 def test_products_have_cents_and_archived_ones_and_fit_the_sample_deals(seeded):
@@ -231,17 +242,26 @@ def test_the_same_content_each_time(database):
                     select(products.c.name, products.c.description, products.c.unit_price_cents, products.c.active)
                 )
             ],
+            [
+                tuple(row)
+                for row in conn.execute(
+                    select(quotes.c.number, quotes.c.status, quotes.c.quote_date, quotes.c.subtotal_cents)
+                )
+            ],
         )
+
+    def fill(conn) -> None:
+        sample_data.fill(conn, day)
+        product_samples.fill(conn, day)
+        company_samples.fill(conn, datetime.combine(day, time(12)))
+        quote_samples.fill(conn, day)
 
     day = date(2026, 10, 31)
     with db.writing() as conn:
-        sample_data.fill(conn, day)
-        product_samples.fill(conn, day)
+        fill(conn)
         first = snapshot(conn)
-        for table in (activities, stage_changes, deals, contacts, organizations, products):
-            conn.execute(table.delete())
-        sample_data.fill(conn, day)
-        product_samples.fill(conn, day)
+        cli._wipe(conn)
+        fill(conn)
         assert snapshot(conn) == first
 
 
@@ -253,7 +273,7 @@ def test_won_and_lost_columns_start_newest_first(seeded):
 
 
 TEAMMATE_IDS = {teammate.id for teammate in TEAMMATES}
-RECORDS = ("organizations", "contacts", "deals", "activities", "products")
+RECORDS = ("organizations", "contacts", "deals", "activities", "products", "quotes")
 
 
 def test_the_four_made_up_teammates_with_robin_having_no_name(seeded):
@@ -285,7 +305,7 @@ def test_each_teammate_added_some_of_each_kind(seeded):
         assert {row.created_by for row in seeded[kind]} == TEAMMATE_IDS, kind
 
 
-@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products"])
+@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products", "quotes"])
 def test_some_records_were_last_changed_by_another_teammate_since(seeded, kind):
     changed = [row for row in seeded[kind] if row.updated_by != row.created_by]
     assert len(changed) >= (4 if kind == "products" else 5)
@@ -299,7 +319,7 @@ def test_nothing_was_changed_before_it_was_added_or_after_today(seeded, kind):
         assert row.created_at <= row.updated_at < limit
 
 
-@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products"])
+@pytest.mark.parametrize("kind", ["organizations", "contacts", "deals", "products", "quotes"])
 def test_records_nobody_changed_have_one_moment_for_both_times(seeded, kind):
     unchanged = [row for row in seeded[kind] if row.updated_at == row.created_at]
     assert unchanged
@@ -336,3 +356,147 @@ def test_a_new_database_gets_the_sample_company_from_dana_whitfield_on_the_seedi
 def test_the_sample_company_points_at_nothing_real():
     assert SAMPLE_COMPANY["email"].endswith(".example")
     assert re.fullmatch(r"\(\d{3}\) 555-01\d\d", SAMPLE_COMPANY["phone"])  # 555-0100 to 555-0199
+
+
+# The sample quotes (M3, M4, M8)
+
+
+def lines_by_quote(seeded) -> dict[int, list]:
+    found: dict[int, list] = {}
+    for row in sorted(seeded["quote_lines"], key=lambda line: line.position):
+        found.setdefault(row.quote_id, []).append(row)
+    return found
+
+
+def shown_status(quote, today: date) -> str:
+    return "expired" if quote.status == "sent" and quote.valid_until < today else quote.status
+
+
+def local_day(at: datetime) -> date:
+    return at.replace(tzinfo=UTC).astimezone().date()
+
+
+def first_move(seeded, deal_id: int, stage: str):
+    return min(
+        (row for row in seeded["stage_changes"] if row.deal_id == deal_id and row.to_stage == stage),
+        key=lambda row: row.changed_at,
+    )
+
+
+def test_the_quotes_are_built_from_the_sample_products_with_some_prices_changed_by_hand(seeded):
+    product = {row.id: row for row in seeded["products"]}
+    lines = lines_by_quote(seeded)
+    every_line = seeded["quote_lines"]
+    assert all(line.name == product[line.product_id].name for line in every_line)
+    assert all(product[line.product_id].active for line in every_line)
+    assert sum(len(lines[quote.id]) >= 3 for quote in seeded["quotes"]) >= 30
+    by_hand = sum(line.unit_price_cents != product[line.product_id].unit_price_cents for line in every_line)
+    assert 10 <= by_hand <= len(every_line) // 2
+
+
+def test_each_quotes_subtotal_adds_up_its_lines(seeded):
+    lines = lines_by_quote(seeded)
+    for quote in seeded["quotes"]:
+        assert quote.subtotal_cents == sum(line.quantity * line.unit_price_cents for line in lines[quote.id])
+
+
+def test_the_statuses_fill_the_quotes_figures(seeded):
+    shown = Counter(shown_status(quote, seeded["today"]) for quote in seeded["quotes"])
+    assert shown == {"draft": 8, "sent": 13, "expired": 2, "accepted": 15, "declined": 2}
+
+
+def test_every_deal_in_proposal_and_negotiation_has_a_draft_or_a_sent_quote(seeded):
+    waiting = {quote.deal_id for quote in seeded["quotes"] if quote.status in ("draft", "sent")}
+    for deal in seeded["deals"]:
+        if deal.stage in ("proposal", "negotiation"):
+            assert deal.id in waiting, deal.name
+        elif deal.stage != "won":
+            assert all(quote.deal_id != deal.id for quote in seeded["quotes"]), deal.name
+
+
+def test_a_declined_quote_has_a_newer_one_on_its_deal(seeded):
+    declined = [quote for quote in seeded["quotes"] if quote.status == "declined"]
+    assert declined
+    for quote in declined:
+        newer = [other for other in seeded["quotes"] if other.deal_id == quote.deal_id and other.id > quote.id]
+        assert newer and newer[0].status in ("draft", "sent"), quote.number
+        assert quote.decided_on == newer[0].quote_date
+
+
+def test_every_deal_won_lately_has_one_accepted_quote_worth_its_value(seeded):
+    """Won this month or in the two before, accepted on the close date by whoever moved the deal to Won (M4)."""
+    today = seeded["today"]
+    lately = {month for month in months_back(today, 3)}
+    accepted = {quote.deal_id: quote for quote in seeded["quotes"] if quote.status == "accepted"}
+    won_lately = [
+        deal
+        for deal in seeded["deals"]
+        if deal.stage == "won" and (deal.close_date.year, deal.close_date.month) in lately
+    ]
+    assert set(accepted) == {deal.id for deal in won_lately}
+    assert len([quote for quote in seeded["quotes"] if quote.status == "accepted"]) == len(won_lately)
+    for deal in won_lately:
+        quote = accepted[deal.id]
+        won = first_move(seeded, deal.id, "won")
+        assert quote.subtotal_cents == deal.value * 100, deal.name
+        assert quote.sent_on < deal.close_date == quote.decided_on, deal.name
+        assert (quote.updated_by, quote.updated_at) == (won.created_by, won.changed_at), deal.name
+
+
+def test_every_quote_is_dated_after_its_deal_reached_proposal_and_never_after_today(seeded):
+    today = seeded["today"]
+    for quote in seeded["quotes"]:
+        reached = local_day(first_move(seeded, quote.deal_id, "proposal").changed_at)
+        assert reached < quote.quote_date <= today, quote.number
+        assert quote.quote_date <= quote.valid_until, quote.number
+        for day in (quote.sent_on, quote.decided_on):
+            assert day is None or quote.quote_date <= day <= today, quote.number
+
+
+def test_the_numbers_follow_the_order_the_quotes_were_made_and_the_next_carries_on(seeded):
+    made = sorted(seeded["quotes"], key=lambda quote: quote.created_at)
+    assert [quote.number for quote in made] == [f"QT-{number:04d}" for number in range(1, 41)]
+    assert [quote.quote_date for quote in made] == sorted(quote.quote_date for quote in made)
+    assert seeded["next_number"] == "QT-0041"
+
+
+def test_each_quote_that_isnt_a_draft_keeps_the_sample_companys_details_and_its_deals(seeded):
+    organization = {row.id: row.name for row in seeded["organizations"]}
+    contact = {row.id: row for row in seeded["contacts"]}
+    deal = {row.id: row for row in seeded["deals"]}
+    for quote in seeded["quotes"]:
+        fixed = (
+            quote.company_name,
+            quote.company_email,
+            quote.tax_label,
+            quote.tax_rate,
+            quote.prepared_for_organization,
+            quote.prepared_for_contact,
+            quote.prepared_for_email,
+        )
+        if quote.status == "draft":
+            assert set(fixed) == {None}, quote.number
+            continue
+        on = deal[quote.deal_id]
+        main = contact[on.main_contact_id]
+        assert fixed == (
+            SAMPLE_COMPANY["company_name"],
+            SAMPLE_COMPANY["email"],
+            SAMPLE_COMPANY["tax_label"],
+            SAMPLE_COMPANY["tax_rate"],
+            organization[on.organization_id],
+            main.name,
+            main.email,
+        ), quote.number
+
+
+def test_some_organizations_have_quotes_on_more_than_one_of_their_deals(seeded):
+    organization_of = {row.id: row.organization_id for row in seeded["deals"]}
+    deals_quoted = Counter(organization_of[deal_id] for deal_id in {quote.deal_id for quote in seeded["quotes"]})
+    assert sum(count >= 2 for count in deals_quoted.values()) >= 3
+
+
+def test_a_quotes_lines_were_added_with_it(seeded):
+    added = {quote.id: quote.created_at for quote in seeded["quotes"]}
+    for line in seeded["quote_lines"]:
+        assert line.created_at == line.updated_at == added[line.quote_id]

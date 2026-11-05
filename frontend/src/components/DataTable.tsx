@@ -9,6 +9,7 @@ import {
   rowSortingFeature,
   tableFeatures,
   useTable,
+  type Header,
   type Row,
   type RowData,
 } from "@tanstack/react-table";
@@ -80,11 +81,26 @@ export type HiddenRows<T> = {
   hiddenMatch: (count: number) => string;
 };
 
-/** A table gives Delete or another button for each row, never both. */
-type SecondButton<T> =
-  { onDelete: (row: T) => void; rowAction?: never } | { rowAction: (row: T) => RowAction; onDelete?: never };
+/**
+ * A table gives each row Edit and Delete, or Edit and another button, never Delete and that
+ * button both. Or it gives a row no buttons, as quotes, which only open their page (Q33).
+ */
+type RowButtons<T> =
+  | { onEdit: (row: T) => void; onDelete: (row: T) => void; rowAction?: never }
+  | { onEdit: (row: T) => void; rowAction: (row: T) => RowAction; onDelete?: never }
+  | { onEdit?: never; onDelete?: never; rowAction?: never };
 
-type Props<T extends RowData> = SecondButton<T> & {
+/** What a table says with no rows, in place of its usual words, as the Quotes table does (Q35). */
+export type EmptyWords = {
+  /** With no rows at all, such as "No quotes yet. Add the first one from an open deal." */
+  none: string;
+  /** The Add button's label there, such as "New quote". */
+  add: string;
+  /** With only the filter narrowing them away, such as "No expired quotes.", and the button that shows them all. */
+  filtered?: { message: string; showAll: string };
+};
+
+type Props<T extends RowData> = RowButtons<T> & {
   /** Singular and plural words for the messages, such as "organization". */
   noun: string;
   rows: T[] | undefined;
@@ -97,14 +113,16 @@ type Props<T extends RowData> = SecondButton<T> & {
   rowName: (row: T) => string;
   rowHref: (row: T) => string;
   onAdd: () => void;
-  onEdit: (row: T) => void;
   /** Filters that sit beside the search box, already applied to rows. */
   filters?: (update: (change: AddressChange) => void) => ReactNode;
+  /** What sits above the search box, such as the Quotes table's figures, which also filter it (Q34). */
+  summary?: (update: (change: AddressChange) => void) => ReactNode;
   /** True when rows is narrowed by those filters. */
   filtered?: boolean;
   /** Address settings to clear along with the search. */
   clearParams?: string[];
   hidden?: HiddenRows<T>;
+  empty?: EmptyWords;
 };
 
 function compare(a: string | number, b: string | number) {
@@ -213,40 +231,67 @@ type NoRowsProps = {
   rows: unknown[] | undefined;
   error: unknown;
   matching: number;
+  searching: boolean;
   /** True when a search or filter is narrowing the rows. */
   narrowed: boolean;
   hiddenNote: HiddenNote | null;
+  empty?: EmptyWords;
   onAdd: () => void;
   onClear: () => void;
 };
 
 /** What shows in place of rows: a space while loading, an invitation, or that nothing matches. */
-function NoRows({ noun, rows, error, matching, narrowed, hiddenNote, onAdd, onClear }: NoRowsProps) {
+function NoRows({ noun, rows, error, matching, hiddenNote, empty, onAdd, ...narrowing }: NoRowsProps) {
   if (rows === undefined) return error ? null : <div className="h-40" aria-busy="true" />;
   if (matching > 0) return null;
-  const showHidden = hiddenNote && (
-    <button type="button" className="btn btn-secondary" onClick={hiddenNote.onShow}>
-      {hiddenNote.showLabel}
+  if (narrowing.narrowed) return <NothingMatches noun={noun} hiddenNote={hiddenNote} empty={empty} {...narrowing} />;
+  if (rows.length > 0) {
+    return (
+      hiddenNote && (
+        <EmptyState message={hiddenNote.allHidden}>
+          <ShowHidden note={hiddenNote} />
+        </EmptyState>
+      )
+    );
+  }
+  return (
+    <EmptyState message={empty?.none ?? `No ${noun}s yet. Add the first one.`}>
+      <button type="button" className="btn btn-primary" onClick={onAdd}>
+        {empty?.add ?? `Add ${noun}`}
+      </button>
+    </EmptyState>
+  );
+}
+
+function ShowHidden({ note }: { note: HiddenNote }) {
+  return (
+    <button type="button" className="btn btn-secondary" onClick={note.onShow}>
+      {note.showLabel}
     </button>
   );
-  if (narrowed) {
+}
+
+type NothingMatchesProps = Pick<NoRowsProps, "noun" | "searching" | "hiddenNote" | "empty" | "onClear">;
+
+/** A search or filter that leaves no rows. A filter alone can have the table's own words, such as "No expired quotes." */
+function NothingMatches({ noun, searching, hiddenNote, empty, onClear }: NothingMatchesProps) {
+  if (!searching && empty?.filtered) {
     return (
-      <EmptyState message={[`No ${noun}s match.`, hiddenNote?.matching].filter(Boolean).join(" ")}>
-        <div className="flex gap-2">
-          <button type="button" className="btn btn-secondary" onClick={onClear}>
-            Clear search
-          </button>
-          {hiddenNote?.matching && showHidden}
-        </div>
+      <EmptyState message={empty.filtered.message}>
+        <button type="button" className="btn btn-secondary" onClick={onClear}>
+          {empty.filtered.showAll}
+        </button>
       </EmptyState>
     );
   }
-  if (rows.length > 0) return hiddenNote && <EmptyState message={hiddenNote.allHidden}>{showHidden}</EmptyState>;
   return (
-    <EmptyState message={`No ${noun}s yet. Add the first one.`}>
-      <button type="button" className="btn btn-primary" onClick={onAdd}>
-        Add {noun}
-      </button>
+    <EmptyState message={[`No ${noun}s match.`, hiddenNote?.matching].filter(Boolean).join(" ")}>
+      <div className="flex gap-2">
+        <button type="button" className="btn btn-secondary" onClick={onClear}>
+          Clear search
+        </button>
+        {hiddenNote?.matching && <ShowHidden note={hiddenNote} />}
+      </div>
     </EmptyState>
   );
 }
@@ -297,18 +342,21 @@ function Pager({ page, lastPage, matching, onPrevious, onNext }: PagerProps) {
   );
 }
 
+/** A row's Edit and its second button, such as Delete. */
+type Buttons = { onEdit: () => void; second: RowAction };
+
 type TableRowProps<T extends RowData> = {
   row: Row<typeof features, T>;
   cells: Map<string, TableColumn<T>>;
   href: string;
   name: string;
-  second: { label: string; icon: ReactNode; onClick: () => void };
-  onEdit: () => void;
+  /** None on a table whose rows only open their page. */
+  buttons: Buttons | null;
   /** Called if this row leaves the table while it has focus, so focus is never left on nothing (Q3). */
   onLeaveWithFocus: () => void;
 };
 
-function TableRow<T extends RowData>({ row, cells, href, name, second, onEdit, onLeaveWithFocus }: TableRowProps<T>) {
+function TableRow<T extends RowData>({ row, cells, href, name, buttons, onLeaveWithFocus }: TableRowProps<T>) {
   const navigate = useNavigate();
   const element = useRef<HTMLTableRowElement>(null);
 
@@ -328,7 +376,7 @@ function TableRow<T extends RowData>({ row, cells, href, name, second, onEdit, o
         return (
           <td
             key={cell.id}
-            className={`truncate px-2.5 first:rounded-l-[10px] ${column.numeric ? "num text-right text-[13px]" : ""}`}
+            className={`truncate px-2.5 first:rounded-l-[10px] last:rounded-r-[10px] ${column.numeric ? "num text-right text-[13px]" : ""}`}
           >
             {index === 0 ? (
               <Link
@@ -344,31 +392,82 @@ function TableRow<T extends RowData>({ row, cells, href, name, second, onEdit, o
           </td>
         );
       })}
-      <td className="rounded-r-[10px] pr-1 text-right whitespace-nowrap">
-        <button
-          type="button"
-          aria-label={`Edit ${name}`}
-          className="icon-btn"
-          onClick={(event) => {
-            event.stopPropagation();
-            onEdit();
-          }}
-        >
-          <Pencil size={16} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label={`${second.label} ${name}`}
-          className="icon-btn"
-          onClick={(event) => {
-            event.stopPropagation();
-            second.onClick();
-          }}
-        >
-          {second.icon}
-        </button>
-      </td>
+      {buttons && <RowButtonsCell name={name} {...buttons} />}
     </tr>
+  );
+}
+
+function RowButtonsCell({ name, onEdit, second }: Buttons & { name: string }) {
+  return (
+    <td className="rounded-r-[10px] pr-1 text-right whitespace-nowrap">
+      <button
+        type="button"
+        aria-label={`Edit ${name}`}
+        className="icon-btn"
+        onClick={(event) => {
+          event.stopPropagation();
+          onEdit();
+        }}
+      >
+        <Pencil size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label={`${second.label} ${name}`}
+        className="icon-btn"
+        onClick={(event) => {
+          event.stopPropagation();
+          second.onClick();
+        }}
+      >
+        {second.icon}
+      </button>
+    </td>
+  );
+}
+
+type HeadingRowProps<T extends RowData> = {
+  headers: Header<typeof features, T, unknown>[];
+  cells: Map<string, TableColumn<T>>;
+  /** Whether the rows have buttons, which get a column of their own. */
+  withButtons: boolean;
+  onSort: (id: string) => void;
+};
+
+/** The column headings, each sorting the table, and an empty heading over the rows' buttons. */
+function HeadingRow<T extends RowData>({ headers, cells, withButtons, onSort }: HeadingRowProps<T>) {
+  return (
+    <thead>
+      <tr>
+        {headers.map((header) => {
+          const column = cells.get(header.column.id)!;
+          const sorted = header.column.getIsSorted();
+          return (
+            <th
+              key={header.id}
+              scope="col"
+              aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+              className={`h-9 px-2.5 text-[13px] font-semibold ${column.numeric ? "text-right" : "text-left"} ${column.width ?? ""}`}
+            >
+              <button
+                type="button"
+                onClick={() => onSort(column.id)}
+                className={`inline-flex items-center gap-1 rounded ${column.numeric ? "flex-row-reverse" : ""}`}
+              >
+                {column.header}
+                {sorted === "asc" && <ArrowUp size={13} aria-hidden="true" />}
+                {sorted === "desc" && <ArrowDown size={13} aria-hidden="true" />}
+              </button>
+            </th>
+          );
+        })}
+        {withButtons && (
+          <th scope="col" className="w-[84px]">
+            <span className="sr-only">Actions</span>
+          </th>
+        )}
+      </tr>
+    </thead>
   );
 }
 
@@ -390,6 +489,8 @@ export function DataTable<T extends RowData>({
   filtered = false,
   clearParams = [],
   hidden,
+  empty,
+  summary,
 }: Props<T>) {
   const { params, latest, update } = useAddress();
   const searchBox = useRef<Focusable>(null);
@@ -516,9 +617,12 @@ export function DataTable<T extends RowData>({
 
   const cells = new Map(columns.map((column) => [column.id, column]));
 
-  function secondButton(row: T) {
-    if (rowAction) return rowAction(row);
-    return { label: "Delete", icon: <Trash2 size={16} aria-hidden="true" />, onClick: () => onDelete!(row) };
+  function buttonsFor(row: T): Buttons | null {
+    if (!onEdit) return null;
+    const second = rowAction
+      ? rowAction(row)
+      : { label: "Delete", icon: <Trash2 size={16} aria-hidden="true" />, onClick: () => onDelete!(row) };
+    return { onEdit: () => onEdit(row), second };
   }
 
   const hiddenNote: HiddenNote | null =
@@ -533,6 +637,7 @@ export function DataTable<T extends RowData>({
 
   return (
     <div className="flex flex-col gap-2.5 px-5 pb-4">
+      {summary?.(update)}
       <div className="flex items-center gap-3">
         <SearchBox noun={noun} search={search} latest={latest} onChange={setSearch} ref={searchBox} />
         {hidden && <ShowHiddenBox label={hidden.label} count={hiddenCount} shown={shown} onChange={showHidden} />}
@@ -546,43 +651,22 @@ export function DataTable<T extends RowData>({
           rows={rows}
           error={error}
           matching={matching}
+          searching={search !== ""}
           narrowed={search !== "" || filtered}
           hiddenNote={hiddenNote}
+          empty={empty}
           onAdd={onAdd}
           onClear={clearSearch}
         />
 
         {matching > 0 && (
           <table className="w-full table-fixed border-separate border-spacing-0">
-            <thead>
-              <tr>
-                {table.getHeaderGroups()[0].headers.map((header) => {
-                  const column = cells.get(header.column.id)!;
-                  const sorted = header.column.getIsSorted();
-                  return (
-                    <th
-                      key={header.id}
-                      scope="col"
-                      aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
-                      className={`h-9 px-2.5 text-[13px] font-semibold ${column.numeric ? "text-right" : "text-left"} ${column.width ?? ""}`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleSort(column.id)}
-                        className={`inline-flex items-center gap-1 rounded ${column.numeric ? "flex-row-reverse" : ""}`}
-                      >
-                        {column.header}
-                        {sorted === "asc" && <ArrowUp size={13} aria-hidden="true" />}
-                        {sorted === "desc" && <ArrowDown size={13} aria-hidden="true" />}
-                      </button>
-                    </th>
-                  );
-                })}
-                <th scope="col" className="w-[84px]">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
+            <HeadingRow
+              headers={table.getHeaderGroups()[0].headers}
+              cells={cells}
+              withButtons={!!onEdit}
+              onSort={toggleSort}
+            />
             <tbody>
               {visible.map((row) => (
                 <TableRow
@@ -591,8 +675,7 @@ export function DataTable<T extends RowData>({
                   cells={cells}
                   href={rowHref(row.original)}
                   name={rowName(row.original)}
-                  second={secondButton(row.original)}
-                  onEdit={() => onEdit(row.original)}
+                  buttons={buttonsFor(row.original)}
                   onLeaveWithFocus={focusSearchBox}
                 />
               ))}

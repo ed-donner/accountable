@@ -140,10 +140,11 @@ frontend/src/
                                   changed a record and the hooks that save and delete one, saveErrors.ts, which shows a
                                   save's errors beside its fields, useCloseIfUnreadable.ts, and notify.ts, which
                                   shows messages and keeps each to its session
-  components/                     Shell, SignIn, UserMenu, DataTable, RecordPicker, ConfirmDelete, LoadFailed, Chip and
-                                  others, RecordLayout: a record page's header, panels, the panels other areas add and
-                                  who added and changed it, and Search: the top bar's search box, which knows nothing
-                                  about any area's records
+  components/                     Shell, SignIn, UserMenu, DataTable, RecordPicker, LoadFailed, Chip and others,
+                                  Confirm: the dialog that asks before anything that can't be undone, which
+                                  ConfirmDelete builds on, RecordLayout: a record page's header, panels, the panels
+                                  other areas add and who added and changed it, and Search: the top bar's search box,
+                                  which knows nothing about any area's records
     charts/                       what any area's chart can use: ChartTooltip, useSize, and the axes' text and the top
                                   of a money axis
   crm/
@@ -165,7 +166,8 @@ frontend/src/
     status.ts                     the statuses, a sent quote's expiry from today, their chips, and the figures above
                                   the Quotes table
     QuoteDocument.tsx             the quote document, as the preview draws it
-    QuoteForm.tsx                 a draft's form and its lines
+    QuoteForm.tsx                 a draft's form and its lines, the preview as it's typed, and taking a save's reply
+    StatusChip.tsx                a quote's status as a chip
     panels.tsx                    the Quotes panels on a deal's and an organization's page
     dialogs.tsx                   the deal picker for New quote, and the dialogs for Mark as sent, Accept and Decline
     pages/                        Quotes and Quote
@@ -194,7 +196,7 @@ Accountable will grow from a sales CRM into a Business OS, including ERP, so the
 
 ## Libraries
 
-Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind's Vite plugin and Vitest both accept Vite 8. Several are recent major versions, so check their current docs when working on them rather than relying on memory, especially TanStack Table 9, React Router 8, Vite 8, Vitest 5 and Zod 4.
+Versions were checked on 2026-10-31, and fpdf2's and pypdf's on 2026-11-05. All of them accept React 19.3, and Tailwind's Vite plugin and Vitest both accept Vite 8. Several are recent major versions, so check their current docs when working on them rather than relying on memory, especially TanStack Table 9, React Router 8, Vite 8, Vitest 5 and Zod 4.
 
 | Job | Library |
 |---|---|
@@ -216,10 +218,10 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 | Signing in, in the browser | `@supabase/supabase-js` 2, in the shared app only |
 | Backend | FastAPI, Uvicorn, SQLAlchemy Core, Alembic, Pydantic |
 | Postgres | psycopg 3, SQLAlchemy's driver for it |
-| PDFs | fpdf2, which brings fontTools, Pillow and defusedxml |
+| PDFs | fpdf2 2.9, which brings fontTools and Pillow |
 | Checking tokens | PyJWT, with `cryptography` for Supabase's signing keys |
 | Frontend tools | `typescript`, `@vitejs/plugin-react`, `@tailwindcss/vite` |
-| Test tools | Vitest, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom`, `pytest`, `pytest-cov`, `httpx`, `pypdf`, `@playwright/test` |
+| Test tools | Vitest, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom`, `pytest`, `pytest-cov`, `httpx`, `pypdf` 6, `@playwright/test` |
 | Code checks | Prettier, ESLint 9 with `typescript-eslint`, `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y`, ruff, ty, gitleaks, lefthook for the git hook, GitHub Actions for CI |
 
 - **Fonts:** the brand skill says Google Fonts. The npm packages hold the same fonts, so they look the same and work offline (C2).
@@ -229,4 +231,4 @@ Versions were checked on 2026-10-31. All of them accept React 19.3, and Tailwind
 - **Migrations:** Alembic is here because people have real data in the database, and later features will change the tables. Without migrations, the only way to pick up a new column would be a reset that wipes that data. Migrations run by themselves when the backend starts, on both databases.
 - **Sign-in and Postgres:** these three came with sign-in. `@supabase/supabase-js` is Supabase's own client, and handles signing in, keeping the session and renewing the token, which would otherwise be hand-written against Supabase Auth's API. psycopg is what SQLAlchemy needs to reach Postgres at all. PyJWT checks token signatures against Supabase's public keys, which isn't something to hand-roll.
 - **Fonts in the shared app:** the same Fontsource files are built into `frontend/dist`, so the shared app loads nothing from outside its own address but Supabase.
-- **PDFs:** fpdf2 makes the quotes' PDFs in the backend. It and everything it needs install from wheels with uv, with no system packages, so it runs on Render's native Python runtime, unlike WeasyPrint, which needs Pango from the system. It draws text as plain text unless asked for its HTML or markdown, which the quotes area never uses, so nothing typed is read as markup (Q32). It embeds TrueType fonts, and Fontsource ships the brand fonts as WOFF2 for the browser, so the backend keeps its own static TTF copies in `quotes/fonts/`, from the same Google Fonts families under the same OFL licence. Its licence is the LGPL, which asks nothing of an app that's run as a service rather than handed out. `pypdf` is for the tests alone: it reads a PDF's text back, so the backend tests can check what's on it.
+- **PDFs:** fpdf2 makes the quotes' PDFs in the backend. It and everything it needs install from wheels with uv, with no system packages, so it runs on Render's native Python runtime, unlike WeasyPrint, which needs Pango from the system. It draws text as plain text unless asked for its HTML or markdown, which the quotes area never uses, so nothing typed is read as markup (Q32). It embeds TrueType fonts, and Fontsource ships the brand fonts as WOFF2 for the browser, so the backend keeps its own static TTF copies in `quotes/fonts/`, from the families' own releases, Instrument Sans Regular and SemiBold and JetBrains Mono Regular and Medium, with their OFL licences beside them. `pdf.py` lays out the lines itself rather than with fpdf2's tables, whose heading row can't take the band's rounded corners, and whose cells would need markdown to set a line's name above its description. It turns off fpdf2's `{nb}`, which would otherwise swap those letters in any typed text for the page count, and draws each page's foot once the pages are counted. Its licence is the LGPL, which asks nothing of an app that's run as a service rather than handed out. `pypdf` is for the tests alone: it reads a PDF's text back, so the backend tests can check what's on it.

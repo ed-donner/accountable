@@ -1,4 +1,4 @@
-import { Package } from "lucide-react";
+import { FileText, Package } from "lucide-react";
 import { useEffect } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
@@ -24,11 +24,14 @@ import { applyTheme, savedTheme } from "./lib/theme";
 import { Product } from "./products/pages/Product";
 import { Products } from "./products/pages/Products";
 import { productsSearchGroups } from "./products/searchGroups";
+import { NewDraft, Quote } from "./quotes/pages/Quote";
+import { Quotes } from "./quotes/pages/Quotes";
+import { dealQuotesPanel, organizationQuotesPanel } from "./quotes/panels";
 
 const ICON_SIZE = 17;
 
 // The top bar's sections, area by area. The design reference has icons for the CRM's.
-// Products takes lucide's, drawn as Icon draws its own.
+// Products and Quotes take lucide's, drawn as Icon draws its own.
 const SECTIONS: Section[] = [
   { to: "/", label: "Dashboard", icon: <Icon name="dashboard" size={ICON_SIZE} /> },
   { to: "/organizations", label: "Organizations", icon: <Icon name="organizations" size={ICON_SIZE} /> },
@@ -40,14 +43,19 @@ const SECTIONS: Section[] = [
     label: "Products",
     icon: <Package size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
   },
+  {
+    to: "/quotes",
+    label: "Quotes",
+    icon: <FileText size={ICON_SIZE} strokeWidth={1.75} className="flex-none" aria-hidden="true" />,
+  },
 ];
 
 const SEARCH_GROUPS = [...crmSearchGroups, ...productsSearchGroups];
 
 // What later areas add to the CRM's pages, such as a deal's quotes, an organization's bills
-// or a section of the dashboard. None do yet.
-const DEAL_PANELS: RecordPanel<DealDetail>[] = [];
-const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [];
+// or a section of the dashboard.
+const DEAL_PANELS: RecordPanel<DealDetail>[] = [dealQuotesPanel];
+const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [organizationQuotesPanel];
 const DASHBOARD_SECTIONS: DashboardSection[] = [];
 
 function AppShell() {
@@ -69,6 +77,9 @@ const router = createBrowserRouter([
       { path: "/pipeline", element: <Pipeline /> },
       { path: "/products", element: <Products /> },
       { path: "/products/:id", element: <Product /> },
+      { path: "/quotes", element: <Quotes /> },
+      { path: "/quotes/new", element: <NewDraft /> },
+      { path: "/quotes/:id", element: <Quote /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "*", element: <MissingRecord word="page" to="/" section="Dashboard" /> },
     ],

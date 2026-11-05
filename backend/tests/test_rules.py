@@ -99,6 +99,19 @@ def test_a_close_date_given_in_the_request_is_kept(make, deal_row):
     assert deal_row(deal).close_date == date(2026, 10, 20)
 
 
+def test_a_value_given_is_set_on_the_deal(make, deal_row):
+    """As accepting a quote passes the quote's value (Q22)."""
+    deal = make.deal(stage="proposal", value=24000)
+    move(deal, "won", value=48001)
+    assert (deal_row(deal).stage, deal_row(deal).value) == ("won", 48001)
+
+
+def test_without_a_value_the_deals_value_stays(make, deal_row):
+    deal = make.deal(stage="proposal", value=24000)
+    move(deal, "won")
+    assert deal_row(deal).value == 24000
+
+
 def test_a_hand_set_probability_goes_when_the_stage_changes(make, deal_row):
     deal = make.deal(probability=33)
     assert deal_row(deal).probability == 33

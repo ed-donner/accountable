@@ -28,9 +28,11 @@ from accountable.crm import sample_data as crm_sample_data
 from accountable.crm import tables as crm_tables
 from accountable.products import sample_data as products_sample_data
 from accountable.products import tables as products_tables
+from accountable.quotes import sample_data as quotes_sample_data
+from accountable.quotes import tables as quotes_tables
 
 # What seed and empty say they'll delete, area by area, in this order (C4).
-RECORDS = (*crm_tables.RECORDS, *products_tables.RECORDS)
+RECORDS = (*crm_tables.RECORDS, *products_tables.RECORDS, *quotes_tables.RECORDS)
 
 # What they leave: the people, so there's still someone to sign in as, and the company
 # settings, which seed writes the sample company over and empty leaves as they are (C4).
@@ -48,6 +50,7 @@ def fill_sample(conn: Connection) -> None:
     crm_sample_data.fill(conn, today)
     products_sample_data.fill(conn, today)
     company_sample_data.fill(conn, db.utc_now())
+    quotes_sample_data.fill(conn, today)
 
 
 def _counts(conn: Connection) -> dict[str, int]:

@@ -13,6 +13,7 @@ from sqlalchemy import (
 )
 
 from accountable import who
+from accountable.company.documents import Numbered
 from accountable.crm.tables import deals
 from accountable.db import TABLE_OPTIONS, metadata, utc_now
 from accountable.holds import Hold
@@ -83,3 +84,4 @@ RECORDS = (quotes,)
 
 # A quote holds its deal, so a deal with quotes can't be deleted (D4).
 HOLDS = (Hold(quotes.c.deal_id, "quote"),)
+NUMBERED = (Numbered("quote", quotes.c.number),)

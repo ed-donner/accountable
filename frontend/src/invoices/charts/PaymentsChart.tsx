@@ -28,7 +28,7 @@ function Tip({ active, payload, last }: TipProps) {
   const month = payload?.[0]?.payload;
   if (!active || !month) return null;
   const label = `${plural(month.count, "payment")}, ${month.label}${month.month === last ? " so far" : ""}`;
-  return <ChartTooltip value={price(month.cents)} label={label} />;
+  return <ChartTooltip value={price(BigInt(month.cents))} label={label} />;
 }
 
 type LabelProps = { y?: number | string; index?: number };
@@ -37,7 +37,8 @@ type LabelProps = { y?: number | string; index?: number };
 export function PaymentsChart({ months }: { months: Money["payments"] }) {
   const { ref, size } = useSize();
   const last = months.length - 1;
-  const data: Month[] = months.map((month) => ({ ...month, dollars: month.cents / 100 }));
+  // Near enough for a bar's height, however large. The tooltip's figure is exact.
+  const data: Month[] = months.map((month) => ({ ...month, dollars: Number(month.cents) / 100 }));
   const top = niceTop(Math.max(...data.map((month) => month.dollars), 1));
   const ticks = [top / 2, top];
 
@@ -59,7 +60,7 @@ export function PaymentsChart({ months }: { months: Money["payments"] }) {
     <div
       ref={ref}
       role="img"
-      aria-label={`Payments received each month for the last 12 months, with ${price(months[last].cents)} so far this month`}
+      aria-label={`Payments received each month for the last 12 months, with ${price(BigInt(months[last].cents))} so far this month`}
       className="min-h-0 flex-1"
     >
       {size.width > 0 && size.height > 0 && (

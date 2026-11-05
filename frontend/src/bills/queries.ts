@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import { api } from "../lib/api";
+import type { CentsSum } from "../lib/money";
 import { useNotify } from "../lib/notify";
 import { useWrite, type Authorship } from "../lib/records";
 import { useToday } from "../lib/useToday";
@@ -37,12 +38,6 @@ export type BillValues = {
   notes: string | null;
   paid_on: string | null;
 };
-
-/**
- * A sum of bills in whole cents, as digits, such as "9200000000000001". Each bill fits a
- * JavaScript number exactly, but a sum of them can pass 2^53 cents, so it's read as a BigInt.
- */
-export type CentsSum = string;
 
 export type Figure = { total_cents: CentsSum; count: number };
 export type DueBill = {

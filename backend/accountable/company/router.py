@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
@@ -6,7 +7,7 @@ from sqlalchemy import Connection, Row, delete, insert, select, update
 
 from accountable import api, db, who
 from accountable.auth import CurrentUser
-from accountable.company import logo, schemas
+from accountable.company import documents, logo, schemas
 from accountable.company.tables import company_logo, company_settings
 from accountable.users import person, users
 
@@ -72,7 +73,9 @@ def _write_logo(conn: Connection, sent: dict[str, Any], checked: logo.Logo | Non
     return True
 
 
-def _refuse_what_breaks_the_rules(saved: Row, sent: dict) -> None:
+def _refuse_what_breaks_the_rules(
+    conn: Connection, saved: Row, sent: dict, numbered: Sequence[documents.Numbered]
+) -> None:
     """The checks on the settings as they'd be after the save, which no single field can make (B5, B6)."""
     after = {**saved._mapping, **sent}
     problems = {}
@@ -80,6 +83,14 @@ def _refuse_what_breaks_the_rules(saved: Row, sent: dict) -> None:
         problems["company_name"] = schemas.COMPANY_NAME_MESSAGE
     if schemas.prefixes_clash(after["quote_prefix"], after["invoice_prefix"]):
         problems["invoice_prefix"] = schemas.CLASH_MESSAGE
+    # A changed prefix is checked against the numbers the other kind took under its old
+    # prefixes too, which the other prefix as it is now no longer shows.
+    for field, other in (("quote_prefix", "invoice"), ("invoice_prefix", "quote")):
+        if field in problems or after[field] == saved._mapping[field]:
+            continue
+        taken = documents.number_starting_with(conn, numbered, other, after[field])
+        if taken is not None:
+            problems[field] = schemas.taken_clash_message(other, taken)
     if problems:
         raise api.FieldError(problems)
 
@@ -91,7 +102,9 @@ def get_settings() -> schemas.CompanySettings:
 
 
 @router.patch("")
-def save_settings(body: schemas.SettingsUpdate, user: CurrentUser, now: api.Now) -> schemas.CompanySettings:
+def save_settings(
+    body: schemas.SettingsUpdate, user: CurrentUser, now: api.Now, numbered: documents.AppNumbered
+) -> schemas.CompanySettings:
     sent = body.model_dump(exclude_unset=True)
     # Pillow reads the file before the write lock is taken, so a big logo holds up no one else's save.
     checked = logo.check(sent["logo"]) if sent.get("logo") is not None else None
@@ -99,7 +112,7 @@ def save_settings(body: schemas.SettingsUpdate, user: CurrentUser, now: api.Now)
     # Read, checked and written under the write lock, so two quick saves can't each pass against the old values.
     with db.writing() as conn:
         saved = _read(conn)
-        _refuse_what_breaks_the_rules(saved, fields)
+        _refuse_what_breaks_the_rules(conn, saved, fields, numbered)
         altered = who.alterations(fields, saved)
         if _write_logo(conn, sent, checked, now) or altered:
             conn.execute(update(company_settings).where(_the_row).values(**altered, **who.changed(user, now)))

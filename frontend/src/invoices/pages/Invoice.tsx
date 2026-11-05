@@ -313,7 +313,7 @@ function DraftPage({ invoice, settings, logoUrl, refetch, notice }: Shown) {
   return (
     <FormProvider {...form}>
       <PageHeader title="Draft invoice">
-        <InvoiceChip shows="draft" />
+        <InvoiceChip shows="draft" onPage />
         <div className="ml-auto flex flex-none gap-2">
           <button type="button" className="btn btn-secondary bg-panel" onClick={() => setAsking("delete")}>
             <Trash2 size={15} aria-hidden="true" />
@@ -407,7 +407,7 @@ function IssuedPage({ invoice, settings, logoUrl, notice }: Shown) {
   return (
     <>
       <PageHeader title={invoice.number!}>
-        <InvoiceChip shows={invoice.shows_as} />
+        <InvoiceChip shows={invoice.shows_as} onPage />
         <div className="ml-auto flex flex-none gap-2">
           {voidable && (
             <button type="button" className="btn btn-secondary bg-panel" onClick={() => setDialog("void")}>

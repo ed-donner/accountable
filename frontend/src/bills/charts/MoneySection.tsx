@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { LoadFailed } from "../../components/LoadFailed";
-import { price } from "../../lib/money";
+import { price, type CentsSum } from "../../lib/money";
 import { plural } from "../../lib/words";
-import { useMoney, type CentsSum, type MoneyFigures } from "../queries";
+import { useMoney, type MoneyFigures } from "../queries";
 import { DueTimeline } from "./DueTimeline";
 import { SpendingChart } from "./SpendingChart";
 

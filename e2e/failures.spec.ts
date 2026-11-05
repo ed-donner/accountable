@@ -8,11 +8,13 @@ import {
   addLinkedDeal,
   addOrganization,
   addProduct,
+  addQuote,
   card,
   column,
   dropAtEnd,
   emptyDatabase,
   isoDay,
+  startInvoice,
 } from "./helpers";
 
 // What the app does when things go wrong, which is where the bugs the review found
@@ -44,9 +46,17 @@ type Screen = {
   name: string;
   address: (ids: Ids) => string;
   read: (ids: Ids) => string;
-  shown: (page: Page) => Locator;
+  shown: (page: Page, ids: Ids) => Locator;
 };
-type Ids = { deal: number; contact: number; organization: number; product: number; bill: number };
+type Ids = {
+  deal: number;
+  contact: number;
+  organization: number;
+  product: number;
+  bill: number;
+  quote: { id: number; number: string };
+  invoice: number;
+};
 
 const heading = (page: Page, name: string) => page.getByRole("heading", { level: 1, name });
 
@@ -125,6 +135,36 @@ const SCREENS: Screen[] = [
     shown: (page) => heading(page, "Solid kit"),
   },
   {
+    name: "Quotes",
+    address: () => "/quotes",
+    read: () => "/api/quotes",
+    shown: (page) => page.locator("tbody tr").first(),
+  },
+  {
+    name: "a quote's page",
+    address: ({ quote }) => `/quotes/${quote.id}`,
+    read: ({ quote }) => `/api/quotes/${quote.id}`,
+    shown: (page, { quote }) => heading(page, quote.number),
+  },
+  {
+    name: "Invoices",
+    address: () => "/invoices",
+    read: () => "/api/invoices",
+    shown: (page) => page.locator("tbody tr").first(),
+  },
+  {
+    name: "an invoice's page",
+    address: ({ invoice }) => `/invoices/${invoice}`,
+    read: ({ invoice }) => `/api/invoices/${invoice}`,
+    shown: (page) => heading(page, "Draft invoice"),
+  },
+  {
+    name: "invoices' row of the Money section",
+    address: () => "/",
+    read: () => "/api/invoices/money",
+    shown: (page) => page.getByRole("region", { name: "Owed to us" }),
+  },
+  {
     name: "Bills",
     address: () => "/bills",
     read: () => "/api/bills",
@@ -137,7 +177,7 @@ const SCREENS: Screen[] = [
     shown: (page) => heading(page, "Bill SOLID-1"),
   },
   {
-    name: "the dashboard's Money section",
+    name: "bills' row of the Money section",
     address: () => "/",
     read: () => "/api/bills/dashboard",
     shown: (page) => page.getByRole("link", { name: /^What we owe/ }),
@@ -151,7 +191,23 @@ async function solidRecords(request: APIRequestContext): Promise<Ids> {
   // From a supplier of its own, so the organization above stays free to delete.
   const supplier = await addOrganization(request, "Solid Supplies");
   const bill = await addBill(request, { organization_id: supplier.id, bill_number: "SOLID-1" });
-  return { deal: deal.id, contact: contact.id, organization: organization.id, product: product.id, bill: bill.id };
+  // On deals of their own, which they hold, so the deal and organization above stay free to delete.
+  const offer = await addLinkedDeal(request, "Solid offer", { stage: "proposal" });
+  const quote = await addQuote(request, offer.deal.id, [
+    { product_id: product.id, quantity: 1, unit_price_cents: 10000 },
+  ]);
+  // Worth nothing, so the dashboard's revenue this month stays as the tests expect it.
+  const win = await addLinkedDeal(request, "Solid win", { stage: "won", close_date: isoDay(), value: 0 });
+  const invoice = await startInvoice(request, win.deal.id);
+  return {
+    deal: deal.id,
+    contact: contact.id,
+    organization: organization.id,
+    product: product.id,
+    bill: bill.id,
+    quote,
+    invoice: invoice.id,
+  };
 }
 
 for (const screen of SCREENS) {
@@ -170,7 +226,7 @@ for (const screen of SCREENS) {
 
     broken.on = false;
     await page.getByRole("button", { name: "Try again" }).click();
-    await expect(screen.shown(page)).toBeVisible();
+    await expect(screen.shown(page, ids)).toBeVisible();
     await expect(page.getByText("Couldn't load this.")).toHaveCount(0);
   });
 
@@ -182,19 +238,19 @@ for (const screen of SCREENS) {
     expectConsoleError(/status of 500/);
     const ids = await solidRecords(request);
     await page.goto(screen.address(ids));
-    await expect(screen.shown(page)).toBeVisible();
+    await expect(screen.shown(page, ids)).toBeVisible();
 
     const broken = await breakApi(page, screen.read(ids));
     await comeBackToTheWindow(page, screen.read(ids));
 
     await expect(page.getByText(OUT_OF_DATE)).toBeVisible();
-    await expect(screen.shown(page)).toBeVisible();
+    await expect(screen.shown(page, ids)).toBeVisible();
     await expect(page.getByText("Couldn't load this.")).toHaveCount(0);
 
     broken.on = false;
     await page.getByRole("button", { name: "Try again" }).click();
     await expect(page.getByText(OUT_OF_DATE)).toHaveCount(0);
-    await expect(screen.shown(page)).toBeVisible();
+    await expect(screen.shown(page, ids)).toBeVisible();
   });
 }
 

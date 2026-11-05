@@ -15,7 +15,9 @@ function Figure({ label, sum, to }: { label: string; sum: Money["owed"]; to?: st
   const shown = (
     <>
       <span className="block text-[13px] leading-[18px] font-semibold">{label}</span>
-      <span className="num block text-[24px] leading-[30px] font-medium tracking-[-0.02em]">{price(sum.cents)}</span>
+      <span className="num block text-[24px] leading-[30px] font-medium tracking-[-0.02em]">
+        {price(BigInt(sum.cents))}
+      </span>
       <span className="block text-[13px] leading-[18px] text-muted">{plural(sum.count, "invoice")}</span>
     </>
   );
@@ -56,16 +58,16 @@ function Received({ money, today }: { money: Money; today: string }) {
   const month = format(parseISO(today), "MMMM");
   const lastMonth = format(subMonths(parseISO(today), 1), "MMMM");
   const [previous, current] = money.payments.slice(-2);
-  const anyPaid = money.payments.some((item) => item.cents > 0);
+  const anyPaid = money.payments.some((item) => BigInt(item.cents) > 0n);
   return (
     <section aria-label="Payments received" className="panel flex min-h-0 flex-col px-[18px] py-4">
       <h3 className="text-[16px] leading-6 font-semibold">Payments received in {month}</h3>
       <div className="flex items-baseline gap-3">
         <span className="num text-[24px] leading-[30px] font-medium" data-testid="paid-this-month">
-          {price(current.cents)}
+          {price(BigInt(current.cents))}
         </span>
         <span className="text-[13px] whitespace-nowrap text-muted" data-testid="paid-last-month">
-          {lastMonth} {price(previous.cents)}
+          {lastMonth} {price(BigInt(previous.cents))}
         </span>
       </div>
       {anyPaid ? (

@@ -167,7 +167,7 @@ backend/accountable/
     cash.py                       the paid and unpaid bills, for the cash flow (Y2, Y7)
     sample_data.py                the sample suppliers and their bills, dated from a given day
   cashflow/                       the cash flow (Y1 to Y22), a later area that keeps no tables and imports only company/
-    router.py                     GET /cash-flow and GET /cash-flow/{month}: every area's cash folded into the 15
+    router.py                     GET /cash-flow and GET /cash-flow/expected: every area's cash folded into the 15
                                   months, the balances and a month's list
     schemas.py                    its reply models
 backend/tests/

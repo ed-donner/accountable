@@ -6,17 +6,17 @@ The look is set by [Visual design](specs/visual-design.md#visual-design) and the
 
 ## Problem
 
-A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next. Prices live in people's heads and old emails too, so the same thing gets quoted at different prices.
+A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next. Prices live in people's heads and old emails too, so the same thing gets quoted at different prices. And once a deal is won, billing happens somewhere else, so nobody can see what customers owe, which invoices are overdue or who has paid.
 
 ## What Accountable is
 
-Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. It also holds the business's price list, its first step beyond the CRM, which quotes and invoices will use later. It should feel sharp, modern and professional, and be a pleasure to use.
+Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. Beyond the CRM, it holds the business's price list, and bills customers for won deals: invoices made from the price list, the payments against them, and what's still owed. It should feel sharp, modern and professional, and be a pleasure to use.
 
 **Who uses it:** a small sales team, sharing one Accountable every day with their own real data. Each person signs in with their own email and password, everyone works on the same records, and each record shows who added it. They start from the sample data to look around, then clear it and type in their own records. No other systems are involved yet.
 
 **Two ways to run it:** the **shared app** is the team's, on Render, with its data in Postgres on Supabase. The **local copy** runs on one computer with `npm run dev`, with the sample data and made-up teammates to sign in as, and needs neither Supabase nor the internet. It's where the app is built and tried out, and nothing done in it reaches the team's data. [running.md](specs/running.md) has both.
 
-**Six sections:**
+**Seven sections:**
 
 | Section | What it's for |
 |---|---|
@@ -26,18 +26,21 @@ Accountable is a business management system: a sales CRM that will grow into a f
 | Deals | The potential sales, each with its stage, value, close date and timeline |
 | Pipeline | The deals as cards on a board, one column per stage, moved by dragging |
 | Products | The price list: what the business sells, and at what price |
+| Invoices | What customers have been billed for won deals, what they've paid and what they still owe |
 
-Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out.
+Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out. Below the dashboard's own part, a Money section shows what customers owe, how late it is, and the payments received each month.
 
-**Five kinds of record:**
+**Seven kinds of record:**
 
 - **Organization:** a company we do business with. It has many contacts and many deals.
 - **Contact:** a person we deal with, at an organization, with a status of lead, qualified or customer.
 - **Deal:** a potential sale, with an organization and a main contact, moving through six stages.
 - **Activity:** a note, call or email that happened, or needs to happen, with a contact or a deal, with an optional follow-up date.
 - **Product:** something the business sells, with a unique name, a description and a unit price in dollars and cents. It's archived rather than deleted once it's no longer sold.
+- **Invoice:** a bill for a won deal, made of lines from the price list, with tax from the company settings. It starts as a draft, gets its number when it's issued and never changes after, and can be voided but not deleted once issued.
+- **Payment:** money received against an issued invoice, in full or in part, with a date, an amount, a method and an optional reference.
 
-**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms and the prefixes for quote and invoice numbers. Quotes and invoices come later, so nothing uses the settings yet. What they'll share is ready for them: the counter that numbers them and the sums for their totals ([B15 to B17](specs/settings.md#for-quotes-and-invoices)).
+**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms, the prefixes for quote and invoice numbers, and how invoices look, with one of three designs, an accent color and a logo. Invoices use them now. Quotes come later, and will share the counter that numbers them and the sums for their totals ([B15 to B17](specs/settings.md#for-quotes-and-invoices)).
 
 **Not in Accountable yet:**
 
@@ -48,13 +51,19 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - A warning when two people edit the same record, or the company settings, at once. The last save wins.
 - A history of every change. Each record keeps who added it and who last changed it, and the company settings keep who last changed them, nothing in between.
 - A layout for phones
-- Quotes, invoices and bills. The counter for quote and invoice numbers and the sums for their totals are ready, but nothing uses them yet.
-- A company logo
+- Quotes and bills. Quotes will share the numbering and the sums invoices use (B15 to B17).
+- Credit notes or refunds. A mistake on an issued invoice is put right by voiding it, which needs its payments deleted first.
+- Emailing invoices, payment reminders, online payment or recurring invoices. An invoice reaches the customer as a downloaded PDF.
+- Bank details or other payment instructions on invoices
+- Invoices in the top bar's search. The Invoices table has a search of its own.
+- Emoji, or scripts such as Chinese or Arabic, on invoices. The invoice's fonts can't draw them, so a draft that has them isn't saved.
+- Editing a payment. One entered by mistake is deleted and recorded again.
+- Accounting entries, such as a ledger or a chart of accounts
 - Personal settings. The theme belongs to the browser (L2), and the company settings to the team.
 - AI features
 - Email, calendar or phone integrations
 - Currencies other than US dollars, or more than one tax rate
-- Products on deals, quotes or invoices
+- Products on deals or quotes. Invoices take their lines from products.
 - Stock levels, product categories, units of measure or variants
 - Price lists for particular customers, or discounts
 - Reports beyond the dashboard
@@ -93,7 +102,20 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 | Tax rate | The sales tax as a percentage, from 0 to 100 with up to three decimal places, such as 8.875% |
 | Payment terms | How many days customers have to pay, from 0 to 365 |
 | Number prefix | The start of a quote's or an invoice's number, such as QT- or INV- |
-| Held record | A deal or an organization that a record in another area points at, such as an invoice on the deal. It can't be deleted (D4). Nothing holds one yet. |
+| Draft | An invoice not yet issued. It has no number, follows the company settings, and can be changed or deleted |
+| Issued invoice | An invoice that has its number, issue date and due date. It never changes, apart from the payments against it and being voided |
+| Void invoice | An issued invoice that was voided to put right a mistake. It keeps its number, is marked VOID, and nothing is owed on it |
+| Bill to | Who an invoice is for, as typed on the draft, filled in to start with from the deal's organization and main contact |
+| Issue date, due date | The day an invoice was issued, and that day plus the payment terms as they were then |
+| Balance, owed | An issued invoice's total less its payments. Nothing is owed on a draft or a void invoice |
+| Paid invoice | An issued invoice with nothing owed |
+| Part paid | An issued invoice with some but not all of it paid, not yet past its due date |
+| Overdue invoice | An issued invoice with money owed after its due date. One due today isn't overdue. Not to be confused with an overdue follow-up |
+| Days late | How many days an overdue invoice is past its due date |
+| Shows as | Which of Draft, Issued, Part paid, Overdue, Paid and Void an invoice's chip and mark say ([V3](specs/invoices.md#invoices)) |
+| Design | One of the three ways an invoice can look, Classic, Banner or Ledger, chosen in Company settings |
+| Accent color | The color a design picks things out in, chosen in Company settings, at least 4.5:1 against white |
+| Held record | A deal or an organization that a record in another area points at, such as an invoice on the deal. It can't be deleted (D4). Every invoice holds its deal, and an issued one the organization it was issued to. |
 
 | Stage | Usual probability |
 |---|---|
@@ -106,7 +128,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 
 ## Quality
 
-- **Q1.** At 1,000 contacts, 500 deals, 5,000 activities and 500 products, in the local copy: the dashboard's data arrives in under 200ms, a table opens in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
+- **Q1.** At 1,000 contacts, 500 deals, 5,000 activities, 500 products and 1,000 invoices with 3,000 lines and 1,500 payments, in the local copy: the dashboard's data, and the Money section's, each arrive in under 200ms, a table opens in under a second, an invoice's PDF downloads in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
 - **Q2.** No errors in the browser's console, on any screen, at any time.
 - **Q3.** All controls can be reached by keyboard, with a visible focus ring. Animations respect the system's reduced motion setting.
 - **Q4.** Chrome is the one supported and tested browser. Safari and Firefox may work, but nobody has checked.
@@ -128,7 +150,8 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [products.md](specs/products.md) | The price list: unit prices in dollars and cents, unique names, archiving and restoring, the product page, and their screens | G1 to G12 |
 | [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, the sections other areas add below them, and its screen | H1 to H10 |
 | [running.md](specs/running.md) | The local copy and the shared app, sample data, keeping data, and the commands and first run | M1 to M7, C1 to C11 |
-| [settings.md](specs/settings.md) | The company settings: the page, each field's rules, saving, who last changed them, the sample company and the defaults, the numbers and sums quotes and invoices will use, and the page's screen | B1 to B17 |
+| [settings.md](specs/settings.md) | The company settings: the page, each field's rules, how invoices look, saving, who last changed them, the sample company and the defaults, the numbers and sums quotes and invoices share, and the page's screen | B1 to B22 |
+| [invoices.md](specs/invoices.md) | Invoices and payments: drafts, issuing, voiding, payments, the invoice page, the panels on deals and organizations, the Invoices table, the PDF, the three designs, the dashboard's Money section, and their screens | V1 to V31 |
 | [deploy.md](specs/deploy.md) | The shared app on Render: `render.yaml`, building, starting, settings and the free plans' limits | W1 to W9 |
 
 **Across every area**

@@ -21,17 +21,17 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Ink on Won | `#CDD8DB` Sea Mist | `#073B4C` Midnight | Text on the Won fill |
 | Midnight | `#073B4C` | `#073B4C` | Text on Sea Green, Marigold and Coral, including on the revenue chart's fill |
 | Muted ink | `#4A6B76` | `#9AB1B8` | Secondary text |
-| Line | `#CDD8DB` Sea Mist | `#45646E` | Link underlines, funnel leader lines, scrollbars, and at half strength the slot where a dragged card will land |
+| Line | `#CDD8DB` Sea Mist | `#45646E` | Link underlines, funnel leader lines, scrollbars, the owed part of an invoice's bar until it's overdue, and at half strength the slot where a dragged card will land |
 | Grid | `#E4ECEE` | `#1E4350` | Chart grid lines |
 | Soft bar | `#839DA5` | `#6C858E` | The current month's bar, halfway between ink and the panel |
 | Focus ring | `#118AB2` Cerulean | `#4CB3D6` | Focus rings, a lighter Cerulean in dark mode so it shows on every layer |
-| Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, including Sign in, current section |
+| Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, including Sign in, current section, the paid part of an invoice's bar, the chosen design's ring |
 | Secondary | `#FFC145` Marigold, Midnight text | Same | The initials circle, on the menu button and the local copy's sign-in screen |
 | Sea Green text | `#047A5B` | `#51E2BC` | If Sea Green is ever needed as text |
 | Marigold text | `#866522` | `#FFD47D` | If Marigold is ever needed as text |
 | Raspberry text | `#D23E62` | `#F591A9` | Error messages beside a field. Light mode uses the Alert chip's shade |
-| Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts, and the icon before the Company settings page's ask for a company name |
-| Alert | `#EF476F` Raspberry, white text | Same | Delete buttons, charts |
+| Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts, the Not yet due bar in How late, and the icon before the Company settings page's ask for a company name |
+| Alert | `#EF476F` Raspberry, white text | Same | Delete buttons, charts, the late bars in How late, the owed part of an overdue invoice's bar |
 | Small chip, Information | `#107FA4`, white text | Same | Negotiation chips |
 | Small chip, Alert | `#D23E62`, white text | Same | Late, Overdue and Lost chips, the connection message |
 | Late tint | `#FDECF1` | `#4B2436` | Late cards |
@@ -82,7 +82,7 @@ Within a mode, a stage keeps its color everywhere. Negotiation and Lost chips us
 
 Stage-change entries use Cerulean, which marks them as information.
 
-Quotes, invoices and bills will show their status in chips, in these tones, agreed ahead of them so the three areas match. Each tone is already in `Chip.tsx`, so none is new, and nothing uses this table yet:
+Quotes, invoices and bills show their status in chips, in these tones, agreed ahead of them so the three areas match. Each tone is already in `Chip.tsx`, so none is new. Invoices use theirs ([V3](invoices.md#invoices)), and quotes and bills will use theirs when they come:
 
 | Status | Chip | Used by |
 |---|---|---|
@@ -107,7 +107,7 @@ The fonts are bundled through Fontsource, so nothing loads from outside the app'
 | Label, chip | Instrument Sans | 13/18 | 600 |
 | Dashboard summary line | Instrument Serif | 22/30 | 400 |
 | Revenue won figure | JetBrains Mono | 52/60 | 500 |
-| Other headline figures, column totals, a product's price on its page | JetBrains Mono | 24/30 | 500 |
+| Other headline figures, column totals, a product's price on its page, an invoice's total on its page, Owed to us and Overdue | JetBrains Mono | 24/30 | 500 |
 | Board totals | JetBrains Mono | 20/26 | 500 |
 | Card value | JetBrains Mono | 19/26 | 500 |
 | Money, counts, dates in tables | JetBrains Mono | 13/20 | 400 |
@@ -122,6 +122,7 @@ Numbers are always in JetBrains Mono, so columns of figures line up. Instrument 
 - Panels are in the panel color on the page background, white in light mode and dark Midnight in dark mode, with no outline and no shadow.
 - There are no gradient fills, and no borders on one edge of a panel. There's no line across the top of the page.
 - Late cards are marked by the chip and tint, never a colored edge.
+- An invoice's preview, and the sample on the Company settings page, is a white page in both modes, with the invoice's own colors rather than the app's tokens ([V28](invoices.md#designs)), because it shows what will print. `colors.test.ts` still holds: those colors live in `shared/invoice-designs.json`, outside `frontend/src`.
 - Pipeline columns are headed by a solid block in the stage color, never a colored bar or edge.
 - Labels are in sentence case, not capitals. No text runs joined with middle dots, and no arrows added to link text.
 
@@ -134,6 +135,8 @@ Numbers are always in JetBrains Mono, so columns of figures line up. Instrument 
 - **Sales funnel:** stacked segments narrowing from top to bottom, in stage colors, with 2px gaps and softly rounded corners. The top edge of each segment is as wide as the value that reached it, and the last segment tapers a little further so the shape ends in a neat spout. Each stage name sits inside its segment in the stage's text color. Its full value sits to the right in ink, joined by a dotted leader line in the line color. The percentage carried forward sits in a pill in the page color, level with the join between two stages, because it describes the step between them. Built with Recharts' `FunnelChart` and a custom `shape`.
 - **Pipeline band:** compact blocks, 76px tall, sized by value with 2px gaps. A small stage keeps a minimum width so its label still fits.
 - **All charts:** one axis per chart, so revenue and deal count are never on the same one. Faint horizontal grid lines only, in the grid color. Direct labels on the current month only, which is usually the highest in the sample data. Text is in ink, never the series color, apart from Midnight text on the bright fills. Each chart has a hover tooltip, on the raised surface.
+- **How late:** five horizontal bars, one per group in order of lateness, sized against the largest, with 4px rounded ends. Not yet due is Cerulean and the four late groups Raspberry, and each bar has its group's name before it and its amount and count after it, in ink.
+- **Payments received:** as the deals-won bar chart, in ink with the current month in the soft bar color, labeled "so far", with a money axis.
 - **Money on axes:** shortened with the currency, such as `$40k` and `$1.2M`.
 
 ### Motion
@@ -146,7 +149,7 @@ Plain business English, short labels, no exclamation marks.
 
 | Where | Text |
 |---|---|
-| Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore |
+| Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore, New invoice, Add line, Save draft, Issue invoice, Delete draft, Record payment, Download PDF, Void, Choose logo, Remove logo |
 | Menu button, for screen readers | Menu for Alex Rivera |
 | Menu | Theme. Light. Dark. System. Company settings. Sign out. |
 | Sign-in | Sign in. Email. Password. |
@@ -156,17 +159,22 @@ Plain business English, short labels, no exclamation marks.
 | Session ended | Your session has ended. Sign in again. |
 | Local copy's sign-in | This is a local copy with made-up data. Choose who to sign in as. |
 | Who added and changed | Added by Alex Rivera on Oct 12, 2026. Last changed by Dana Whitfield on Oct 30, 2026. |
-| Company settings page | Company settings. Company. Tax. Quotes and invoices. Save settings. |
+| Company settings page | Company settings. Company. Tax. Quotes and invoices. Documents. Design. Accent color. Logo. Save settings. |
 | No company name saved | No company name yet. Enter one below. |
 | Prefix hint | Up to 10 letters, digits and hyphens. |
 | Search, for screen readers | Search organizations, contacts, deals and products |
 | No search matches | No organizations, contacts, deals or products match "harbour". |
 | Search failed | Couldn't search. Try again. |
 | More search results | See all 12 contacts |
-| Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. |
-| Errors | Enter a name. Choose an organization. Enter your email. Enter a price in dollars and cents, such as 49.50. Enter a rate from 0 to 100%. Clashes with the quote prefix. Neither can start with the other, ignoring capitals. |
+| Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. Draft saved. Draft deleted. Invoice issued. Invoice voided. Payment recorded. Payment deleted. |
+| Invoice statuses | Draft. Issued. Part paid. Overdue. Paid. Void. |
+| Invoice marks, on the page | DRAFT. PAID. OVERDUE. VOID. |
+| Issuing and voiding | Issue this invoice? Once it's issued, it can't be changed. Void INV-0042? It keeps its number and is marked VOID. This can't be undone. |
+| Leaving a draft | Leave without saving? Your changes to this draft will be lost. |
+| Money section | Money. Owed to us. Overdue. How late. Not yet due. 1 to 30 days. 31 to 60 days. 61 to 90 days. Over 90 days. Payments received in November. Nothing owed. No payments in the last 12 months. |
+| Errors | Enter a name. Choose an organization. Enter your email. Enter a price in dollars and cents, such as 49.50. Enter a rate from 0 to 100%. Clashes with the quote prefix. Neither can start with the other, ignoring capitals. That's more than the $1,250.00 still owed. Too light to read on white. Choose a darker color. Choose a PNG or JPEG image. Invoices can't show "漢". Take it out to save. |
 | Product name taken | A product with this name already exists. An archived product has this name. Restore it or choose another. |
-| Empty table | No deals yet. Add the first one. |
+| Empty table | No deals yet. Add the first one. No invoices yet. Start one from a won deal. |
 | Archived products | Show archived (2). Every product is archived. 2 archived products match. |
 | Empty funnel | Deals will show here once you've added some. |
 | Empty follow-ups | No follow-ups due. |
@@ -176,7 +184,7 @@ Plain business English, short labels, no exclamation marks.
 | Failed read, with something already showing | Couldn't refresh this, so it may be out of date. |
 | Delete dialog | Delete Harbor & Pine? Its 4 contacts and 3 deals will stay, with no organization. This can't be undone. |
 
-Money always carries its currency, as in `$48,000`. A product's price also carries its cents, as in `$49.50` and `$1,250.00`, while deal values stay in whole dollars. Dates read `Oct 31, 2026`, and times read `Oct 31, 3:20 PM`.
+Money always carries its currency, as in `$48,000`. A product's price, and every amount on an invoice, a payment and the Money section, also carries its cents, as in `$49.50` and `$1,250.00`, while deal values stay in whole dollars. Dates read `Oct 31, 2026`, and times read `Oct 31, 3:20 PM`.
 
 ## Design reference
 
@@ -186,7 +194,7 @@ Money always carries its currency, as in `$48,000`. A product's price also carri
 - **Mockup 3, Deal wall:** the style of the pipeline board.
 - **A top-down sales funnel** in place of Mockup 2's funnel bars, in the style common in sales CRMs.
 
-Organizations, Contacts, Deals, Products and the record pages aren't in the mockup, and follow the screens in [records.md](records.md#screens) and [products.md](products.md#screens) with the same shell, colors and type. Nor are the sign-in screen, the search results, the menu and the Company settings page, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell) and [settings.md](settings.md#company-settings-page). The mockup's top bar has no Products section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
+Organizations, Contacts, Deals, Products, Invoices, the Money section and the record pages aren't in the mockup, and follow the screens in [records.md](records.md#screens), [products.md](products.md#screens) and [invoices.md](invoices.md#screens) with the same shell, colors and type. Nor are the sign-in screen, the search results, the menu and the Company settings page, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell) and [settings.md](settings.md#company-settings-page). The mockup's top bar has no Products section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
 
 The mockups show light mode only. Dark mode follows the dark values in [Color tokens](#color-tokens), and `docs/changes/dark-mode/` holds screenshots of the dashboard and the pipeline in both modes, at 1440 by 900 with the sample data.
 

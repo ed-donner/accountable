@@ -478,6 +478,17 @@ A trial the same way, before the change to when a waiting run speaks, also passe
 
 Each new check in `scripts/test-runs.test.mjs` was shown to fail on a copy of `test-runs.mjs` broken for it, put back after: no queue order, free turns counted without the busy runs, no turn ports, the speed tests first only while their port is held, none of the speed tests first, and every reason printed at once. Several of them rely on timing, so the file was run 13 times on the working code and passed every time, and the two breaks most open to chance were tried again: the speed tests' place failed six times in six, and every reason printed at once three times in three.
 
+## Invoices: design
+
+On the `invoices` branch, `docs/spec.md` and the area files now describe Accountable with invoices and payments in it, as it will be once the branch merges. The intent and the owner's three decisions, on the Bill to, what's fixed at issue and deals leaving Won, are in `docs/changes/invoices/intent.md`. One area file is new: `docs/specs/invoices.md`, with V1 to V31, and `settings.md` gains B18 to B22 for the Documents panel. No code has changed yet.
+
+- **Invoices section and records:** seventh section in the top bar, two new kinds of record, Invoice and Payment, new terms, and an Invoices panel on deal and organization pages. Invoices hold their deal, and issued ones their organization (D4).
+- **Preview and PDF:** the browser draws the preview and the backend makes the PDF with ReportLab, both from `shared/invoice-designs.json` and the fonts' widths in `shared/invoice-fonts.json`, so lines break and pages turn at the same places.
+- **Company settings:** a Documents panel below the others, and Save settings moves to the top right, since the page now scrolls at 1280 by 720. The logo travels as base64 in JSON, so no route takes a file upload, and a body over 2 MB is refused.
+- **Q1** now includes 1,000 invoices, 3,000 lines and 1,500 payments, the Money section's data and a PDF's download.
+
+The project owner agreed the choices the intent left open: the preview drawn by the browser and the PDF by ReportLab from one description of the designs, with the plan to make the case for ReportLab; a logo of at most 2,000 pixels a side; a 2 MB limit on request bodies; the payment date rules; a total over $0.00 to issue; the field limits in V8; asking before leaving a draft with changes; a void invoice in the sample data; Save settings at the top right; a part-paid invoice past its due date showing as Overdue; and a sample invoice's subtotal matching its deal's value. A draft with characters the invoice's fonts can't draw, such as emoji, isn't saved, with a message beside the field (V9). Company settings still take any characters, but an invoice isn't issued while the company's name, address, email, phone or tax label has one, and the message names the field to change there (V10). Bank details on invoices and invoices in the top bar's search stay under Not in Accountable yet.
+
 ## Running Accountable
 
 Accountable runs two ways:

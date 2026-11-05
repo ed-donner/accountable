@@ -59,7 +59,7 @@ So a contact can't be added before their organization exists, and a deal can't b
 
 - **D2.** Won deals stay on the dashboard after their organization or contact is deleted.
 - **D3.** Activities logged on a deal stay when that deal's main contact is deleted, because they belong to the deal.
-- **D4.** A deal or an organization can't be deleted while a record in another area holds it, such as an invoice on the deal or a bill from the organization, so that record is never left pointing at nothing. Each area says which of its records hold a deal or an organization. The delete dialog is then titled "Annual support can't be deleted", says what holds it, such as "This deal has 2 quotes and 1 invoice, so it can't be deleted.", and offers only Close. A delete that gets past the dialog, such as one sent while a teammate adds an invoice, is refused with the same words. Contacts and activities are never held. Nothing holds a deal or an organization yet.
+- **D4.** A deal or an organization can't be deleted while a record in another area holds it, such as an invoice on the deal or a bill from the organization, so that record is never left pointing at nothing. Each area says which of its records hold a deal or an organization. The delete dialog is then titled "Annual support can't be deleted", says what holds it, such as "This deal has 2 quotes and 1 invoice, so it can't be deleted.", and offers only Close. A delete that gets past the dialog, such as one sent while a teammate adds an invoice, is refused with the same words. Contacts and activities are never held. Today invoices hold: every invoice holds its deal, and an issued one the organization it was issued to ([V21](invoices.md#on-deals-and-organizations)).
 
 ## Record pages
 
@@ -69,7 +69,7 @@ So a contact can't be added before their organization exists, and a deal can't b
 - **R4.** Each page has Edit and Delete. After a delete, the app returns to the section's table.
 - **R5.** The contacts and deals listed on these pages are short linked lists, not tables, so T1 doesn't apply to them.
 - **R6.** Each page shows who added the record and when, such as "Added by Alex Rivera on Oct 12, 2026", and who last changed it and when, such as "Last changed by Dana Whitfield on Oct 30, 2026", following U8 to U12. The second line is left out if nobody has changed the record since it was added. A record with no one recorded shows the dates alone, such as "Added Oct 12, 2026". Nobody chooses these in a form: the backend sets them from the token of whoever saves.
-- **R7.** Other areas can add panels to a deal's and an organization's page, such as a deal's quotes or an organization's bills. They come below the page's own panels in its side column, each given the record as the page has it, in the order `App.tsx` gives them. None do yet.
+- **R7.** Other areas can add panels to a deal's and an organization's page, such as a deal's quotes or an organization's bills. They come below the page's own panels in its side column, each given the record as the page has it, in the order `App.tsx` gives them. Today there's one on each: Invoices ([V20, V21](invoices.md#on-deals-and-organizations)).
 
 ## Screens
 

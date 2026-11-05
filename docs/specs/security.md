@@ -38,5 +38,13 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ### Requests
 
-- The API accepts only JSON request bodies.
+- The API accepts only JSON request bodies. The logo travels inside one, as base64 (B21), so no route reads a file upload.
+- A request body over 2 MB is refused with a 413 before it's read, so a large body can't use up the server's memory. The largest the app sends is a 1 MB logo, about 1.4 MB as base64.
 - Website links must be `http` or `https`, so a saved value can't run a script when clicked.
+
+### Invoices and the logo
+
+- The backend works out every amount on an invoice and every balance itself, and ignores any figure a request sends (V9). A payment is checked against what's owed under the write lock, so no pair of requests can overpay an invoice (V16).
+- An issued invoice can't be changed through any route (V12), so what a customer was sent stays as it was.
+- Anything typed into an invoice or the company settings goes onto the PDF as plain text, never as markup (V25), and the preview draws it as SVG text, never as HTML.
+- The logo is kept only if Pillow reads it as a PNG or a JPEG, whatever its name or stated type, and no larger than 1 MB or 2,000 pixels on a side, so a small file can't unpack into a huge image (B21). SVG is refused, because it can carry a script. The logo is sent back with the type the check found and `X-Content-Type-Options: nosniff`, so a browser never treats it as anything else.

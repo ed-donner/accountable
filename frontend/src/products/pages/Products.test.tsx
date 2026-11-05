@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
-import { Toaster } from "sonner";
-import { describe, expect, it } from "vitest";
+import { Toaster, toast } from "sonner";
+import { describe, expect, it, vi } from "vitest";
 
 import { queryDefaults } from "../../lib/queryDefaults";
 import { holdSaves, mockApi, user, type Call } from "../../test-utils";
@@ -186,6 +186,14 @@ describe("archiving from the table", () => {
       { method: "PATCH", path: "/products/2", body: { active: false } },
       { method: "PATCH", path: "/products/2", body: { active: true } },
     ]);
+  });
+
+  it("keeps its message up for 10 seconds, so Restore can be reached with Tab", async () => {
+    const success = vi.spyOn(toast, "success");
+    await showProducts();
+    await user().click(await screen.findByRole("button", { name: "Archive Training day" }));
+    expect(await screen.findByText("Product archived.")).toBeTruthy();
+    expect(success).toHaveBeenCalledWith("Product archived.", expect.objectContaining({ duration: 10_000 }));
   });
 
   it("says so when it fails, and leaves the product", async () => {

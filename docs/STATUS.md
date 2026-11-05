@@ -314,6 +314,12 @@ Built on the `products` branch, following `docs/changes/products/plan.md` throug
 
 Not done yet, as the plan leaves them for after the build: ui-check, the review, `docs/IMPROVE.md` and the walk on Supabase.
 
+## Products: review
+
+The reviewer found one Important gap: no test checked that the "Product archived." message stays up for 10 seconds (G9), so dropping its `duration` would have put it back to Sonner's 4 seconds with every test still passing. `Products.test.tsx` now checks the message asks for 10 seconds. It was seen to fail with `duration` taken out of a copy of `products/queries.ts`, then the copy was put back. The review's nits are left as they are: a failed Archive is tested end to end from the product's page only, the price message has unit tests only, two Escape presses in `products.spec.ts` have no wait between them, and the table's count of hidden matches ignores filters, which no table uses alongside hidden rows yet.
+
+`npm run check` passes: 3,246 tests in 7m 27s, longer than usual because another worktree's run was going at the same time. The first run failed one end-to-end test, `quality.spec.ts`'s walk through every screen: it ran out of its 30 seconds while opening an organization's page, after visiting the six sections. The next run, with nothing changed, passed it in 8.8 seconds. The cause isn't known. Like the `data.spec.ts` failure in the build, it may come back on a busy machine.
+
 ## Running Accountable
 
 Accountable runs two ways:

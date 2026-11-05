@@ -41,7 +41,7 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Both sign-in screens, with Supabase's client stood in for the shared app's by `src/test-supabase.ts`, whose saved session and events agree as the real client's do: each message in U2, a session that ends (U6), and nothing read in one session showing to whoever signs in next (U5)
 - Sessions: a refusal arriving after someone has signed out and in again leaves the new session alone, a token storage can't keep still goes with each request, and a pipeline move still on its way at sign-out, whether it goes through or fails, leaves the next person's deals and their own moves alone
 - The menu, and the theme: each choice, the saved choice, one that can't be read, and System following the device as it changes, with the browser's `prefers-color-scheme` stood in
-- Products: the table with Show archived and each of its empty states, the form with a taken name, Archive and the Restore button on its message, and the product page, active and archived
+- Products: the table with Show archived and each of its empty states, the form with a taken name, Archive and the Restore button on its message, which stays up for 10 seconds, and the product page, active and archived
 - The search box: the pause before searching, an older reply arriving late, the groups, including Products with their prices, "See all", the keyboard, each message in K7, trying a failed search again with a click or the down arrow, and telling screen readers whether its results are open
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
 

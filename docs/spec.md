@@ -6,17 +6,17 @@ The look is set by [Visual design](specs/visual-design.md#visual-design) and the
 
 ## Problem
 
-A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next. Prices live in people's heads and old emails too, so the same thing gets quoted at different prices.
+A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next. Prices live in people's heads and old emails too, so the same thing gets quoted at different prices. And what's agreed with a customer is in emails and spreadsheets, so nothing ties a quote to its deal, and nobody can see what was offered or whether the customer accepted.
 
 ## What Accountable is
 
-Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. It also holds the business's price list, its first step beyond the CRM, which quotes and invoices will use later. It should feel sharp, modern and professional, and be a pleasure to use.
+Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. It also holds the business's price list, its first step beyond the CRM, and the quotes made from it, each on its deal, which a customer's yes turns into a won deal. Invoices will use the price list later. It should feel sharp, modern and professional, and be a pleasure to use.
 
 **Who uses it:** a small sales team, sharing one Accountable every day with their own real data. Each person signs in with their own email and password, everyone works on the same records, and each record shows who added it. They start from the sample data to look around, then clear it and type in their own records. No other systems are involved yet.
 
 **Two ways to run it:** the **shared app** is the team's, on Render, with its data in Postgres on Supabase. The **local copy** runs on one computer with `npm run dev`, with the sample data and made-up teammates to sign in as, and needs neither Supabase nor the internet. It's where the app is built and tried out, and nothing done in it reaches the team's data. [running.md](specs/running.md) has both.
 
-**Six sections:**
+**Seven sections:**
 
 | Section | What it's for |
 |---|---|
@@ -26,18 +26,20 @@ Accountable is a business management system: a sales CRM that will grow into a f
 | Deals | The potential sales, each with its stage, value, close date and timeline |
 | Pipeline | The deals as cards on a board, one column per stage, moved by dragging |
 | Products | The price list: what the business sells, and at what price |
+| Quotes | The prices offered to customers, each quote on its deal, with its status and a PDF to send |
 
 Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out.
 
-**Five kinds of record:**
+**Six kinds of record:**
 
 - **Organization:** a company we do business with. It has many contacts and many deals.
 - **Contact:** a person we deal with, at an organization, with a status of lead, qualified or customer.
 - **Deal:** a potential sale, with an organization and a main contact, moving through six stages.
 - **Activity:** a note, call or email that happened, or needs to happen, with a contact or a deal, with an optional follow-up date.
 - **Product:** something the business sells, with a unique name, a description and a unit price in dollars and cents. It's archived rather than deleted once it's no longer sold.
+- **Quote:** the prices offered on a deal, as lines from the price list with a quantity and a price each, added up with the tax. It's a draft until it's sent, then accepted or declined, and it's never deleted.
 
-**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms and the prefixes for quote and invoice numbers. Quotes and invoices come later, so nothing uses the settings yet. What they'll share is ready for them: the counter that numbers them and the sums for their totals ([B15 to B17](specs/settings.md#for-quotes-and-invoices)).
+**One set of company settings:** the business's own details for its quotes and invoices, shared by the whole team: its name, address, email and phone, a tax label and rate, the payment terms and the prefixes for quote and invoice numbers. Quotes use them for their numbers, their tax and the company's details on their PDFs, and keep the details and the tax as they were when each was sent. Invoices come later, and what they'll share with quotes is ready for them: the counter that numbers them and the sums for their totals ([B15 to B17](specs/settings.md#for-quotes-and-invoices)).
 
 **Not in Accountable yet:**
 
@@ -48,13 +50,16 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - A warning when two people edit the same record, or the company settings, at once. The last save wins.
 - A history of every change. Each record keeps who added it and who last changed it, and the company settings keep who last changed them, nothing in between.
 - A layout for phones
-- Quotes, invoices and bills. The counter for quote and invoice numbers and the sums for their totals are ready, but nothing uses them yet.
+- Invoices and bills. The counter for invoice numbers and the sums for their totals are ready, and quotes use the same ones.
+- Emailing quotes, a page where a customer accepts a quote online, or turning a quote into an invoice
+- A customer's address, or notes, on a quote
+- Finding quotes with the top bar's search
 - A company logo
 - Personal settings. The theme belongs to the browser (L2), and the company settings to the team.
 - AI features
 - Email, calendar or phone integrations
 - Currencies other than US dollars, or more than one tax rate
-- Products on deals, quotes or invoices
+- Products on deals or invoices. Quotes have them, as lines.
 - Stock levels, product categories, units of measure or variants
 - Price lists for particular customers, or discounts
 - Reports beyond the dashboard
@@ -93,7 +98,14 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 | Tax rate | The sales tax as a percentage, from 0 to 100 with up to three decimal places, such as 8.875% |
 | Payment terms | How many days customers have to pay, from 0 to 365 |
 | Number prefix | The start of a quote's or an invoice's number, such as QT- or INV- |
-| Held record | A deal or an organization that a record in another area points at, such as an invoice on the deal. It can't be deleted (D4). Nothing holds one yet. |
+| Held record | A deal or an organization that a record in another area points at, such as a quote on the deal. It can't be deleted (D4). A quote holds its deal, and nothing holds an organization yet. |
+| Quote number | The quote prefix, then the next in the quotes' own count, such as QT-0004, taken when the quote is first saved (B15, Q9) |
+| Line | One product on a quote, with the name it had when added, a description, a quantity and a unit price. Its amount is the quantity times the unit price. |
+| Quote's value | The subtotal of its lines, before tax, as a deal's value is before tax (Q16) |
+| Quote status | Draft, Sent, Accepted or Declined, saved on the quote (Q6) |
+| Expired quote | A sent quote whose valid-until date is before today. It shows as Expired, and is still a sent quote underneath (Q7). |
+| Valid-until date | The last day a quote holds: 30 days after the quote's date, the day it was first saved, unless it's changed while a draft |
+| Prepared for | Who a quote is for: the deal's organization and main contact, followed while it's a draft and fixed once it's sent or declined (Q18) |
 
 | Stage | Usual probability |
 |---|---|
@@ -106,14 +118,14 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 
 ## Quality
 
-- **Q1.** At 1,000 contacts, 500 deals, 5,000 activities and 500 products, in the local copy: the dashboard's data arrives in under 200ms, a table opens in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
+- **Q1.** At 1,000 contacts, 500 deals, 5,000 activities, 500 products and 1,000 quotes with 5,000 lines between them, in the local copy: the dashboard's data arrives in under 200ms, a table opens in under a second, a table's search keystroke updates within 100ms, the top bar's search shows its results within 300ms of the last keystroke, and dragging a card stays smooth, meaning no task longer than about 250ms, which leaves room for cards to slide apart during a drag. A quote with 100 lines updates its preview within 100ms of a keystroke, and its PDF downloads in under a second. The shared app on Render's free plan is slower, and isn't held to these figures ([deploy.md](specs/deploy.md#free-plan-limits)).
 - **Q2.** No errors in the browser's console, on any screen, at any time.
 - **Q3.** All controls can be reached by keyboard, with a visible focus ring. Animations respect the system's reduced motion setting.
 - **Q4.** Chrome is the one supported and tested browser. Safari and Firefox may work, but nobody has checked.
 
 ## Area files
 
-Each area of the product has a file in `docs/specs/` with its requirements and, where it has one, its screen. The files under Across every area describe how the whole product looks and is built. Requirement ids, such as T5 or P4, are unique across the files.
+Each area of the product has a file in `docs/specs/` with its requirements and, where it has one, its screen. The files under Across every area describe how the whole product looks and is built. Requirement ids, such as T5 or P4, are unique across the files. Q1 to Q4 are the quality rules above, and the quotes' requirements carry on from Q5.
 
 **Product areas**
 
@@ -126,9 +138,10 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [deals.md](specs/deals.md) | Stage changes, the pipeline board and its screen | S1 to S9, P1 to P11 |
 | [activities.md](specs/activities.md) | Activities, follow-ups and timelines | A1 to A7 |
 | [products.md](specs/products.md) | The price list: unit prices in dollars and cents, unique names, archiving and restoring, the product page, and their screens | G1 to G12 |
+| [quotes.md](specs/quotes.md) | Quotes: statuses, lines, amounts and tax, Prepared for, sending, accepting and declining, copying, the PDF, the Quotes section, the panels on deals and organizations, and their screens, the quote document included | Q5 to Q37 |
 | [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, the sections other areas add below them, and its screen | H1 to H10 |
 | [running.md](specs/running.md) | The local copy and the shared app, sample data, keeping data, and the commands and first run | M1 to M7, C1 to C11 |
-| [settings.md](specs/settings.md) | The company settings: the page, each field's rules, saving, who last changed them, the sample company and the defaults, the numbers and sums quotes and invoices will use, and the page's screen | B1 to B17 |
+| [settings.md](specs/settings.md) | The company settings: the page, each field's rules, saving, who last changed them, the sample company and the defaults, the numbers and sums that quotes use and invoices will, and the page's screen | B1 to B17 |
 | [deploy.md](specs/deploy.md) | The shared app on Render: `render.yaml`, building, starting, settings and the free plans' limits | W1 to W9 |
 
 **Across every area**

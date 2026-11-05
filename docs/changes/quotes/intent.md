@@ -29,11 +29,22 @@ On any open deal, you can create a quote: pick products, set quantities, and adj
 - **Status moves:** statuses only move forward. A draft can be sent or declined, and a sent quote can be accepted or declined. Nothing moves back, so a mistake is fixed by copying the quote. A sent quote past its valid-until date can still be accepted or declined, because it's the team's call whether to honour a late yes.
 - **Quotes and the deal's stage:** a quote can be created, sent or accepted only while its deal is open, so accepting a quote is always what wins the deal. A deal dragged to Won first can't then accept one of its quotes. Accepting a quote marks the deal's other sent quotes declined in the same save, and its drafts stay drafts. If a won deal is dragged back to an open stage, its accepted quote stays accepted, so that deal can't accept another.
 - **No deleting:** quotes can never be deleted, so their numbers never have gaps. A draft that's no longer wanted is marked declined. A quote holds its deal ([D4](../../specs/records.md#deleting)), so a deal with quotes can't be deleted.
-- **Prepared for:** a quote shows who it's for: the deal's organization name, and its main contact's name and email. Like the tax, these are fixed when the quote is sent, and until then follow the deal. A quote can't be sent while its deal has no organization.
+- **Prepared for:** a quote shows who it's for: the deal's organization name, and its main contact's name and email. Like the tax and the company's details, these are fixed when the quote is sent, or declined as a draft, and until then follow the deal. A quote can't be sent while its deal has no organization.
 - **Status totals:** the totals at the top of the Quotes section count each quote's value, its subtotal before tax, as a deal's value does.
 - **PDF of a draft:** any quote can be downloaded as a PDF. A draft's PDF is marked Draft.
 - **Copying:** a copy is a new draft on the same deal, with a new number, a valid-until date 30 days from the day it's made, and the same lines as the original, names and prices included. The original doesn't change.
 - **Timeline:** sending, accepting or declining a quote adds no timeline entry of its own. Only the deal's move to Won does, as any stage change does.
+- **Company's details:** a quote keeps the company's name, address, email and phone as they were when it was sent, as it keeps the tax, so a later change to the company settings never changes a quote a customer has. A draft shows them as the settings have them.
+- **New drafts:** nothing is saved, and no number is taken, until the first Save quote, so a New quote that's abandoned never uses up a number. Copy to new draft saves the copy at once, with its own number.
+- **Where a quote starts:** New quote is on an open deal's Quotes panel, and in the Quotes section, which first asks which open deal.
+- **Asking first:** Mark as sent, Accept and Decline each ask first, because none can be undone. Accept's dialog names everything it will change on the deal.
+- **What sending needs:** at least one line, an organization on the deal, a valid-until date of today or later, and a company name in Settings. Downloading a draft's PDF needs the company name too.
+- **Declining a draft** fixes its company details, tax and Prepared for, as sending does, so only drafts follow the settings and the deal.
+- **Limits:** a quote has at most 100 lines.
+- **The Quotes section's figures:** six figures above the table, All and one for each status, give the count and the value of each, and also work as the table's status filter, as on Contacts.
+- **Preview and PDF:** the preview is one sheet that grows with its lines, and the PDF breaks into pages, because the browser and the PDF library wrap text slightly differently. Whether the PDF looks like the preview is checked by hand. The tests check what's on it.
+- **Dark mode:** the preview stays white with Midnight ink in dark mode, because it shows the paper the customer gets.
+- **Accepting and the CRM:** accepting passes the deal's new value to the CRM's stage change, so the quotes area never writes the deal itself. The change to the CRM stays small and is covered by its tests.
 
 ## Not in this change
 
@@ -42,6 +53,7 @@ On any open deal, you can create a quote: pick products, set quantities, and adj
 - Turning a quote into an invoice.
 - A customer address on quotes, which would need addresses on organizations, or a notes box on quotes.
 - Finding quotes with the search box in the top bar.
+- Sharing the PDF code with invoices. The PDFs are brought together after the merges.
 
 ## Success criteria
 

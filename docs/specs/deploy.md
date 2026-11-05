@@ -13,6 +13,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 - **W7.** Any address outside `/api` that isn't a built file gets the app's page, so every address in N2 works on refresh. Once signed in, an unknown address under `/api`, or a known one with the wrong method, gets a JSON 404, as other API errors do. The page itself is sent with `Cache-Control: no-cache`, so a browser can't keep an old page asking for built files that a deploy has replaced.
 - **W8.** The backend connects to Supabase through its session pooler, on port 5432. The direct connection is IPv6 only on Supabase's free plan, and Render can't reach it.
 - **W9.** The first start against an empty Supabase database builds the tables and adds the sample data in one transaction, so an interrupted first start leaves nothing behind (M1).
+- **W10.** The quotes' PDF library, fpdf2, and everything it needs install from `uv.lock` as wheels, with no system packages, so Render's native Python runtime builds and runs it with nothing added to `render.yaml`. The PDF's fonts are files in the repo ([Libraries](architecture.md#libraries)), so making a PDF reaches nothing outside the app, and Render's wiped disk loses nothing, because a PDF is made when it's downloaded and never kept.
 
 ## Free plan limits
 

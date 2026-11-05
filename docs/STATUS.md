@@ -478,6 +478,17 @@ A trial the same way, before the change to when a waiting run speaks, also passe
 
 Each new check in `scripts/test-runs.test.mjs` was shown to fail on a copy of `test-runs.mjs` broken for it, put back after: no queue order, free turns counted without the busy runs, no turn ports, the speed tests first only while their port is held, none of the speed tests first, and every reason printed at once. Several of them rely on timing, so the file was run 13 times on the working code and passed every time, and the two breaks most open to chance were tried again: the speed tests' place failed six times in six, and every reason printed at once three times in three.
 
+## Quotes: design
+
+On the `quotes` branch, `docs/spec.md` and the area files now describe Accountable with quotes in it, as it will be once the branch merges. The intent and its decisions are in `docs/changes/quotes/intent.md`. One area file is new: `docs/specs/quotes.md`, with Q5 to Q37 and the screens, the quote document included. Q1 to Q4 were already the quality rules, and the bills branch has E, so the quotes' requirements carry on from Q5. No code has changed yet.
+
+The owner agreed the choices the spec made where the intent left them open, and they're now in the intent's Decisions: new drafts saved only by Save quote, New quote in the Quotes section as well as on a deal, asking before Mark as sent, Accept and Decline, what sending needs, declining a draft fixing it as sending does, 100 lines a quote, the figures above the Quotes table doubling as its filter, the preview as one growing sheet, the preview staying white in dark mode, and accepting passing the deal's value to the CRM's stage change. They also decided that a quote keeps the company's details as they were when it was sent, as it keeps the tax.
+
+- **PDF:** fpdf2, with static TTF copies of the brand fonts in `backend/accountable/quotes/fonts/`, and `pypdf` for the tests to read the PDFs back. The plan makes the case for both. The invoices branch makes its own PDFs, and the two are brought together after the merges.
+- **The CRM:** `crm/rules.py`'s stage change takes a value, which accepting a quote passes, kept small and covered by the stage rules' tests.
+
+For the build: the SQL under Clear the sample data needs `quote_lines` and `quotes` in its `truncate`, and the run instructions should mention Quotes.
+
 ## Running Accountable
 
 Accountable runs two ways:

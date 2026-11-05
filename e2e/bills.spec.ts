@@ -56,8 +56,8 @@ function dollars(cents: number) {
 }
 
 function moneyFigure(page: Page, label: RegExp) {
-  // Bills' own panel, since invoices' row in the same section has an Overdue figure too.
-  return page.getByRole("region", { name: "Bills to pay" }).getByRole("link", { name: label });
+  // Bills' own panel, since invoices' side of the same section has an Overdue figure too.
+  return page.getByRole("region", { name: "What we owe" }).getByRole("link", { name: label });
 }
 
 test("a bill can be added, edited, marked paid and unpaid, and deleted", async ({ page, request }) => {
@@ -224,7 +224,7 @@ test("the Money section matches the bills", async ({ page, request }) => {
   await expect(moneyFigure(page, /^What we owe/)).toHaveText("What we owe$1,017.754 unpaid bills");
   await expect(moneyFigure(page, /^Overdue/)).toHaveText("Overdue$100.001 bill");
   await expect(money.getByTestId("due-total")).toHaveText("$517.75");
-  await expect(money.getByRole("region", { name: "Bills to pay" })).toContainText("2 bills");
+  await expect(money.getByRole("region", { name: "What we owe" })).toContainText("2 bills");
   const dueTable = money.getByRole("table", { name: "Bills due in the next 30 days" });
   await expect(dueTable.locator("tbody tr")).toHaveText([
     `${shown(isoDay())}Northwind SoftwareBTravel$217.75`,

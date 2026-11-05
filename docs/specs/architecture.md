@@ -154,7 +154,7 @@ backend/accountable/
     tables.py                     the bills table, its Hold on the supplier organization, and RECORDS
     schemas.py                    its request and reply models, the six categories, its checks, and the messages for
                                   its fields
-    router.py                     the bills routes, the figures for bills' row of the Money section, and their queries
+    router.py                     the bills routes, the figures for bills' side of the Money section, and their queries
     sample_data.py                the sample suppliers and their bills, dated from a given day
 backend/tests/
 frontend/index.html               the page, with a short script that applies the saved theme before anything draws
@@ -176,8 +176,11 @@ frontend/src/
                                   which knows nothing about any area's records. DataTable and RecordLayout's header
                                   take a row's or a page's own button and Delete together, and DataTable says what
                                   a filter leaves out
+    MoneySection.tsx              the dashboard's Money section, two sides in shared rows, and the parts both sides
+                                  are built from: MoneyColumn, OwingPanel, MoneyFigure and MonthsPanel
     charts/                       what any area's chart can use: ChartTooltip, useSize, and the axes' text and the top
-                                  of a money axis
+                                  of a money axis, and monthColumns.tsx, the layout the Money section's two month
+                                  charts share
   crm/
     queries.ts, deals.ts, Timeline.tsx, searchGroups.tsx and others
     forms/                        organization, contact, deal and activity forms
@@ -211,7 +214,7 @@ frontend/src/
     characters.ts                 which characters invoices can show, as characters.py says
     layout.ts                     where everything goes on each page, as layout.py does it
     InvoicePreview.tsx            draws laid-out pages as SVG, for an invoice and for the settings' sample
-    MoneySection.tsx              InvoicesMoney, invoices' row of the dashboard's Money section, above bills'
+    MoneySection.tsx              InvoicesMoney, invoices' side of the dashboard's Money section, left of bills'
     charts/                       HowLate and PaymentsChart
     pages/                        Invoices and Invoice
   bills/                          the bills from suppliers, a later area
@@ -219,7 +222,7 @@ frontend/src/
     categories.tsx                the six categories in order, with their labels, colors and round swatch
     status.tsx                    unpaid, overdue and paid from today, their chip, and the paid date's checks
     BillForm.tsx, MarkPaidDialog.tsx, DeleteBill.tsx, and BillsPanel.tsx, an organization's bills
-    charts/                       MoneySection, with BillsMoney, bills' row of the Money section, DueTimeline and
+    charts/                       MoneySection, with BillsMoney, bills' side of the Money section, DueTimeline and
                                   SpendingChart, and StackSegment, which draws a segment of a stacked column for
                                   both and keeps a small one tall enough to see
     pages/                        Bills and Bill

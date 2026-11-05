@@ -41,7 +41,7 @@ async function open(money: Money | (() => { body: Money })) {
   return calls;
 }
 
-describe("invoices' row of the Money section", () => {
+describe("invoices' side of the Money section", () => {
   it("shows what's owed and what's overdue, each with how many invoices, Overdue linking to Invoices showing it", async () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 5, 12, 0) });
     await open(MONEY);
@@ -81,9 +81,14 @@ describe("invoices' row of the Money section", () => {
     );
   });
 
-  it("says Nothing owed and No payments, with nothing divided by zero", async () => {
+  it("shows $0.00 owed with Nothing owed in place of How late, and No payments, with nothing divided by zero", async () => {
     await open(EMPTY);
     expect(await screen.findByText("Nothing owed.")).toBeTruthy();
+    const owed = within(screen.getByRole("region", { name: "Owed to us" }));
+    expect(owed.getAllByText("$0.00")).toHaveLength(2);
+    expect(owed.getAllByText("0 invoices")).toHaveLength(2);
+    expect(owed.getByRole("heading", { name: "How late" })).toBeTruthy();
+    expect(owed.queryByRole("list", { name: "How late" })).toBeNull();
     expect(screen.getByText("No payments in the last 12 months.")).toBeTruthy();
     expect(screen.queryByText(/NaN|Infinity/)).toBeNull();
   });

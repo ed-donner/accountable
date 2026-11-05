@@ -288,6 +288,16 @@ Proved twice with the new code, between this checkout and a worktree in `.claude
 
 The speed figures were the same in every run, alone or shared: the dashboard's data in 24 to 26ms, the top bar's search in 178 to 181ms, and the worst task in each drag at a median of 70 to 79ms.
 
+## Products: design
+
+On the `products` branch, `docs/spec.md` and the area files now describe Accountable with the price list in it, as it will be once the branch merges. The intent and its decisions are in `docs/changes/products/intent.md`. One area file is new: `docs/specs/products.md`, with G1 to G12. No code has changed yet. The project owner agreed the points below, and the choices in the spec that the intent left open: archiving without asking first, with Restore on its message, the count on Show archived, the message when only archived products match a search, the message for a name an archived product has, prices from $0.00 to $1 trillion, a 405 for deleting a product, and `name_key` for the unique check.
+
+- **Search spans two areas:** the top bar's search moves out of `crm/` to the top level on both sides, as `backend/accountable/search.py` and `frontend/src/components/Search.tsx`. Each area says what to look for and how its results look, so `crm/` and `products/` never import each other.
+- **The top bar:** measured on the local copy at 1280px, the bar had 75px to spare and a Products link takes 108px. With one added, the date wrapped onto two lines. The search box goes from 240px to 180px, which leaves about 17px to spare even with the widest date, such as Nov 30, 2026.
+- **Archived chip:** a new color token, Sea Mist in light mode and `#3B5862` in dark mode, because ink on the Line token's dark value is only 4.37:1.
+- **Q1** now includes 500 products, so the stress run covers the Products table.
+- **For the build:** the run instructions below still describe search without products, and the SQL under Clear the sample data needs `products` added once the table exists.
+
 ## Running Accountable
 
 Accountable runs two ways:

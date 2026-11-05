@@ -41,7 +41,7 @@ So a contact can't be added before their organization exists, and a deal can't b
 - **F6.** Email must look like an email address if given. Website must be an `http` or `https` address, and `https://` is added if it's left off. Value must be a whole number of dollars, zero or more, which keeps every total exact. Probability must be a whole number from 0 to 100.
 - **F7.** The close date of a won or lost deal can't be in the future, because its revenue would then be missing from the dashboard. An open deal's close date can be any date.
 - **F8.** Changing the stage in the deal form shows the new probability, and the new close date for Won or Lost, straight away. Both can be overtyped before saving, and what's shown is what's saved. Moving between open stages leaves the close date alone, including one that's just been typed. A trip through Won or Lost and back restores it.
-- **F9.** Two records can share a name.
+- **F9.** Two organizations, contacts or deals can share a name. Products can't ([G2](products.md#the-price-list)).
 - **F10.** A save or delete happens once, however quickly its button is pressed. If it fails, the dialog stays open with what was typed, and says so.
 - **F11.** A form that can't read the lists it needs closes and says so, rather than opening with an empty picker.
 - **F12.** The activity form's When box holds minutes. Leaving it untouched keeps the activity's exact time.

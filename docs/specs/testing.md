@@ -20,8 +20,8 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - All three timelines, with no duplicates
 - Sample data meets every line of M3, including when seeded on the 1st of a month, and M7
 - An emptied database stays empty after a restart
-- Migrations build the same tables as `tables.py`
-- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value` a `bigint` and turn on row-level security for every table, Alembic's own included
+- Migrations build the same tables as `crm/tables.py` and `products/tables.py`
+- The migrations, written out for Postgres by Alembic's offline mode, which needs no database, skip the SQLite-only steps, make `deals.value` and `products.unit_price_cents` `bigint`s and turn on row-level security for every table, Alembic's own included
 - The startup check for row-level security, given a list of tables with it on and off, refuses to start and names each table that has it off
 - Every route the app has gets the security and bad-input checks, taken from the app's own list of routes. That includes refusing a request with no token, an expired one, one signed with another key and one issued for something other than a signed-in user, in the local copy and in the shared app
 - The shared app's token check against a stand-in for Supabase's public keys, made in the test: a good token, a key it hasn't seen, and keys that can't be fetched
@@ -29,16 +29,20 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 - Some but not all of the three settings stop the backend, naming the missing ones
 - Who added and who last changed, through every kind of change in U10, including a won deal's contact, and leaving renumbered cards and blanked links alone. A request body naming someone changes nothing.
 - Names and initials, including no display name, a one-word name and a name changed in Supabase
-- Search: part of a name, any case, accented letters, `%` and `_`, spaces at the ends, the order, the limit of 5 and the counts
+- Search: part of a name, any case, accented letters, `%` and `_`, spaces at the ends, the order, the limit of 5 and the counts, for all four kinds, with archived products left out
+- Products: adding, editing, archiving and restoring through the API, who added and last changed each, and no way to delete one
+- Product names: unique ignoring case in any language, against an archived product too, a product changing the case of its own name, and two saves of one name at once, which give one product and a message beside the name, never a 500
+- Prices: whole cents from 0 to the limit, refusing a fraction such as `49.5`, a negative number, text and anything past the limit
 - Today follows `TZ`
 - The built app: an unknown address gets the page, an unknown `/api` address gets a JSON 404, and nothing outside `frontend/dist` can be reached
 
-**Frontend (Vitest):** money and date formatting, including dates near midnight, expected revenue and board totals using the same cases as the backend, the deal form's stage behavior, the table's search and sort, and every page, chart and the pipeline board as a user sees them, with the API stood in for by `mockApi` in `src/test-utils.tsx`. The board's tests give jsdom a plain layout, because jsdom lays nothing out, and move cards with the keyboard and the pointer. Also:
+**Frontend (Vitest):** money and date formatting, including dates near midnight and prices with their cents, reading a typed price by its digits, including `0.29`, `1,250.5` and `$1,250.00`, and refusing a third figure after the point, expected revenue and board totals using the same cases as the backend, the deal form's stage behavior, the table's search and sort, and every page, chart and the pipeline board as a user sees them, with the API stood in for by `mockApi` in `src/test-utils.tsx`. The board's tests give jsdom a plain layout, because jsdom lays nothing out, and move cards with the keyboard and the pointer. Also:
 
 - Both sign-in screens, with Supabase's client stood in for the shared app's by `src/test-supabase.ts`, whose saved session and events agree as the real client's do: each message in U2, a session that ends (U6), and nothing read in one session showing to whoever signs in next (U5)
 - Sessions: a refusal arriving after someone has signed out and in again leaves the new session alone, a token storage can't keep still goes with each request, and a pipeline move still on its way at sign-out, whether it goes through or fails, leaves the next person's deals and their own moves alone
 - The menu, and the theme: each choice, the saved choice, one that can't be read, and System following the device as it changes, with the browser's `prefers-color-scheme` stood in
-- The search box: the pause before searching, an older reply arriving late, the groups, "See all", the keyboard, each message in K7, trying a failed search again with a click or the down arrow, and telling screen readers whether its results are open
+- Products: the table with Show archived and each of its empty states, the form with a taken name, Archive and the Restore button on its message, and the product page, active and archived
+- The search box: the pause before searching, an older reply arriving late, the groups, including Products with their prices, "See all", the keyboard, each message in K7, trying a failed search again with a click or the down arrow, and telling screen readers whether its results are open
 - Who added and last changed, on each record page and timeline, including a record with no one recorded
 
 **Colors in one place:** `frontend/src/colors.test.ts` fails if any file in `frontend/src` other than `styles.css` names a color value, such as `#fff` or `rgba(...)`, so every color comes from a token and has a dark value. It also fails if the dark block sets a token that `@theme` doesn't have, so a misspelled one can't go unnoticed.
@@ -92,7 +96,8 @@ Every test runs as the local copy, on SQLite. The checks never read `.env`, and 
 | Five answers, two clicks | H9 | `e2e/problem.spec.ts`, then by hand, below |
 | The menu and the theme | N7, L1 to L4 | `e2e/menu.spec.ts`, `frontend/src/lib/theme.test.ts`, `frontend/src/components/UserMenu.test.tsx` |
 | Signing in and out, and who added | U1, U4 to U7, U13 to U15, R6, A7, S2 | `e2e/sign-in.spec.ts`, `e2e/records.spec.ts`, `e2e/activities.spec.ts` |
-| Search | K1 to K8 | `e2e/search.spec.ts`, `backend/tests/test_search.py`, `frontend/src/crm/Search.test.tsx` |
+| Search | K1 to K8 | `e2e/search.spec.ts`, `backend/tests/test_search.py`, `frontend/src/components/Search.test.tsx` |
+| Products | G1 to G12 | `e2e/products.spec.ts`, `backend/tests/test_products.py`, the tests in `frontend/src/products/` and `frontend/src/lib/money.test.ts` |
 | Look and brand | Visual design, L5 | By hand, against the design reference and the dark mode screenshots |
 | Layout, console, keyboard, Chrome | N3, Q2, Q3, Q4 | `e2e/quality.spec.ts` |
 | Speed at the limits | Q1 | `e2e/stress.spec.ts` |

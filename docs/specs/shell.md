@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## App shell
 
-- **N1.** Once signed in, a top bar on every screen links to the five sections: Dashboard, Organizations, Contacts, Deals and Pipeline. It also holds the search box ([Search](search.md#search)), today's date and the menu. The app opens on the Dashboard. Signed out, there's no top bar, only the sign-in screen (U1).
+- **N1.** Once signed in, a top bar on every screen links to the six sections: Dashboard, Organizations, Contacts, Deals, Pipeline and Products. It also holds the search box ([Search](search.md#search)), today's date and the menu. The app opens on the Dashboard. Signed out, there's no top bar, only the sign-in screen (U1).
 - **N2.** Every section and record has its own address, so refresh, back and forward all work.
 - **N3.** The app is designed for 1280px wide and up, in light mode and dark mode. There's no phone layout.
 - **N4.** Opening a record that no longer exists shows "This deal no longer exists" (or the matching word) with a link back to its section. So does an address that couldn't be a record, such as `/deals/abc`. An unknown address shows "This page no longer exists" with a link to the Dashboard, and keeps the top bar.
@@ -24,7 +24,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ### Shell
 
-A rounded bar in the panel color across the top holds the Accountable wordmark, set in Instrument Sans, then the five sections with icons and labels. At the right, in this order, come the search box, today's date and the menu button. The current section is a Sea Green pill with Midnight text, in both modes.
+A rounded bar in the panel color across the top holds the Accountable wordmark, set in Instrument Sans, then the six sections with icons and labels. Products has lucide-react's package icon, because the design reference has none for it. At the right, in this order, come the search box, today's date and the menu button. The current section is a Sea Green pill with Midnight text, in both modes. At 1280px wide everything fits on one line, even the widest date, such as Nov 30, 2026, and the date never wraps. That's what sets the search box's width ([Search box and results](search.md#search-box-and-results)).
 
 The menu button is a 32px circle in Marigold with the initials in Midnight, in the label style, in both modes. Marigold keeps it apart from the Sea Green pill of the current section. Its label for screen readers is "Menu for Alex Rivera", with the person's name. Until the app has read who's signed in, or if it can't, such as while the message in N5 shows, the button shows a person icon in place of initials and is labeled "Menu", and the menu holds the themes and Sign out without a name, so the theme can still be changed.
 

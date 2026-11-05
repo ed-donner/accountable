@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 
 import { Field } from "../components/Field";
 import { FormDialog } from "../components/FormDialog";
+import { LoadFailed } from "../components/LoadFailed";
 import { RecordPicker } from "../components/RecordPicker";
 import { SidePanel } from "../components/RecordLayout";
 import { useDeals, type DealDetail, type OrganizationDetail } from "../crm/queries";
@@ -133,15 +134,15 @@ function InvoicesPanel({
   action?: ReactNode;
 }) {
   const invoices = useInvoices(filter);
+  const { data } = invoices;
+  // A failed read says so, with Try again, and keeps what was read before, never showing an empty list as real (N6).
   return (
     <SidePanel title="Invoices" action={action}>
-      {invoices.error && !invoices.data ? (
-        <p className="py-1 text-muted">Couldn't load this.</p>
-      ) : invoices.data?.length === 0 ? (
-        <p className="py-1 text-muted">{empty}</p>
-      ) : (
+      <LoadFailed keeping={data !== undefined} error={invoices.error} onRetry={() => void invoices.refetch()} />
+      {data?.length === 0 && <p className="py-1 text-muted">{empty}</p>}
+      {data !== undefined && data.length > 0 && (
         <ul aria-label="Invoices">
-          {(invoices.data ?? []).map((invoice) => (
+          {data.map((invoice) => (
             <InvoiceLink key={invoice.id} invoice={invoice} withDeal={withDeal} />
           ))}
         </ul>

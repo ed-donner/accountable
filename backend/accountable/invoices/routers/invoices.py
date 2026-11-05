@@ -5,7 +5,7 @@ Every write reads the invoice's status inside its own db.writing(), before chang
 so a draft a teammate has just issued is never changed (V12).
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -81,6 +81,7 @@ def _row_fields(row: Any, total_cents: int, paid_cents: int, today: date) -> dic
     return {
         "id": row.id,
         "number": row.number,
+        "issue_order": row.issue_order,
         "shows_as": figures.shows_as(row.status, status_total, paid_cents, row.due_date, today),
         "deal": schemas.Named(id=row.deal_id, name=row.deal_name),
         "organization": _organization(row),
@@ -307,14 +308,23 @@ def _check_subtotal(lines: list[dict[str, Any]]) -> None:
         raise api.FieldError({"subtotal": tax.SUBTOTAL_MESSAGE})
 
 
-def _check_characters(bill_to: str | None, lines: list[dict[str, Any]]) -> None:
-    """Every save of a draft, whatever sends it, holds only what the invoice's fonts can draw (V9)."""
+def _text_problem(value: str | None, fits: Callable[[str | None], bool], too_long: str) -> str | None:
+    if not fits(value):
+        return too_long
+    found = characters.unprintable(value)
+    return characters.field_message(found) if found else None
+
+
+def _check_text(bill_to: str | None, lines: list[dict[str, Any]]) -> None:
+    """Every save of a draft, whatever sends it, holds a Bill to and descriptions within their
+    limits and only what the invoice's fonts can draw (V8, V9). They're checked as they'll be
+    saved, so a Bill to filled in from the deal, or a description taken from a product, is too."""
     problems = {}
-    if found := characters.unprintable(bill_to):
-        problems["bill_to"] = characters.field_message(found)
+    if problem := _text_problem(bill_to, schemas.bill_to_fits, schemas.BILL_TO_TOO_LONG):
+        problems["bill_to"] = problem
     for place, line in enumerate(lines):
-        if found := characters.unprintable(line["description"]):
-            problems[f"lines.{place}.description"] = characters.field_message(found)
+        if problem := _text_problem(line["description"], schemas.description_fits, schemas.DESCRIPTION_TOO_LONG):
+            problems[f"lines.{place}.description"] = problem
         if found := characters.unprintable(line["name"]):
             problems[f"lines.{place}.name"] = characters.line_name_message(found)
     if problems:
@@ -363,7 +373,7 @@ def _save_draft(conn: Connection, draft: Row, body: schemas.Draft, user: str, no
     else:
         lines = [dict(row._mapping) for row in saved_lines]
     _check_subtotal(lines)
-    _check_characters(sent.get("bill_to", draft.bill_to), lines)
+    _check_text(sent.get("bill_to", draft.bill_to), lines)
     altered = who.alterations(sent, draft)
     lines_altered = not _same_lines(saved_lines, lines)
     if lines_altered:
@@ -425,13 +435,15 @@ def _issue(conn: Connection, invoice_id: int, user: str, today: date, now: datet
     settings = documents.current_settings(conn)
     _refuse_what_cant_be_issued(draft, lines, settings)
     totals = tax.totals(lines, settings.tax_rate)
+    # Taken last, inside this transaction, so a refusal above takes none and a failure gives it back (B15).
+    taken = documents.take(conn, "invoice")
     conn.execute(
         update(invoices)
         .where(invoices.c.id == invoice_id)
         .values(
             status=ISSUED,
-            # Taken last, inside this transaction, so a refusal above takes none and a failure gives it back (B15).
-            number=documents.take_number(conn, "invoice"),
+            number=taken.number,
+            issue_order=taken.count,
             issue_date=today,
             due_date=today + timedelta(days=settings.payment_terms_days),
             organization_id=draft.deal_organization_id,

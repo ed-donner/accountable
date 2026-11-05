@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import designs from "../../../shared/invoice-designs.json";
 import cases from "../../../shared/invoice-layout-cases.json";
 import { fieldMessage, lineNameMessage, named, unprintable } from "./characters";
 import { day, layOut, money, quantity, taxText, wrap, type InvoiceValues, type Page } from "./layout";
@@ -13,6 +14,21 @@ describe("the layout", () => {
     "gives the same lines on the same pages as the backend: %s",
     (_name, item) => {
       expect(texts(layOut(item.invoice as InvoiceValues))).toEqual(item.pages);
+    },
+  );
+
+  it.each(cases.cases.map((item) => [item.name, item] as const))(
+    "keeps everything but the footer above the page's bottom margin, as layout.py does: %s",
+    (_name, item) => {
+      const { bottom, footer } = designs.page;
+      for (const page of layOut(item.invoice as InvoiceValues)) {
+        for (const drawn of page) {
+          if (drawn.kind === "text" && drawn.angle === undefined && drawn.y !== footer.y) {
+            expect(drawn.y).toBeLessThanOrEqual(bottom);
+          }
+          if (drawn.kind === "block") expect(drawn.y + drawn.height).toBeLessThanOrEqual(bottom);
+        }
+      }
     },
   );
 

@@ -150,3 +150,17 @@ def test_100_lines_run_over_pages_with_the_headings_and_the_page_on_each(hundred
         assert "Description" in text and "Unit price" in text
         assert f"INV-0042, page {number} of 5" in text
     assert "Line 100 for a stretch of work" in hundred_lines.pages[-1].extract_text()
+
+
+@pytest.mark.parametrize("design", ["classic", "banner", "ledger"])
+def test_a_description_taller_than_a_page_is_all_on_the_pdf(billing, make, design):
+    """60 short lines, 479 characters, as V8 allows: the description carries on to the next page (V26, V28)."""
+    billing.api.patch("/api/settings", json={"invoice_design": design})
+    described = "\n".join(f"Item {n:02d}" for n in range(1, 61))
+    product = make.product("Hardware bundle", unit_price_cents=125000, description=described)
+    invoice = billing.issued({"product_id": product})
+    reader = read(downloaded(billing, invoice).content)
+    assert len(reader.pages) == 2
+    shown = [line for line in text_of(reader).splitlines() if line.startswith("Item ")]
+    assert shown == [f"Item {n:02d}" for n in range(1, 61)]
+    assert "Item 60" in reader.pages[1].extract_text()

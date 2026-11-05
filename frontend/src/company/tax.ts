@@ -10,6 +10,8 @@ export const QUANTITY_MESSAGE = "Enter a whole number from 1 to 1,000,000";
 /** $1 trillion, the most a deal is worth. Under it, every amount here is exact as a JavaScript number. */
 export const MAX_SUBTOTAL_CENTS = MAX_CENTS;
 export const SUBTOTAL_MESSAGE = "Keep the subtotal to $1 trillion or less";
+/** The most a document can total: the largest subtotal with tax at 100%. A payment can be this much. */
+export const MAX_TOTAL_CENTS = 2 * MAX_SUBTOTAL_CENTS;
 
 const PER_PERCENT = 1000;
 /** A rate of 100%, in thousandths of a percent. */

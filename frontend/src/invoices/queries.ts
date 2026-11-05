@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 
 import type { Stage } from "../crm/queries";
 import { api } from "../lib/api";
@@ -15,6 +15,8 @@ type Named = { id: number; name: string };
 export type InvoiceRow = {
   id: number;
   number: string | null;
+  /** Its place in the order invoices were issued, so Number sorts that way whatever the prefix. Null on a draft. */
+  issue_order: number | null;
   shows_as: ShowsAs;
   deal: Named;
   /** A draft's is its deal's, and an issued invoice's the one it was issued to. */
@@ -101,22 +103,36 @@ function filterQuery(filter: InvoiceFilter) {
 // What an invoice shows as moves on with the days, so each read is keyed by today, and a
 // page left open overnight reads again on its own (V31).
 
-export function useInvoices(filter?: InvoiceFilter) {
+function sameKey(one: QueryKey, other: QueryKey) {
+  return JSON.stringify(one) === JSON.stringify(other);
+}
+
+/**
+ * A read that follows today, keyed by it. While the same thing is read again for a new day,
+ * what was read the day before stays on screen, so nothing is taken off the page meanwhile,
+ * a draft being typed included (V8). Another invoice's or list's never stands in, since it
+ * would be the wrong data.
+ */
+function useDaily<T>(key: QueryKey, path: string) {
   const today = useToday();
-  return useQuery({
-    queryKey: ["invoices", "list", filter ?? null, today],
-    queryFn: () => api<InvoiceRow[]>(`/invoices${filterQuery(filter)}`),
+  return useQuery<T, Error, T, QueryKey>({
+    queryKey: [...key, today],
+    queryFn: () => api<T>(path),
+    placeholderData: (previous, previousQuery) =>
+      previousQuery !== undefined && sameKey(previousQuery.queryKey.slice(0, -1), key) ? previous : undefined,
   });
 }
 
+export function useInvoices(filter?: InvoiceFilter) {
+  return useDaily<InvoiceRow[]>(["invoices", "list", filter ?? null], `/invoices${filterQuery(filter)}`);
+}
+
 export function useInvoice(id: number) {
-  const today = useToday();
-  return useQuery({ queryKey: ["invoices", id, today], queryFn: () => api<InvoiceDetail>(`/invoices/${id}`) });
+  return useDaily<InvoiceDetail>(["invoices", id], `/invoices/${id}`);
 }
 
 export function useMoney() {
-  const today = useToday();
-  return useQuery({ queryKey: ["invoices", "money", today], queryFn: () => api<Money>("/invoices/money") });
+  return useDaily<Money>(["invoices", "money"], "/invoices/money");
 }
 
 /** A write whose reply is the invoice, shown at once, before everything is read again. */

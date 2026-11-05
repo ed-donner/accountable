@@ -15,7 +15,7 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from conftest import insert_row
-from sqlalchemy import column, delete, func, insert, inspect, select, table, update
+from sqlalchemy import Date, DateTime, Integer, Text, column, delete, func, insert, inspect, select, table, update
 
 
 def live() -> dict:
@@ -603,3 +603,46 @@ def test_on_postgres_the_design_and_accent_color_keep_their_defaults_in_the_tabl
 def test_on_postgres_the_new_tables_get_row_level_security(postgres_sql):
     for name in ("company_logo", "invoices", "invoice_lines", "payments"):
         assert f"ALTER TABLE {name} ENABLE ROW LEVEL SECURITY" in postgres_sql, name
+
+
+@pytest.fixture
+def database_from_before_the_issue_order(tmp_path, monkeypatch):
+    """Three invoices issued at 0007, the third on the first one's day, and a draft."""
+    path = tmp_path / "before-issue-order.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    fill_at(path, "0007")
+    old_invoices = table(
+        "invoices",
+        column("deal_id", Integer),
+        column("status", Text),
+        column("number", Text),
+        column("issue_date", Date),
+        column("created_at", DateTime),
+        column("updated_at", DateTime),
+    )
+    with db.writing() as conn:
+        deal = conn.scalar(select(deals.c.id))
+        made = {"deal_id": deal, "created_at": WHEN, "updated_at": WHEN}
+        conn.execute(
+            insert(old_invoices),
+            [
+                {**made, "status": "issued", "number": "INV-0001", "issue_date": date(2026, 10, 2)},
+                {**made, "status": "issued", "number": "INV-0003", "issue_date": date(2026, 10, 5)},
+                {**made, "status": "void", "number": "INV-0002", "issue_date": date(2026, 10, 2)},
+                {**made, "status": "draft", "number": None, "issue_date": None},
+            ],
+        )
+    db.dispose()
+    yield path
+    db.dispose()
+
+
+def test_upgrading_gives_invoices_already_issued_their_order_by_issue_date_then_id(
+    database_from_before_the_issue_order,
+):
+    """Their numbers can't say, since a prefix may end in a digit, so they go in the order the table used (V22)."""
+    assert db.prepare_database(nothing) is False
+    with db.reading() as conn:
+        rows = conn.execute(select(invoices.c.number, invoices.c.issue_order).order_by(invoices.c.id)).all()
+    assert [tuple(row) for row in rows] == [("INV-0001", 1), ("INV-0003", 3), ("INV-0002", 2), (None, None)]

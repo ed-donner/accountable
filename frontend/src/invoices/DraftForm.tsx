@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { CompanySettings } from "../company/settings";
 import { MAX_SUBTOTAL_CENTS, QUANTITY_MESSAGE, SUBTOTAL_MESSAGE, parseQuantity, totals } from "../company/tax";
 import { Field, messageId } from "../components/Field";
+import { LoadFailed } from "../components/LoadFailed";
 import { SidePanel } from "../components/RecordLayout";
 import { parsePrice, price, priceText } from "../lib/money";
 import { useProducts } from "../products/queries";
@@ -32,6 +33,8 @@ const MAX_DESCRIPTION = 1000;
 /** A line as the form holds it, its quantity and price as typed. A line not yet saved has no id. */
 export type DraftLineValues = {
   id: number | null;
+  /** This line's own, in this form only, so a save's reply can find it again after more typing. Never sent. */
+  localKey: string;
   product_id: number;
   /** Taken from the product when the line was added, and never changed on the draft (V6). */
   name: string;
@@ -43,11 +46,19 @@ export type DraftLineValues = {
 
 export type DraftValues = { bill_to: string; lines: DraftLineValues[] };
 
+let linesAdded = 0;
+
+function addedLineKey() {
+  linesAdded += 1;
+  return `added-${linesAdded}`;
+}
+
 export function toDraftValues(invoice: InvoiceDetail): DraftValues {
   return {
     bill_to: invoice.bill_to ?? "",
     lines: invoice.lines.map((line) => ({
       id: line.id,
+      localKey: `saved-${line.id}`,
       product_id: line.product_id,
       name: line.name,
       description: line.description ?? "",
@@ -69,6 +80,18 @@ export function typedLines(lines: DraftLineValues[]) {
     quantity: parseQuantity(line.quantity) ?? 0,
     unit_price_cents: parsePrice(line.unit_price_cents) ?? 0,
   }));
+}
+
+/**
+ * The ids a save gave the new lines it was sent, as [the line's place in the form now, its id],
+ * for the lines still in the form. The reply's lines are in the order they were sent.
+ */
+export function savedIds(sent: DraftValues, saved: InvoiceDetail, now: DraftValues): [number, number][] {
+  const given = new Map(sent.lines.map((line, place) => [line.localKey, saved.lines[place]?.id]));
+  return now.lines.flatMap((line, place): [number, number][] => {
+    const id = given.get(line.localKey);
+    return line.id === null && id !== undefined ? [[place, id]] : [];
+  });
 }
 
 export function toDraftRequest(values: DraftValues): DraftRequest {
@@ -276,6 +299,12 @@ function AddLine({ onAdd }: { onAdd: (line: DraftLineValues) => void }) {
       >
         <Command shouldFilter={false} label="Products">
           <Command.Input value={search} onValueChange={setSearch} placeholder="Search products" className="input h-9" />
+          {/* A failed read says so, with Try again, and keeps the list read before, if any (N6). */}
+          <LoadFailed
+            keeping={products.data !== undefined}
+            error={products.error}
+            onRetry={() => void products.refetch()}
+          />
           <Command.List className="mt-1 max-h-[260px] overflow-y-auto">
             {matches.map((product) => (
               <Command.Item
@@ -284,6 +313,7 @@ function AddLine({ onAdd }: { onAdd: (line: DraftLineValues) => void }) {
                 onSelect={() => {
                   onAdd({
                     id: null,
+                    localKey: addedLineKey(),
                     product_id: product.id,
                     name: product.name,
                     description: product.description ?? "",
@@ -299,7 +329,7 @@ function AddLine({ onAdd }: { onAdd: (line: DraftLineValues) => void }) {
                 <span className="num flex-none text-[13px] text-muted">{price(product.unit_price_cents)}</span>
               </Command.Item>
             ))}
-            {matches.length === 0 && (
+            {matches.length === 0 && (products.data !== undefined || products.isFetching) && (
               <p className="px-2.5 py-1.5 text-[13px] text-muted">
                 {products.data ? "No active products match." : "Loading products"}
               </p>

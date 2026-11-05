@@ -37,6 +37,7 @@ const PRODUCT = {
 const INVOICE = {
   id: 7,
   number: "INV-0042",
+  issue_order: 42,
   shows_as: "issued",
   status: "issued",
   deal: { id: 3, name: "Annual support" },

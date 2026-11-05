@@ -99,8 +99,9 @@ backend/accountable/
   cli.py                          seed and empty commands, for the local copy only, across every area: each area's
                                   sample data in order, its records counted, and every table but the people's and
                                   the settings' wiped, in the order their foreign keys allow
-  migrations/                     Alembic, with batch mode on. 0006 adds number_counters, and 0007 the invoices
-                                  tables, company_logo, and the design and accent color settings
+  migrations/                     Alembic, with batch mode on. 0006 adds number_counters, 0007 the invoices
+                                  tables, company_logo, and the design and accent color settings, and 0008 each
+                                  invoice's issue_order
   crm/
     tables.py                     SQLAlchemy Core tables, and RECORDS, the ones seed and empty count
     schemas.py                    the CRM's Pydantic request and reply models, and the messages for its fields
@@ -119,7 +120,7 @@ backend/accountable/
     tables.py                     the company_settings, company_logo and number_counters tables
     schemas.py                    the settings' request and reply models, their checks, and the messages for their fields
     router.py                     GET and PATCH /settings, and their queries
-    documents.py                  for quotes and invoices: the settings as saved, the logo, and the next number (B15)
+    documents.py                  for quotes and invoices: the settings as saved, the logo, and the next number with its count (B15)
     tax.py                        for quotes and invoices: a line's amount, the subtotal, the tax and the total, and
                                   the quantity's type and limits (B16, B17)
     logo.py                       the logo's check, with Pillow: a real PNG or JPEG within B21's limits

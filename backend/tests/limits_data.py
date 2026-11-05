@@ -22,6 +22,7 @@ LINES_EACH = 3
 PAYMENTS = 1500
 ISSUED_COLUMNS = (
     "number",
+    "issue_order",
     "organization_id",
     "issue_date",
     "due_date",
@@ -180,6 +181,7 @@ def _fill_invoices(conn: Connection, today: date, now, won: list[int], organizat
         if status != "draft":
             row.update(
                 number=f"INV-{number:05d}",
+                issue_order=number,
                 organization_id=organization_ids[number % len(organization_ids)],
                 issue_date=issued_on,
                 due_date=issued_on + timedelta(days=30),

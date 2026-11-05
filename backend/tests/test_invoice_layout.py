@@ -61,6 +61,18 @@ def test_100_lines_carry_on_with_their_headings_and_the_page_at_the_foot():
     assert "Subtotal" in pages[-1] and "Subtotal" not in pages[-2]
 
 
+@pytest.mark.parametrize("design", ["Classic", "Banner", "Ledger"])
+def test_a_line_taller_than_a_page_carries_on_with_its_figures_beside_its_first_part(design):
+    """A description of up to 1,000 characters can run past a page, so it carries on to the next (V8, V26)."""
+    first, second = texts(layout.lay_out(BY_NAME[f"a line taller than a page, in {design}"]["invoice"]))
+    assert first[first.index("Hardware bundle") + 1] == "Item 01"
+    assert [text for text in first + second if text.startswith("Item ")] == [f"Item {n:02d}" for n in range(1, 61)]
+    assert second[:4] == ["Description", "Qty", "Unit price", "Amount"]
+    assert second[4].startswith("Item ")
+    assert [page.count("$2,500.00") for page in (first, second)] == [1, 0]
+    assert second[second.index("Item 60") + 1] == "Subtotal"
+
+
 def test_totals_that_dont_fit_move_together_to_a_new_page_with_no_headings():
     last = texts(layout.lay_out(BY_NAME["totals that don't fit after the last line move to a new page"]["invoice"]))[-1]
     assert last[:2] == ["Subtotal", "$452.85"]

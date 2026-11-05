@@ -23,6 +23,8 @@ QUANTITY_MESSAGE = "Enter a whole number from 1 to 1,000,000"
 # the browser holds exactly, which it can up to about $90 trillion.
 MAX_SUBTOTAL_CENTS = api.MAX_CENTS
 SUBTOTAL_MESSAGE = "Keep the subtotal to $1 trillion or less"
+# The most a document can total: the largest subtotal with tax at 100%. A payment can be this much.
+MAX_TOTAL_CENTS = 2 * MAX_SUBTOTAL_CENTS
 
 # Strict, so 1.5, "2" and true are refused rather than rounded or read as numbers (B17).
 Quantity = Annotated[StrictInt, Field(ge=1, le=MAX_QUANTITY)]

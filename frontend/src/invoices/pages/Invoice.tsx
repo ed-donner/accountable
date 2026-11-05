@@ -26,6 +26,7 @@ import {
   DraftForm,
   draftSchema,
   issueProblems,
+  savedIds,
   toDraftRequest,
   toDraftValues,
   typedLines,
@@ -262,8 +263,12 @@ function DraftPage({ invoice, settings, logoUrl, refetch, notice }: Shown) {
         const sent = JSON.stringify(form.getValues());
         try {
           const saved = await save.mutateAsync(toDraftRequest(typed));
-          // What was typed while the save was on its way stays, still to be saved.
           if (JSON.stringify(form.getValues()) === sent) form.reset(toDraftValues(saved));
+          else {
+            // What was typed while the save was on its way stays, still to be saved, but a new
+            // line it saved takes its id, so the next save keeps its name and product (V6).
+            for (const [place, id] of savedIds(typed, saved, form.getValues())) form.setValue(`lines.${place}.id`, id);
+          }
           notify.success("Draft saved.");
         } catch (error) {
           failed(error);

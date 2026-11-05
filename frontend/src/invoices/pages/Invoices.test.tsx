@@ -20,6 +20,7 @@ function row(id: number, changes: Partial<InvoiceRow> = {}): InvoiceRow {
     due_date: `2026-11-${String(id).padStart(2, "0")}`,
     total_cents: 100000 * id,
     owed_cents: 100000 * id,
+    issue_order: id,
     ...changes,
   };
 }
@@ -35,6 +36,7 @@ const ROWS: InvoiceRow[] = [
     issue_date: null,
     due_date: null,
     owed_cents: 0,
+    issue_order: null,
     organization: { id: 3, name: "Juniper Health" },
     bill_to: "Juniper Health\nAttn: Hannah Okafor",
   }),
@@ -127,6 +129,18 @@ describe("the Invoices table", () => {
     expect(shownRows()).toEqual(["INV-0001", "INV-0002", "INV-0003", "INV-0004", "B-0005", "Draft"]);
     await user().click(screen.getByRole("button", { name: "Status" }));
     expect(shownRows()).toEqual(["Draft", "B-0005", "INV-0003", "INV-0002", "INV-0001", "INV-0004"]);
+  });
+
+  it("sorts Number by when each was issued, not when its draft was started, on the same day too", async () => {
+    // Draft 11 was started first, but draft 12 was issued first. Then the prefix changed and 11 was issued.
+    const sameDay = [
+      row(11, { number: "B-0008", issue_date: "2026-11-02", issue_order: 8 }),
+      row(12, { number: "INV-0007", issue_date: "2026-11-02", issue_order: 7 }),
+    ];
+    open("/invoices", { "GET /invoices": sameDay });
+    await screen.findByRole("table");
+    await user().click(screen.getByRole("button", { name: "Number" }));
+    expect(shownRows()).toEqual(["INV-0007", "B-0008"]);
   });
 
   it("searches the number, the organization, the deal and the Bill to", async () => {

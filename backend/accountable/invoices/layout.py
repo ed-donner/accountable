@@ -283,30 +283,48 @@ def _heading(table: dict[str, Any], columns: dict[str, float], top: float, invoi
     ]
 
 
-def _row(table: dict[str, Any], columns: dict[str, float], line: dict[str, Any]) -> tuple[float, list[str], list[str]]:
+RowText = list[tuple[dict[str, Any], str]]
+"""A row's lines of text, each with its style: the name's, then the description's."""
+
+
+def _row_text(table: dict[str, Any], columns: dict[str, float], line: dict[str, Any]) -> RowText:
     name, description = table["name"], table["description"]
     width = columns["description"]
     names = wrap(line["name"], name["font"], name["size"], width)
     described = (
         wrap(line["description"], description["font"], description["size"], width) if line["description"] else []
     )
-    height = 2 * table["padding"] + len(names) * name["line_height"] + len(described) * description["line_height"]
-    return height, names, described
+    return [(name, text) for text in names] + [(description, text) for text in described]
+
+
+def _height(table: dict[str, Any], texts: RowText) -> float:
+    return 2 * table["padding"] + sum(style["line_height"] for style, _ in texts)
+
+
+def _fitting(table: dict[str, Any], texts: RowText, room: float) -> int:
+    """How many of a row's lines fit in this much room, with the row's padding above and below."""
+    count = 0
+    while count < len(texts) and _height(table, texts[: count + 1]) <= room:
+        count += 1
+    return count
 
 
 def _row_items(
     table: dict[str, Any],
     columns: dict[str, float],
-    line: dict[str, Any],
+    line: dict[str, Any] | None,
+    texts: RowText,
     top: float,
     index: int,
     invoice: dict[str, Any],
 ) -> Page:
-    height, names, described = _row(table, columns, line)
+    """A row, or the part of one on this page. Its figures sit beside its first line, so a
+    later part of a row too tall for one page is given no line, and has none."""
     items: Page = []
     stripe = table["stripe"]
     if stripe is not None and index % 2 == 0:
         width = columns["right"] - columns["left"] + 2 * table["inset"]
+        height = _height(table, texts)
         items.append(
             block_item(
                 columns["left"] - table["inset"], top, width, height, color(stripe["color"], invoice), stripe["radius"]
@@ -314,12 +332,13 @@ def _row_items(
         )
     cursor = top + table["padding"]
     first = baseline(cursor, table["name"]["line_height"], table["name"]["size"])
-    for style, texts in ((table["name"], names), (table["description"], described)):
-        for text in texts:
-            if text:
-                y = baseline(cursor, style["line_height"], style["size"])
-                items.append(text_item(text, columns["left"], y, style, "start", invoice))
-            cursor += style["line_height"]
+    for style, text in texts:
+        if text:
+            y = baseline(cursor, style["line_height"], style["size"])
+            items.append(text_item(text, columns["left"], y, style, "start", invoice))
+        cursor += style["line_height"]
+    if line is None:
+        return items
     figures = table["figures"]
     amount = line["quantity"] * line["unit_price_cents"]
     items.append(text_item(quantity(line["quantity"]), columns["qty"], first, figures, "end", invoice))
@@ -394,36 +413,82 @@ def _totals(design: dict[str, Any], invoice: dict[str, Any]) -> tuple[float, Any
 # The pages
 
 
+class _Pages:
+    """The pages as the lines fill them, with the headings over each page's first row (V26)."""
+
+    def __init__(
+        self, table: dict[str, Any], columns: dict[str, float], invoice: dict[str, Any], first: Page, top: float
+    ):
+        self.table, self.columns, self.invoice = table, columns, invoice
+        self.pages, self.cursor, self.headed = [first], top, False
+
+    def room(self) -> float:
+        """What's left on this page for a row, after the headings if they're still to come."""
+        heading = 0 if self.headed else self.table["heading"]["height"]
+        return DESIGNS["page"]["bottom"] - self.cursor - heading
+
+    def fresh(self) -> bool:
+        """A new page with nothing on it yet, which a row never leaves for the next."""
+        return not self.headed and self.cursor <= DESIGNS["page"]["top"]
+
+    def turn(self) -> None:
+        self.pages.append([])
+        self.cursor, self.headed = DESIGNS["page"]["top"], False
+
+    def head(self) -> None:
+        if not self.headed:
+            self.pages[-1].extend(_heading(self.table, self.columns, self.cursor, self.invoice))
+            self.cursor += self.table["heading"]["height"]
+            self.headed = True
+
+    def place(self, line: dict[str, Any] | None, texts: RowText, index: int) -> None:
+        self.head()
+        self.pages[-1].extend(_row_items(self.table, self.columns, line, texts, self.cursor, index, self.invoice))
+        self.cursor += _height(self.table, texts)
+
+    def place_whole(self, line: dict[str, Any], texts: RowText, index: int) -> None:
+        """On this page, or the next if it doesn't fit."""
+        if _height(self.table, texts) > self.room() and not self.fresh():
+            self.turn()
+        self.place(line, texts, index)
+
+    def place_in_parts(self, line: dict[str, Any], texts: RowText, index: int) -> None:
+        """A row taller than a page carries on from page to page, as much on each as fits."""
+        shown: dict[str, Any] | None = line
+        while texts:
+            fitting = _fitting(self.table, texts, self.room())
+            if fitting == 0 and not self.fresh():
+                self.turn()
+                continue
+            fitting = max(fitting, 1)
+            self.place(shown, texts[:fitting], index)
+            texts, shown = texts[fitting:], None
+            if texts:
+                self.turn()
+
+
 def _flow(design: dict[str, Any], invoice: dict[str, Any], first: Page, top: float) -> list[Page]:
-    """The lines from the top given, onto new pages as they fill, each row kept whole and the
-    headings repeated over each page's first row, then the totals, kept together (V26)."""
+    """The lines from the top given, onto new pages as they fill, then the totals, kept together
+    (V26). Each row is kept whole, unless it's taller than a page on its own."""
     page = DESIGNS["page"]
     table = design["table"]
     lines = invoice["lines"]
     columns = _columns(table, lines)
-    pages, cursor, headed = [first], top, False
+    flow = _Pages(table, columns, invoice, first, top)
+    whole_page = page["bottom"] - page["top"] - table["heading"]["height"]
     for index, line in enumerate(lines):
-        height = _row(table, columns, line)[0]
-        heading = 0 if headed else table["heading"]["height"]
-        if cursor + heading + height > page["bottom"] and (headed or cursor > page["top"]):
-            pages.append([])
-            cursor, headed, heading = page["top"], False, table["heading"]["height"]
-        if not headed:
-            pages[-1].extend(_heading(table, columns, cursor, invoice))
-            cursor += heading
-            headed = True
-        pages[-1].extend(_row_items(table, columns, line, cursor, index, invoice))
-        cursor += height
-    if not lines:
-        pages[-1].extend(_heading(table, columns, cursor, invoice))
-        cursor += table["heading"]["height"]
+        texts = _row_text(table, columns, line)
+        if _height(table, texts) <= whole_page:
+            flow.place_whole(line, texts, index)
+        else:
+            flow.place_in_parts(line, texts, index)
+    flow.head()
     height, place = _totals(design, invoice)
-    cursor += design["totals"]["gap"]
-    if cursor + height > page["bottom"]:
-        pages.append([])
-        cursor = page["top"]
-    pages[-1].extend(place(cursor))
-    return pages
+    flow.cursor += design["totals"]["gap"]
+    if flow.cursor + height > page["bottom"]:
+        flow.turn()
+    flow.pages[-1].extend(place(flow.cursor))
+    return flow.pages
 
 
 def _footer_and_watermark(pages: list[Page], invoice: dict[str, Any]) -> None:

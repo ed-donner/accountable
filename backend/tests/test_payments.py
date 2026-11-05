@@ -50,6 +50,18 @@ def test_paying_in_two_parts_makes_it_paid(billing, invoice):
     assert (paid["shows_as"], paid["owed_cents"], len(paid["payments"])) == ("paid", 0, 2)
 
 
+def test_the_largest_invoice_there_can_be_is_paid_in_one_payment(billing):
+    """A $1 trillion subtotal with tax at 100% owes $2 trillion, twice the most a price can be (B17, V15)."""
+    assert billing.api.patch("/api/settings", json={"tax_rate": "100"}).status_code == 200
+    invoice = billing.issued(billing.line("Pro license", quantity=1_000_000, unit_price_cents=10**8))
+    assert invoice["owed_cents"] == 2 * 10**14
+    reply = pay(billing, invoice, amount_cents=invoice["owed_cents"])
+    assert (reply.status_code, reply.json()["shows_as"]) == (201, "paid")
+    assert pay(billing, invoice, amount_cents=1).json()["fields"] == {
+        "amount_cents": "That's more than the $0.00 still owed"
+    }
+
+
 def test_a_cent_more_than_is_owed_is_refused(billing, invoice):
     pay(billing, invoice, amount_cents=TOTAL - 125000)
     reply = pay(billing, invoice, amount_cents=125001)

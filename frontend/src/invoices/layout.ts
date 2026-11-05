@@ -424,37 +424,61 @@ function heading(table: Table, columns: Columns, top: number, invoice: InvoiceVa
   ];
 }
 
-function row(table: Table, columns: Columns, line: Line): [number, string[], string[]] {
+/** A row's lines of text, each with its style: the name's, then the description's. */
+type RowText = [RowStyle, string][];
+
+function rowText(table: Table, columns: Columns, line: Line): RowText {
   const { name, description } = table;
   const width = columns.description;
   const names = wrap(line.name, name.font, name.size, width);
   const described = line.description ? wrap(line.description, description.font, description.size, width) : [];
-  const height = 2 * table.padding + names.length * name.line_height + described.length * description.line_height;
-  return [height, names, described];
+  return [
+    ...names.map((text): [RowStyle, string] => [name, text]),
+    ...described.map((text): [RowStyle, string] => [description, text]),
+  ];
 }
 
-function rowItems(table: Table, columns: Columns, line: Line, top: number, index: number, invoice: InvoiceValues) {
-  const [height, names, described] = row(table, columns, line);
+function rowHeight(table: Table, texts: RowText): number {
+  return 2 * table.padding + texts.reduce((sum, [style]) => sum + style.line_height, 0);
+}
+
+/** How many of a row's lines fit in this much room, with the row's padding above and below. */
+function fitting(table: Table, texts: RowText, room: number): number {
+  let count = 0;
+  while (count < texts.length && rowHeight(table, texts.slice(0, count + 1)) <= room) count += 1;
+  return count;
+}
+
+/**
+ * A row, or the part of one on this page. Its figures sit beside its first line, so a later
+ * part of a row too tall for one page is given no line, and has none.
+ */
+function rowItems(
+  table: Table,
+  columns: Columns,
+  line: Line | null,
+  texts: RowText,
+  top: number,
+  index: number,
+  invoice: InvoiceValues,
+) {
   const items: Page = [];
   const { stripe } = table;
   if (stripe !== null && index % 2 === 0) {
     const width = columns.right - columns.left + 2 * table.inset;
+    const height = rowHeight(table, texts);
     items.push(blockItem(columns.left - table.inset, top, width, height, color(stripe.color, invoice), stripe.radius));
   }
   let cursor = top + table.padding;
   const first = baseline(cursor, table.name.line_height, table.name.size);
-  for (const [style, texts] of [
-    [table.name, names],
-    [table.description, described],
-  ] as const) {
-    for (const text of texts) {
-      if (text)
-        items.push(
-          textItem(text, columns.left, baseline(cursor, style.line_height, style.size), style, "start", invoice),
-        );
-      cursor += style.line_height;
-    }
+  for (const [style, text] of texts) {
+    if (text)
+      items.push(
+        textItem(text, columns.left, baseline(cursor, style.line_height, style.size), style, "start", invoice),
+      );
+    cursor += style.line_height;
   }
+  if (line === null) return items;
   const { figures } = table;
   const amount = line.quantity * line.unit_price_cents;
   items.push(textItem(quantity(line.quantity), columns.qty, first, figures, "end", invoice));
@@ -526,47 +550,101 @@ function totalsFor(design: DesignSpec, invoice: InvoiceValues): [number, (top: n
 
 // The pages
 
+/** The pages as the lines fill them, with the headings over each page's first row (V26). */
+class Pages {
+  table: Table;
+  columns: Columns;
+  invoice: InvoiceValues;
+  pages: Page[];
+  cursor: number;
+  headed = false;
+
+  constructor(table: Table, columns: Columns, invoice: InvoiceValues, first: Page, top: number) {
+    this.table = table;
+    this.columns = columns;
+    this.invoice = invoice;
+    this.pages = [first];
+    this.cursor = top;
+  }
+
+  /** What's left on this page for a row, after the headings if they're still to come. */
+  room() {
+    const headingHeight = this.headed ? 0 : this.table.heading.height;
+    return DESIGNS.page.bottom - this.cursor - headingHeight;
+  }
+
+  /** A new page with nothing on it yet, which a row never leaves for the next. */
+  fresh() {
+    return !this.headed && this.cursor <= DESIGNS.page.top;
+  }
+
+  turn() {
+    this.pages.push([]);
+    this.cursor = DESIGNS.page.top;
+    this.headed = false;
+  }
+
+  head() {
+    if (this.headed) return;
+    this.pages[this.pages.length - 1].push(...heading(this.table, this.columns, this.cursor, this.invoice));
+    this.cursor += this.table.heading.height;
+    this.headed = true;
+  }
+
+  place(line: Line | null, texts: RowText, index: number) {
+    this.head();
+    const items = rowItems(this.table, this.columns, line, texts, this.cursor, index, this.invoice);
+    this.pages[this.pages.length - 1].push(...items);
+    this.cursor += rowHeight(this.table, texts);
+  }
+
+  /** On this page, or the next if it doesn't fit. */
+  placeWhole(line: Line, texts: RowText, index: number) {
+    if (rowHeight(this.table, texts) > this.room() && !this.fresh()) this.turn();
+    this.place(line, texts, index);
+  }
+
+  /** A row taller than a page carries on from page to page, as much on each as fits. */
+  placeInParts(line: Line, texts: RowText, index: number) {
+    let shown: Line | null = line;
+    let left = texts;
+    while (left.length > 0) {
+      const fits = fitting(this.table, left, this.room());
+      if (fits === 0 && !this.fresh()) {
+        this.turn();
+        continue;
+      }
+      const count = Math.max(fits, 1);
+      this.place(shown, left.slice(0, count), index);
+      left = left.slice(count);
+      shown = null;
+      if (left.length > 0) this.turn();
+    }
+  }
+}
+
 /**
- * The lines from the top given, onto new pages as they fill, each row kept whole and the
- * headings repeated over each page's first row, then the totals, kept together (V26).
+ * The lines from the top given, onto new pages as they fill, then the totals, kept together
+ * (V26). Each row is kept whole, unless it's taller than a page on its own.
  */
 function flow(design: DesignSpec, invoice: InvoiceValues, first: Page, top: number): Page[] {
   const { page } = DESIGNS;
   const { table } = design;
   const { lines } = invoice;
   const columns = columnsFor(table, lines);
-  const pages = [first];
-  let cursor = top;
-  let headed = false;
+  const pages = new Pages(table, columns, invoice, first, top);
+  const wholePage = page.bottom - page.top - table.heading.height;
   lines.forEach((line, index) => {
-    const [height] = row(table, columns, line);
-    let headingHeight = headed ? 0 : table.heading.height;
-    if (cursor + headingHeight + height > page.bottom && (headed || cursor > page.top)) {
-      pages.push([]);
-      cursor = page.top;
-      headed = false;
-      headingHeight = table.heading.height;
-    }
-    if (!headed) {
-      pages[pages.length - 1].push(...heading(table, columns, cursor, invoice));
-      cursor += headingHeight;
-      headed = true;
-    }
-    pages[pages.length - 1].push(...rowItems(table, columns, line, cursor, index, invoice));
-    cursor += height;
+    const texts = rowText(table, columns, line);
+    if (rowHeight(table, texts) <= wholePage) pages.placeWhole(line, texts, index);
+    else pages.placeInParts(line, texts, index);
   });
-  if (lines.length === 0) {
-    pages[pages.length - 1].push(...heading(table, columns, cursor, invoice));
-    cursor += table.heading.height;
-  }
+  pages.head();
   const [height, place] = totalsFor(design, invoice);
-  cursor += design.totals.gap;
-  if (cursor + height > page.bottom) {
-    pages.push([]);
-    cursor = page.top;
-  }
-  pages[pages.length - 1].push(...place(cursor));
-  return pages;
+  pages.cursor += design.totals.gap;
+  if (pages.cursor + height > page.bottom) pages.turn();
+  pages.pages[pages.pages.length - 1].push(...place(pages.cursor));
+  return pages.pages;
 }
 
 /** Each page ends with the number and the page, and a void invoice has VOID across every page (V26, V27). */

@@ -283,9 +283,11 @@ def _issued(
     assert plan.issue_date is not None
     totals = tax.totals(_as_lines(lines), settings.tax_rate)
     issuer = teammate(number + 2)
+    taken = documents.take(conn, "invoice")
     issued = {
         "status": VOID if plan.status == VOID else ISSUED,
-        "number": documents.take_number(conn, "invoice"),
+        "number": taken.number,
+        "issue_order": taken.count,
         "issue_date": plan.issue_date,
         "due_date": plan.issue_date + timedelta(days=settings.payment_terms_days),
         "organization_id": plan.deal.organization_id,

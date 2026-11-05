@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { DealDetail, OrganizationDetail } from "../crm/queries";
@@ -44,6 +44,7 @@ const ROWS: InvoiceRow[] = [
   {
     id: 9,
     number: null,
+    issue_order: null,
     shows_as: "draft",
     deal: { id: 3, name: "Annual support" },
     organization: { id: 2, name: "Harbor & Pine" },
@@ -56,6 +57,7 @@ const ROWS: InvoiceRow[] = [
   {
     id: 8,
     number: "INV-0042",
+    issue_order: 42,
     shows_as: "part_paid",
     deal: { id: 3, name: "Annual support" },
     organization: { id: 2, name: "Harbor & Pine" },
@@ -114,10 +116,36 @@ describe("a deal's Invoices panel", () => {
     expect(await panel().findAllByRole("link")).toHaveLength(2);
   });
 
-  it("says when its invoices couldn't be read", async () => {
-    mockApi({ "GET /invoices?deal_id=3": () => ({ status: 500, body: { detail: "Something went wrong." } }) });
+  it("says when its invoices couldn't be read, and Try again reads them", async () => {
+    let reads = 0;
+    mockApi({
+      "GET /invoices?deal_id=3": () => {
+        reads += 1;
+        return reads === 1 ? { status: 500, body: { detail: "Something went wrong." } } : { body: ROWS };
+      },
+    });
     renderApp(<DealInvoices record={DEAL} />);
     expect(await panel().findByText("Couldn't load this.")).toBeTruthy();
+    expect(panel().queryByText("No invoices yet.")).toBeNull();
+    await user().click(panel().getByRole("button", { name: "Try again" }));
+    expect(await panel().findAllByRole("link")).toHaveLength(2);
+    expect(panel().queryByText("Couldn't load this.")).toBeNull();
+  });
+
+  it("keeps its invoices when a later read fails, and says they may be out of date", async () => {
+    let reads = 0;
+    mockApi({
+      "GET /invoices?deal_id=3": () => {
+        reads += 1;
+        return reads === 1 ? { body: ROWS } : { status: 500, body: { detail: "Something went wrong." } };
+      },
+    });
+    const { client } = renderApp(<DealInvoices record={DEAL} />);
+    expect(await panel().findAllByRole("link")).toHaveLength(2);
+    await act(() => client.refetchQueries({ queryKey: ["invoices"] }));
+    expect(await panel().findByText("Couldn't refresh this, so it may be out of date.")).toBeTruthy();
+    expect(panel().getAllByRole("link")).toHaveLength(2);
+    expect(panel().getByRole("button", { name: "Try again" })).toBeTruthy();
   });
 });
 

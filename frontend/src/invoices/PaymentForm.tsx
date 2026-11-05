@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { Field, messageId } from "../components/Field";
 import { FormDialog } from "../components/FormDialog";
+import { MAX_TOTAL_CENTS } from "../company/tax";
 import { parsePrice, price, priceText } from "../lib/money";
 import { useNotify } from "../lib/notify";
 import { showSaveError } from "../lib/saveErrors";
@@ -30,7 +31,7 @@ function paymentSchema(owed: number, issued: string, today: string) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(values.paid_on)) problem("paid_on", DATE_MESSAGE);
       else if (values.paid_on > today) problem("paid_on", DATE_IN_FUTURE);
       else if (values.paid_on < issued) problem("paid_on", DATE_BEFORE_ISSUE);
-      const cents = parsePrice(values.amount_cents);
+      const cents = parsePrice(values.amount_cents, MAX_TOTAL_CENTS);
       if (cents === null || cents === 0) problem("amount_cents", AMOUNT_MESSAGE);
       else if (cents > owed) problem("amount_cents", `That's more than the ${price(owed)} still owed`);
       if (!METHODS.some(({ key }) => key === values.method)) problem("method", METHOD_MESSAGE);
@@ -64,7 +65,7 @@ export function PaymentForm({ invoice, onClose }: { invoice: InvoiceDetail; onCl
     try {
       await record.mutateAsync({
         paid_on: values.paid_on,
-        amount_cents: parsePrice(values.amount_cents)!,
+        amount_cents: parsePrice(values.amount_cents, MAX_TOTAL_CENTS)!,
         method: values.method as Method,
         reference: values.reference.trim() || null,
       });

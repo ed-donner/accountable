@@ -198,6 +198,35 @@ def test_the_bill_to_at_and_past_its_limits(billing, bill_to, fine):
         assert (reply.status_code, reply.json()["fields"]) == (422, {"bill_to": BILL_TO_TOO_LONG})
 
 
+DESCRIPTION_TOO_LONG = "Keep the description to 1,000 characters or fewer"
+
+
+@pytest.mark.parametrize("route", ["", "issue"])
+def test_a_bill_to_filled_in_from_the_deal_is_held_to_the_same_limits(billing, make, route):
+    """Organization names have no limit of their own, so the Bill to a draft starts with can be too long (V8, V9)."""
+    organization = make.organization("x" * 501)
+    deal = make.deal("Long name", stage="won", close_date=TODAY, organization_id=organization)
+    draft = billing.draft(deal)
+    method = billing.api.post if route else billing.api.patch
+    reply = method(invoice_path(draft, *([route] if route else [])), json={"lines": [billing.line("Pro license")]})
+    assert (reply.status_code, reply.json()["fields"]) == (422, {"bill_to": BILL_TO_TOO_LONG})
+    saved = billing.api.get(invoice_path(draft)).json()
+    assert (saved["status"], saved["lines"]) == ("draft", [])
+
+
+@pytest.mark.parametrize("route", ["", "issue"])
+def test_a_description_taken_from_the_product_is_held_to_the_same_limit(billing, make, route):
+    """Product descriptions have no limit of their own, so a line that takes one can be too long (V8, V9)."""
+    product = make.product("Long notes", unit_price_cents=100, description="x" * 1001)
+    draft = billing.draft()
+    method = billing.api.post if route else billing.api.patch
+    lines = [billing.line("Pro license"), {"product_id": product}]
+    reply = method(invoice_path(draft, *([route] if route else [])), json={"lines": lines})
+    assert (reply.status_code, reply.json()["fields"]) == (422, {"lines.1.description": DESCRIPTION_TOO_LONG})
+    saved = billing.api.get(invoice_path(draft)).json()
+    assert (saved["status"], saved["lines"]) == ("draft", [])
+
+
 def test_the_bill_to_keeps_what_was_typed_inside_it(billing):
     typed = "Harbor & Pine\n  Unit 4,   Dock Road\n\nAttn: Sam"
     reply = billing.api.patch(invoice_path(billing.draft()), json={"bill_to": f"  {typed}\n\n"})
@@ -294,6 +323,21 @@ def test_the_prefix_and_the_payment_terms_are_the_settings_at_that_moment(billin
     billing.api.patch("/api/settings", json={"invoice_prefix": "B-", "payment_terms_days": 0})
     second = billing.issued()
     assert (second["number"], second["issue_date"], second["due_date"]) == ("B-0002", "2026-10-31", "2026-10-31")
+
+
+def test_each_invoice_keeps_its_place_in_the_order_issued_not_the_order_started(billing):
+    """Two drafts started in one order and issued the same day in the other, across a prefix change (V22, B15)."""
+    first_started, second_started = billing.draft(), billing.draft()
+    lines = {"lines": [billing.line("Pro license")]}
+    billing.api.post(invoice_path(second_started, "issue"), json=lines)
+    billing.api.patch("/api/settings", json={"invoice_prefix": "B-"})
+    billing.api.post(invoice_path(first_started, "issue"), json=lines)
+    still_a_draft = billing.draft()
+    listed = {row["id"]: (row["number"], row["issue_order"]) for row in billing.api.get("/api/invoices").json()}
+    assert listed[second_started["id"]] == ("INV-0001", 1)
+    assert listed[first_started["id"]] == ("B-0002", 2)
+    assert listed[still_a_draft["id"]] == (None, None)
+    assert billing.api.get(invoice_path(first_started)).json()["issue_order"] == 2
 
 
 def test_each_v10_refusal_beside_its_field_or_at_the_top(billing, make):
@@ -498,6 +542,7 @@ def test_the_list_has_each_invoices_figures_newest_first(billing):
     assert listed[1] == {
         "id": issued["id"],
         "number": "INV-0001",
+        "issue_order": 1,
         "shows_as": "part_paid",
         "deal": {"id": billing.deal, "name": "Annual support"},
         "organization": {"id": billing.organization, "name": "Harbor & Pine"},

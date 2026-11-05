@@ -24,6 +24,8 @@ invoices = Table(
     Column("status", Text, nullable=False, default=DRAFT),
     # Set on issuing (B15). Both databases let a unique column hold many blanks, so drafts don't clash.
     Column("number", Text),
+    # The count the number took on issuing, so Number sorts in the order issued, whatever the prefix (V22).
+    Column("issue_order", Integer),
     Column("bill_to", Text),
     Column("issue_date", Date),
     Column("due_date", Date, index=True),

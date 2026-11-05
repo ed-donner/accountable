@@ -138,6 +138,7 @@ The table holds at most one row, with `id` 1, kept by a check constraint as the 
 | organization_id | foreign key | the organization it was issued to, set on issuing. Blank on a draft. Holds the organization, so no delete rule |
 | status | text | `draft`, `issued` or `void`. Paid, overdue and part paid are worked out, never kept (V3) |
 | number | text | such as `INV-0042`, set on issuing (B15). Blank on a draft. Unique |
+| issue_order | integer | the count the number took on issuing (B15), so the Invoices table sorts Number in the order issued, whatever the prefix (V22). Blank on a draft |
 | bill_to | text | as typed, up to 6 lines and 500 characters |
 | issue_date, due_date | date | set on issuing. Blank on a draft |
 | company_name, company_address, company_email, company_phone | text | copies of the company settings, set on issuing (V11). Blank on a draft, whose preview shows the settings as they are |
@@ -165,13 +166,13 @@ The table holds at most one row, with `id` 1, kept by a check constraint as the 
 |---|---|---|
 | invoice_id | foreign key | required. No delete rule: only a draft can be deleted, and a draft has no payments |
 | paid_on | date | not after the day it's recorded, and not before the invoice's issue date |
-| amount_cents | 64-bit integer | more than 0, and no more than what was owed when it was recorded |
+| amount_cents | 64-bit integer | more than 0, and no more than what was owed when it was recorded. A request can send up to $2 trillion, the most an invoice can total: a $1 trillion subtotal with tax at 100% (B17) |
 | method | text | `bank_transfer`, `card`, `check`, `cash` or `other` |
 | reference | text | optional, up to 100 characters |
 
 The invoices tables belong to the invoices area, in `invoices/tables.py`, and the logo's table to `company/tables.py`, beside the settings.
 
-A kind's row is added when it takes its first number, so the migration adds none, and a kind with no row starts at 1. It belongs to `company/`, beside the prefixes, and `company/documents.py`'s `take_number` is the one thing that changes it. Seed, empty and the clearing steps delete its rows, as they delete the documents, so each count starts again at 1.
+A kind's row is added when it takes its first number, so the migration adds none, and a kind with no row starts at 1. It belongs to `company/`, beside the prefixes, and `company/documents.py`'s `take` is the one thing that changes it. It gives the number and its count, and `take_number` the number alone. Seed, empty and the clearing steps delete its rows, as they delete the documents, so each count starts again at 1.
 
 Notes:
 
@@ -216,10 +217,10 @@ Every write takes one lock in `db.py`, because FastAPI runs requests on separate
 
 Last activity in the list replies comes from grouped queries, one for each kind of record, not one query per row, so the lists stay quick at the Q1 limits.
 
-Saving a draft reads the invoice, refuses with a 409 if it's no longer a draft (V12), checks what was sent against V8, and replaces its lines with the ones sent, all in one transaction under the write lock. Issuing does the same, then, in the same transaction:
+Saving a draft reads the invoice, refuses with a 409 if it's no longer a draft (V12), checks what was sent against V8, checks the Bill to and the lines as they'll be saved against V8 and V9 again, so a Bill to filled in from the deal or a description taken from a product is held to the same limits as one sent, and replaces its lines with the ones sent, all in one transaction under the write lock. Issuing does the same, then, in the same transaction:
 
 1. Checks the draft can be issued (V10), reading the deal's organization and the company settings inside the transaction.
-2. Takes the next number with `take_number` from `company/documents.py` (B15), so a failure later in these steps gives it back.
+2. Takes the next number with `take` from `company/documents.py` (B15), so a failure later in these steps gives it back, and keeps its count as the invoice's `issue_order`.
 3. Sets the issue date to today and the due date to today plus the payment terms, from the settings as they are.
 4. Copies the company's details, the organization, and the tax label and rate, and works out the subtotal, tax and total with `company/tax.py`.
 5. Sets the status to issued, `issued_by` to the person from the token, and `updated_by` and `updated_at` as any save does.

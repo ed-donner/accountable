@@ -2,15 +2,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { toast } from "sonner";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import totalsCases from "../../../../shared/totals-cases.json";
 import type { CompanySettings } from "../../company/settings";
 import { todayIso } from "../../lib/dates";
 import { queryDefaults } from "../../lib/queryDefaults";
 import { holdSaves, mockApi, user, type Call } from "../../test-utils";
-import type { InvoiceDetail, InvoiceLine } from "../queries";
+import type { DraftRequest, InvoiceDetail, InvoiceLine } from "../queries";
 import { Invoice } from "./Invoice";
+
+afterEach(() => vi.useRealTimers());
 
 const ALEX = { id: "teammate-alex-rivera", name: "Alex Rivera" };
 const DANA = { id: "teammate-dana-whitfield", name: "Dana Whitfield" };
@@ -48,6 +50,7 @@ function line(id: number, changes: Partial<InvoiceLine> = {}): InvoiceLine {
 const DRAFT: InvoiceDetail = {
   id: 7,
   number: null,
+  issue_order: null,
   shows_as: "draft",
   status: "draft",
   deal: { id: 3, name: "Annual support" },
@@ -79,6 +82,7 @@ const DRAFT: InvoiceDetail = {
 const ISSUED: InvoiceDetail = {
   ...DRAFT,
   number: "INV-0042",
+  issue_order: 42,
   shows_as: "part_paid",
   status: "issued",
   issue_date: "2026-10-01",
@@ -221,6 +225,25 @@ describe("a draft's page", () => {
     expect(card.getByLabelText<HTMLInputElement>("Unit price").value).toBe("1250.00");
   });
 
+  it("says when the products couldn't be read, rather than loading for ever, and Try again reads them", async () => {
+    let reads = 0;
+    await draftPage(
+      { ...DRAFT, lines: [] },
+      {
+        "GET /products": () => {
+          reads += 1;
+          return reads === 1 ? { status: 500, body: { detail: "Something went wrong." } } : { body: PRODUCTS };
+        },
+      },
+    );
+    await user().click(button("Add line"));
+    expect(await screen.findByText("Couldn't load this.")).toBeTruthy();
+    expect(screen.queryByText("Loading products")).toBeNull();
+    await user().click(button("Try again"));
+    expect(await screen.findAllByRole("option")).toHaveLength(2);
+    expect(screen.queryByText("Couldn't load this.")).toBeNull();
+  });
+
   it("removes a line", async () => {
     await draftPage();
     await user().click(button("Remove Product 2"));
@@ -305,6 +328,26 @@ describe("a draft's page", () => {
     });
   });
 
+  it("gives a new line the id its save gave it, keeping what was typed while the save was on its way", async () => {
+    const added = line(99, { product_id: 10, name: "Training day, on site", description: "Up to 12 people." });
+    const saved = { ...DRAFT, lines: [...DRAFT.lines, { ...added, unit_price_cents: 125000, amount_cents: 125000 }] };
+    const said = vi.spyOn(toast, "success");
+    const { calls } = await draftPage(DRAFT, { "PATCH /invoices/7": leaves(saved) });
+    await user().click(button("Add line"));
+    await user().click(await screen.findByRole("option", { name: /Training day/ }));
+    const release = holdSaves();
+    await user().click(button("Save draft"));
+    await retype(screen.getByRole("textbox", { name: "Bill to" }), "Harbor & Pine Ltd");
+    release();
+    await waitFor(() => expect(said).toHaveBeenCalledWith("Draft saved."));
+    expect(screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Bill to" }).value).toBe("Harbor & Pine Ltd");
+    await user().click(button("Save draft"));
+    await waitFor(() => expect(sent(calls, "PATCH")).toHaveLength(2));
+    const [first, second] = sent(calls, "PATCH").map((call) => (call.body as DraftRequest).lines[3]);
+    expect([first.id, second.id]).toEqual([undefined, 99]);
+    expect((sent(calls, "PATCH")[1].body as DraftRequest).bill_to).toBe("Harbor & Pine Ltd");
+  });
+
   it("puts the backend's message beside a line's field, and keeps what was typed", async () => {
     await draftPage(DRAFT, {
       "PATCH /invoices/7": () => ({
@@ -331,6 +374,47 @@ describe("a draft's page", () => {
     await act(() => router.navigate("/invoices"));
     await user().click(await screen.findByRole("button", { name: "Leave" }));
     expect(await screen.findByText("The Invoices table")).toBeTruthy();
+  });
+
+  it("keeps what was typed, and the question before leaving, when the day changes and the draft is read again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 5, 23, 59) });
+    let reads = 0;
+    const { router } = await draftPage(DRAFT, {
+      "GET /invoices/7": () => {
+        reads += 1;
+        // A teammate's save shows, so the test can tell the new read has arrived.
+        return { body: reads === 1 ? DRAFT : { ...DRAFT, updated_at: "2026-11-06T00:00:30Z", updated_by: DANA } };
+      },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Bill to" }), {
+      target: { value: "Unsaved customer address" },
+    });
+    vi.setSystemTime(new Date(2026, 10, 6, 0, 1));
+    act(() => window.dispatchEvent(new Event("focus")));
+    expect(await screen.findByText(/^Last changed by Dana Whitfield on/)).toBeTruthy();
+    expect(reads).toBe(2);
+    expect(screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Bill to" }).value).toBe(
+      "Unsaved customer address",
+    );
+    await act(() => router.navigate("/invoices"));
+    expect(await screen.findByRole("alertdialog", { name: "Leave without saving?" })).toBeTruthy();
+  });
+
+  it("never shows one invoice while another is being read", async () => {
+    const { router } = await draftPage(DRAFT, { "GET /invoices/8": { ...ISSUED, id: 8, number: "INV-0050" } });
+    let release = () => undefined as void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const answer = globalThis.fetch;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/invoices/8")) await held;
+      return answer(url, init);
+    });
+    await act(() => router.navigate("/invoices/8"));
+    await waitFor(() => expect(screen.queryByRole("heading", { level: 1, name: "Draft invoice" })).toBeNull());
+    release();
+    expect(await screen.findByRole("heading", { level: 1, name: "INV-0050" })).toBeTruthy();
   });
 
   it("leaves without asking when nothing has changed", async () => {
@@ -570,6 +654,18 @@ describe("recording a payment", () => {
       reference: "Check 1182",
     });
     expect(screen.queryByRole("button", { name: "Record payment" })).toBeNull();
+  });
+
+  it("takes the largest balance there can be, a $1 trillion subtotal with tax at 100%, in one payment", async () => {
+    const most = 200_000_000_000_000;
+    const owing = { ...ISSUED, total_cents: most, owed_cents: most, paid_cents: 0, payments: [] };
+    const paid = { ...owing, shows_as: "paid" as const, owed_cents: 0, paid_cents: most };
+    const opened = await issuedPage(owing, { "POST /invoices/7/payments": leaves(paid, 201) });
+    await user().click(button("Record payment"));
+    const dialog = within(await screen.findByRole("dialog", { name: "Record payment" }));
+    expect(dialog.getByLabelText<HTMLInputElement>("Amount").value).toBe("2000000000000.00");
+    await user().click(dialog.getByRole("button", { name: "Record payment" }));
+    await waitFor(() => expect(sent(opened.calls, "POST")[0]?.body).toMatchObject({ amount_cents: most }));
   });
 });
 

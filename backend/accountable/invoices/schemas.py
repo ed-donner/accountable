@@ -67,8 +67,16 @@ METHODS = ("bank_transfer", "card", "check", "cash", "other")
 Method = Literal["bank_transfer", "card", "check", "cash", "other"]
 
 
+def bill_to_fits(value: str | None) -> bool:
+    return value is None or (len(value) <= MAX_BILL_TO_CHARACTERS and value.count("\n") < MAX_BILL_TO_LINES)
+
+
+def description_fits(value: str | None) -> bool:
+    return value is None or len(value) <= MAX_DESCRIPTION
+
+
 def _bill_to(value: str | None) -> str | None:
-    if value is not None and (len(value) > MAX_BILL_TO_CHARACTERS or value.count("\n") >= MAX_BILL_TO_LINES):
+    if not bill_to_fits(value):
         raise ValueError(BILL_TO_TOO_LONG)
     return value
 
@@ -93,7 +101,8 @@ def _at_most_100_lines(value: Any) -> Any:
 BillTo = Annotated[api.OptionalText, AfterValidator(_bill_to)]
 Description = Annotated[api.OptionalText, AfterValidator(_at_most(MAX_DESCRIPTION, DESCRIPTION_TOO_LONG))]
 Reference = Annotated[api.OptionalText, AfterValidator(_at_most(MAX_REFERENCE, REFERENCE_TOO_LONG))]
-Amount = Annotated[StrictInt, Field(ge=1, le=api.MAX_CENTS)]
+# Up to the largest total an invoice can have, not a price's limit. What's owed is checked inside the save (V16).
+Amount = Annotated[StrictInt, Field(ge=1, le=tax.MAX_TOTAL_CENTS)]
 
 
 class DraftLine(api.Request):
@@ -140,6 +149,8 @@ class InvoiceRow(BaseModel):
 
     id: int
     number: str | None
+    # Its place in the order invoices were issued, for sorting by number (V22). None on a draft.
+    issue_order: int | None
     shows_as: ShowsAs
     deal: Named
     organization: Named | None

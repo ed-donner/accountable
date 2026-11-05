@@ -14,9 +14,9 @@ describe("starting the app", () => {
       "POST /local/sign-in": { token: "alex-token" },
       "GET /bills/dashboard": {
         today: "2026-10-31",
-        owed: { total_cents: 0, count: 0 },
-        overdue: { total_cents: 0, count: 0 },
-        due: { total_cents: 0, count: 0, bills: [] },
+        owed: { total_cents: "0", count: 0 },
+        overdue: { total_cents: "0", count: 0 },
+        due: { total_cents: "0", count: 0, bills: [] },
         months: [],
       },
     });

@@ -161,7 +161,7 @@ frontend/src/
     status.tsx                    unpaid, overdue and paid from today, their chip, and the paid date's checks
     BillForm.tsx, MarkPaidDialog.tsx, DeleteBill.tsx, and BillsPanel.tsx, an organization's bills
     charts/                       MoneySection, DueTimeline and SpendingChart, and StackSegment, which draws a
-                                  segment of a stacked column for both
+                                  segment of a stacked column for both and keeps a small one tall enough to see
     pages/                        Bills and Bill
 frontend/dist/                    the built frontend, from npm start and Render, git-ignored
 e2e/

@@ -1,29 +1,41 @@
 import { Bar, BarChart, CartesianGrid, LabelList, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
 
-import { AXIS_TEXT as CHART_AXIS_TEXT, niceTop } from "../../components/charts/axes";
+import { AXIS_TEXT as CHART_AXIS_TEXT } from "../../components/charts/axes";
 import { ChartTooltip } from "../../components/charts/ChartTooltip";
 import { useSize } from "../../components/charts/useSize";
 import { price, shortMoney } from "../../lib/money";
 import { CATEGORIES, CategoryLabel, Swatch } from "../categories";
 import type { Category, SpendingMonth } from "../queries";
-import { StackSegment } from "./StackSegment";
+import { StackSegment, stackScale } from "./StackSegment";
 
 const AXIS_TEXT = { ...CHART_AXIS_TEXT, fill: "var(--color-muted)" };
 // The top keeps room for this month's total and "so far", so they never sit on a column.
 const MARGIN = { top: 44, right: 52, bottom: 24 };
 const COLUMN_WIDTH = 22;
 
-type Column = { month: string; label: string; total: number; current: boolean } & Record<Category, number>;
+/**
+ * A month as the chart draws it, in numbers, which are close enough for heights at any size,
+ * with the month's exact sums kept for every figure shown.
+ */
+type Column = { spent: SpendingMonth; label: string; total: number; current: boolean } & Record<Category, number>;
 
 function columnsOf(months: SpendingMonth[]): Column[] {
   const last = months.length - 1;
-  return months.map((month, index) => ({
-    month: month.month,
-    label: month.label,
-    total: month.total_cents,
-    current: index === last,
-    ...month.categories,
-  }));
+  return months.map((month, index) => {
+    const heights = CATEGORIES.map((category) => [category.value, Number(month.categories[category.value])]);
+    return {
+      spent: month,
+      label: month.label,
+      total: Number(month.total_cents),
+      current: index === last,
+      ...(Object.fromEntries(heights) as Record<Category, number>),
+    };
+  });
+}
+
+/** A sum from the backend's digits, to the cent. */
+function exact(cents: string) {
+  return price(BigInt(cents));
 }
 
 function monthName(column: Pick<Column, "label" | "current">) {
@@ -43,7 +55,7 @@ function Tip({ active, payload }: TipProps) {
   if (!active || !column) return null;
   return (
     <ChartTooltip
-      value={price(column.total)}
+      value={exact(column.spent.total_cents)}
       label={
         <>
           <span className="block">{monthName(column)}</span>
@@ -51,7 +63,7 @@ function Tip({ active, payload }: TipProps) {
             {CATEGORIES.map((category) => (
               <li key={category.value} className="flex items-center justify-between gap-4">
                 <CategoryLabel category={category.value} />
-                <span className="num">{price(column[category.value])}</span>
+                <span className="num">{exact(column.spent.categories[category.value])}</span>
               </li>
             ))}
           </ul>
@@ -79,12 +91,12 @@ function SpendingTable({ columns }: { columns: Column[] }) {
       </thead>
       <tbody>
         {columns.map((column) => (
-          <tr key={column.month}>
+          <tr key={column.spent.month}>
             <th scope="row">{monthName(column)}</th>
             {CATEGORIES.map((category) => (
-              <td key={category.value}>{price(column[category.value])}</td>
+              <td key={category.value}>{exact(column.spent.categories[category.value])}</td>
             ))}
-            <td>{price(column.total)}</td>
+            <td>{exact(column.spent.total_cents)}</td>
           </tr>
         ))}
       </tbody>
@@ -112,7 +124,11 @@ export function SpendingChart({ months }: { months: SpendingMonth[] }) {
   const { ref, size } = useSize();
   const columns = columnsOf(months);
   const last = columns.length - 1;
-  const top = niceTop(Math.max(...columns.map((column) => column.total)));
+  const plotHeight = size.height - MARGIN.top - MARGIN.bottom;
+  const { top, drawn } = stackScale(
+    columns.map((column) => CATEGORIES.map((category) => column[category.value])),
+    plotHeight,
+  );
 
   function categoryShape(place: number) {
     const { fill } = CATEGORIES[place];
@@ -142,7 +158,7 @@ export function SpendingChart({ months }: { months: SpendingMonth[] }) {
           textAnchor="end"
           style={{ ...CHART_AXIS_TEXT, fontSize: 13, fill: "var(--color-ink)", fontWeight: 500 }}
         >
-          {price(columns[last].total)}
+          {exact(columns[last].spent.total_cents)}
         </text>
         <text x={right} y={32} textAnchor="end" style={{ ...AXIS_TEXT, fill: "var(--color-ink)" }}>
           so far
@@ -156,7 +172,7 @@ export function SpendingChart({ months }: { months: SpendingMonth[] }) {
       <div
         ref={ref}
         role="img"
-        aria-label={`Spending by category for the last 12 months, with ${price(columns[last].total)} so far this month`}
+        aria-label={`Spending by category for the last 12 months, with ${exact(columns[last].spent.total_cents)} so far this month`}
         className="min-h-0 flex-1"
       >
         {size.width > 0 && size.height > 0 && (
@@ -189,7 +205,7 @@ export function SpendingChart({ months }: { months: SpendingMonth[] }) {
             {CATEGORIES.map((category, place) => (
               <Bar
                 key={category.value}
-                dataKey={category.value}
+                dataKey={(column: Column) => drawn(column[category.value])}
                 stackId="spending"
                 barSize={COLUMN_WIDTH}
                 isAnimationActive={false}

@@ -106,6 +106,15 @@ describe("an organization's bills", () => {
     expect(unpaidLine([PAID_AUGUST], "2026-10-31")).toBeNull();
   });
 
+  it("add up to the cent past what a JavaScript number holds", () => {
+    // 46 bills at the most an amount and its tax can each be, and one for a cent.
+    const most = Array.from({ length: 46 }, (_, index) =>
+      bill(10 + index, `KP-${index}`, { bill: "2026-10-01", due: "2026-12-01" }, 200_000_000_000_000),
+    );
+    const cent = bill(99, "KP-CENT", { bill: "2026-10-01", due: "2026-10-30" }, 1);
+    expect(unpaidLine([...most, cent], "2026-10-31")).toBe("$92,000,000,000,000.01 unpaid, $0.01 of it overdue");
+  });
+
   it("say so when there are none", async () => {
     await showPanel([]);
     expect(await panel().findByText("No bills from this organization.")).toBeTruthy();

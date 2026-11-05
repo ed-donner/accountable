@@ -1,10 +1,12 @@
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { BarShapeProps } from "recharts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderApp, user, type Call } from "../../test-utils";
 import type { Category, DueBill, MoneyFigures, SpendingMonth } from "../queries";
 import { dueDays } from "./DueTimeline";
 import { MoneySection } from "./MoneySection";
+import { LEAST_HEIGHT, StackSegment, stackScale } from "./StackSegment";
 
 const WIDTH = 600;
 const HEIGHT = 240;
@@ -33,12 +35,14 @@ afterEach(() => {
 const NOTHING: Record<Category, number> = { software: 0, contractors: 0, travel: 0, office: 0, marketing: 0, other: 0 };
 const LABELS = ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
 
-function year(spent: Partial<Record<string, Partial<Record<Category, number>>>> = {}): SpendingMonth[] {
+/** Each month's spending, sent as digits as the backend sends it. */
+function year(spent: Partial<Record<string, Partial<Record<Category, number | bigint>>>> = {}): SpendingMonth[] {
   return LABELS.map((label, index) => {
     const month = `${index < 2 ? 2025 : 2026}-${String(((index + 10) % 12) + 1).padStart(2, "0")}`;
-    const categories = { ...NOTHING, ...spent[label] };
-    const total = Object.values(categories).reduce((sum, cents) => sum + cents, 0);
-    return { month, label, total_cents: total, categories };
+    const cents = { ...NOTHING, ...spent[label] };
+    const total = Object.values(cents).reduce<bigint>((sum, value) => sum + BigInt(value), 0n);
+    const categories = Object.fromEntries(Object.entries(cents).map(([key, value]) => [key, String(value)]));
+    return { month, label, total_cents: String(total), categories: categories as Record<Category, string> };
   });
 }
 
@@ -55,9 +59,9 @@ const DUE = [
 
 const FIGURES: MoneyFigures = {
   today: "2026-10-31",
-  owed: { total_cents: 2633710, count: 10 },
-  overdue: { total_cents: 712993, count: 3 },
-  due: { total_cents: 1541015, count: 4, bills: DUE },
+  owed: { total_cents: "2633710", count: 10 },
+  overdue: { total_cents: "712993", count: 3 },
+  due: { total_cents: "1541015", count: 4, bills: DUE },
   months: year({
     Jan: { software: 173600, other: 835900 },
     Oct: { software: 179700, contractors: 903750, office: 450000 },
@@ -66,9 +70,9 @@ const FIGURES: MoneyFigures = {
 
 const EMPTY: MoneyFigures = {
   today: "2026-10-31",
-  owed: { total_cents: 0, count: 0 },
-  overdue: { total_cents: 0, count: 0 },
-  due: { total_cents: 0, count: 0, bills: [] },
+  owed: { total_cents: "0", count: 0 },
+  overdue: { total_cents: "0", count: 0 },
+  due: { total_cents: "0", count: 0, bills: [] },
   months: year(),
 };
 
@@ -90,8 +94,22 @@ function segments(chart: HTMLElement) {
   return [...chart.querySelectorAll("path.recharts-rectangle")] as SVGPathElement[];
 }
 
+/**
+ * Recharts draws a chart's axes, bars and labels a render after the figures above it, and on
+ * a busy test run that render can come late, so a test waits for the segments it reads.
+ */
+async function drawnSegments(chart: () => HTMLElement, count: number) {
+  await waitFor(() => expect(segments(chart())).toHaveLength(count));
+  return segments(chart());
+}
+
 function leftEdge(segment: SVGPathElement) {
   return Number(/^M\s*([\d.]+)/.exec(segment.getAttribute("d") ?? "")?.[1]);
+}
+
+/** A segment with square corners is drawn as a box: across, down its height, back. */
+function heightOf(segment: SVGPathElement) {
+  return Number(/v\s*([\d.]+)/.exec(segment.getAttribute("d") ?? "")?.[1]);
 }
 
 describe("the Money section", () => {
@@ -111,6 +129,26 @@ describe("the Money section", () => {
     const overdue = screen.getByRole("link", { name: /^Overdue/ });
     expect(overdue.textContent).toBe("Overdue$7,129.933 bills");
     expect(overdue.getAttribute("href")).toBe("/bills?status=overdue");
+  });
+
+  it("shows sums past what a JavaScript number holds to the cent", async () => {
+    // 46 bills at the most an amount and its tax can each be, and one for a cent.
+    const exact = "9200000000000001";
+    show({
+      ...FIGURES,
+      owed: { total_cents: exact, count: 47 },
+      overdue: { total_cents: exact, count: 47 },
+      due: { ...FIGURES.due, total_cents: exact },
+      months: year({ Oct: { software: BigInt(exact) } }),
+    });
+    const owed = await screen.findByRole("link", { name: /^What we owe/ });
+    expect(owed.textContent).toBe("What we owe$92,000,000,000,000.0147 unpaid bills");
+    expect(screen.getByRole("link", { name: /^Overdue/ }).textContent).toBe("Overdue$92,000,000,000,000.0147 bills");
+    expect(screen.getByTestId("due-total").textContent).toBe("$92,000,000,000,000.01");
+    const table = within(screen.getByRole("table", { name: "Spending by category for the last 12 months" }));
+    expect(table.getAllByRole("row")[12].textContent).toBe(
+      "Oct so far$92,000,000,000,000.01$0.00$0.00$0.00$0.00$0.00$92,000,000,000,000.01",
+    );
   });
 
   it("shows $0.00 for both with no unpaid bills", async () => {
@@ -160,13 +198,13 @@ describe("due in the next 30 days", () => {
     expect(panel("Bills to pay").getByText("4 bills")).toBeTruthy();
     expect(timeline().getAttribute("aria-label")).toBe("4 bills due from today to Nov 30, 2026, each at its due date");
     const axis = within(timeline());
-    for (const label of ["Today", "Nov 7", "Nov 14", "Nov 21", "Nov 28"]) expect(axis.getByText(label)).toBeTruthy();
+    for (const label of ["Today", "Nov 7", "Nov 14", "Nov 21", "Nov 28"])
+      expect(await axis.findByText(label)).toBeTruthy();
   });
 
   it("draws each bill in its category's color, with bills due on one day stacked", async () => {
     show(FIGURES);
-    await screen.findByTestId("due-total");
-    const drawn = segments(timeline());
+    const drawn = await drawnSegments(timeline, 4);
     expect(drawn.map((segment) => segment.getAttribute("fill"))).toEqual([
       "var(--color-sea-green)",
       "var(--color-cerulean)",
@@ -180,11 +218,21 @@ describe("due in the next 30 days", () => {
 
   it("shows the bill pointed at, not the whole day", async () => {
     show(FIGURES);
-    await screen.findByTestId("due-total");
-    fireEvent.mouseEnter(segments(timeline())[3]);
+    fireEvent.mouseEnter((await drawnSegments(timeline, 4))[3]);
     await screen.findByText("Wayfarer Travel WT77133");
     const tip = timeline().querySelector<HTMLElement>(".recharts-tooltip-wrapper")!;
     expect(tip.textContent).toBe("$522.60Wayfarer Travel WT77133Travel");
+  });
+
+  it("draws a small bill on a day with a large one tall enough to see and point at", async () => {
+    // At this size, $49 on a $4,500 day is under 2px, less than the gap above the bill under it.
+    const under = due(5, "Inkwell Print", "IP-87", "2026-11-02", "marketing", 4900);
+    const over = due(6, "Inkwell Print", "IP-88", "2026-11-02", "marketing", 4900);
+    show({ ...FIGURES, due: { total_cents: "459800", count: 3, bills: [under, DUE[1], over] } });
+    const drawn = await drawnSegments(timeline, 3);
+    expect(heightOf(drawn[0])).toBeGreaterThanOrEqual(4);
+    fireEvent.mouseEnter(drawn[2]);
+    expect(await screen.findByText("Inkwell Print IP-88")).toBeTruthy();
   });
 
   it("lists the bills for anyone who can't see the timeline", async () => {
@@ -200,7 +248,7 @@ describe("due in the next 30 days", () => {
   });
 
   it("says so when none are due", async () => {
-    show({ ...FIGURES, due: { total_cents: 0, count: 0, bills: [] } });
+    show({ ...FIGURES, due: { total_cents: "0", count: 0, bills: [] } });
     expect(await screen.findByText("No bills due in the next 30 days.")).toBeTruthy();
     expect(screen.getByTestId("due-total").textContent).toBe("$0.00");
   });
@@ -226,15 +274,14 @@ describe("spending by category", () => {
       "Spending by category for the last 12 months, with $15,334.50 so far this month",
     );
     const drawn = within(chart());
-    for (const label of LABELS) expect(drawn.getByText(label)).toBeTruthy();
-    expect(drawn.getByText("so far")).toBeTruthy();
-    expect(drawn.getByText("$15,334.50")).toBeTruthy();
+    for (const label of LABELS) expect(await drawn.findByText(label)).toBeTruthy();
+    expect(await drawn.findByText("so far")).toBeTruthy();
+    expect(await drawn.findByText("$15,334.50")).toBeTruthy();
   });
 
   it("stacks each month's categories in their order, from Software at the bottom", async () => {
     show(FIGURES);
-    await screen.findByRole("link", { name: /^What we owe/ });
-    expect(segments(chart()).map((segment) => segment.getAttribute("fill"))).toEqual([
+    expect((await drawnSegments(chart, 5)).map((segment) => segment.getAttribute("fill"))).toEqual([
       "var(--color-sea-green)",
       "var(--color-sea-green)",
       "var(--color-marigold)",
@@ -243,9 +290,17 @@ describe("spending by category", () => {
     ]);
   });
 
+  it("draws a small category on a large one", async () => {
+    show({ ...FIGURES, months: year({ Oct: { software: 900000, other: 4000 } }) });
+    expect((await drawnSegments(chart, 2)).map((segment) => segment.getAttribute("fill"))).toEqual([
+      "var(--color-sea-green)",
+      "var(--color-bar-soft)",
+    ]);
+  });
+
   it("shows each category's total and the month's for the month pointed at", async () => {
     show(FIGURES);
-    await screen.findByRole("link", { name: /^What we owe/ });
+    await drawnSegments(chart, 5);
     fireEvent.mouseMove(within(chart()).getByRole("application"), { clientX: WIDTH - 70, clientY: HEIGHT / 2 });
     const tip = within(chart().querySelector<HTMLElement>(".recharts-tooltip-wrapper")!);
     expect(await tip.findByText("Oct so far")).toBeTruthy();
@@ -289,5 +344,45 @@ describe("spending by category", () => {
     show({ ...FIGURES, months: year() });
     expect(await screen.findByText("Spending will show here once you've added bills.")).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Categories" })).toBeNull();
+  });
+});
+
+describe("stacked columns", () => {
+  const PLOT = 200;
+  const pixels = (value: number, top: number) => (value * PLOT) / top;
+
+  it("stack a value too small to see at the least height, and leave the rest as they are", () => {
+    const { top, drawn } = stackScale([[450000, 4900], [100], [0]], PLOT);
+    expect(top).toBe(500000);
+    expect(pixels(drawn(4900), top)).toBeCloseTo(LEAST_HEIGHT);
+    expect(pixels(drawn(100), top)).toBeCloseTo(LEAST_HEIGHT);
+    expect(drawn(450000)).toBe(450000);
+    expect(drawn(0)).toBe(0);
+  });
+
+  it("raise the top when the least heights carry a column past it", () => {
+    // 1,000,000 is a round top already, so six small values on it need the next one.
+    const column = [999994, 1, 1, 1, 1, 1, 1];
+    const { top, drawn } = stackScale([column], PLOT);
+    expect(top).toBe(2000000);
+    expect(column.reduce((sum, value) => sum + drawn(value), 0)).toBeLessThanOrEqual(top);
+    expect(pixels(drawn(1), top)).toBeCloseTo(LEAST_HEIGHT);
+  });
+
+  it("share half the chart among a column's small segments when the least height won't fit", () => {
+    const column = [1000000, ...Array.from({ length: 99 }, () => 1)];
+    const { top, drawn } = stackScale([column], PLOT);
+    expect(column.reduce((sum, value) => sum + pixels(drawn(value), top), 0)).toBeLessThanOrEqual(PLOT);
+    expect(pixels(drawn(1), top)).toBeCloseTo(PLOT / 2 / column.length);
+  });
+
+  it("never let the gap take more than half a segment", () => {
+    const bar = { x: 0, y: 0, width: 6, height: 3 } as BarShapeProps;
+    const { container } = render(
+      <svg>
+        <StackSegment bar={bar} fill="var(--color-coral)" onAnother onTop={false} />
+      </svg>,
+    );
+    expect(heightOf(container.querySelector("path")!)).toBe(1.5);
   });
 });

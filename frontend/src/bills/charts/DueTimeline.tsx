@@ -1,7 +1,7 @@
 import { addDays, format, parseISO } from "date-fns";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
 
-import { AXIS_TEXT as CHART_AXIS_TEXT, niceTop } from "../../components/charts/axes";
+import { AXIS_TEXT as CHART_AXIS_TEXT } from "../../components/charts/axes";
 import { ChartTooltip } from "../../components/charts/ChartTooltip";
 import { useSize } from "../../components/charts/useSize";
 import { formatDate, formatShortDate } from "../../lib/dates";
@@ -9,7 +9,7 @@ import { price, shortMoney } from "../../lib/money";
 import { plural } from "../../lib/words";
 import { CategoryLabel, categoryStyle } from "../categories";
 import type { DueBill } from "../queries";
-import { StackSegment } from "./StackSegment";
+import { StackSegment, stackScale } from "./StackSegment";
 
 const AXIS_TEXT = { ...CHART_AXIS_TEXT, fill: "var(--color-muted)" };
 /** Today and the 30 days after it, both ends included (E22). */
@@ -29,10 +29,6 @@ export function dueDays(bills: DueBill[], today: string): DueDay[] {
     const date = format(addDays(start, day), "yyyy-MM-dd");
     return { day, date, bills: bills.filter((bill) => bill.due_date === date) };
   });
-}
-
-function dayTotal(day: DueDay) {
-  return day.bills.reduce((sum, bill) => sum + bill.total_cents, 0);
 }
 
 /** Money is in cents here, and the axis shows dollars. */
@@ -101,7 +97,11 @@ export function DueTimeline({ bills, today }: { bills: DueBill[]; today: string 
   const { ref, size } = useSize();
   const days = dueDays(bills, today);
   const layers = Math.max(...days.map((day) => day.bills.length));
-  const top = niceTop(Math.max(...days.map(dayTotal)));
+  const plotHeight = size.height - MARGIN.top - MARGIN.bottom;
+  const { top, drawn } = stackScale(
+    days.map((day) => day.bills.map((bill) => bill.total_cents)),
+    plotHeight,
+  );
   const ticks = days.filter((day) => day.day % WEEK === 0).map((day) => day.day);
   const lastDay = days[DAYS - 1].date;
 
@@ -163,7 +163,7 @@ export function DueTimeline({ bills, today }: { bills: DueBill[]; today: string 
               <Bar
                 key={layer}
                 name={String(layer)}
-                dataKey={(day: DueDay) => day.bills[layer]?.total_cents ?? 0}
+                dataKey={(day: DueDay) => drawn(day.bills[layer]?.total_cents ?? 0)}
                 stackId="due"
                 barSize={BAR_WIDTH}
                 isAnimationActive={false}

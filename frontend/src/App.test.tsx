@@ -64,9 +64,9 @@ const NORTHWIND = {
 
 const NO_MONEY = {
   today: "2026-10-31",
-  owed: { total_cents: 0, count: 0 },
-  overdue: { total_cents: 0, count: 0 },
-  due: { total_cents: 0, count: 0, bills: [] },
+  owed: { total_cents: "0", count: 0 },
+  overdue: { total_cents: "0", count: 0 },
+  due: { total_cents: "0", count: 0, bills: [] },
   months: [],
 };
 

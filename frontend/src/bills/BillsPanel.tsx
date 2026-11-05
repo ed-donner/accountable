@@ -24,7 +24,8 @@ export function panelOrder(bills: BillRow[]): BillRow[] {
 export function unpaidLine(bills: BillRow[], today: string): string | null {
   const unpaid = bills.filter((bill) => bill.paid_on === null);
   if (unpaid.length === 0) return null;
-  const total = (some: BillRow[]) => some.reduce((sum, bill) => sum + bill.total_cents, 0);
+  // Each total fits a number exactly, but enough of them can pass 2^53 cents, so they're added as BigInts.
+  const total = (some: BillRow[]) => some.reduce((sum, bill) => sum + BigInt(bill.total_cents), 0n);
   const overdue = unpaid.filter((bill) => billStatus(bill, today) === "overdue");
   const owed = `${price(total(unpaid))} unpaid`;
   return overdue.length === 0 ? owed : `${owed}, ${price(total(overdue))} of it overdue`;

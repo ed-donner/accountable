@@ -557,6 +557,28 @@ One mistake seen once is now in `docs/IMPROVE.md`: the form and the API differin
 
 `npm run check` passes: 4,296 tests in 6m 21s.
 
+## Bills: independent review fixes
+
+`docs/changes/bills/independent-review.md` found two Important problems, both now fixed. Each new test failed on the code before its fix.
+
+1. **A small bill vanished from a stack.** `StackSegment` took the 2px gap from every segment that sat on another, and drew nothing if that left no height. At 600 by 240, a $49 bill on a $4,500 one is 1.96px tall, so it wasn't drawn and couldn't be pointed at, though the table behind the chart listed it. A small category in the spending chart went the same way.
+   - **The fix:** both charts now stack through `stackScale` in `StackSegment.tsx`. It stacks any value too small to see at 4px plus its gap, raises the axis's top to make room, and shares half the chart among a column's segments when there are too many for that. The gap now takes at most half a segment. Tooltips and the tables behind the charts still give each bill's real figure.
+   - **The spec:** E22 and E23, the two charts' rules in `visual-design.md`, and `frontend.md` say so.
+   - **The tests,** in `MoneySection.test.tsx`: a $49 bill below a $4,500 one and another above it, both drawn, the lower at least 4px and the upper one pointed at. A $40 category on a $9,000 one. And `stackScale`'s least height, raised top and crowded column, and the gap's limit. Four broken copies of `StackSegment.tsx`, one for each rule, each failed its own test.
+2. **Sums past 2^53 cents lost a cent in the browser.** The Money route sent its sums as JSON numbers, and the Bills panel added totals as JavaScript numbers. A bill's total is at most $2 trillion, which fits, but 46 of those and a cent make 9,200,000,000,000,001 cents, which a JavaScript number reads as 9,200,000,000,000,000.
+   - **The fix:** the route now sends every sum as a string of digits, typed `CentsSum` in `bills/schemas.py`, and the browser reads them as BigInts. `price` takes a BigInt, and the Bills panel adds its totals as BigInts. The charts still draw their heights from numbers, which are close enough at any size, but every figure shown comes from the exact sums. Each bill's own total is still a number.
+   - **The spec:** E19 and E20, the Prices section and the API table in `backend.md`, and `frontend.md` say so.
+   - **The tests:** `test_bills_dashboard.py` makes the 47 bills and checks that what we owe, Overdue and October's spending come back as "9200000000000001". `MoneySection.test.tsx` shows that as $92,000,000,000,000.01 in each figure and in the spending table. `BillsPanel.test.tsx` adds the same bills, and `money.test.ts` shows a BigInt. The dashboard tests' other sums now expect digits.
+
+**A test that raced the charts' drawing:** the Stop hook's `npm run check:quick` ran while a full check was going, and failed "gives the total due and how many" on an axis label. Recharts draws a chart's axes, bars and labels a render after the figures above it. Eight tests in `MoneySection.test.tsx` waited for a figure and then read the chart, so on a busy run they could read it before it was drawn. Two of them were new here, and the other six were already there before these fixes: a probe on the committed charts saw the figures on the page before the ticks. Each test now waits for what it reads, through `drawnSegments` or `findByText`. With the test's size reported 30ms late, so the charts draw after the figures, the eight failed before this change and pass after it.
+
+Its two nits are open, for later:
+
+1. **The Unicode normalization test never sends a decomposed é.** Both of the "Café-1" values in `test_bills.py` use U+00E9, so taking out the bill number's NFC normalization fails nothing. `Café-1` as the second value would check it (E3).
+2. **The form's due date at the calendar's end:** the first nit of the review above.
+
+`npm run check` passes: 4,306 tests in 9m 32s, while another worktree's run was busy, of which 2,715 backend, 1,290 frontend, 290 end-to-end and 11 speed. It listed `test_limits.py`'s check that the data is at the limits as taking 1.0s; it took 0.51s in a run of its own earlier in this session.
+
 ## Running Accountable
 
 Accountable runs two ways:

@@ -38,7 +38,13 @@ export type BillValues = {
   paid_on: string | null;
 };
 
-export type Figure = { total_cents: number; count: number };
+/**
+ * A sum of bills in whole cents, as digits, such as "9200000000000001". Each bill fits a
+ * JavaScript number exactly, but a sum of them can pass 2^53 cents, so it's read as a BigInt.
+ */
+export type CentsSum = string;
+
+export type Figure = { total_cents: CentsSum; count: number };
 export type DueBill = {
   id: number;
   supplier: string;
@@ -47,7 +53,12 @@ export type DueBill = {
   category: Category;
   total_cents: number;
 };
-export type SpendingMonth = { month: string; label: string; total_cents: number; categories: Record<Category, number> };
+export type SpendingMonth = {
+  month: string;
+  label: string;
+  total_cents: CentsSum;
+  categories: Record<Category, CentsSum>;
+};
 
 /** The Money section's figures, worked out by the backend for its today (E20 to E23). */
 export type MoneyFigures = {

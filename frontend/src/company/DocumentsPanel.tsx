@@ -185,7 +185,7 @@ function LogoChooser({ shownUrl }: { shownUrl: string | null }) {
       <span className="text-[13px] leading-[18px] font-semibold">Logo</span>
       <div className="flex items-center gap-3">
         {/* White in both modes, as the logo will be on paper. */}
-        <div className="flex h-[60px] w-[150px] flex-none items-center justify-center rounded-control bg-white ring-1 ring-line">
+        <div className="flex h-[60px] w-[150px] flex-none items-center justify-center rounded-control bg-white">
           {shownUrl ? (
             <img src={shownUrl} alt="Logo" className="max-h-[48px] max-w-[134px] object-contain" />
           ) : (

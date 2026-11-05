@@ -92,19 +92,26 @@ export function NewInvoiceButton({ dealId, primary = true }: { dealId?: number; 
   );
 }
 
+/**
+ * One invoice: its number, or Draft, and its chip, with its total and what's owed at the right.
+ * On an organization's page its deal's name goes on a line of its own under the number, so a
+ * long one keeps the column's width rather than sharing a line with the chip (V21).
+ */
 function InvoiceLink({ invoice, withDeal }: { invoice: InvoiceRow; withDeal: boolean }) {
   return (
     <li className="flex items-center justify-between gap-3 py-1.5">
-      <div className="flex min-w-0 items-center gap-2">
-        <Link to={`/invoices/${invoice.id}`} className="link min-w-0 truncate font-medium">
-          {invoice.number ? (
-            <span className="num text-[13px]">{invoice.number}</span>
-          ) : (
-            <span className="text-muted">Draft</span>
-          )}
-          {withDeal && <span className="ml-2">{invoice.deal.name}</span>}
-        </Link>
-        <InvoiceChip shows={invoice.shows_as} />
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <Link to={`/invoices/${invoice.id}`} className="link font-medium">
+            {invoice.number ? (
+              <span className="num text-[13px]">{invoice.number}</span>
+            ) : (
+              <span className="text-muted">Draft</span>
+            )}
+          </Link>
+          <InvoiceChip shows={invoice.shows_as} />
+        </div>
+        {withDeal && <div className="truncate text-[13px] leading-[18px] text-muted">{invoice.deal.name}</div>}
       </div>
       <div className="flex-none text-right">
         <div className="num text-[13px]">{price(invoice.total_cents)}</div>

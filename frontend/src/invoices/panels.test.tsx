@@ -122,11 +122,21 @@ describe("a deal's Invoices panel", () => {
 });
 
 describe("an organization's Invoices panel", () => {
-  it("shows each invoice's deal and no New invoice", async () => {
+  it("shows each invoice's deal on a line of its own under the number, and no New invoice", async () => {
     const calls = mockApi({ "GET /invoices?organization_id=2": ROWS });
     renderApp(<OrganizationInvoices record={ORGANIZATION} />);
     const links = await panel().findAllByRole("link");
-    expect(links.map((link) => link.textContent)).toEqual(["DraftAnnual support", "INV-0042Annual support"]);
+    expect(links.map((link) => link.textContent)).toEqual(["Draft", "INV-0042"]);
+    const rows = panel().getAllByRole("listitem");
+    for (const row of rows) {
+      const deal = within(row).getByText("Annual support");
+      // The chip names the status, as the link does for a draft, so it's the one outside the link.
+      const chip = within(row)
+        .getAllByText(/^(Draft|Part paid)$/)
+        .find((word) => !word.closest("a"))!;
+      // Not on the line with the number and the chip, where a long name would be cut short.
+      expect(deal.parentElement).not.toBe(chip.parentElement);
+    }
     expect(panel().queryByRole("button", { name: "New invoice" })).toBeNull();
     expect(calls.map((call) => call.path)).toEqual(["/invoices?organization_id=2"]);
   });

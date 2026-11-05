@@ -524,6 +524,13 @@ One end-to-end run failed two of the menu's theme tests, because I edited a sour
 
 `npm run check` passes: 4,938 tests in 6m 24s, of which 3,249 backend, 1,387 frontend, 290 end-to-end and 12 speed. Backend unit coverage is 99%. At the Q1 limits, the Invoices table opened in 177ms, the Money section's data arrived in 8ms and a PDF downloaded in 23ms, each the median of five.
 
+ui-check went through every page this change adds or changes, signed in, in both modes, and found one thing broken and one nit that came from this change. Both are fixed:
+
+- **An organization's Invoices panel** cut a long deal name short, such as "Service c...", because the number, the deal's name and the chip shared one line. The name now sits on a line of its own under the number, and the spec says so. The panel's test was shown to fail on the old layout.
+- **The logo's tile** had a 1px ring, where the spec says a white tile and panels have no outline. It's gone.
+
+Its other nits aren't from this change: 401s logged before sign-in, which the app's handling of an ended session already gave, now with the Money section's read among them; the top bar's active link a pixel wider; a teammate with no display name shown by email, as U8 says; and the revenue chart drawing in.
+
 Still for the project owner, on the shared app, since no test touches Supabase: run `npm start` against the team's database, which runs migration `0007` on it, then take an invoice from draft to paid with a logo, download its PDF and see it as a second teammate; run the new clearing steps on a project that still has the sample data and check the invoices, payments and logo are gone and the settings are at their defaults. With the owner's go-ahead, the coding agent can then use the Supabase MCP server to confirm row-level security is on for `company_logo`, `invoices`, `invoice_lines` and `payments`, and run the security advisors.
 
 ## Running Accountable

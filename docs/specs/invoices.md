@@ -140,7 +140,7 @@ Record payment opens a dialog like the other forms, with Date, Amount, which sho
 
 ### Invoices panels
 
-On a deal's or an organization's page, below the page's own panels in the side column (R7), headed Invoices, with New invoice at the right on a won deal. Each invoice is one row of a short linked list (R5): its number in JetBrains Mono, or "Draft" in muted ink, then its chip, with its total at the right and what's owed under it in muted ink. On an organization's page, the deal's name follows the number.
+On a deal's or an organization's page, below the page's own panels in the side column (R7), headed Invoices, with New invoice at the right on a won deal. Each invoice is one row of a short linked list (R5): its number in JetBrains Mono, or "Draft" in muted ink, then its chip, with its total at the right and what's owed under it in muted ink. On an organization's page, the deal's name sits under the number, on a line of its own in muted ink, so a long one has the row's width rather than sharing a line with the chip.
 
 ### Money section
 

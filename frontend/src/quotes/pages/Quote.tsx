@@ -114,12 +114,21 @@ function QuoteHeader({ title, number, chip, deal, children }: HeaderProps) {
   );
 }
 
-/** The details panel and the form at 480px, and the preview beside them, staying in view as the form scrolls. */
+/**
+ * The details panel and the form at 480px, and the preview beside them, staying in view as the form
+ * scrolls and scrolling by itself. Its scrollbar is in the paper's colors, because dark mode's would
+ * be a dark bar beside the white sheet.
+ */
 function QuoteColumns({ side, preview }: { side: ReactNode; preview: ReactNode }) {
   return (
     <div className="grid grid-cols-[minmax(0,480px)_minmax(0,1fr)] items-start gap-3 px-5 pb-4">
       <div className="flex min-w-0 flex-col gap-3">{side}</div>
-      <div className="sticky top-3 max-h-[calc(100vh-24px)] min-w-0 overflow-y-auto rounded-panel">{preview}</div>
+      <div
+        data-testid="preview-scroll"
+        className="sticky top-3 max-h-[calc(100vh-24px)] min-w-0 overflow-y-auto rounded-panel bg-paper [scrollbar-color:var(--color-paper-muted)_var(--color-paper)]"
+      >
+        {preview}
+      </div>
     </div>
   );
 }

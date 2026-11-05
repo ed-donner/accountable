@@ -299,3 +299,20 @@ test("a deal with quotes can't be deleted", async ({ page, request }) => {
   await expect(dialog(page)).toContainText(/This deal has \d+ quotes?, so it can't be deleted\./);
   await expect(dialog(page).getByRole("button")).toHaveText(["Close"]);
 });
+
+test("a quote's number is in JetBrains Mono in a panel, and in dark mode the preview keeps the paper's colors, its scrollbar included", async ({
+  page,
+  request,
+}) => {
+  await page.addInitScript(() => localStorage.setItem("accountable-mode", "dark"));
+  const deal = await findDeal(request, "Retail stock sync");
+  await page.goto(`/deals/${deal.id}`);
+  const first = page.getByRole("region", { name: "Quotes" }).getByRole("link", { name: /^QT-/ }).first();
+  await expect(first.locator("span")).toHaveCSS("font-family", /JetBrains Mono/);
+
+  await first.click();
+  await expect(preview(page)).toBeVisible();
+  await expect(preview(page)).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(preview(page)).toHaveCSS("color", "rgb(7, 59, 76)");
+  await expect(page.getByTestId("preview-scroll")).toHaveCSS("scrollbar-color", "rgb(74, 107, 118) rgb(255, 255, 255)");
+});

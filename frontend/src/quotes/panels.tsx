@@ -29,7 +29,8 @@ function QuoteList({ filter, withDeal }: ListProps) {
       items={quotes.data.map((row) => ({
         key: row.id,
         to: `/quotes/${row.id}`,
-        name: row.number,
+        // A number, so in JetBrains Mono, as it is in the table and on the quote (Q33).
+        name: <span className="num">{row.number}</span>,
         hint: withDeal ? (
           <>
             {row.deal_name} · {value(row)}

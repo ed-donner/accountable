@@ -105,7 +105,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ### Panels on deals and organizations
 
-- **Q36.** A deal's page has a Quotes panel, below its own panels (R7). It lists the deal's quotes, newest first, each with its number, status chip and value, and each opens its quote. On an open deal it has New quote, and on a closed one Q8's line. With none, it says "No quotes yet."
+- **Q36.** A deal's page has a Quotes panel, below its own panels (R7). It lists the deal's quotes, newest first, each with its number in JetBrains Mono, its status chip and its value, and each opens its quote. On an open deal it has New quote, and on a closed one Q8's line. With none, it says "No quotes yet."
 - **Q37.** An organization's page has a Quotes panel too, listing the quotes on its deals, newest first, each with its number, status chip, value and the deal's name. A quote starts from a deal, so this panel has no New quote. With none, it says "No quotes yet." Both panels are short linked lists, as R5 says.
 
 ## Screens
@@ -143,7 +143,7 @@ Copy to new draft shows only while the deal is open (Q25). A new draft has Save 
 Below, two columns of panels on the page background, as on the record pages:
 
 - **Left, 480px:** the details panel: Date, then Valid until on any quote but a draft, whose form has it, then Sent, Accepted or Declined, as each applies, with R6's lines at its foot in muted ink. On a draft, the form follows in its own panel: Valid until, as a date box, then "Lines" as a section heading, then each line in turn, then Add product. Each line shows its name in semibold, its description box, two lines tall and growing as lines are typed, then Quantity, a short box, Unit price, with `$` at its start and its figures in JetBrains Mono, and the line's amount in JetBrains Mono, with an icon button at the end to remove it, labeled for screen readers such as "Remove Pro license". Lines are separated by space, not lines. Add product opens a searchable list, built with `cmdk` and Radix Popover like the record pickers, with each product's price in JetBrains Mono in muted ink.
-- **Right, the rest of the width:** the preview, which is the [Quote document](#quote-document) at the column's width. It stays in view while the form scrolls, and scrolls by itself if it's taller than the window.
+- **Right, the rest of the width:** the preview, which is the [Quote document](#quote-document) at the column's width. It stays in view while the form scrolls, and scrolls by itself if it's taller than the window, with its scrollbar in the paper colors, paper muted ink on paper, in dark mode too.
 
 Enter in a one-line box saves, and in a description box it starts a new line. The dialogs for Mark as sent, Accept, Decline and the deal picker are the app's usual dialogs, and their main buttons read Mark as sent, Accept quote, Decline quote and Continue. Decline isn't a Delete, so its button isn't Raspberry. At 1280 by 720, the title, buttons and first line fit without scrolling.
 

@@ -89,7 +89,8 @@ export function LinkedList({
   items,
   empty,
 }: {
-  items: { key: number; to: string; name: string; hint?: ReactNode; end?: ReactNode }[];
+  /** Each name is the link's text, such as a quote's number in JetBrains Mono. */
+  items: { key: number; to: string; name: ReactNode; hint?: ReactNode; end?: ReactNode }[];
   empty: string;
 }) {
   if (items.length === 0) return <p className="py-1 text-muted">{empty}</p>;

@@ -152,12 +152,12 @@ const NO_MONEY = {
   })),
 };
 const NO_INVOICE_MONEY = {
-  owed: { cents: 0, count: 0 },
-  overdue: { cents: 0, count: 0 },
+  owed: { cents: "0", count: 0 },
+  overdue: { cents: "0", count: 0 },
   groups: [],
   payments: [
-    { month: "2026-09", label: "Sep", cents: 0, count: 0 },
-    { month: "2026-10", label: "Oct", cents: 0, count: 0 },
+    { month: "2026-09", label: "Sep", cents: "0", count: 0 },
+    { month: "2026-10", label: "Oct", cents: "0", count: 0 },
   ],
 };
 // A won deal and its organization, for the Invoices panels.
@@ -380,6 +380,7 @@ describe("the app, signed in", () => {
         tax_rate: "0",
       },
       "GET /products": [],
+      "GET /settings": SETTINGS,
     });
     render(<App />);
     visit("/quotes/4");

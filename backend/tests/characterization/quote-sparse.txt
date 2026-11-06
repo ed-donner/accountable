@@ -1,0 +1,25 @@
+--- page 1 ---
+Plainsong Systems
+ Quote
+DRAFT
+Number
+QT-0001
+Date
+Oct 31, 2026
+Valid until
+Nov 30, 2026
+Description
+Qty
+Unit price
+Amount
+Pro license
+1
+$49.50
+$49.50
+Subtotal
+$49.50
+Tax (0%)
+$0.00
+Total
+$49.50
+QT-0001, page 1 of 1

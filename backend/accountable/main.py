@@ -31,6 +31,7 @@ from accountable.cashflow import router as cashflow
 from accountable.cashflow import schemas as cashflow_schemas
 from accountable.company import router as company_settings
 from accountable.company import schemas as company_schemas
+from accountable.company.documents import Numbered
 from accountable.crm import cash as crm_cash
 from accountable.crm import schemas as crm_schemas
 from accountable.crm import search as crm_search
@@ -64,6 +65,8 @@ class Area:
     """Which of its records hold a deal or an organization, so that can't be deleted (D4)."""
     cash: Cash | None = None
     """The money it moves or expects, for the cash flow (Y1 to Y22)."""
+    numbered: Sequence[Numbered] = ()
+    """Where its documents keep the numbers they take, so a new prefix can't match one (B6)."""
 
     @property
     def route_starts(self) -> set[str]:
@@ -86,13 +89,19 @@ AREAS = [
     ),
     Area(routers=[products.router], messages=products_schemas.FIELD_MESSAGES, kinds=products_search.KINDS),
     Area(routers=[company_settings.router], messages=company_schemas.FIELD_MESSAGES),
-    Area(routers=[quotes.router], messages=quotes_schemas.FIELD_MESSAGES, holds=quotes_tables.HOLDS),
+    Area(
+        routers=[quotes.router],
+        messages=quotes_schemas.FIELD_MESSAGES,
+        holds=quotes_tables.HOLDS,
+        numbered=quotes_tables.NUMBERED,
+    ),
     # Money's route comes first, so /invoices/money is never read as an invoice's id.
     Area(
         routers=[money.router, invoices.router, payments.router, pdf.router],
         messages=invoices_schemas.FIELD_MESSAGES,
         holds=invoices_tables.HOLDS,
         cash=invoices_cash.CASH,
+        numbered=invoices_tables.NUMBERED,
     ),
     # Bills aren't searched from the top bar (K1), and each one holds its supplier (D4).
     Area(routers=[bills.router], messages=bills_schemas.FIELD_MESSAGES, holds=bills_tables.HOLDS, cash=bills_cash.CASH),
@@ -118,6 +127,7 @@ def make_app(
     app.state.sign_in = auth.LocalSignIn() if shared is None else auth.SupabaseSignIn(shared, keys)
     app.state.holds = [hold for area in AREAS for hold in area.holds]
     app.state.cash = [area.cash for area in AREAS if area.cash is not None]
+    app.state.numbered = [numbered for area in AREAS for numbered in area.numbered]
 
     # Each middleware added goes outside the ones before it, so a request meets these
     # in the opposite order: the host, then the token, then the body's size, then its

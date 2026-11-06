@@ -1,11 +1,11 @@
-"""shared/invoice-fonts.json against the font files, and the characters invoices can show (V9, V28)."""
+"""shared/document-fonts.json against the font files, and the characters invoices can show (V9, V28)."""
 
 import pytest
-from accountable.invoices import characters, fonts
+from accountable.company import characters, fonts
 
 
 def test_the_json_is_what_the_font_files_give():
-    """Run uv run -m accountable.invoices.fonts after changing a font, so the two never differ."""
+    """Run uv run -m accountable.company.fonts after changing a font, so the two never differ."""
     assert fonts.read() == fonts.describe()
 
 

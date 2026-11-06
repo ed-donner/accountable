@@ -423,6 +423,35 @@ def test_a_prefix_sent_alone_is_checked_against_the_saved_one(named):
     assert (stored()["quote_prefix"], stored()["invoice_prefix"]) == ("QT-", "INV-")
 
 
+def test_a_new_prefix_cant_be_one_a_number_of_the_other_kind_already_starts_with(named, make):
+    """Each prefix as it is now clashes with neither, but QT- took QT-0001 before it changed (B6)."""
+    quote = named.post("/api/quotes", json={"deal_id": make.deal()})
+    assert quote.json()["number"] == "QT-0001", quote.text
+    saved(named.patch(SETTINGS, json={"quote_prefix": "EST-"}))
+
+    for prefix in ("QT-", "qt-", "Q", "QT-00"):
+        reply = named.patch(SETTINGS, json={"invoice_prefix": prefix})
+        assert error_fields(reply) == {"invoice_prefix": schemas.taken_clash_message("quote", "QT-0001")}, prefix
+    saved(named.patch(SETTINGS, json={"invoice_prefix": "QT-1"}))
+    assert stored()["invoice_prefix"] == "QT-1"
+
+
+def test_a_new_quote_prefix_is_checked_against_the_invoices_numbers_too(named, make):
+    make.invoice(make.deal(stage="won"), status="issued", number="INV-0007")
+    saved(named.patch(SETTINGS, json={"invoice_prefix": "BILL-"}))
+    reply = named.patch(SETTINGS, json={"quote_prefix": "inv"})
+    assert error_fields(reply) == {"quote_prefix": schemas.taken_clash_message("invoice", "INV-0007")}
+    assert stored()["quote_prefix"] == "QT-"
+
+
+def test_a_prefix_left_as_it_is_isnt_checked_against_the_numbers_again(named, make):
+    """Numbers taken before the check, under prefixes that now match, don't stop every later save."""
+    make.invoice(make.deal(stage="won"), status="issued", number="QT-0001")
+    saved(named.patch(SETTINGS, json={"payment_terms": 14}))
+    reply = named.patch(SETTINGS, json={"quote_prefix": "EST-"})
+    assert saved(reply)["quote_prefix"] == "EST-"
+
+
 def test_a_missing_name_and_a_clash_are_both_reported(api):
     assert error_fields(api.patch(SETTINGS, json={"invoice_prefix": "qt-"})) == {
         "company_name": "Enter the company name",

@@ -12,8 +12,8 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy import Connection, Row, Select, select
 
-from accountable.company import tax
-from accountable.company.documents import current_settings
+from accountable.company import lines
+from accountable.company.documents import company_in, current_settings, details_now
 from accountable.company.schemas import rate_text
 from accountable.crm.tables import contacts, deals, organizations
 from accountable.quotes import schemas
@@ -42,15 +42,7 @@ def with_deal(query: Select) -> Select:
 
 
 def _settings_now(conn: Connection) -> dict[str, Any]:
-    settings = current_settings(conn)
-    return {
-        "company_name": settings.company_name,
-        "company_address": settings.address,
-        "company_email": settings.email,
-        "company_phone": settings.phone,
-        "tax_label": settings.tax_label,
-        "tax_rate": settings.tax_rate,
-    }
+    return details_now(current_settings(conn))
 
 
 def _who(row: Row) -> dict[str, Any]:
@@ -79,12 +71,7 @@ def details_of(conn: Connection, quote: Row) -> Mapping[str, Any]:
 def _shown(details: Mapping[str, Any]) -> dict[str, Any]:
     """The company, Prepared for and the tax, as a reply carries them, from a quote's columns or fixed_details()."""
     return {
-        "company": schemas.Company(
-            name=details["company_name"],
-            address=details["company_address"],
-            email=details["company_email"],
-            phone=details["company_phone"],
-        ),
+        "company": company_in(details),
         "prepared_for": schemas.PreparedFor(
             organization=details["prepared_for_organization"],
             contact=details["prepared_for_contact"],
@@ -97,39 +84,53 @@ def _shown(details: Mapping[str, Any]) -> dict[str, Any]:
 
 def lines_of(conn: Connection, quote_id: int) -> list[Row]:
     """The quote's lines, in the order they were added (Q12)."""
-    return list(
-        conn.execute(select(quote_lines).where(quote_lines.c.quote_id == quote_id).order_by(quote_lines.c.position))
-    )
-
-
-def _line(row: Row) -> schemas.Line:
-    return schemas.Line(
-        id=row.id,
-        product_id=row.product_id,
-        name=row.name,
-        description=row.description,
-        quantity=row.quantity,
-        unit_price_cents=row.unit_price_cents,
-        amount_cents=tax.line_amount(row.quantity, row.unit_price_cents),
-    )
+    return lines.lines_of(conn, quote_lines.c.quote_id, quote_id)
 
 
 def document(conn: Connection, quote: Row) -> schemas.QuoteDocument:
     """The quote, read through with_deal(), with its lines and their amounts, and the subtotal, tax
     and total worked out from them (B16)."""
     details = details_of(conn, quote)
-    lines = [_line(row) for row in lines_of(conn, quote.id)]
-    sums = tax.totals(lines, details["tax_rate"])
+    line_replies, sums = lines.document_figures(lines_of(conn, quote.id), details["tax_rate"])
     return schemas.QuoteDocument(
         number=quote.number,
         quote_date=quote.quote_date,
         valid_until=quote.valid_until,
         **_shown(details),
-        lines=lines,
+        lines=line_replies,
         subtotal_cents=sums.subtotal_cents,
         tax_cents=sums.tax_cents,
         total_cents=sums.total_cents,
     )
+
+
+def recipient(prepared_for: schemas.PreparedFor) -> str | None:
+    """Who the quote is prepared for, as the layout writes it: the organization, the contact and
+    their email, each on its own line, leaving out any that's blank (Q18)."""
+    parts = (prepared_for.organization, prepared_for.contact, prepared_for.email)
+    return "\n".join(part for part in parts if part) or None
+
+
+def layout_values(doc: schemas.QuoteDocument, look: dict[str, Any], *, draft: bool) -> dict[str, Any]:
+    """The quote as the layout takes it, in the look Company settings have: plain values, as the
+    quote's page gives layout.ts (Q31). A draft is marked as one, and no other status is (Q30)."""
+    return {
+        "kind": "quote",
+        **look,
+        "company": doc.company.model_dump(),
+        "number": doc.number,
+        "date": doc.quote_date.isoformat(),
+        "end_date": doc.valid_until.isoformat(),
+        "recipient": recipient(doc.prepared_for),
+        "lines": [line.model_dump() for line in doc.lines],
+        "subtotal_cents": doc.subtotal_cents,
+        "tax_cents": doc.tax_cents,
+        "total_cents": doc.total_cents,
+        "paid_cents": 0,
+        "tax_label": doc.tax_label,
+        "tax_rate": doc.tax_rate,
+        "mark": "draft" if draft else None,
+    }
 
 
 def new_document(conn: Connection, deal_id: int) -> schemas.NewQuote:

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import designs from "../../../shared/invoice-designs.json";
-import cases from "../../../shared/invoice-layout-cases.json";
+import designs from "../../../shared/document-designs.json";
+import cases from "../../../shared/document-layout-cases.json";
 import { fieldMessage, lineNameMessage, named, unprintable } from "./characters";
-import { day, layOut, money, quantity, taxText, wrap, type InvoiceValues, type Page } from "./layout";
+import { day, layOut, money, quantity, taxText, wrap, type DocumentValues, type Page } from "./layout";
 
 function texts(pages: Page[]) {
   return pages.map((page) => page.flatMap((item) => (item.kind === "text" ? [item.text] : [])));
@@ -13,7 +13,7 @@ describe("the layout", () => {
   it.each(cases.cases.map((item) => [item.name, item] as const))(
     "gives the same lines on the same pages as the backend: %s",
     (_name, item) => {
-      expect(texts(layOut(item.invoice as InvoiceValues))).toEqual(item.pages);
+      expect(texts(layOut(item.document as DocumentValues))).toEqual(item.pages);
     },
   );
 
@@ -21,7 +21,7 @@ describe("the layout", () => {
     "keeps everything but the footer above the page's bottom margin, as layout.py does: %s",
     (_name, item) => {
       const { bottom, footer } = designs.page;
-      for (const page of layOut(item.invoice as InvoiceValues)) {
+      for (const page of layOut(item.document as DocumentValues)) {
         for (const drawn of page) {
           if (drawn.kind === "text" && drawn.angle === undefined && drawn.y !== footer.y) {
             expect(drawn.y).toBeLessThanOrEqual(bottom);
@@ -64,8 +64,8 @@ describe("the layout", () => {
   });
 
   it("measures a character no font has as a question mark, so a draft being typed still lays out", () => {
-    const [invoice] = cases.cases.map((item) => item.invoice as InvoiceValues);
-    expect(texts(layOut({ ...invoice, bill_to: "Acme 漢" }))[0]).toContain("Acme 漢");
+    const [invoice] = cases.cases.map((item) => item.document as DocumentValues);
+    expect(texts(layOut({ ...invoice, recipient: "Acme 漢" }))[0]).toContain("Acme 漢");
   });
 });
 

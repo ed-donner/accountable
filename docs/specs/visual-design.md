@@ -39,10 +39,8 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Small chip, Alert | `#D23E62`, white text | Same | Late, Overdue and Lost chips, the connection message |
 | Late tint | `#FDECF1` | `#4B2436` | Late cards |
 | Archived chip | `#CDD8DB` Sea Mist, ink text | `#3B5862`, ink text | The Archived chip on products |
-| Paper | `#FFFFFF` | `#FFFFFF` | The quote document's sheet, in the preview and on the PDF |
-| Paper ink | `#073B4C` Midnight | `#073B4C` Midnight | Text on the quote document |
-| Paper muted ink | `#4A6B76` | `#4A6B76` | Secondary text on the quote document |
-| Paper band | `#F0F4F5` | `#F0F4F5` | The band behind the lines' column headings, and the Draft chip, on the quote document |
+| Paper | `#FFFFFF` | `#FFFFFF` | Behind a quote's preview, under its white pages |
+| Paper muted ink | `#4A6B76` | `#4A6B76` | The scrollbar of a quote's preview, on paper |
 | Veil | Midnight at 40% | Black at 50% | Behind dialogs |
 | Shadow | Midnight, 18% to 24% | Black, 40% to 50% | Dialogs, the menu, search results, picker lists, chart tooltips, messages, the dragged card |
 
@@ -54,7 +52,7 @@ Small text meets 4.5:1 in both modes, and anything that isn't text, such as the 
 | Muted ink on page, panel, raised | 5.19:1, 5.74:1, 5.74:1 | 7.28:1, 6.06:1, 5.00:1 |
 | Ink and muted ink on the late tint | 10.61:1, 5.05:1 | 9.00:1, 5.83:1 |
 | Ink on the archived chip | 8.30:1 | 5.24:1 |
-| Paper ink and paper muted ink on paper, and paper muted ink on the paper band | 12.08:1, 5.74:1, 5.19:1 | Same |
+| Paper muted ink on paper, a quote preview's scrollbar | 5.74:1 | Same |
 | Sea Green text on page, panel | 4.81:1, 5.33:1 | 10.08:1, 8.39:1 |
 | Marigold text on page, panel | 4.86:1, 5.39:1 | 11.65:1, 9.69:1 |
 | Raspberry text on raised, where the forms are | 4.56:1 | 5.08:1 |
@@ -62,7 +60,7 @@ Small text meets 4.5:1 in both modes, and anything that isn't text, such as the 
 | Text on the Won fill | 8.30:1 | 8.30:1 |
 | Focus ring on page, panel, raised | 3.58:1, 3.96:1, 3.96:1 | 6.79:1, 5.65:1, 4.66:1 |
 
-In dark mode, each layer is 1.2:1 against the one beneath it, a little more than white panels on the light page at 1.11:1. Inputs keep the page color, so in a dialog they sit 1.46:1 darker than the dialog around them. The late tint is about as light as a panel and stands out by its color. The paper tokens are the light mode's page, panel, ink and muted ink under their own names, with the same value in both modes, because the quote document shows the paper the customer gets, and the PDF uses the same values ([Quote document](quotes.md#quote-document)). It's the one thing on screen that dark mode leaves light (L3). Its total sits on Sea Green with Midnight text, as main buttons do. The archived chip is a quiet grey in both modes, so it never reads as a stage or a warning. In dark mode it stands 1.79:1 against a panel and 2.15:1 against a row's hover, because the Line token's dark value would put ink on it at only 4.37:1.
+In dark mode, each layer is 1.2:1 against the one beneath it, a little more than white panels on the light page at 1.11:1. Inputs keep the page color, so in a dialog they sit 1.46:1 darker than the dialog around them. The late tint is about as light as a panel and stands out by its color. The paper tokens are the light mode's panel and muted ink under their own names, with the same value in both modes, behind a quote's preview and on its scrollbar, because the preview shows the paper the customer gets ([Quote document](quotes.md#quote-document)). The previews' pages, a quote's and an invoice's, are the one thing on screen that dark mode leaves light (L3), in the designs' own colors. The archived chip is a quiet grey in both modes, so it never reads as a stage or a warning. In dark mode it stands 1.79:1 against a panel and 2.15:1 against a row's hover, because the Line token's dark value would put ink on it at only 4.37:1.
 
 The three soft colors mark what's expected rather than what has happened, as the soft bar marks a month not yet over. All but Soft Marigold in dark mode stand below 3:1 against the panel, so the forecast never rests on them alone: it sits after this month, under its own "Forecast" label, beside a dashed line, and its tooltip says what's expected. Money out on the cash flow is Coral, the brand's third color, rather than Raspberry, because paying a bill isn't an alert. A switch's two tracks both stand at least 3:1 against the panel, and the knob's place, left for off and right for on, says which it is, so its color never carries it alone.
 
@@ -109,7 +107,7 @@ Quotes, invoices and bills show their status in chips, in these tones, agreed ah
 
 | Status | Chip | Used by |
 |---|---|---|
-| Draft | Quiet: the page color with muted ink, as on a follow-up's Done chip, or the panel color where the chip sits on the page, as beside a quote's number, so its shape shows | Quotes, invoices |
+| Draft | Quiet: the page color with muted ink, as on a follow-up's Done chip, or the panel color where the chip sits on the page, as beside a quote's number or a draft invoice's title, or on a table row under the pointer, which takes the page color, so its shape shows | Quotes, invoices |
 | Sent, Issued, Unpaid | Small chip, Information: waiting on someone | Quotes, invoices, bills |
 | Part paid | Marigold | Invoices |
 | Accepted, Paid | Sea Green | Quotes, invoices, bills |
@@ -139,7 +137,7 @@ The fonts are bundled through Fontsource, so nothing loads from outside the app'
 | Probability and date on cards | JetBrains Mono | 12/18 | 400 |
 | Chart axis | JetBrains Mono | 12/16 | 400 |
 
-Numbers are always in JetBrains Mono, so columns of figures line up. The quote document sets its own sizes, in points, in [its screen](quotes.md#quote-document). Instrument Serif appears in one place only: the dashboard's summary line.
+Numbers are always in JetBrains Mono, so columns of figures line up. Quotes and invoices set their own sizes, in points, in their designs ([V28](invoices.md#designs)). Instrument Serif appears in one place only: the dashboard's summary line.
 
 ### Shapes
 
@@ -148,7 +146,7 @@ Numbers are always in JetBrains Mono, so columns of figures line up. The quote d
 - Panels are in the panel color on the page background, white in light mode and dark Midnight in dark mode, with no outline and no shadow.
 - There are no gradient fills, and no borders on one edge of a panel. There's no line across the top of the page.
 - Late cards are marked by the chip and tint, never a colored edge.
-- An invoice's preview, and the sample on the Company settings page, is a white page in both modes, with the invoice's own colors rather than the app's tokens ([V28](invoices.md#designs)), because it shows what will print. `colors.test.ts` still holds: those colors live in `shared/invoice-designs.json`, outside `frontend/src`.
+- A quote's or an invoice's preview, and the sample on the Company settings page, is white pages in both modes, with the designs' own colors rather than the app's tokens ([V28](invoices.md#designs)), because it shows what will print. `colors.test.ts` still holds: those colors live in `shared/document-designs.json`, outside `frontend/src`.
 - Pipeline columns are headed by a solid block in the stage color, never a colored bar or edge.
 - Labels are in sentence case, not capitals. No text runs joined with middle dots, and no arrows added to link text.
 

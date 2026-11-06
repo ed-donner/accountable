@@ -14,6 +14,15 @@ describe("starting the app", () => {
       "GET /local/teammates": [{ id: "alex", name: "Alex Rivera", email: "alex@accountable.example", initials: "AR" }],
       "POST /local/sign-in": { token: "alex-token" },
       "GET /cash-flow": cashFlowReply(),
+      "GET /invoices/money": {
+        owed: { cents: "0", count: 0 },
+        overdue: { cents: "0", count: 0 },
+        groups: [],
+        payments: [
+          { month: "2026-09", label: "Sep", cents: "0", count: 0 },
+          { month: "2026-10", label: "Oct", cents: "0", count: 0 },
+        ],
+      },
       "GET /bills/dashboard": {
         today: "2026-10-31",
         owed: { total_cents: "0", count: 0 },
@@ -45,7 +54,9 @@ describe("starting the app", () => {
     const bar = within(page.getByRole("banner"));
     expect(bar.getByLabelText("Search organizations, contacts, deals and products")).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
-    expect(await page.findByRole("region", { name: "Money" })).toBeTruthy();
-    expect(await page.findByRole("region", { name: "Cash flow" })).toBeTruthy();
+    const money = within(await page.findByRole("region", { name: "Money" }));
+    expect(await money.findByRole("region", { name: "Cash flow" })).toBeTruthy();
+    expect(await money.findByRole("region", { name: "Owed to us" })).toBeTruthy();
+    expect(await money.findByRole("region", { name: "What we owe" })).toBeTruthy();
   });
 });

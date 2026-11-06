@@ -21,7 +21,7 @@ An invoice due today isn't overdue, as a deal due today isn't late. Days late is
 
 ### Drafts
 
-- **V4.** New invoice starts a draft. It's on a won deal's Invoices panel (V20), and beside the Invoices page's title, where it first asks for the deal, in a dialog whose picker lists won deals only, saying "Choose a won deal" if none is chosen. The draft opens straight away on its own page, with no lines and its Bill to filled in (V5).
+- **V4.** New invoice starts a draft. It's on a won deal's Invoices panel (V20), and beside the Invoices page's title, where it first asks for the deal, in a dialog whose picker lists won deals only, saying "Choose a won deal" if none is chosen. If the deals can't be read, the dialog closes and says so, as F11 has it. The draft opens straight away on its own page, with no lines and its Bill to filled in (V5).
 - **V5.** The Bill to box says who the invoice is for. A new draft fills it from the deal: the organization's name, then "Attn:" and the main contact's name, then the contact's email, each on its own line, leaving out any that's blank. Organizations have no address in Accountable, so the address is typed here. It can be edited until the invoice is issued. Spaces and line breaks at its ends are dropped, as in every field (B4), and the rest is kept exactly as typed, runs of spaces included.
 - **V6.** Add line picks a product from a searchable list of active products ([G10](products.md#archiving)). The line takes the product's name, unit price and description as they are at that moment, with a quantity of 1. Its name stays as it was taken, even if the product is renamed or archived later, and its price stays unless it's changed on the line. A product archived before the line is first saved can't start one, and the line says "Choose an active product". A line's description, quantity and unit price can be changed, and a line can be removed. Lines keep the order they were added in.
 - **V7.** A line's amount, the subtotal, the tax and the total follow [B16](settings.md#for-quotes-and-invoices), at the tax label and rate in Company settings as they are now, so a draft follows the settings until it's issued. The figures on the page change as you type. Elsewhere, in the Invoices table and on the panels, a draft's figures come from the backend, from its lines as last saved.
@@ -96,7 +96,7 @@ An invoice due today isn't overdue, as a deal due today isn't late. Days late is
 
 ### Designs
 
-- **V28.** There are three designs, Classic, Banner and Ledger, chosen in Company settings ([B18](settings.md#documents)). Each is distinct, professional and easy to read in print, and each holds the same things: the logo and the company's name, address, email and phone, the word Invoice, the number, the issue date and the due date, the Bill to, the lines, each with its name, its description under it, its quantity, unit price and amount, then the subtotal, the tax with its label and rate, such as "Sales tax (8.875%)", and the total.
+- **V28.** There are three designs, Classic, Banner and Ledger, chosen in Company settings ([B18](settings.md#documents)). Each is distinct, professional and easy to read in print, and each holds the same things: the logo and the company's name, address, email and phone, the word Invoice, the number, the issue date and the due date, the Bill to, the lines, each with its name, its description under it, its quantity, unit price and amount, then the subtotal, the tax with its label and rate, such as "Sales tax (8.875%)", and the total. Quotes are drawn in the same three designs, with their own words in the invoice's places, such as Quote for Invoice and Prepared for for Bill to ([Quote document](quotes.md#quote-document)).
 
 | Design | How it looks |
 |---|---|
@@ -106,11 +106,11 @@ An invoice due today isn't overdue, as a deal due today isn't late. Days late is
 
 All three set their words in Instrument Sans and their figures in JetBrains Mono, as the app does, with Ledger's headings in Instrument Serif. The PDF carries the fonts with it, so it looks the same on any computer. The logo fits inside 2 inches by 0.75 inches, keeping its shape, never stretched or cut off. None has a gradient or a line along one edge, and rows are separated by space or tints.
 
-The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, in both of the app's modes. PAID is green, `#047A5B`, OVERDUE red, `#D23E62`, and VOID and DRAFT the muted ink. Every color on the page stands at least 4.5:1 against white, the accent color included (B20). These colors come from the designs' own description, which the preview and the PDF both read, not from the app's tokens.
+The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, in both of the app's modes. PAID is green, `#047A5B`, OVERDUE red, `#D23E62`, and VOID and DRAFT the muted ink. Every color on the page stands at least 4.5:1 against white, the accent color included (B20). These colors come from the designs' own description, which the previews and the PDFs of quotes and invoices all read, not from the app's tokens.
 
 ## Money on the dashboard
 
-- **V29.** Invoices give the left side of the dashboard's Money section, below the cash flow's row and beside bills' side ([H10](dashboard.md#dashboard)). The row counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices.
+- **V29.** Invoices give the left side of the dashboard's Money section, below the cash flow's row and beside bills' side ([H10](dashboard.md#dashboard)). The row counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices. Every figure in it is exact to the cent however large it gets, past the 2^53 cents a browser's numbers hold exactly, as on bills' side (E20).
 
 | Part | What it shows |
 |---|---|

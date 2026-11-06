@@ -3,6 +3,8 @@ import { Copy, Download } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 
+import { look } from "../../company/layout";
+import { useCompanySettings, useSavedLogo } from "../../company/settings";
 import { LoadFailed } from "../../components/LoadFailed";
 import { MissingRecord } from "../../components/MissingRecord";
 import { AddedAndChanged, Detail, SidePanel } from "../../components/RecordLayout";
@@ -29,7 +31,7 @@ import {
   type QuoteDetail,
 } from "../queries";
 import { LivePreview, QuoteForm, toForm, toRequest, useQuoteForm, type Carried } from "../QuoteForm";
-import { QuoteDocument } from "../QuoteDocument";
+import { QuotePreview, type QuoteLook } from "../QuotePreview";
 import { acceptedMessage, shownStatus } from "../status";
 import { QuoteStatusChip } from "../StatusChip";
 
@@ -52,19 +54,37 @@ export function NewDraft() {
   return <NewDraftOn key={dealId} dealId={dealId} />;
 }
 
+/** How quotes look, from Company settings as they are now, with the logo's image once it's read (Q31). */
+function useQuoteLook() {
+  const settings = useCompanySettings();
+  const logoUrl = useSavedLogo(settings.data);
+  const shown = useMemo<QuoteLook | undefined>(
+    () => (settings.data ? { ...look(settings.data), logoUrl } : undefined),
+    [settings.data, logoUrl],
+  );
+  return { look: shown, error: settings.error, refetch: () => void settings.refetch() };
+}
+
 function QuoteRecord({ id }: { id: number }) {
   const quote = useQuote(id);
+  const appearance = useQuoteLook();
   // Whether the draft's form holds changes not yet saved, which a teammate sending the quote mustn't throw away (Q21).
   const [unsaved, setUnsaved] = useState(false);
   if (quote.error instanceof ApiError && quote.error.kind === "missing") {
     return <MissingRecord word="quote" to="/quotes" section="Quotes" />;
   }
-  if (!quote.data) return <LoadFailed onPage error={quote.error} onRetry={() => quote.refetch()} />;
+  if (!quote.data || !appearance.look) {
+    const retry = () => {
+      void quote.refetch();
+      appearance.refetch();
+    };
+    return <LoadFailed onPage error={quote.error ?? appearance.error} onRetry={retry} />;
+  }
   const page =
     quote.data.status === "draft" || unsaved ? (
-      <DraftQuote quote={quote.data} onUnsaved={setUnsaved} />
+      <DraftQuote quote={quote.data} look={appearance.look} onUnsaved={setUnsaved} />
     ) : (
-      <FixedQuote quote={quote.data} />
+      <FixedQuote quote={quote.data} look={appearance.look} />
     );
   return (
     <>
@@ -76,12 +96,14 @@ function QuoteRecord({ id }: { id: number }) {
 
 function NewDraftOn({ dealId }: { dealId: number }) {
   const start = useNewQuote(dealId);
+  const appearance = useQuoteLook();
   if (start.error instanceof ApiError && start.error.kind === "missing") {
     return <MissingRecord word="deal" to="/quotes" section="Quotes" />;
   }
   if (!start.data) return <LoadFailed onPage error={start.error} onRetry={() => start.refetch()} />;
   if (!isOpen(start.data.deal.stage)) return <ClosedDeal deal={start.data.deal} />;
-  return <NewDraftForm start={start.data} />;
+  if (!appearance.look) return <LoadFailed onPage error={appearance.error} onRetry={appearance.refetch} />;
+  return <NewDraftForm start={start.data} look={appearance.look} />;
 }
 
 function ClosedDeal({ deal }: { deal: DealLink }) {
@@ -213,7 +235,7 @@ function useSaveForm(
   return { saveForm, submit, pending: save.isPending };
 }
 
-function NewDraftForm({ start }: { start: NewQuote }) {
+function NewDraftForm({ start, look }: { start: NewQuote; look: QuoteLook }) {
   const today = useToday();
   const navigate = useNavigate();
   const empty = useMemo(
@@ -252,6 +274,7 @@ function NewDraftForm({ start }: { start: NewQuote }) {
         preview={
           <LivePreview
             control={form.control}
+            look={look}
             number={null}
             quoteDate={today}
             company={start.company}
@@ -375,6 +398,7 @@ async function saveNothing(event: FormEvent<HTMLFormElement>) {
 
 type DraftProps = {
   quote: QuoteDetail;
+  look: QuoteLook;
   /** Says whether the form holds changes not yet saved. */
   onUnsaved: (unsaved: boolean) => void;
 };
@@ -383,7 +407,7 @@ type DraftProps = {
  * A draft, its form beside its live preview. If the quote stops being a draft while something
  * typed here is unsaved, such as when a teammate sends it, the form stays until it's let go (Q21).
  */
-function DraftQuote({ quote, onUnsaved }: DraftProps) {
+function DraftQuote({ quote, look, onUnsaved }: DraftProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const carried = carriedFrom(location.state);
@@ -448,6 +472,7 @@ function DraftQuote({ quote, onUnsaved }: DraftProps) {
         preview={
           <LivePreview
             control={form.control}
+            look={look}
             number={quote.number}
             quoteDate={quote.quote_date}
             company={quote.company}
@@ -478,7 +503,7 @@ function DraftQuote({ quote, onUnsaved }: DraftProps) {
 }
 
 /** A sent, accepted or declined quote: the quote with no form, because only a draft can be changed (Q21). */
-function FixedQuote({ quote }: { quote: QuoteDetail }) {
+function FixedQuote({ quote, look }: { quote: QuoteDetail; look: QuoteLook }) {
   const today = useToday();
   const status = shownStatus(quote, today);
   const accept = useAcceptQuote();
@@ -519,7 +544,8 @@ function FixedQuote({ quote }: { quote: QuoteDetail }) {
       <QuoteColumns
         side={<DetailsPanel quote={quote} />}
         preview={
-          <QuoteDocument
+          <QuotePreview
+            look={look}
             number={quote.number}
             draft={false}
             quoteDate={quote.quote_date}
@@ -528,7 +554,7 @@ function FixedQuote({ quote }: { quote: QuoteDetail }) {
             preparedFor={quote.prepared_for}
             taxLabel={quote.tax_label}
             taxRate={quote.tax_rate}
-            lines={quote.lines.map((line) => ({ ...line, key: line.id }))}
+            lines={quote.lines}
             figures={quote}
           />
         }

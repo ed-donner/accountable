@@ -26,7 +26,7 @@ import { Organizations } from "./crm/pages/Organizations";
 import { Pipeline } from "./crm/pages/Pipeline";
 import { useMeta, type DealDetail, type OrganizationDetail } from "./crm/queries";
 import { crmSearchGroups } from "./crm/searchGroups";
-import { SampleInvoice } from "./invoices/InvoicePreview";
+import { SampleInvoice } from "./invoices/SampleInvoice";
 import { InvoicesMoney } from "./invoices/MoneySection";
 import { Invoice } from "./invoices/pages/Invoice";
 import { Invoices } from "./invoices/pages/Invoices";

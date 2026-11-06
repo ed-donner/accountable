@@ -815,6 +815,92 @@ Invoices and bills had each added a row to the dashboard's Money section, one un
 
 `npm run check` passes: 6,168 tests in 14m 59s, of which 4,199 backend, 1,634 frontend, 318 end-to-end and 17 speed, with another worktree's run busy alongside. Four unit tests took a second or more, none of them this change's: `test_other_image_formats_are_refused[WEBP]` at 2.3s, `DataTable.test.tsx`'s paging at 1.3s, `QuoteForm.test.tsx`'s 101st line at 1.2s and `test_the_data_really_is_at_the_limits` at 1.1s.
 
+## One story in the sample data
+
+On the `sample-story` branch. Quotes and invoices each made their sample lines on their own, so every deal won in the last three months had an accepted quote and an invoice of the same value but with different lines: 15 of 15 in a seed for Nov 5, 2026. And 10 of those 15 invoices were added a few hours before their deal was moved to Won and their quote was accepted, because an invoice took its time of day from its own number.
+
+- **The evidence:** a script seeded a scratch database for each of 800 days, from Jan 1, 2026 to Mar 10, 2028, and compared the deals, quotes, invoices, payments and the dashboard's own replies. Before the change, every day had both problems and no others. The dashboard's figures already agreed: each month's revenue and deals won matched the invoices on those wins, the funnel's Won matched the 12 months' revenue, and what's owed plus what's been paid matched what was issued. After the change, all 800 days pass.
+- **The fix:** the lines a won deal was sold with now come from one place, `sold_lines` in the top-level `sample.py`, and both areas' sample data call it, since quotes and invoices never read each other. It uses the quotes' bundles, moved there unchanged: the first line's quantity grows towards the deal's value, and the last line is priced by hand to make it up to the cent. The deal's value in thousands picks its bundle, so both areas pick the same one. The content stays the same after `npm run seed`, though deal ids aren't reused. Every invoice uses it, older wins' too, so the invoices' own way of making lines is gone. That way put a single product on a line at whatever price made up the value, such as a $9,600 license at $18,000. An invoice is now added no sooner than an hour after its deal was won, still on the same day. The accepted quotes' lines changed too, because their bundle is now picked by value instead of by their place in the list.
+- **What didn't change:** tax is worked out once on the subtotal, so every invoice's total, every payment and every figure on the dashboard and in the Money section are as they were. So are the quotes' numbers, statuses and dates. Only the lines changed, along with the times some invoices and payments were added.
+- **Tests:** three new ones in `test_sample_data.py`, on its six seeding days: an invoice on a deal with an accepted quote has the quote's lines; every invoice was added on its day, after its deal was won and its quote accepted; and the dashboard's figures agree with the invoices and the accepted quotes. The first two failed on every seeding day with the old sample data files copied back in. The dashboard test passed on the old code, because the dashboard already agreed. It failed when a copy of the new code was broken each of three ways: invoices for $500 less than their deals, a payment from before the 12 months, and quotes accepted for $500 less. Each file was put back from a copy afterwards. An invoice's lines now number 2 to 4, and the existing check says so.
+- **Spec:** M3 and M4 in `running.md`, `sample.py` in `architecture.md`'s file tree and layout rules, and the new tests in `testing.md`.
+
+`npm run check` passes: 6,184 tests in 10m 08s, of which 4,217 backend, 1,633 frontend, 317 end-to-end and 17 speed. Another worktree's run was busy at the same time, so it waited its turn and ran slower. Nine unit tests took a second or more, none of them in the sample data: five in `DataTable.test.tsx`, two in the bills' frontend tests, `test_other_image_formats_are_refused[WEBP]` at 1.3s and `test_the_data_really_is_at_the_limits` at 1.1s.
+
+## One story in the sample data: merged with main
+
+`main`, with Money: one section in it, was merged into `sample-story`. Only this file conflicted, because both branches added their section in the same place. Both are kept, Money first, since it reached `main` first. Both branches also changed `architecture.md`, `running.md` and `testing.md`, in different lines, and git joined them as they were. Main renamed the Money section's "rows" to "sides" in the spec, and none of this branch's lines named either. Main changed no backend code, and this branch changed no figure the Money section shows, so nothing else needed changing.
+
+`npm run check` passes: 6,186 tests in 6m 51s, of which 4,217 backend, 1,634 frontend, 318 end-to-end and 17 speed: this branch's backend tests with main's frontend and end-to-end ones. Two unit tests took a second or more: `test_other_image_formats_are_refused[WEBP]` at 4.1s and `test_the_data_really_is_at_the_limits` at 1.1s, neither touched by either branch.
+
+## Quotes, invoices and bills together: review fixes
+
+The reviewer subagent reviewed what quotes, invoices and bills changed together, from the tag `before-erp` to this branch, looking most for code that does the same job twice and for bugs where the three meet. It ran four times: the backend, the frontend, the merges and shared files, then the files the first three left unread. This fixes the Important findings that aren't about code doing the same job twice.
+
+- **B6's promise failed once a prefix changed.** The check compared only the two prefixes as saved. With QT-0001 taken, changing the quote prefix to EST- and then the invoice prefix to QT- both passed, and the next invoice could take QT-0001. A prefix being changed is now also checked against the numbers the other kind has already taken, ignoring capitals, and the message names the number. Each area gives `main.py` the column its numbers are kept in, as a `Numbered` in `company/documents.py`, as it gives its holds, so `company/` still names no area. A prefix left as it is isn't checked again, so a database that already has such a number can still save its other settings. Three tests in `test_company_settings.py`: the first two failed with the new check taken out, and the third with the "left as it is" skip taken out. The first `npm run check` failed "the API refuses them too" in `settings.spec.ts`: on the sample data a quote prefix of INV- or inv- now gets a second message, because INV-0001 starts with it. Both are right, as B5 gives each bad field its message, so the test expects both.
+- **A draft invoice's Draft chip showed no shape on its page.** The quiet chip is the page color, and the invoice page put it straight on the page. The quotes branch added `quietOnPage` for this after the invoices branch had started, so `InvoiceChip` never had it. It now takes `onPage`, as `QuoteStatusChip` does. The quiet chip also lost its shape on a row under the pointer in the Quotes and Invoices tables, which takes the page color, so it takes the panel color there now. "a Draft chip keeps its shape beside a page's title and on a hovered row" in `quality.spec.ts` compares the chip's color with the surface behind it. It failed with each half of the fix undone.
+- **Invoices' row of the Money section lost precision past 2^53 cents.** Bills sent their sums as digits, and invoices as JSON numbers, so 46 invoices at the most an invoice can total showed a figure a cent out. Both now send `api.CentsSum`, moved there from `bills/schemas.py`, and the page reads them as BigInts, with `CentsSum` moved to `lib/money.ts`. The new tests in `test_money.py` and `MoneySection.test.tsx` failed before the fix.
+- **New invoice opened with an empty picker when the deals couldn't be read (F11).** New quote closed and said so, and New invoice didn't. It now uses `useCloseIfUnreadable` too. The new test in `Invoices.test.tsx` failed before the fix.
+- **The tests across areas were extended for bills only.** The quotes and invoices branches started before bills merged, so neither added to them. `failures.spec.ts` now covers Quotes, a quote's page, Invoices, an invoice's page and invoices' Money row, failing their first read and a later one. `data.spec.ts` opens Quotes and Invoices after `empty`, checks seed brings back the sample quotes, invoices and payments, and adds the first quote and invoice to an empty database. `main.test.tsx` stands in for `/invoices/money` and checks both Money rows appear. It failed with that stand-in taken away.
+
+Looked into and left as they are:
+
+- **A character the quote PDF's fonts lack:** the review guessed fpdf2 draws a box. A quote PDF made with Chinese and an emoji in a line has no glyph for them at all, so they're left blank, as Q31 says.
+- **Quote descriptions have no length cap, where invoices have 1,000 characters.** A 100-line quote with 14,000-character descriptions took 15.5s to make its PDF. Q13 lets a description run as long as it needs, as product descriptions do, so a cap is the owner's call.
+- **The Quotes table shows the deal's organization as it is now**, not the one fixed on a sent quote. Q33 says so.
+- **Only invoice drafts ask before leaving with changes not saved.** Q9 and Q19 say leaving a quote drops what's typed.
+- **Bills and the dashboard can each work out "overdue" from a different day**, the browser's and the backend's. The Today term says the browser's day is the team's.
+- **The renumbered migrations would fail on a database that ran one feature's branch alone,** stamped `0007` by quotes or `0007`/`0008` by invoices. No worktree on this computer has a `data/accountable.db`, and renaming the revisions now would break databases correctly at `0007`, so nothing was changed.
+
+The second `npm run check` failed "a file that isn't a PNG or JPEG is refused by the backend" in `settings.spec.ts`, which passed in the first. The save got a 200, not a 422. The report shows Save clicked 26ms after the file was set, and the Documents panel reads a chosen file, and tries to measure it, before it puts the logo in the form, so a save sent sooner carries no logo, and the backend's check never sees the file. The test now waits for the panel to show the chosen file before it saves, as the test for a good logo does, and passed 20 runs in 20. A person who pressed Save in that moment would save without the logo too, but it takes a fraction of a second, and nothing here changes it.
+
+The duplication the review found is for a later change: two PDF engines and their fonts stored twice, two previews, two routers saving lines, three money formatters, two confirm dialogs, three status filters and three status-chip tables.
+
+`npm run check` passes: 6,183 tests in 7m 34s, of which 4,203 backend, 1,635 frontend, 328 end-to-end and 17 speed. One unit test took a second or more, `test_the_data_really_is_at_the_limits` at 1.4s, as before.
+
+## Quotes, invoices and bills together: merged with main
+
+`main`, with Money: one section and One story in the sample data in it, was merged into `review`. What the merge settled:
+
+- **Invoices' side of the Money section:** main builds both sides from the shared parts in `components/MoneySection.tsx`, and this branch sends invoices' sums as digits. Invoices' side now hands `MoneyFigure` and `MonthsPanel` its sums through `exact`, as bills' side does, and the payments chart draws each month from a number made from its digits, as the spending chart does, with its tooltip and its name exact. How late takes main's layout, with its rows spread over the panel, and this branch's bars drawn from numbers and figures read as BigInts. `MoneySection.test.tsx` keeps this branch's test for sums past 2^53 cents and main's for $0.00 owed.
+- **Tests outside the conflicts:** `main.test.tsx`, from this branch, looked for a Bills to pay panel, which main renamed What we owe, and failed until it took the new name. This branch's names and lines that called the section's parts rows now say sides, as main does: two in `failures.spec.ts`, a comment in `data.spec.ts` and two lines of `testing.md`. Main's new test that the dashboard agrees with the invoices adds invoices' Money sums in Python, where `api.CentsSum` is still an int, so it needed no change.
+- **Spec:** both sides' sections here are kept, main's first, since they reached `main` first. In `architecture.md`, `backend.md`, `invoices.md` and `testing.md`, main's lines on sides and the sample data's one story take this branch's B6 numbers and its sums as exact digits.
+- **Left as it is:** `frontend.md` still says `MoneySection` is in `App.tsx`, with invoices' row above bills'. Money's plan listed `frontend.md`, but main didn't change it.
+
+`npm run check` passes: 6,203 tests in 10m 08s, of which 4,221 backend, 1,636 frontend, 329 end-to-end and 17 speed, with another worktree's run busy alongside. One unit test took a second or more, `test_the_data_really_is_at_the_limits` at 1.1s, as before.
+
+## Refactor: quotes and invoices share their code
+
+Built on the `refactor` branch from `docs/changes/refactor/plan.md`, in eight small steps, with the 68 characterization tests run after each one. The characterization tests themselves came first, in `test_quote_invoice_figures.py`, `test_quote_invoice_numbers.py` and `test_quote_invoice_pdfs.py`, with each PDF's text recorded in `backend/tests/characterization/`.
+
+- **Lines and figures:** both areas save their lines with `write_lines()` and `same_lines()` in `company/lines.py`, carry them in their replies as one `Line`, and work out their figures with `document_figures()`, `subtotal()` and `on_subtotal()`. Each keeps its own rules for what a new line starts from, and its own messages, so a quote line still needs its quantity and price sent and an invoice line still starts from its product.
+- **The company on a document:** `Company`, `details_now()` and `company_in()` in `company/documents.py`, so sending a quote, declining a draft and issuing an invoice copy the same columns the same way.
+- **PDFs:** ReportLab for both, from `company/layout.py` and `company/pdf.py`, in the design, accent color and logo the settings have at the download. fpdf2, fontTools, `quotes/pdf.py` and `quotes/fonts/` are gone. A quote has its own words in the invoice's places: Quote, Date, Valid until, Prepared for, and Total in Banner's band, from `kinds` in `shared/document-designs.json`. A character the fonts lack is left out of a quote's PDF, as fpdf2 left it out before. Invoice PDFs are byte for byte what they were, checked after each step that touched them.
+- **The quote page's preview:** drawn by `company/DocumentDrawing.tsx` from `company/layout.ts`, as an invoice's is, so the preview and the PDF still match (Q31). The page reads the settings and the logo with the quote, and says so with Try again if they can't be read. Its form, buttons and saving are as they were.
+- **Moved and renamed:** the layout, drawing, fonts and character checks from `invoices/` to `company/` on both sides, and the shared files to `document-designs.json`, `document-fonts.json` and `document-layout-cases.json`, with three quote cases among the layout cases. `--color-paper-ink` and `--color-paper-band` went with the old quote sheet.
+
+What changed in the characterization tests, as agreed before the work began: the four quote records, taken again from the new output after checking each by hand, and in the file test the lines about the fonts, the title and the logo, with the test's name, which said "has no logo". One more line changed, beyond what was agreed: the sent-and-draft test builds the draft's expected text from the sent one by swapping in the old Draft chip, so it now swaps in the DRAFT mark under the title, with its comment. Two docstrings in `test_quote_invoice_pdfs.py` still mention fpdf2 and were left as they are. The other 63 tests, the figures and numbers files whole, didn't change.
+
+Tests written for the old look changed with it: `test_quote_pdf.py` now goes through the API, `QuoteDocument.test.tsx` became `QuotePreview.test.tsx`, `InvoicePreview.test.tsx` split into `DocumentDrawing.test.tsx` and `SampleInvoice.test.tsx`, and `e2e/quotes.spec.ts` reads the PDF's new text and checks the preview's white page in dark mode.
+
+`npm run check` passes: 6,237 tests in 8m 26s, of which 4,262 backend, 1,641 frontend, 317 end-to-end and 17 speed. A 100-line quote's preview updates in 14.1ms after a keystroke, where it took 15.3ms before, and its PDF downloads in 70ms, where fpdf2 took 216ms. One unit test took a second or more, `test_the_data_really_is_at_the_limits`, at 1.1s, as on the invoices merge, while another run on the computer was busy.
+
+Still to do by hand: a quote's PDF opened beside its preview in each of the three designs, with a logo and a dark and a light accent color, and printed once in black and white, as the invoices' designs were.
+
+## Refactor: merged with main
+
+`main`, with Money: one section, One story in the sample data and the review fixes in it, was merged into `refactor`. Five files conflicted, and in each the two sides had changed different things that sat side by side, so both are kept:
+
+- **`company/documents.py`:** only the imports. This branch added `Company`, `details_now()` and `company_in()`, and main added `Numbered` and the check of a new prefix against the numbers already taken (B6).
+- **`spec.md`, `architecture.md` and `testing.md`:** this branch's files moved to `company/`, `SampleInvoice.tsx`, `document-fonts.json`, the designs quotes share and the designs in Look and brand, with main's sides of the Money section, its sums past 2^53 cents, New invoice's dialog closing (F11) and the Draft chip's shape. `architecture.md`'s rule for `company/` names both `documents.py` taking each kind's numbered column from `main.py` and the files this branch added there.
+- **`STATUS.md`:** both sides' sections, main's first, since they reached `main` first.
+
+Outside the conflicts: main changed no file this branch moved, renamed or deleted, and nothing outside the change records still names an old path. Main's new sample lines don't reach the characterization tests, which add their own quotes and invoices. Git joined `invoices/schemas.py`, `App.tsx` and `invoices/pages/Invoice.tsx`, which both sides changed in different places, and each reads right: main's changes to them were the review's `CentsSum` and Draft chip, and this branch's the shared `Company`, `Line` and drawing.
+
+Left as it is: `frontend.md` and `architecture.md` still call the Money section's parts rows in two places, as on `main`, which main's own merge noted.
+
+`npm run check` passes: 6,274 tests in 9m 16s, of which 4,284 backend, 1,644 frontend, 329 end-to-end and 17 speed: this branch's tests with main's. One unit test took a second or more, `test_the_data_really_is_at_the_limits` at 1.1s, as before, while another run on the computer was busy.
+
 ## Cash flow: design
 
 On the `cash-flow` branch, `docs/spec.md` and the area files now describe Accountable with the cash flow in it, as it will be once the branch merges. The intent, with the owner's answers on the 15 months, days paid late and the opening balance's date, is in `docs/changes/cash-flow/intent.md`. One area file is new: `docs/specs/cash-flow.md`, with Y1 to Y22 and the screens of the cash flow's row and its month dialog, and `settings.md` gains B23 and B24 for the opening balance. No code has changed yet.
@@ -894,6 +980,26 @@ The review's two test coverage findings are still open: no test leaves the dashb
 `npm run check` passes after the fixes: 6,442 tests in 7m 00s, with 4,357 backend, 1,738 frontend, 328 end-to-end and 19 speed tests. The same four unit tests as before took a second or more while another run was busy, none from this branch.
 
 Still to come: `docs/IMPROVE.md`.
+
+### Merged with main
+
+`main`, with One story in the sample data, the review fixes and the refactor in it, was merged into `cash-flow`. Fourteen files conflicted, and in each both sides had added to the same lines, so both are kept:
+
+- **`main.py`:** each `Area` has its `cash`, from this branch, and its `numbered`, from main's fix to B6, and the app gets both lists.
+- **`company/router.py`:** a save checks a changed prefix against the numbers already taken, from main, and the opening balance (B23, B24), from this branch, so `_refuse_what_breaks_the_rules` takes the connection, today and the numbered columns.
+- **`api.py` and `bills/schemas.py`:** both branches had moved `CentsSum` to `api.py`. It keeps this branch's comment, which says a sum below zero has a minus sign, and bills use `api.CentsSum` directly, as on main.
+- **Tests:** `test_sample_data.py` reads the dashboard and the Money section, from main, and the cash flow, from this branch, on each seeding day. `main.test.tsx` stands in for both `/invoices/money` and `/cash-flow`, and finds Cash flow, Owed to us and What we owe in the Money section.
+- **Spec:** in `spec.md`, `settings.md`, `architecture.md`, `backend.md`, `frontend.md`, `invoices.md` and `testing.md`, main's quotes in the invoice designs, its shared code in `company/`, its B6 numbers, its sums of invoices as digits and its characterization tests sit with this branch's opening balance and cash flow. The index gives `settings.md` B1 to B24, and `deploy.md` main's W1 to W10. Both sides' sections here are kept, main's first, since they reached `main` first.
+
+Outside the conflicts:
+
+- **`Quote.test.tsx`**, new on main, has a settings fixture from before the opening balance, which tsc refused. It now has `opening_balance_cents` and `opening_balance_on` as null, as the other settings fixtures do.
+- **`cashflow/queries.ts`** had a type of its own for a sum sent as digits, and main added the same one to `lib/money.ts` as `CentsSum`. The cash flow now uses main's, whose comment now says a sum below zero has a minus sign. `frontend.md` says the cash flow's sums arrive that way, and that a chart's bars, lines and band read them as plain numbers, where main's line named only bars.
+- **The sample data:** main's changed the sample lines and no total or payment, so the cash flow's figures didn't move. On the six seeding days the lowest month's balance is still $14,287.57, so $40,000.00 stands (B12).
+
+Left as it is: the run instructions below still say the Documents panel sets how invoices look, where on main it now sets quotes' look too. Main's own merge left that line, and nothing on this branch touches it.
+
+`npm run check` passes: 6,548 tests in 8m 03s, of which 4,442 backend, 1,748 frontend, 339 end-to-end and 19 speed: this branch's tests with main's. One unit test took a second or more, `test_the_data_really_is_at_the_limits` at 1.2s, as before, while another run on the computer was busy.
 
 ## Running Accountable
 

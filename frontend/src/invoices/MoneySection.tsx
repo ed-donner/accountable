@@ -1,11 +1,16 @@
 import { MoneyColumn, MoneyEmpty, MoneyFigure, MonthsPanel, OwingPanel } from "../components/MoneySection";
-import { price } from "../lib/money";
+import { price, type CentsSum } from "../lib/money";
 import { plural } from "../lib/words";
 import { HowLate } from "./charts/HowLate";
 import { PaymentsChart } from "./charts/PaymentsChart";
 import { useMoney, type Money } from "./queries";
 
 const OVERDUE = "/invoices?status=overdue";
+
+/** A sum from the backend's digits, to the cent, however large (V29). */
+function exact(cents: CentsSum) {
+  return price(BigInt(cents));
+}
 
 function Owed({ money }: { money: Money }) {
   return (
@@ -15,12 +20,12 @@ function Owed({ money }: { money: Money }) {
         <>
           <MoneyFigure
             label="Owed to us"
-            amount={price(money.owed.cents)}
+            amount={exact(money.owed.cents)}
             count={plural(money.owed.count, "invoice")}
           />
           <MoneyFigure
             label="Overdue"
-            amount={price(money.overdue.cents)}
+            amount={exact(money.overdue.cents)}
             count={plural(money.overdue.count, "invoice")}
             to={OVERDUE}
           />
@@ -35,14 +40,14 @@ function Owed({ money }: { money: Money }) {
 
 function Received({ money }: { money: Money }) {
   const [previous, current] = money.payments.slice(-2);
-  const anyPaid = money.payments.some((month) => month.cents > 0);
+  const anyPaid = money.payments.some((month) => BigInt(month.cents) > 0n);
   return (
     <MonthsPanel
       label="Payments received"
       title="Payments received"
       months={[
-        { month: previous.month, amount: price(previous.cents) },
-        { month: current.month, amount: price(current.cents) },
+        { month: previous.month, amount: exact(previous.cents) },
+        { month: current.month, amount: exact(current.cents) },
       ]}
       testId="paid"
     >

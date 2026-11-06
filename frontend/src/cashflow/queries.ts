@@ -1,14 +1,8 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import type { CentsSum } from "../lib/money";
 import { useToday } from "../lib/useToday";
-
-/**
- * A sum or a balance in whole cents, as the backend sends it: digits, with a minus sign in
- * front below zero, such as "-425000". It can pass the 2^53 cents a JavaScript number holds
- * exactly, so it's read as a BigInt (Y20).
- */
-type Digits = string;
 
 export type MonthKind = "past" | "current" | "forecast";
 
@@ -17,26 +11,26 @@ export type MonthReply = {
   label: string;
   year: number;
   kind: MonthKind;
-  in_cents: Digits;
+  in_cents: CentsSum;
   in_count: number;
-  out_cents: Digits;
+  out_cents: CentsSum;
   out_count: number;
-  expected_in_cents: Digits;
+  expected_in_cents: CentsSum;
   expected_in_count: number;
-  expected_out_cents: Digits;
+  expected_out_cents: CentsSum;
   expected_out_count: number;
-  likely_cents: Digits;
+  likely_cents: CentsSum;
   likely_count: number;
-  balance_cents: Digits | null;
-  balance_with_deals_cents: Digits | null;
+  balance_cents: CentsSum | null;
+  balance_with_deals_cents: CentsSum | null;
 };
 
 export type CashFlowReply = {
   today: string;
-  opening: { balance_cents: Digits; on: string } | null;
-  cash_today: Digits | null;
-  forecast_end: Digits | null;
-  forecast_end_with_deals: Digits | null;
+  opening: { balance_cents: CentsSum; on: string } | null;
+  cash_today: CentsSum | null;
+  forecast_end: CentsSum | null;
+  forecast_end_with_deals: CentsSum | null;
   months: MonthReply[];
 };
 
@@ -72,9 +66,9 @@ export type CashFlow = {
   months: CashMonth[];
 };
 
-function exact(digits: Digits): bigint;
-function exact(digits: Digits | null): bigint | null;
-function exact(digits: Digits | null) {
+function exact(digits: CentsSum): bigint;
+function exact(digits: CentsSum | null): bigint | null;
+function exact(digits: CentsSum | null) {
   return digits === null ? null : BigInt(digits);
 }
 
@@ -130,11 +124,11 @@ export type ItemReply = {
   organization: string | null;
   due_on: string;
   expected_on: string;
-  cents: Digits;
+  cents: CentsSum;
   days_paid_late: number | null;
 };
 
-export type GroupReply = { total_cents: Digits; items: ItemReply[] };
+export type GroupReply = { total_cents: CentsSum; items: ItemReply[] };
 
 export type ExpectedReply = { month: string; coming_in: GroupReply; going_out: GroupReply; likely_deals: GroupReply };
 

@@ -530,3 +530,9 @@ def billing(api, make) -> Billing:
     )
     assert saved.status_code == 200, saved.text
     return Billing(api=api, organization=organization, contact=contact, deal=deal, products=products)
+
+
+@pytest.fixture
+def open_deal(billing, make) -> int:
+    """A deal in Proposal for Harbor & Pine, with Sam Carter as its main contact, which can take quotes."""
+    return make.deal("Renewal", stage="proposal", organization_id=billing.organization, main_contact_id=billing.contact)

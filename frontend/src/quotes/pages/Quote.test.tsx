@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { queryDefaults } from "../../lib/queryDefaults";
 import { holdSaves, mockApi, user, type Call } from "../../test-utils";
+import type { CompanySettings } from "../../company/settings";
 import type { QuoteDetail, QuoteRow } from "../queries";
 import { NewDraft, Quote } from "./Quote";
 
@@ -46,6 +47,26 @@ const DRAFT: QuoteDetail = {
 };
 
 const SENT: QuoteDetail = { ...DRAFT, status: "sent", sent_on: "2026-11-05" };
+
+/** How quotes look, which the preview takes from Company settings (Q31). */
+const SETTINGS: CompanySettings = {
+  company_name: "Plainsong Systems",
+  address: null,
+  email: null,
+  phone: null,
+  tax_label: "Sales tax",
+  tax_rate: "8.875",
+  payment_terms_days: 30,
+  quote_prefix: "QT-",
+  invoice_prefix: "INV-",
+  invoice_design: "classic",
+  accent_color: "#0E6B6B",
+  logo: null,
+  opening_balance_cents: null,
+  opening_balance_on: null,
+  updated_at: ADDED,
+  updated_by: ALEX,
+};
 
 function row(quote: QuoteDetail, changes: Partial<QuoteRow> = {}): QuoteRow {
   return {
@@ -102,6 +123,7 @@ function backend(quote: QuoteDetail, routes: Record<string, unknown> = {}) {
     [`GET /quotes/${quote.id}`]: () => ({ body: held }),
     [`GET /quotes?deal_id=${quote.deal.id}`]: [row(quote)],
     "GET /products": [],
+    "GET /settings": SETTINGS,
     [`PATCH /quotes/${quote.id}`]: (body: unknown) => {
       const sent = body as { lines: { quantity: number }[] };
       held = { ...held, lines: held.lines.map((line, index) => ({ ...line, quantity: sent.lines[index].quantity })) };
@@ -160,7 +182,7 @@ describe("each status's buttons", () => {
     await showQuote(DRAFT);
     expect(buttonNames()).toEqual(["Save quote", "Mark as sent", "Decline", "Copy to new draft", "Download PDF"]);
     expect(screen.getByLabelText("Valid until")).toBeTruthy();
-    expect(within(screen.getByRole("article", { name: "Preview" })).getByText("Draft")).toBeTruthy();
+    expect(within(screen.getByRole("article", { name: "Preview" })).getByText("DRAFT")).toBeTruthy();
   });
 
   it("are Accept, Decline, Copy to new draft and Download PDF on a sent quote, which has no form (Q21)", async () => {
@@ -463,6 +485,7 @@ describe("a new draft", () => {
   it("saves once, taking its number, and opens its page (Q9)", async () => {
     const calls = mockApi({
       "GET /quotes/new/12": START,
+      "GET /settings": SETTINGS,
       "GET /products": [],
       "POST /quotes": () => ({ status: 201, body: { ...DRAFT, lines: [] } }),
       "GET /quotes/4": { ...DRAFT, lines: [] },
@@ -492,6 +515,7 @@ describe("a new draft", () => {
     const product = { id: 1, name: "Standard license", description: null, unit_price_cents: 48000, active: true };
     const calls = mockApi({
       "GET /quotes/new/12": START,
+      "GET /settings": SETTINGS,
       "GET /products": [product],
       "POST /quotes": () => ({ status: 201, body: saved }),
       "GET /quotes/4": saved,
@@ -515,6 +539,22 @@ describe("a new draft", () => {
       valid_until: "2026-12-05",
       lines: [{ id: 31, description: null, quantity: 25, unit_price_cents: 48000 }],
     });
+  });
+
+  it("says so when Company settings can't be read, and reads them again on Try again", async () => {
+    let settingsReads = 0;
+    mockApi({
+      "GET /quotes/new/12": START,
+      "GET /products": [],
+      "GET /settings": () => {
+        settingsReads += 1;
+        return settingsReads === 1 ? { status: 500, body: { detail: "Down" } } : { body: SETTINGS };
+      },
+    });
+    show("/quotes/new?deal=12");
+    await user().click(await screen.findByRole("button", { name: "Try again" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "New quote" })).toBeTruthy();
+    expect(screen.getByRole("article", { name: "Preview" })).toBeTruthy();
   });
 
   it("says a closed deal can't take one, with a link to the deal (Q28)", async () => {

@@ -1,9 +1,9 @@
-"""The fonts invoices are set in, and shared/invoice-fonts.json, which both sides read: each
+"""The fonts invoices are set in, and shared/document-fonts.json, which both sides read: each
 font's advance widths, which every line break and every right edge is measured with, and the
 characters invoices can show (V9, V24, V28).
 
-The five TTF files in fonts/ are what the PDF carries. Run `uv run -m accountable.invoices.fonts`
-after changing one, to write the JSON again. test_invoice_fonts.py checks the JSON is what the
+The five TTF files in fonts/ are what the PDF carries. Run `uv run -m accountable.company.fonts`
+after changing one, to write the JSON again. test_document_fonts.py checks the JSON is what the
 files give, so neither can change alone.
 """
 
@@ -17,7 +17,7 @@ from reportlab.pdfbase.ttfonts import TTFontFile
 from accountable import db
 
 FOLDER = Path(__file__).parent / "fonts"
-DESCRIBED = db.ROOT / "shared" / "invoice-fonts.json"
+DESCRIBED = db.ROOT / "shared" / "document-fonts.json"
 
 # Each font as the designs name it, and its file.
 FILES = {

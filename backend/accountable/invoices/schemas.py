@@ -11,6 +11,8 @@ from pydantic import MISSING, AfterValidator, BaseModel, BeforeValidator, Field,
 
 from accountable import api
 from accountable.company import tax
+from accountable.company.documents import Company
+from accountable.company.lines import Line
 from accountable.invoices.figures import LateGroup, ShowsAs
 from accountable.users import Person
 from accountable.who import Authorship
@@ -161,23 +163,6 @@ class InvoiceRow(BaseModel):
     owed_cents: int
 
 
-class Company(BaseModel):
-    name: str | None
-    address: str | None
-    email: str | None
-    phone: str | None
-
-
-class Line(BaseModel):
-    id: int
-    product_id: int
-    name: str
-    description: str | None
-    quantity: int
-    unit_price_cents: int
-    amount_cents: int
-
-
 class Payment(BaseModel):
     id: int
     paid_on: date
@@ -208,7 +193,9 @@ class InvoiceDetail(InvoiceRow, Authorship):
 
 
 class Sum(BaseModel):
-    cents: int
+    """Invoices' totals are at most $2 trillion each, and 46 of them can pass 2**53 cents."""
+
+    cents: api.CentsSum
     count: int
 
 

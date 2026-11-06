@@ -33,8 +33,8 @@ import {
   type DraftValues,
 } from "../DraftForm";
 import { InvoiceChip } from "../InvoiceChip";
-import { InvoicePreview } from "../InvoicePreview";
-import type { InvoiceValues, Mark } from "../layout";
+import { DocumentDrawing } from "../../company/DocumentDrawing";
+import { look, type DocumentValues, type Mark } from "../../company/layout";
 import { PaymentForm } from "../PaymentForm";
 import {
   useDeleteDraft,
@@ -50,23 +50,15 @@ import { methodLabel } from "../status";
 
 const MARKS: Partial<Record<InvoiceDetail["shows_as"], Mark>> = { paid: "paid", overdue: "overdue", void: "void" };
 
-/** How it looks, from Company settings as they are now, issued or not (V13). */
-function look(settings: CompanySettings) {
+function issuedValues(invoice: InvoiceDetail, settings: CompanySettings): DocumentValues {
   return {
-    design: settings.invoice_design,
-    accent: settings.accent_color,
-    logo: settings.logo && { width: settings.logo.width, height: settings.logo.height },
-  };
-}
-
-function issuedValues(invoice: InvoiceDetail, settings: CompanySettings): InvoiceValues {
-  return {
+    kind: "invoice",
     ...look(settings),
     company: invoice.company,
     number: invoice.number,
-    issue_date: invoice.issue_date!,
-    due_date: invoice.due_date!,
-    bill_to: invoice.bill_to,
+    date: invoice.issue_date!,
+    end_date: invoice.due_date!,
+    recipient: invoice.bill_to,
     lines: invoice.lines,
     subtotal_cents: invoice.subtotal_cents,
     tax_cents: invoice.tax_cents,
@@ -82,19 +74,20 @@ function issuedValues(invoice: InvoiceDetail, settings: CompanySettings): Invoic
 function draftValues(invoice: InvoiceDetail, settings: CompanySettings, values: DraftValues, today: string) {
   const lines = typedLines(values.lines).map((line) => ({ ...line, description: line.description.trim() || null }));
   return {
+    kind: "invoice",
     ...look(settings),
     company: invoice.company,
     number: null,
-    issue_date: today,
-    due_date: format(addDays(parseISO(today), settings.payment_terms_days), "yyyy-MM-dd"),
-    bill_to: values.bill_to.trim() || null,
+    date: today,
+    end_date: format(addDays(parseISO(today), settings.payment_terms_days), "yyyy-MM-dd"),
+    recipient: values.bill_to.trim() || null,
     lines,
     ...totals(lines, invoice.tax_rate),
     paid_cents: 0,
     tax_label: invoice.tax_label,
     tax_rate: invoice.tax_rate,
     mark: "draft",
-  } satisfies InvoiceValues;
+  } satisfies DocumentValues;
 }
 
 /** An invoice's page (V19): its address can't be an invoice, or names one that no longer exists, says so (N4). */
@@ -313,7 +306,7 @@ function DraftPage({ invoice, settings, logoUrl, refetch, notice }: Shown) {
   return (
     <FormProvider {...form}>
       <PageHeader title="Draft invoice">
-        <InvoiceChip shows="draft" />
+        <InvoiceChip shows="draft" onPage />
         <div className="ml-auto flex flex-none gap-2">
           <button type="button" className="btn btn-secondary bg-panel" onClick={() => setAsking("delete")}>
             <Trash2 size={15} aria-hidden="true" />
@@ -339,7 +332,7 @@ function DraftPage({ invoice, settings, logoUrl, refetch, notice }: Shown) {
               </div>
             </>
           }
-          preview={<InvoicePreview invoice={preview} logoUrl={logoUrl} />}
+          preview={<DocumentDrawing values={preview} logoUrl={logoUrl} />}
         />
       </form>
       <LeaveGuard dirty={form.formState.isDirty} leaving={leaving} />
@@ -407,7 +400,7 @@ function IssuedPage({ invoice, settings, logoUrl, notice }: Shown) {
   return (
     <>
       <PageHeader title={invoice.number!}>
-        <InvoiceChip shows={invoice.shows_as} />
+        <InvoiceChip shows={invoice.shows_as} onPage />
         <div className="ml-auto flex flex-none gap-2">
           {voidable && (
             <button type="button" className="btn btn-secondary bg-panel" onClick={() => setDialog("void")}>
@@ -428,7 +421,7 @@ function IssuedPage({ invoice, settings, logoUrl, notice }: Shown) {
             <Payments invoice={invoice} onRecord={() => setDialog("pay")} onDelete={setDialog} />
           </>
         }
-        preview={<InvoicePreview invoice={preview} logoUrl={logoUrl} />}
+        preview={<DocumentDrawing values={preview} logoUrl={logoUrl} />}
       />
       {dialog === "pay" && <PaymentForm invoice={invoice} onClose={() => setDialog(null)} />}
       {dialog === "void" && (

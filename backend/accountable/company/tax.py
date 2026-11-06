@@ -63,8 +63,16 @@ def tax_on(subtotal_cents: int, rate: int) -> int:
     return (subtotal_cents * rate + _ALL // 2) // _ALL
 
 
+def subtotal(lines: Iterable[Line]) -> int:
+    return sum(line_amount(line.quantity, line.unit_price_cents) for line in lines)
+
+
+def on_subtotal(subtotal_cents: int, rate: int) -> Totals:
+    """The tax and the total on a subtotal, as a list works them out from a saved subtotal."""
+    tax = tax_on(subtotal_cents, rate)
+    return Totals(subtotal_cents=subtotal_cents, tax_cents=tax, total_cents=subtotal_cents + tax)
+
+
 def totals(lines: Iterable[Line], rate: int) -> Totals:
     """Tax once, on the subtotal, never line by line, where each line's rounding would add up."""
-    subtotal = sum(line_amount(line.quantity, line.unit_price_cents) for line in lines)
-    tax = tax_on(subtotal, rate)
-    return Totals(subtotal_cents=subtotal, tax_cents=tax, total_cents=subtotal + tax)
+    return on_subtotal(subtotal(lines), rate)

@@ -280,14 +280,21 @@ test("the sample data fills every part", async ({ page, request }) => {
     page.getByRole("region", { name: "Invoices" }).getByRole("link", { name: issued.number! }),
   ).toBeVisible();
 
+  // Its sums come as digits, because they can pass what a JavaScript number holds exactly.
   const money = await (await request.get(`${API}/invoices/money`)).json();
-  expect(money.owed.cents).toBeGreaterThan(0);
-  expect(money.groups.map((group: { cents: number }) => group.cents > 0)).toEqual([true, true, true, true, true]);
+  expect(Number(money.owed.cents)).toBeGreaterThan(0);
+  expect(money.groups.map((group: { cents: string }) => Number(group.cents) > 0)).toEqual([
+    true,
+    true,
+    true,
+    true,
+    true,
+  ]);
   expect(money.payments).toHaveLength(12);
-  expect(money.payments.every((month: { cents: number }) => month.cents > 0)).toBe(true);
+  expect(money.payments.every((month: { cents: string }) => Number(month.cents) > 0)).toBe(true);
   await page.goto("/");
   const owed = page.getByRole("region", { name: "Owed to us" });
-  await expect(owed).toContainText(dollars(money.owed.cents));
+  await expect(owed).toContainText(dollars(Number(money.owed.cents)));
   await expect(owed.getByRole("list", { name: "How late" }).getByRole("listitem")).toHaveCount(5);
   await expect(page.getByRole("region", { name: "Payments received" }).locator(".recharts-bar-rectangle")).toHaveCount(
     12,

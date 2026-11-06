@@ -282,6 +282,35 @@ test("every control can be reached by Tab and shows a focus ring", async ({ page
   expect([...bills].some((name) => name.startsWith("BUTTON Mark paid bill "))).toBe(true);
 });
 
+/** Whether a chip's color differs from the surface behind it, the nearest one that has a color, so its shape shows. */
+function standsOut(chip: Locator) {
+  return chip.evaluate((element) => {
+    const colorOf = (node: Element) => getComputedStyle(node).backgroundColor;
+    let surface = element.parentElement;
+    while (surface && colorOf(surface) === "rgba(0, 0, 0, 0)") surface = surface.parentElement;
+    return colorOf(element) !== (surface ? colorOf(surface) : "none");
+  });
+}
+
+test("a Draft chip keeps its shape beside a page's title and on a hovered row", async ({ page, request }) => {
+  const quotes: { id: number; status: string }[] = await (await request.get("/api/quotes")).json();
+  const [draftInvoice] = await invoicePaths(request);
+  for (const path of [`/quotes/${quotes.find((quote) => quote.status === "draft")!.id}`, draftInvoice]) {
+    await page.goto(path);
+    const chip = page.getByRole("main").getByText("Draft", { exact: true }).first();
+    await expect.poll(() => standsOut(chip), path).toBe(true);
+  }
+  for (const path of ["/quotes?status=draft", "/invoices?status=draft"]) {
+    await page.goto(path);
+    const row = page.getByRole("row").nth(1);
+    await row.hover();
+    const headings = await page.getByRole("columnheader").allTextContents();
+    const status = headings.findIndex((heading) => heading.startsWith("Status"));
+    const chip = row.getByRole("cell").nth(status).getByText("Draft", { exact: true });
+    await expect.poll(() => standsOut(chip), path).toBe(true);
+  }
+});
+
 test("a draft quote's form can be tabbed through, with a focus ring on each control", async ({ page, request }) => {
   const draft = await addDraft(request, "Tabbed");
   await page.goto(`/quotes/${draft.id}`);

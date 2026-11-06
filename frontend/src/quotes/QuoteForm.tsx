@@ -19,7 +19,7 @@ import { LoadFailed } from "../components/LoadFailed";
 import { parsePrice, price, priceText } from "../lib/money";
 import { useProducts, type Product } from "../products/queries";
 import type { Company, PreparedFor, QuoteLine, QuoteRequest } from "./queries";
-import { QuoteDocument, type DocumentLine } from "./QuoteDocument";
+import { QuotePreview, type PreviewLine, type QuoteLook } from "./QuotePreview";
 
 const MAX_LINES = 100;
 const LINES_MESSAGE = `Keep the quote to ${MAX_LINES} lines or fewer`;
@@ -434,6 +434,7 @@ function AddProduct({ onAdd }: { onAdd: (product: Product) => void }) {
 
 type PreviewProps = {
   control: Control<QuoteValues>;
+  look: QuoteLook;
   number: string | null;
   quoteDate: string;
   company: Company;
@@ -446,13 +447,10 @@ type PreviewProps = {
 export function LivePreview({ control, ...quote }: PreviewProps) {
   const [lines, validUntil] = useWatch({ control, name: ["lines", "valid_until"] });
   const typed = typedLines(lines);
-  const shown: DocumentLine[] = lines.map((line, index) => ({
-    key: line.key,
+  const shown: PreviewLine[] = lines.map((line, index) => ({
     name: line.name,
     description: line.description.trim() ? line.description : null,
     ...typed[index],
   }));
-  return (
-    <QuoteDocument {...quote} draft validUntil={validUntil} lines={shown} figures={totals(typed, quote.taxRate)} />
-  );
+  return <QuotePreview {...quote} draft validUntil={validUntil} lines={shown} figures={totals(typed, quote.taxRate)} />;
 }

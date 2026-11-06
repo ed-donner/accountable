@@ -31,6 +31,11 @@ function preview(page: Page) {
   return page.getByRole("article", { name: "Preview" });
 }
 
+/** The preview's words, each drawn piece of text joined to the next by a space, as a PDF's text reads back. */
+async function previewText(page: Page) {
+  return squashed((await preview(page).locator("text").allTextContents()).join(" "));
+}
+
 function dialog(page: Page) {
   return page.getByRole("alertdialog");
 }
@@ -98,7 +103,7 @@ test("a quote with three lines adds up the same in the form, the preview, the ta
   const sums = ["Subtotal $7,008.50", "Sales tax (8.875%) $622.00", "Total $7,630.50"];
   await expect(page.locator("form#quote-form")).toContainText("$5,760.00");
   await expect(preview(page)).toContainText("$1,100.00");
-  for (const sum of sums) await expect.poll(async () => squashed(await preview(page).innerText())).toContain(sum);
+  for (const sum of sums) await expect.poll(() => previewText(page)).toContain(sum);
 
   const saved = page.waitForResponse(
     (reply) => reply.url().endsWith(`${API}/quotes`) && reply.request().method() === "POST",
@@ -111,7 +116,10 @@ test("a quote with three lines adds up the same in the form, the preview, the ta
 
   const pdf = await download(page, testInfo);
   for (const sum of sums) expect(pdf.text).toContain(sum);
-  expect(pdf.text).toContain(`${LICENSE} 12 $480.00 $5,760.00`);
+  // The line's description, taken from the product, sits between its name and its figures.
+  expect(pdf.text).toContain(LICENSE);
+  expect(pdf.text).toContain("12 $480.00 $5,760.00");
+  expect(pdf.text).toContain("DRAFT");
 
   await page.goto("/quotes");
   const row = page.getByRole("row", { name: new RegExp(`^${quote.number}`) });
@@ -221,11 +229,11 @@ test("the PDF downloads named after its number, with the company, Prepared for a
     "Plainsong Systems 48 Orchard Row, Suite 210 Brooklyn, NY 11201 accounts@plainsong.example (718) 555-0142",
     "Prepared for Redwood Print Peter Novak",
     `${TRAINING} 2 $1,250.00 $2,500.00`,
-    `${quote.number} Page 1 of 1`,
+    `${quote.number}, page 1 of 1`,
   ]) {
     expect(pdf.text).toContain(part);
   }
-  expect(pdf.text).not.toContain("Draft");
+  expect(pdf.text).not.toContain("DRAFT");
 });
 
 test("the sample quotes fill the Quotes section, the deals and the organizations", async ({ page, request }) => {
@@ -300,7 +308,7 @@ test("a deal with quotes can't be deleted", async ({ page, request }) => {
   await expect(dialog(page).getByRole("button")).toHaveText(["Close"]);
 });
 
-test("a quote's number is in JetBrains Mono in a panel, and in dark mode the preview keeps the paper's colors, its scrollbar included", async ({
+test("a quote's number is in JetBrains Mono in a panel, and in dark mode the preview keeps its white page and the paper's scrollbar", async ({
   page,
   request,
 }) => {
@@ -312,7 +320,8 @@ test("a quote's number is in JetBrains Mono in a panel, and in dark mode the pre
 
   await first.click();
   await expect(preview(page)).toBeVisible();
-  await expect(preview(page)).toHaveCSS("background-color", "rgb(255, 255, 255)");
-  await expect(preview(page)).toHaveCSS("color", "rgb(7, 59, 76)");
+  // The layout draws the page itself, white as the PDF's, whatever the mode.
+  await expect(preview(page).locator("svg > rect").first()).toHaveAttribute("fill", "#FFFFFF");
+  await expect(page.getByTestId("preview-scroll")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(page.getByTestId("preview-scroll")).toHaveCSS("scrollbar-color", "rgb(74, 107, 118) rgb(255, 255, 255)");
 });

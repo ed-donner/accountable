@@ -88,8 +88,8 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ### The PDF
 
-- **Q30.** Download PDF, on every quote's page, downloads the quote as a PDF named after its number, such as `QT-0004.pdf`. The backend makes it at that moment, from the quote as saved, so on a draft with changes not yet saved it saves them first. It shows the company's name, address, email and phone as they were fixed when the quote was sent, or when it was declined as a draft, so a later change to the company settings never changes a quote a customer has. A draft shows them as the company settings have them at that moment ([B1](settings.md#company-settings)). The tax follows Q17 the same way. A draft's PDF is marked Draft, and no other status is marked. A draft's Download PDF is refused with "Add the company's name in Company settings first." while no company name is saved (B14). A sent quote always has one, because sending needs it (Q20).
-- **Q31.** The PDF looks like the preview: the same layout, fonts, colors, words and figures, drawn from the same reply ([Quote document](#quote-document)). It's US Letter, with as many pages as the lines need, the lines' column headings repeated at the top of each page, and each page numbered. The fonts are embedded, so it looks the same on any computer. They hold the Latin alphabets, accents included, and a character they don't have, such as Chinese or an emoji, is left blank on the PDF, with the rest of its text as typed.
+- **Q30.** Download PDF, on every quote's page, downloads the quote as a PDF named after its number, such as `QT-0004.pdf`. The backend makes it at that moment, from the quote as saved, so on a draft with changes not yet saved it saves them first. It shows the company's name, address, email and phone as they were fixed when the quote was sent, or when it was declined as a draft, so a later change to the company settings never changes a quote a customer has. A draft shows them as the company settings have them at that moment ([B1](settings.md#company-settings)). The tax follows Q17 the same way. Its look is the design, accent color and logo Company settings have at that moment, as an invoice's is ([B18](settings.md#documents), V24), whatever the quote's status. A draft's PDF is marked DRAFT, and no other status is marked. A draft's Download PDF is refused with "Add the company's name in Company settings first." while no company name is saved (B14). A sent quote always has one, because sending needs it (Q20).
+- **Q31.** The PDF looks like the preview: the same design, words and figures, with the lines broken and the pages turned at the same places, because both are laid out by the layout invoices use, from the same reply ([Quote document](#quote-document)). It's US Letter, with as many pages as the lines need, the lines' column headings repeated at the top of each page, and each page numbered. The fonts are embedded, so it looks the same on any computer. They hold the Latin alphabets, accents included, and a character they don't have, such as Chinese or an emoji, is left blank on the PDF, with the rest of its text as typed.
 - **Q32.** Everything on the PDF that someone typed, such as a line's description, the company's address or a deal's organization name, appears as plain text, exactly as typed, never read as markup or formatting. So `<b>Rush</b>` shows as those characters, and line breaks are kept.
 
 ### The Quotes section
@@ -143,45 +143,25 @@ Copy to new draft shows only while the deal is open (Q25). A new draft has Save 
 Below, two columns of panels on the page background, as on the record pages:
 
 - **Left, 480px:** the details panel: Date, then Valid until on any quote but a draft, whose form has it, then Sent, Accepted or Declined, as each applies, with R6's lines at its foot in muted ink. On a draft, the form follows in its own panel: Valid until, as a date box, then "Lines" as a section heading, then each line in turn, then Add product. Each line shows its name in semibold, its description box, two lines tall and growing as lines are typed, then Quantity, a short box, Unit price, with `$` at its start and its figures in JetBrains Mono, and the line's amount in JetBrains Mono, with an icon button at the end to remove it, labeled for screen readers such as "Remove Pro license". Lines are separated by space, not lines. Add product opens a searchable list, built with `cmdk` and Radix Popover like the record pickers, with each product's price in JetBrains Mono in muted ink.
-- **Right, the rest of the width:** the preview, which is the [Quote document](#quote-document) at the column's width. It stays in view while the form scrolls, and scrolls by itself if it's taller than the window, with its scrollbar in the paper colors, paper muted ink on paper, in dark mode too.
+- **Right, the rest of the width:** the preview, which is the [Quote document](#quote-document) at the column's width, its pages one under another with 24px between, as an invoice's preview has them. It stays in view while the form scrolls, and scrolls by itself if it's taller than the window, on paper with its scrollbar in paper muted ink, in dark mode too. The page reads the company settings with the quote, for the look, and if they can't be read it says so with Try again, as for the quote itself (N6).
 
 Enter in a one-line box saves, and in a description box it starts a new line. The dialogs for Mark as sent, Accept, Decline and the deal picker are the app's usual dialogs, and their main buttons read Mark as sent, Accept quote, Decline quote and Continue. Decline isn't a Delete, so its button isn't Raspberry. At 1280 by 720, the title, buttons and first line fit without scrolling.
 
 ### Quote document
 
-The preview and the PDF are one design, set out here once. Its colors are the paper tokens: paper, paper ink, paper muted ink and the paper band, so ink and muted ink here mean paper ink and paper muted ink. Sizes are in points on the PDF, and the preview draws the sheet at those sizes, scaled to its column. It's always in the paper colors, white with Midnight ink, in dark mode too ([Color tokens](visual-design.md#color-tokens)), because it shows the paper the customer gets. The PDF's colors are the same values. On screen the sheet has the panels' 16px radius, and the PDF's page is square.
+The preview and the PDF draw a quote in the invoice designs ([V26 to V28](invoices.md#designs)): whichever of Classic, Banner and Ledger Company settings have, in their accent color and with their logo, as they are when the page shows the quote or the PDF is made ([B18](settings.md#documents)). A quote sent months ago takes the look the settings have now, as an issued invoice does, while its words and figures stay as they were fixed (Q30). Everything V26 to V28 says of an invoice's page holds for a quote's: the blocks and where they sit, the fonts, the colors, the logo, the lines' headings, Description, Qty, Unit price and Amount, rows kept whole or carried on when taller than a page, and the totals kept together after the last line.
 
-```
-+-------------------------------------------------------------------------+
-| Plainsong Systems                             Quote  (Draft)            |
-| 48 Orchard Row, Suite 210                     Number            QT-0004 |
-| Brooklyn, NY 11201                            Date          Nov 5, 2026 |
-| accounts@plainsong.example                    Valid until   Dec 5, 2026 |
-| (718) 555-0142                                                          |
-|                                                                         |
-| Prepared for                                                            |
-| Harbor & Pine                                                           |
-| Sam Carter                                                              |
-| sam.carter@harborpine.example                                           |
-|                                                                         |
-| [ Item                                  Qty    Unit price      Amount ] |
-|   Pro license                            12       $480.00   $5,760.00   |
-|   Annual license, per seat                                              |
-|   Training day                            2     $1,250.00   $2,500.00   |
-|                                                                         |
-|                                         Subtotal            $8,260.00   |
-|                                         Sales tax (8.875%)    $733.08   |
-|                                     [ Total               $8,993.08 ]   |
-|                                                                         |
-| QT-0004                                                     Page 1 of 1 |
-+-------------------------------------------------------------------------+
-```
+A quote has its own words in the invoice's places:
 
-- **Page:** US Letter, 612 by 792 points, with margins of 54 points, white.
-- **Company, top left:** the company's details as Q30 says: the name in Instrument Sans semibold at 18 points, then the address over its lines, the email and the phone, each at 9 points in muted ink. Blank ones are left out.
-- **Quote, top right:** "Quote" in Instrument Sans semibold at 24 points. A draft has a Draft chip after it, in the quiet tone, on the paper band with paper muted ink. Below come Number, Date and Valid until, each a label at 9 points semibold in muted ink, with its value beside it at 10 points in JetBrains Mono, lined up on the right. A new draft has no number until it's saved (Q9), so its preview leaves Number out.
-- **Prepared for:** the label at 9 points semibold in muted ink, then the organization at 11 points semibold, then the contact's name and email at 10 points.
-- **Lines:** the column headings Item, Qty, Unit price and Amount at 9 points semibold in muted ink, on the paper band with a 6-point radius. Each line has its name at 10 points semibold, its description under it at 9 points in muted ink with its line breaks kept, and its quantity, unit price and amount at 9.5 points in JetBrains Mono, lined up on the right. Lines are separated by space, not lines. Long descriptions wrap within the Item column. Qty, Unit price and Amount are each as wide as their widest figure, counted in characters, which JetBrains Mono makes all the same width, and at least as wide as their headings, and Item takes the rest, so the preview and the PDF size them alike.
-- **Totals, at the right under the lines:** Subtotal and the tax, labeled as Q17 says, at 10 points, then Total on a Sea Green block with a 6-point radius and Midnight text, its label at 11 points semibold and its amount at 12 points in JetBrains Mono. Amounts line up with the Amount column.
-- **Foot of each page:** the quote's number on the left and "Page 1 of 2" on the right, at 8 points in muted ink. The preview is one sheet, so its foot has the number alone.
-- **Pages:** the preview is one sheet that grows with the lines. The PDF starts a new page when the next line won't fit, never splitting a line across two pages, and repeats the column headings at the top of the next. A line too long for a page of its own, which only a description of many lines could make, carries on over the next page rather than being cut off. The totals stay together, on the last page.
+| On an invoice | On a quote |
+|---|---|
+| Invoice, the title | Quote |
+| Issued and Due, with their dates | Date and Valid until, with theirs |
+| Bill to, over the Bill to typed on the draft | Prepared for, over the organization, the contact and their email, each on its own line, with any blank left out (Q18) |
+| Balance due, in Banner's band | Total, with the quote's total |
+
+- **Prepared for** is left out, heading and all, when there's nobody to prepare the quote for, where a draft invoice keeps its Bill to heading over an empty box.
+- **Marks:** a draft is marked DRAFT under its title, in the muted ink, as a draft invoice is, and no other status has a mark (Q30). A new draft has "Draft" where its number goes until it's first saved (Q9).
+- **Totals:** Subtotal, the tax labeled as Q17 says, and Total. A quote has no Paid or Balance due.
+- **Foot of each page:** the number and the page, such as "QT-0004, page 1 of 2".
+- **Pages:** the preview shows every page the PDF has, one under another, scaled to the column. Its pages are white, with the designs' own colors, in dark mode too ([Color tokens](visual-design.md#color-tokens)), because they show the paper the customer gets.

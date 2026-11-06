@@ -24,17 +24,10 @@ FIELD_MESSAGES = {
     "probability": "Enter a whole number from 0 to 100",
     "close_date": "Choose a close date",
     "type": "Choose a type",
-    "description": "Enter a description",
+    "description": api.DESCRIPTION_MESSAGE,
     "occurred_at": "Choose when it happened",
     "follow_up_date": "Enter a valid date",
 }
-
-
-def _description(value: str) -> str:
-    value = value.strip()
-    if not value:
-        raise ValueError(FIELD_MESSAGES["description"])
-    return value
 
 
 def _to_utc(value: datetime) -> datetime:
@@ -47,7 +40,6 @@ def _to_utc(value: datetime) -> datetime:
         raise ValueError(FIELD_MESSAGES["occurred_at"]) from error
 
 
-Description = Annotated[str, AfterValidator(_description)]
 Probability = Annotated[StrictInt, Field(ge=0, le=100)]
 IncomingTime = Annotated[datetime, AfterValidator(_to_utc)]
 
@@ -227,7 +219,7 @@ class ActivityCreate(api.Request):
     type: ActivityType = "note"
     contact_id: api.Id | None = None
     deal_id: api.Id | None = None
-    description: Description
+    description: api.Description
     occurred_at: IncomingTime | None = None
     follow_up_date: date | None = None
     follow_up_done: StrictBool = False
@@ -235,7 +227,7 @@ class ActivityCreate(api.Request):
 
 class ActivityUpdate(api.Request):
     type: ActivityType | MISSING = MISSING
-    description: Description | MISSING = MISSING
+    description: api.Description | MISSING = MISSING
     occurred_at: IncomingTime | MISSING = MISSING
     follow_up_date: date | None = None
     follow_up_done: StrictBool | MISSING = MISSING

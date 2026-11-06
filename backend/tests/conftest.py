@@ -38,6 +38,8 @@ NOW = datetime(2026, 10, 31, 15, 0, 0)
 # The shared app's settings. Any one of them would point the tests, the ones that wipe
 # tables included, at the team's data, or stop the backend for want of the others (C9).
 SHARED_APP_SETTINGS = ("DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY")
+# The Copilot's key, with which a test could call a real model on the team's account (Z19).
+MODEL_KEY = "OPENROUTER_API_KEY"
 
 
 def _check_database_path() -> None:
@@ -46,6 +48,12 @@ def _check_database_path() -> None:
         pytest.exit(
             f"Refusing to run with {', '.join(shared)} set: the tests must never reach the shared app's data. "
             "Run them with npm test, which leaves the shared app's settings out.",
+            returncode=2,
+        )
+    if os.environ.get(MODEL_KEY, "").strip():
+        pytest.exit(
+            f"Refusing to run with {MODEL_KEY} set: the tests must never call a real model. "
+            "Run them with npm test, which leaves the Copilot's settings out.",
             returncode=2,
         )
     path = os.environ.get("ACCOUNTABLE_DB")

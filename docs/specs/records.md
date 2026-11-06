@@ -46,6 +46,8 @@ So a contact can't be added before their organization exists, and a deal can't b
 - **F11.** A form that can't read the lists it needs closes and says so, rather than opening with an empty picker.
 - **F12.** The activity form's When box holds minutes. Leaving it untouched keeps the activity's exact time.
 
+The Copilot adds and edits organizations, contacts, deals and activities through the same routes as these forms, so every rule here holds for it too, and a refusal reaches it in the same words ([Z11](copilot.md#what-it-can-change)). Its arguments use the API's own field types, so a value F2 or F6 refuses on its own is refused before any change card, and the rules that need the records, such as F5's and F7's, come back from the route when the change runs.
+
 ## Deleting
 
 - **D1.** Delete always asks first, in a dialog that names the record, gives the real counts and says it can't be undone. An activity is named by its description. If the counts can't be read, the dialog says so and won't delete.
@@ -75,7 +77,7 @@ So a contact can't be added before their organization exists, and a deal can't b
 
 ### Tables
 
-A page title with the Add button beside it, then the search box, then the table on a panel. Rows are separated by space and a hover tint, not lines. Row height is 44px. Edit and Delete are icon buttons at the end of each row, always visible, with labels for screen readers.
+A page title with the Add button beside it, then the search box, then the table on a panel. Rows are separated by space and a hover tint, not lines. Row height is 44px. Edit and Delete are icon buttons at the end of each row, always visible, with labels for screen readers. A table, with its search box and filters, is never laid out narrower than at 1280px wide, since its fixed-width columns would squeeze the others to nothing. So beside the Copilot's panel, on a window narrower than about 1685px, it scrolls sideways in the page's area ([N8](shell.md#app-shell)). This holds for every table built on `DataTable`: organizations, contacts, deals, products, quotes, invoices and bills.
 
 ### Record pages
 

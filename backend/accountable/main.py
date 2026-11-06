@@ -37,6 +37,8 @@ from accountable.cashflow import schemas as cashflow_schemas
 from accountable.company import router as company_settings
 from accountable.company import schemas as company_schemas
 from accountable.company.documents import Numbered
+from accountable.copilot import router as copilot_router
+from accountable.copilot import schemas as copilot_schemas
 from accountable.crm import cash as crm_cash
 from accountable.crm import schemas as crm_schemas
 from accountable.crm import search as crm_search
@@ -127,6 +129,8 @@ AREAS = [
     Area(routers=[books_router.router], messages=books_schemas.FIELD_MESSAGES),
     # Aged balances keep no records and read the invoices and bills. They hold nothing, and give no search kinds or cash.
     Area(routers=[aging_router.router], messages=aging_schemas.FIELD_MESSAGES),
+    # The Copilot keeps no records, and reaches every other area through its routes, as the person who asked.
+    Area(routers=[copilot_router.router], messages=copilot_schemas.FIELD_MESSAGES),
 ]
 
 

@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Stage changes
 
-- **S1.** These rules apply however a stage changes: on the board, in the deal form, by accepting a quote ([Q22](quotes.md#accepting-and-declining)), or anywhere else. Accepting a quote also sets the deal's value to the quote's, in whole dollars.
+- **S1.** These rules apply however a stage changes: on the board, in the deal form, by accepting a quote ([Q22](quotes.md#accepting-and-declining)), through the Copilot ([Z11](copilot.md#what-it-can-change)), or anywhere else. Accepting a quote also sets the deal's value to the quote's, in whole dollars.
 
 | Move | Probability | Close date | Main contact | Timeline |
 |---|---|---|---|---|
@@ -58,6 +58,6 @@ Pipeline                      Open pipeline $1,240,000   Expected revenue $369,5
 +-----------+ +-----------+
 ```
 
-Each column is headed by a solid block in its stage color, using the text color from the [stage table](visual-design.md#stage-chip-and-chart-colors). The block holds the stage name and deal count, the total value, the expected revenue for open stages, and Add deal. It stays put while the cards below it scroll, and the page header stays put too.
+Each column is headed by a solid block in its stage color, using the text color from the [stage table](visual-design.md#stage-chip-and-chart-colors). The block holds the stage name and deal count, the total value, the expected revenue for open stages, and Add deal. It stays put while the cards below it scroll, and the page header stays put too. The six columns share the board's width, 8px apart, each at least 180px, which they keep at 1280px even with a 15px scrollbar. Beside the Copilot's panel there's less room ([N8](shell.md#app-shell)), so the board scrolls sideways by itself, under the page header, which stays put with the totals in view. The board's 20px edges are margins, so a column that scrolls past one is cut off 20px from the panel, as at the window's left.
 
 Cards are in the panel color on the page background and lead with their value, so the money is the first thing read down a column. A dragged card lifts with a soft shadow, the only shadow on the board. Card text is cut off with an ellipsis if it doesn't fit, with the full text in the browser's own tooltip, because a component on each of 500 cards would slow dragging.

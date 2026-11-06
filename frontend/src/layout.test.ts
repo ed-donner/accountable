@@ -74,7 +74,7 @@ function appCode() {
 
 describe("the layout rules", () => {
   it("find every area", () => {
-    expect(AREAS).toEqual(["aging", "bills", "books", "cashflow", "crm", "invoices", "products", "quotes"]);
+    expect(AREAS).toEqual(["aging", "bills", "books", "cashflow", "copilot", "crm", "invoices", "products", "quotes"]);
   });
 
   it("read where each import leads", () => {
@@ -166,6 +166,16 @@ describe("the cash flow", () => {
       .flatMap((file) => imported(file).map((target) => ({ file, target })));
     expect(importing.some(({ target }) => target.startsWith("cashflow/"))).toBe(true); // Looking in the right place.
     expect(importing.filter(({ target }) => ![undefined, "cashflow"].includes(areaOf(target)))).toEqual([]);
+  });
+});
+
+describe("the Copilot", () => {
+  it("imports no other area, reaching the records only through the API", () => {
+    const own = appCode().filter((file) => areaOf(file) === "copilot");
+    expect(own).toContain("copilot/queries.ts"); // The check is looking in the right place.
+    const importing = own.flatMap((file) => imported(file));
+    expect(importing).toContain("lib/api.ts");
+    expect(importing.filter((target) => ![undefined, "copilot"].includes(areaOf(target)))).toEqual([]);
   });
 });
 

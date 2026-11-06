@@ -53,8 +53,29 @@
   --radius-card: 10px;
   --radius-control: 8px;
 
+  /* A page's width at 1280px, the narrowest window the app is built for (N1), less a 15px scrollbar. A page
+     whose layout can't narrow further, such as a table, keeps it beside the Copilot's panel and scrolls
+     sideways (min-w-page). */
+  --container-page: 1265px;
+
   --animate-fade-in: fade-in 120ms ease-out;
   --animate-settle: settle 220ms ease-out;
+  /* The Copilot's panel, in step with the page making room for it (the shell's main). Forwards keeps it
+     out of sight until it's taken out of the page. */
+  --animate-slide-in: slide-in 200ms ease-out;
+  --animate-slide-out: slide-out 200ms ease-in forwards;
+
+  @keyframes slide-in {
+    from {
+      transform: translateX(calc(100% + 20px));
+    }
+  }
+
+  @keyframes slide-out {
+    to {
+      transform: translateX(calc(100% + 20px));
+    }
+  }
 
   @keyframes fade-in {
     from {

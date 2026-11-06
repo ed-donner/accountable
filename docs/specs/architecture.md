@@ -12,6 +12,7 @@ Browser                       http://localhost:5173
                                     |
                               FastAPI on 127.0.0.1:8765
                               signs and checks the made-up teammates' tokens
+                              the Copilot ---- chat completions, with the key ---->  OpenRouter
                                     |
                               SQLAlchemy Core + Alembic
                                     |
@@ -28,13 +29,14 @@ Browser  ---- sign-in ---->  Supabase Auth
                                                  (npm start: 127.0.0.1:8000)
                                                  serves frontend/dist and /api
                                                  checks each token with Supabase's public keys
+                                                 the Copilot ---- chat completions, with the key ---->  OpenRouter
                                                        |
                                                  SQLAlchemy Core + Alembic
                                                        |
                                                  Postgres on Supabase, through the session pooler
 ```
 
-In both, the browser talks to one address for pages and data, so the backend needs no cross-origin setup. In the shared app it also talks to Supabase Auth, to sign in and renew its token.
+In both, the browser talks to one address for pages and data, so the backend needs no cross-origin setup. In the shared app it also talks to Supabase Auth, to sign in and renew its token. In both, the backend talks to OpenRouter for the Copilot, and the browser never does. The Copilot's tools call the app's own `/api` routes inside the backend's process, never through the network or the database ([The Copilot](security.md#the-copilot)).
 
 ```
 package.json, package-lock.json   root scripts, npm workspace for frontend/
@@ -51,23 +53,37 @@ lefthook.yml                      the git pre-commit hook
 .mcp.json                         the Playwright MCP server, which ui-check uses, with a browser that keeps nothing
                                   from one start to the next
 shared/                           expected-revenue-cases.json, website-cases.json, settings-cases.json,
-                                  totals-cases.json, accent-cases.json and document-layout-cases.json, read by both
-                                  unit test suites, and document-designs.json and document-fonts.json, which both
+                                  totals-cases.json, accent-cases.json, document-layout-cases.json and
+                                  copilot-cases.json, the Copilot's request rules and an example of each event,
+                                  read by both unit test suites, and document-designs.json and document-fonts.json, which both
                                   sides draw quotes and invoices from: the designs' sizes, places, fonts and colors,
                                   each kind's own words, and the fonts' character widths
 scripts/
   setup.mjs                       shared setup, used by the scripts below that start things, Node built-ins only. It also
-                                  gives the local commands an environment without the Supabase settings (C9)
-  dev.mjs                         npm run dev
-  start.mjs                       npm start: reads .env, builds the frontend, runs the shared app on this computer
+                                  gives every command but npm start an environment without the Supabase settings or the
+                                  Copilot's, and npm run dev the Copilot's two from the shell or .env, never .env in a
+                                  test run (C9). It names the settings, and builds npm run dev's environment and the
+                                  one every test run starts from
+  dev.mjs                         npm run dev, which reads the Copilot's two settings from the shell or .env and nothing
+                                  else, and in a test run from its own environment only (C9)
+  start.mjs                       npm start: reads .env, builds the frontend, runs the shared app on this computer, with
+                                  ACCOUNTABLE_MODEL_URL blank, so the key goes only to OpenRouter
   test.mjs                        npm test
   check.mjs                       npm run check and npm run check:quick
   e2e.mjs                         npm run e2e: chosen end-to-end tests only
-  checks.mjs                      runs the layers behind all three, side by side where it can, and prints one summary
+  checks.mjs                      runs the layers behind all three, side by side where it can, and prints one summary.
+                                  It points ACCOUNTABLE_MODEL_URL at http://127.0.0.1:9, where nothing listens, for every
+                                  layer, so no backend a test run starts can reach OpenRouter
   data.mjs                        npm run seed and npm run empty
   test-plan.mjs                   how npm test shares out the machine, and which ports each run's slot, its workers and the turns use
   test-runs.mjs                   lets the test runs on one computer share it: slots, the two turns to go and their queue, who's busy, and the speed tests' turn
-  test-servers.mjs                starts one backend and one Vite server for each Playwright worker
+  test-servers.mjs                starts one backend and one Vite server for each Playwright worker, and one stand-in
+                                  model for the run, inside its own process, so it stops with it. Only the backends get
+                                  its address, as ACCOUNTABLE_MODEL_URL, and a made-up OPENROUTER_API_KEY
+  stand-in-model.mjs              answers as OpenRouter's chat completions do, from replies scripted for each question
+                                  e2e/copilot.spec.ts asks, with Node's built-ins only, so no test calls a real model.
+                                  One question, "Take your time", it never answers, keeping the Copilot working.
+                                  Run alone, it prints its address, for npm run dev to use by hand with a made-up key
   test-report.mjs                 turns what each test runner wrote into the summary that ends npm test
   agent-check-on-stop.mjs         the coding agent's hook that runs npm run check:quick when it finishes a turn
   agent-guard-env.mjs             the coding agent's hook that stops any edit to .env
@@ -76,7 +92,7 @@ scripts/
   agent-guard-playwright-folder.mjs   ui-check's hook that keeps the files it saves in .playwright-mcp/
   agent-hooks.mjs                 what those five hooks decide
   setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-runs.test.mjs, test-report.test.mjs, agent-hooks.test.mjs,
-  vite-watch.test.mjs
+  vite-watch.test.mjs, stand-in-model.test.mjs, copilot-settings.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, the list of areas
                                   with each one's routes, messages, search kinds, holds and cash, and the built
@@ -204,6 +220,24 @@ backend/accountable/
     router.py                     GET /cash-flow and GET /cash-flow/expected: every area's cash folded into the 15
                                   months, the balances and a month's list
     schemas.py                    its reply models
+  copilot/                        the Copilot (Z1 to Z23), a later area that imports only the top level and reaches every
+                                  other area through the app's own routes, never their code or the database
+    router.py                     GET /copilot and POST /copilot/chat: the loop that asks the model, runs the look-ups,
+                                  sends a change card, runs a confirmed change, and streams the events
+    model.py                      the two settings, and asking OpenRouter's chat completions, with the 60 seconds and
+                                  Z21's errors read from its replies
+    tools.py                      what a tool is: what the model is told of it, its arguments' schema, a look-up or a
+                                  change, its routes, its step's words, its run, and for a change, its button and card;
+                                  the list the model is offered, checking a call before anything runs, and rows() and
+                                  cut() for Z9's limits (Z8 to Z15)
+    lookups.py                    each look-up, through the routes Z8 names, all GETs (Z8, Z9)
+    changes.py                    each change, through the route Z11 names, with its card and S1's note (Z11, Z13, Z15)
+    calls.py                      calling the app's own routes in process, with the header, host and client address of
+                                  the request that asked, limited to the routes of the tool that calls them
+    instructions.py               what the model is told: who's asking, the company, today, the terms it needs, what it
+                                  can and can't change, and that what the tools read is data (Z10, Z12, Z17)
+    schemas.py                    the request and the events, GET /copilot's reply, Z21's and Z20's words, and the
+                                  messages for the request's fields
 backend/tests/
   characterization/               what each quote's and invoice's PDF says, page by page, as the characterization
                                   tests in test_quote_invoice_pdfs.py read it back
@@ -213,7 +247,7 @@ frontend/src/
                                   the areas together, the dashboard's one Money section included, with the cash
                                   flow's row at its top
   test-utils.tsx, test-setup.ts   the unit tests' helpers, and test-supabase.ts, which stands in for Supabase's client
-  lib/                            fetch client, session, query defaults, money in dollars and in cents, reading a typed
+  lib/                            fetch client, with stream() for a reply sent as JSON lines, session, query defaults, money in dollars and in cents, reading a typed
                                   price, or an amount with a minus sign, date formatting, useToday, validation, files.ts for a file's bytes as base64
                                   and a picture's size,
                                   the saved theme, and for every area's records and forms: records.ts, with who added and
@@ -328,8 +362,21 @@ frontend/src/
     CashFlowChart.tsx             the bars, the balance line and the likely deals' band, with Recharts
     MonthDialog.tsx               what's expected in a month, with links to each invoice, bill and deal
     test-cash-flow.ts             the cash flow's tests' replies, for a today of Nov 5, 2026, and the chart's size
+  copilot/                        the Copilot (Z1 to Z23), a later area that imports no other area
+    Copilot.tsx                   joins the two halves: whether the panel is open, useConversation(), the button and
+                                  the panel, which App.tsx hands the shell, as it hands the search box
+    CopilotButton.tsx             the top bar's button
+    CopilotPanel.tsx              the panel: its heading, the conversation, the message box, Send and Stop
+    conversation.ts               the conversation, kept for the session: sending a message, reading the events as they
+                                  arrive, answering a change card, and reading everything again after a change
+    Step.tsx, ChangeCard.tsx      a step's line, and the change card with its buttons
+    AnswerText.tsx                an answer as React text: paragraphs, lists and bold, and nothing else (Z6)
+    queries.ts                    GET /copilot, the request's and the events' types, reading a line of the stream into
+                                  an event, and Entry and Conversation, which conversation.ts makes and the panel draws
+    test-copilot.ts               the tests' events, stood-in streams, entries and Conversations, from
+                                  shared/copilot-cases.json
 frontend/dist/                    the built frontend, from npm start and Render, git-ignored
-e2e/
+e2e/                              the end-to-end tests
 data/                             the local copy's database and what it needs to sign its own tokens, created on first
                                   run and git-ignored
 ```
@@ -340,13 +387,14 @@ Accountable will grow from a sales CRM into a Business OS, including ERP, so the
 
 - **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, and `products/` the price list. A later area gets a folder beside them with its own tables, routes and pages: quotes, invoices and bills have theirs, in `quotes/`, `invoices/` and `bills/` on both sides, and the cash flow has `cashflow/`, which keeps no tables of its own, and the books have `books/`, which sits beside `company/` at the bottom because every area posts to it. What areas share comes from the top level.
 - **Aged balances read the records of three areas and write nothing.** `aging/` is a later area on both sides that keeps no tables of its own. On the backend it imports only the tables of `crm/`, `invoices/` and `bills/`, to read organizations, issued invoices with their payments, and bills, and never their routes, rules or the books. It works its figures out from the records on purpose, so the books stay a separate check on them (X4). On the frontend it imports no other area: its page reads only `/api/aged-balances/...`, and the links to organizations, invoices and bills are plain addresses. `App.tsx` gives the router the page, in place of the placeholder AgedBalances had, at the same address (J15).
+- **The Copilot reaches the other areas only through the API.** `copilot/` is a later area on both sides that keeps no tables. On the backend it imports only the top level, and never another area or `db.py`: its tools call the app's own routes in process, as the person who asked ([The Copilot](security.md#the-copilot)), so every rule, check and lock applies as it does in the app, and the Copilot knows each area only by its routes. On the frontend it imports no other area. `App.tsx` hands the shell `copilot/Copilot.tsx`, with its button and panel, as it hands it the search box, and the links in its steps are addresses, such as `/deals/12`. After a change it reads everything again, as any write does, so the area that shows the record needs to know nothing about the Copilot.
 - **Imports between areas go one way.** `crm/`, `products/`, `company/` and `books/` are the first areas, and import no other area but `company/` and `books/`, so `crm/` never imports `products/`, and none of them ever imports a later area. `books/` imports only the top level, and so never `company/`, which is why `company/` can post the opening balance to it (J7): `company/` imports `books/` for that and for nothing else. A later area may import `books/post.py` too, and nothing else of `books/`, to post its entries inside its own transaction, passing plain values and never a table of its own. A later area builds on them, and may import only these of theirs: on the backend, `crm/tables.py` and `products/tables.py`, for foreign keys and reads, and `crm/rules.py`, so a deal changes stage the one way however it's asked for, such as when a quote is accepted; on the frontend, `crm/queries.ts` and `products/queries.ts`, for their types and reads, and `crm/deals.ts`, such as which stages are open. Any area may import `company/` and `books/post.py`. Later areas never import each other, with one exception, in one direction: `invoices/` may import `quotes/tables.py` (and nothing else of quotes'), for `invoices.quote_id` and to read an accepted quote, its lines and its fixed Prepared for when making an invoice from it (V33). `quotes/` imports nothing of `invoices/`, so the route is `POST /api/invoices/from-quote/{quote_id}`, and the quote's page learns of its invoice from `/api/invoices?quote_id=7` and is handed its Create invoice button and invoice line by `App.tsx` (Q38). The cash flow reads every area's money without importing any of them: each area that moves money gives `main.py` its cash, in the terms of the top-level `cash.py`, as it gives its holds, and `main.py` puts them on the app, where the cash flow's routes read them. So `cashflow/` imports only `company/` and the top level on the backend, and nothing from another area on the frontend, where its links to invoices, bills and deals are addresses, such as `/invoices/7`.
 - **A later area shows its records on the CRM's pages through `App.tsx`,** never by changing the CRM's queries or replies. A deal's quotes come from the quotes area's own route, such as `/api/quotes?deal_id=7`, in a panel the quotes area gives `App.tsx`, which hands it to the deal's page (R7). The dashboard takes sections the same way (H10). So an organization's bills come from `/api/bills?organization_id=7`, in the Bills panel, a deal's invoices from `/api/invoices?deal_id=7`, in the Invoices panel, and the Money section's cash flow row and its two sides from `/api/cash-flow`, `/api/invoices/money` and `/api/bills/dashboard`, never from `/api/dashboard`. Every area's routes start with words of their own after `/api`, which `backend/tests/test_layout.py` checks, so `main.py` can give a field error the right area's messages.
 - **A later area's record can hold a deal or an organization** (D4). The area says which of its columns hold one, as a `Hold`, and `main.py` hands every area's holds to the CRM's delete routes through the app, so the CRM never names the area. Quotes give one, on `quotes.deal_id`, with the word `quote`, invoices two, on `invoices.deal_id` and `invoices.organization_id`, with the word `invoice`, and bills one, on `bills.organization_id`, with the word `bill`.
 - **`company/` holds the company settings, on both sides.** It's an area beside `crm/` and `products/`, called `company/` because the backend's `settings.py` already decides which copy runs. It imports only the top level, and `books/` to post the opening balance (B25), and never another area. It isn't at the top level because not every area needs it: the CRM and products don't. It's the one area every other can import: later areas that need the company's details, such as quotes and invoices, can import it. `company/documents.py` gives them the settings as saved and each document's next number, and takes from `main.py` where each kind keeps the numbers it has taken, so a changed prefix is checked against them (B6). `company/tax.py` and `company/tax.ts` give them the sums on their lines, `company/lines.py` the saving of those lines, and `company/layout.py`, `company/pdf.py`, `company/layout.ts` and `company/DocumentDrawing.tsx` their pages, on the PDF and in the preview. The sample company is in `company/sample_data.py`, and the function that fills a new database fills it too.
 - **The top level holds only what every area needs.** Signing in and people are needed by every area, so `auth.py` and `users.py` sit there, and `users.py` holds the made-up teammates that any area's sample records are put down to. `sample.py` gives every area's sample data the same times of day and the same rule for which teammate added and last changed each record. It also gives quotes' and invoices' sample data their lines, from the price list each reads, because the two never read each other: a won deal's lines follow from its value alone, so its accepted quote and its invoice have the same ones. `who.py` gives every area's record tables the same four columns, `created_at`, `updated_at`, `created_by` and `updated_by`, and what saves and replies do with them. `api.py` has the base request model and its checks, the field types such as names, emails, websites, ids, dollars and cents, the sums of cents that bills, invoices and the cash flow send as digits, and the errors shown beside a field. Each area keeps the messages for its own fields, and `main.py` hands the error handler the messages of the area whose route a request reached, from the words the route starts with. Two areas can each have a field of one name with different rules: the CRM's activities need a description, and a product's is optional. The top bar's search spans every area, so `search.py` sits at the top level too: it runs the one query and puts the results in order, and each area's own `search.py` says what to look for in its tables. `holds.py` lets any area's records hold a deal or an organization (D4), `cash.py` lets any area give the cash flow its money, `labels.py` lets invoices and bills name their records for the books' entries without `books/` importing either, as `main.py` hands them over, and `months.py` gives every area's charts by month the same 12 months, and the cash flow the 3 after them. An area can import any of these, but they never import an area, so `main.py` passes `db.py` the function that fills a new database, passes `search.py` each area's kinds and puts each area's holds and cash on the app. `main.py` keeps one list of areas, each with its routers, its fields' messages, its search kinds, its holds, its cash and where its documents keep their numbers, so a later area joins with one entry. Only `main.py`, `cli.py` and the migrations name an area's folder.
 - **One database setup.** All tables share one `metadata` and one migration history, and anything specific to SQLite or Postgres stays in `db.py` and the migrations. There's no raw SQL, check constraints included, apart from turning on row-level security in the migrations, which SQLAlchemy can't say.
-- **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/`, `company/`, `books/`, `quotes/`, `bills/`, `cashflow/` and `aging/` each have one router, so it's `router.py` in their folder, with no folder around it. `invoices/` has four, so they're in `invoices/routers/`, as the CRM's are in `crm/routers/`. In `crm/`, a module outside `routers/` exists only because several files use it, as `quotes/document.py` does, which the router and the PDF both use, and each area's `search.py` exists because the top-level `search.py` needs it, as each area's `cash.py` does because the cash flow needs it.
+- **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/`, `company/`, `books/`, `quotes/`, `bills/`, `cashflow/`, `aging/` and `copilot/` each have one router, so it's `router.py` in their folder, with no folder around it. `invoices/` has four, so they're in `invoices/routers/`, as the CRM's are in `crm/routers/`. In `crm/`, a module outside `routers/` exists only because several files use it, as `quotes/document.py` does, which the router and the PDF both use, and each area's `search.py` exists because the top-level `search.py` needs it, as each area's `cash.py` does because the cash flow needs it.
 - **How quotes and invoices look is in `company/`.** The choice of design, the accent color and the logo are company settings, which `company/` keeps and checks, and both areas draw the designs, so the drawing is in `company/` too, with each kind's words in `shared/document-designs.json`. Each area builds its document's plain values, the quote's in `quotes/document.py` and `quotes/QuotePreview.tsx`, and the invoice's in `invoices/routers/pdf.py` and `invoices/pages/Invoice.tsx`, and hands them to the shared layout. Each also keeps its own rules for what a new line starts from, its checks and its messages, and hands the lines to `company/lines.py` to save. The Company settings page shows the sample invoice through a component `App.tsx` hands it, so `company/` never imports `invoices/`.
 - **`components/` and `lib/` hold only what any area could use.** Anything that knows about deals or contacts goes in `crm/`, and anything that knows about products in `products/`. The search box is in `components/` and knows nothing about records: each area's `searchGroups.tsx` says what its results look like, and `App.tsx` hands them to the box and the box to the shell. `App.tsx` also gives the shell its sections, and the CRM's pages the panels and sections later areas add. What any area's chart needs, such as its tooltip and the axes' text, is in `components/charts/`, and the CRM's charts and their geometry stay in `crm/charts/`. A record page's layout, who added and last changed a record, the hooks that save and delete records, the checks on a form's fields and a save's errors shown beside them are in `components/` and `lib/`, so `products/` and any later area's pages and forms use the same ones. Among the top-level files, `components/` and `lib/`, only `App.tsx` names an area's folder, `company/` included, which it names for the Company settings route. The menu opens the page by its address, so `components/` doesn't name `company/`.
 - **Only `lib/api.ts` talks to the backend,** so every reply gets the same error handling, **and only `lib/session.ts` talks to Supabase.** **Messages go through `lib/notify.ts`,** so each stays with its session (U5). ESLint refuses `toast` from Sonner anywhere else but the tests.
@@ -376,6 +424,7 @@ Versions were checked on 2026-10-31, and pypdf's on 2026-11-05. All of them acce
 | Running both servers | concurrently |
 | Signing in, in the browser | `@supabase/supabase-js` 2, in the shared app only |
 | Backend | FastAPI, Uvicorn, SQLAlchemy Core, Alembic, Pydantic |
+| Calling OpenRouter, and the app's own routes from the Copilot | httpx, which the tests already use |
 | Postgres | psycopg 3, SQLAlchemy's driver for it |
 | PDFs | ReportLab 5, for quotes and invoices, with Pillow for the logo |
 | Checking tokens | PyJWT, with `cryptography` for Supabase's signing keys |
@@ -390,5 +439,6 @@ Versions were checked on 2026-10-31, and pypdf's on 2026-11-05. All of them acce
 - **Migrations:** Alembic is here because people have real data in the database, and later features will change the tables. Without migrations, the only way to pick up a new column would be a reset that wipes that data. Migrations run by themselves when the backend starts, on both databases.
 - **Sign-in and Postgres:** these three came with sign-in. `@supabase/supabase-js` is Supabase's own client, and handles signing in, keeping the session and renewing the token, which would otherwise be hand-written against Supabase Auth's API. psycopg is what SQLAlchemy needs to reach Postgres at all. PyJWT checks token signatures against Supabase's public keys, which isn't something to hand-roll.
 - **PDFs:** ReportLab is the most used Python library for making PDFs, under a BSD licence, and makes both quotes' and invoices' PDFs. It and Pillow install from uv as wheels, with nothing for the system to provide, so they run on Render's native Python runtime. WeasyPrint, which turns HTML into PDF, would need Pango from the system, so it can't. Pillow also checks the logo (B21), so it isn't a second new library. The fonts the PDFs carry are the app's own three, as TTF files under the OFL in `company/fonts/`, since the npm packages hold only web fonts.
+- **httpx:** the Copilot needs an HTTP client that waits on OpenRouter without holding a thread of the one process (W6), with a time limit, and that can call the app's own routes in process, through its ASGI transport, so a tool's request passes every check the person's would. httpx does both. It was already in `uv.lock` as the tests' client, and FastAPI's test client is built on it, so it moves from the dev dependencies to the backend's own and adds nothing new to the lock. OpenRouter speaks OpenAI's chat completions, so no OpenAI or OpenRouter package is needed. The panel reads the streamed reply with the browser's own `fetch`, and draws answers with its own few lines of formatting, so the frontend adds no package.
 - **pypdf:** for the tests only. They read a PDF's text back to check its figures, and a cut-down font stores glyph numbers, so it takes a reader that follows the font's map back to letters. Pure Python, with no dependencies, under a BSD licence.
 - **Fonts in the shared app:** the same Fontsource files are built into `frontend/dist`, so the shared app loads nothing from outside its own address but Supabase.

@@ -33,10 +33,13 @@ type ColumnProps = {
   children?: ReactNode;
 };
 
-/** One side of the section. Until its figures arrive, one panel holds its place, saying if the read failed. */
+/**
+ * One side of the section. Until its figures arrive, one panel holds its place, saying if the read failed.
+ * Its one column can shrink below its panels' content, as a chart drawn wider keeps it until its panel narrows.
+ */
 export function MoneyColumn({ loaded, error, onRetry, children }: ColumnProps) {
   return (
-    <div className="row-span-3 grid min-w-0 grid-rows-subgrid">
+    <div className="row-span-3 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid">
       <div>{loaded && <LoadFailed keeping error={error} onRetry={onRetry} />}</div>
       {loaded ? (
         children

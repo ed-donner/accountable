@@ -750,8 +750,9 @@ export function DataTable<T extends RowData>({
 
   const filteredNote = useFilteredNote(filterNote, noun, columns, search, update);
 
+  // Never narrower than at 1280px, since the fixed columns would squeeze the others to nothing.
   return (
-    <div className="flex flex-col gap-2.5 px-5 pb-4">
+    <div className="flex min-w-page flex-col gap-2.5 px-5 pb-4">
       {summary?.(update)}
       <div className="flex items-center gap-3">
         <SearchBox noun={noun} search={search} latest={latest} onChange={setSearch} ref={searchBox} />

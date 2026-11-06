@@ -1,12 +1,25 @@
 // npm start: the shared app on this computer, built and run the way Render runs it, against Supabase.
 // Its migrations change the team's real database, so no test runs this file: they test its parts.
 
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseEnv } from "node:util";
 
-import { ROOT, SHARED_SETTINGS, localEnv, runSync, setup, start, stop, stopIfTaken, waitUntilReady } from "./setup.mjs";
+import {
+  MODEL_URL_SETTING,
+  ROOT,
+  SHARED_SETTINGS,
+  copilotSettings,
+  localEnv,
+  readEnvFile,
+  runSync,
+  settingsFrom,
+  setup,
+  start,
+  stop,
+  stopIfTaken,
+  waitUntilReady,
+} from "./setup.mjs";
 
 export const PORT = 8000;
 
@@ -15,12 +28,7 @@ export const PORT = 8000;
  * otherwise, and the names of any found in neither. A blank one counts as missing.
  */
 export function readSettings(shell, envFileText = "") {
-  const fromFile = parseEnv(envFileText);
-  const settings = {};
-  for (const name of SHARED_SETTINGS) {
-    const value = [shell[name], fromFile[name]].find((candidate) => candidate?.trim());
-    if (value) settings[name] = value;
-  }
+  const settings = settingsFrom(SHARED_SETTINGS, shell, envFileText);
   return { settings, missing: SHARED_SETTINGS.filter((name) => !settings[name]) };
 }
 
@@ -43,6 +51,17 @@ export function buildEnv(settings, shell = process.env) {
   };
 }
 
+/**
+ * The backend's environment: the shell's, with the shared app's three settings, and the Copilot's
+ * two wherever they're set. Without the Copilot's, it starts all the same, and the panel says
+ * there's no key (Z21). The model's address is blank, so it asks OpenRouter whatever the shell
+ * holds, and never sends the key to a stand-in's address. Blank rather than left out, since uv
+ * loading a settings file never overrides a setting already given.
+ */
+export function backendEnv(settings, shell = process.env, envFileText = "") {
+  return { ...shell, ...settings, ...copilotSettings(shell, envFileText), [MODEL_URL_SETTING]: "" };
+}
+
 /** The backend's command, which is render.yaml's startCommand apart from the address. */
 export function backendCommand(host, port) {
   return [
@@ -59,9 +78,8 @@ export function backendCommand(host, port) {
   ];
 }
 
-function settingsOrStop() {
-  const envFile = path.join(ROOT, ".env");
-  const { settings, missing } = readSettings(process.env, existsSync(envFile) ? readFileSync(envFile, "utf8") : "");
+function settingsOrStop(envFileText) {
+  const { settings, missing } = readSettings(process.env, envFileText);
   if (missing.length > 0) stop(missingMessage(missing));
   return settings;
 }
@@ -76,13 +94,16 @@ function build(settings) {
 }
 
 async function main() {
-  const settings = settingsOrStop();
+  const envFileText = readEnvFile();
+  const settings = settingsOrStop(envFileText);
   setup();
   await stopIfTaken(PORT);
   build(settings);
 
   console.log("Starting the shared app. The first start against an empty database also adds the sample data.");
-  const server = start("uv", backendCommand("127.0.0.1", PORT), { env: { ...process.env, ...settings } });
+  const server = start("uv", backendCommand("127.0.0.1", PORT), {
+    env: backendEnv(settings, process.env, envFileText),
+  });
   let running = true;
   server.on("exit", (code) => {
     running = false;

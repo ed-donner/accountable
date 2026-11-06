@@ -172,10 +172,13 @@ function Columns({
     };
   }, [setNodeRef]);
 
+  // Columns never narrower than 180px, which still fit at 1280px with a scrollbar. Beside the Copilot's panel
+  // there's less room, so the board scrolls sideways under the page header, which stays put. Its 20px edges
+  // are margins, so a column that scrolls past them is cut off 20px from the panel, as at the window's left.
   return (
     <div
       data-dragging={draggingId !== null}
-      className="grid min-h-0 flex-1 grid-cols-[repeat(6,minmax(0,1fr))] gap-2 px-5 pb-4"
+      className="mx-5 grid min-h-0 flex-1 grid-cols-[repeat(6,minmax(180px,1fr))] gap-2 overflow-x-auto pb-4"
     >
       {STAGES.map((stage) => (
         <Column

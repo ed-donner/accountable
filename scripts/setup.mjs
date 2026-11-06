@@ -2,10 +2,11 @@
 // Node built-ins only: on the first run, no npm package is installed yet.
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const MIN_NODE_MAJOR = 24;
@@ -18,9 +19,19 @@ export const LOCKFILE_MARGIN_MS = 2000;
 /** The shared app's settings. With all three, the backend runs as the shared app, against Supabase. */
 export const SHARED_SETTINGS = ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"];
 
+/** The Copilot's settings (Z19). Only npm run dev and npm start pass them on, so no test can reach OpenRouter (C9). */
+export const COPILOT_SETTINGS = ["OPENROUTER_API_KEY", "OPENROUTER_MODEL"];
+
+/** Where the backend asks for the model's replies in place of OpenRouter, which the tests point at a stand-in. */
+export const MODEL_URL_SETTING = "ACCOUNTABLE_MODEL_URL";
+
+/** Port 9 is the old discard service, where nothing listens. */
+export const NO_MODEL = "http://127.0.0.1:9";
+
 // The names the shared app's build reads, and uv's own way to load a settings file such as .env.
 const LEFT_OUT_LOCALLY = new Set([
   ...SHARED_SETTINGS,
+  ...COPILOT_SETTINGS,
   "VITE_SUPABASE_URL",
   "VITE_SUPABASE_PUBLISHABLE_KEY",
   "UV_ENV_FILE",
@@ -56,11 +67,63 @@ export function afterFailedInstall(hasNodeModules) {
 
 /**
  * The environment for every command but npm start: the shell's, without the shared app's
- * settings, so nothing the local commands start can reach Supabase, whatever the shell has.
+ * settings or the Copilot's, so nothing the local commands start can reach Supabase or
+ * OpenRouter, whatever the shell has. npm run dev adds the Copilot's back itself.
  */
 export function localEnv(env = process.env) {
   // Windows ignores case in these names, so database_url there is the same setting.
   return Object.fromEntries(Object.entries(env).filter(([name]) => !LEFT_OUT_LOCALLY.has(name.toUpperCase())));
+}
+
+/** The text of .env at the project's root, or nothing when there's no .env. */
+export function readEnvFile() {
+  const file = path.join(ROOT, ".env");
+  return existsSync(file) ? readFileSync(file, "utf8") : "";
+}
+
+/**
+ * The named settings, each from the shell where it's set there and from .env's text otherwise,
+ * read as Node reads it. A blank one counts as unset, and one set in neither is left out.
+ */
+export function settingsFrom(names, shell, envFileText = "") {
+  const fromFile = parseEnv(envFileText);
+  const found = names.map((name) => [name, [shell[name], fromFile[name]].find((value) => value?.trim())]);
+  return Object.fromEntries(found.filter(([, value]) => value));
+}
+
+/** The Copilot's two settings. One set nowhere is left out, so the backend uses its default or says there's no key. */
+export function copilotSettings(shell, envFileText = "") {
+  return settingsFrom(COPILOT_SETTINGS, shell, envFileText);
+}
+
+/** Whether this is npm test, npm run check or npm run e2e, or something one of them started, all of which hold a slot. */
+export function isTestRun(env = process.env) {
+  return env.ACCOUNTABLE_TEST_SLOT !== undefined;
+}
+
+/**
+ * npm run dev's Copilot settings (C9). In a test run, such as a copy an end-to-end test starts,
+ * .env isn't read at all, so no test can reach OpenRouter with the key kept there.
+ */
+export function devCopilotSettings(shell = process.env, envFile = readEnvFile) {
+  return copilotSettings(shell, isTestRun(shell) ? "" : envFile());
+}
+
+/**
+ * npm run dev's environment for both servers: without the Supabase settings, but with the Copilot's
+ * two from the shell or .env (C9), and the shell's model address, if any, for trying the stand-in by hand.
+ */
+export function devEnv(shell = process.env, envFile = readEnvFile) {
+  return { ...localEnv(shell), ...devCopilotSettings(shell, envFile) };
+}
+
+/**
+ * The environment every layer of a test run starts from: without the shared app's settings or the
+ * Copilot's, and with every backend asking nowhere for the model's replies unless it's given the
+ * stand-in's address, so no check or test can reach Supabase or OpenRouter, whatever the shell has.
+ */
+export function testRunEnv(shell = process.env) {
+  return { ...localEnv(shell), [MODEL_URL_SETTING]: NO_MODEL };
 }
 
 // The API refuses anyone not signed in, /api/meta included, and its JSON refusal

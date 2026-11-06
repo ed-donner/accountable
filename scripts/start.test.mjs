@@ -3,8 +3,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { ROOT, SHARED_SETTINGS } from "./setup.mjs";
-import { PORT, backendCommand, buildEnv, missingMessage, readSettings } from "./start.mjs";
+import { COPILOT_SETTINGS, ROOT, SHARED_SETTINGS } from "./setup.mjs";
+import { PORT, backendCommand, backendEnv, buildEnv, missingMessage, readSettings } from "./start.mjs";
 
 const DATABASE_URL = "postgresql://postgres.project:database-password@pooler.supabase.example:5432/postgres";
 const SUPABASE_URL = "https://project.supabase.example";
@@ -43,6 +43,44 @@ describe("readSettings", () => {
   it("reads .env's comments and quotes as Node does", () => {
     const text = `# Supabase\nDATABASE_URL="${DATABASE_URL}"\nSUPABASE_URL='${SUPABASE_URL}'\nSUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}\n`;
     expect(readSettings({}, text).settings).toEqual(ALL);
+  });
+
+  it("starts without the Copilot's two, which it never asks for", () => {
+    expect(readSettings({}, envFile(ALL))).toEqual({ settings: ALL, missing: [] });
+  });
+});
+
+describe("backendEnv", () => {
+  const COPILOT = { OPENROUTER_API_KEY: "made-up-key", OPENROUTER_MODEL: "openai/gpt-4o-mini" };
+
+  it("gives the backend the three settings and the shell, with the model's address blank", () => {
+    const env = backendEnv(ALL, { PATH: "/usr/bin" }, envFile(ALL));
+    expect(env).toEqual({ ...ALL, PATH: "/usr/bin", ACCOUNTABLE_MODEL_URL: "" });
+  });
+
+  it("blanks a model address the shell has, so the key only ever goes to OpenRouter", () => {
+    const env = backendEnv(ALL, { ACCOUNTABLE_MODEL_URL: "http://127.0.0.1:4321" }, envFile({ ...ALL, ...COPILOT }));
+    expect(env.ACCOUNTABLE_MODEL_URL).toBe("");
+  });
+
+  it("passes the Copilot's two from .env", () => {
+    const env = backendEnv(ALL, { PATH: "/usr/bin" }, envFile({ ...ALL, ...COPILOT }));
+    expect(env).toMatchObject(COPILOT);
+  });
+
+  it("passes them from the shell, over .env's", () => {
+    const env = backendEnv(ALL, { OPENROUTER_API_KEY: "shell-key" }, envFile({ ...ALL, ...COPILOT }));
+    expect(env).toMatchObject({ OPENROUTER_API_KEY: "shell-key", OPENROUTER_MODEL: COPILOT.OPENROUTER_MODEL });
+  });
+
+  it("starts without them, leaving the backend to say there's no key", () => {
+    const env = backendEnv(ALL, { PATH: "/usr/bin" }, envFile(ALL));
+    for (const name of COPILOT_SETTINGS) expect(env).not.toHaveProperty(name);
+  });
+
+  it("never gives the frontend's build the key", () => {
+    const shell = { PATH: "/usr/bin", ...COPILOT };
+    expect(Object.values(buildEnv(ALL, shell))).not.toContain(COPILOT.OPENROUTER_API_KEY);
   });
 });
 
@@ -93,8 +131,8 @@ describe("render.yaml", () => {
     expect(backendCommand("127.0.0.1", PORT)).toContain("127.0.0.1");
   });
 
-  it("names the three settings without their values", () => {
-    for (const name of SHARED_SETTINGS) {
+  it("names the three settings and the Copilot's two without their values", () => {
+    for (const name of [...SHARED_SETTINGS, ...COPILOT_SETTINGS]) {
       expect(blueprint).toMatch(new RegExp(`- key: ${name}\\n\\s*sync: false\\n`));
     }
   });

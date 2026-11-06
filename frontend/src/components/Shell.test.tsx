@@ -34,7 +34,16 @@ function openAt(path: string) {
         <Routes>
           <Route
             element={
-              <Shell sections={SECTIONS} search={<input aria-label="The search box" />} menuLinks={MENU_LINKS} />
+              <Shell
+                sections={SECTIONS}
+                search={<input aria-label="The search box" />}
+                copilot={({ open, onOpenChange }) => (
+                  <button type="button" aria-expanded={open} onClick={() => onOpenChange(!open)}>
+                    The Copilot
+                  </button>
+                )}
+                menuLinks={MENU_LINKS}
+              />
             }
           >
             <Route path="/" element={<p>The dashboard page</p>} />
@@ -107,7 +116,7 @@ describe("the top bar", () => {
   });
 
   it.each(["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/deals/7", "/settings"])(
-    "has the search box after the sections, then the date and the menu button, at %s",
+    "has the search box after the sections, then the date, the Copilot and the menu button, at %s",
     async (path) => {
       openAt(path);
       const bar = within(screen.getByRole("banner"));
@@ -116,11 +125,12 @@ describe("the top bar", () => {
         sections: bar.getByRole("navigation", { name: "Sections" }),
         search: bar.getByRole("textbox", { name: "The search box" }),
         date: bar.getByText("Oct 31, 2026"),
+        copilot: bar.getByRole("button", { name: "The Copilot" }),
         menu: menuButton,
       };
-      expect(inPageOrder(parts)).toEqual(["sections", "search", "date", "menu"]);
+      expect(inPageOrder(parts)).toEqual(["sections", "search", "date", "copilot", "menu"]);
       expect(menuButton.nextElementSibling).toBeNull();
-      expect(bar.getAllByRole("button")).toEqual([menuButton]);
+      expect(bar.getAllByRole("button")).toEqual([parts.copilot, menuButton]);
     },
   );
 
@@ -151,5 +161,34 @@ describe("the top bar", () => {
 
     expect(screen.getByRole("main").textContent).toBe("The products page");
     expect(currentSections()).toEqual(["Products"]);
+  });
+});
+
+describe("the room for the Copilot's panel", () => {
+  /** The page area's and the page's classes, which jsdom can't lay out, so the end-to-end tests measure them. */
+  function pageArea() {
+    const main = screen.getByRole("main");
+    return { area: main.parentElement!.className.split(/\s+/), main: main.className.split(/\s+/) };
+  }
+
+  it("gives the Copilot its panel closed, and narrows the page beside it while it's open, the top bar staying", async () => {
+    openAt("/pipeline");
+    const copilot = within(screen.getByRole("banner")).getByRole("button", { name: "The Copilot" });
+    expect(copilot.getAttribute("aria-expanded")).toBe("false");
+    expect(pageArea().area).not.toContain("mr-[420px]");
+    expect(pageArea().main).not.toContain("[&:not(:has(.sticky))]:overflow-x-auto");
+
+    await user().click(copilot);
+    expect(copilot.getAttribute("aria-expanded")).toBe("true");
+    expect(pageArea().area).toEqual(
+      expect.arrayContaining(["mr-[420px]", "transition-[margin-right]", "duration-200"]),
+    );
+    expect(pageArea().main).toContain("[&:not(:has(.sticky))]:overflow-x-auto");
+    expect(screen.getByRole("banner").parentElement).toBe(screen.getByRole("main").parentElement!.parentElement);
+
+    await user().click(copilot);
+    expect(copilot.getAttribute("aria-expanded")).toBe("false");
+    expect(pageArea().area).not.toContain("mr-[420px]");
+    expect(pageArea().area).toEqual(expect.arrayContaining(["transition-[margin-right]", "duration-200"]));
   });
 });

@@ -29,7 +29,7 @@ This month's figures sit beside last month's rather than showing a percentage ch
 
 ### Dashboard
 
-Everything fits on one screen at 1440 by 900 with no page scrolling, so what needs doing next is always in view. Sections other areas add (H10) come below that screen, such as the Money section. The page only scrolls on windows under 760px tall. Follow-ups and Recent activity each scroll by themselves.
+Everything fits on one screen at 1440 by 900 with no page scrolling, so what needs doing next is always in view. Sections other areas add (H10) come below that screen, such as the Money section. The page only scrolls on windows under 760px tall. Follow-ups and Recent activity each scroll by themselves. The page, the Money section included, is never laid out narrower than at 1280px wide, where the strip's stage band and the funnel's labels still fit. So beside the Copilot's panel, on a window narrower than about 1685px, it scrolls sideways in the page's area ([N8](shell.md#app-shell)).
 
 The Money section starts 12px below the dashboard's own part, the same gap as between its panels, with the heading "Money" in Instrument Sans at 20/28, semibold. Under it comes the cash flow's row, one full-width panel about 360px tall ([Screens](cash-flow.md#screens)). 12px below that are two columns of equal width, 12px apart: invoices' side on the left and bills' on the right. Each side is two panels, 12px apart, in two rows the sides share, so the panels sit level and the same size across the page:
 

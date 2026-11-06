@@ -110,7 +110,7 @@ The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, 
 
 ## Money on the dashboard
 
-- **V29.** Invoices give the left side of the dashboard's Money section, below the dashboard's own part and beside bills' side ([H10](dashboard.md#dashboard)). The row counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices. Every figure in it is exact to the cent however large it gets, past the 2^53 cents a browser's numbers hold exactly, as on bills' side (E20).
+- **V29.** Invoices give the left side of the dashboard's Money section, below the cash flow's row and beside bills' side ([H10](dashboard.md#dashboard)). The row counts issued invoices only, never drafts or void ones, and money in it carries its cents, as on invoices. Every figure in it is exact to the cent however large it gets, past the 2^53 cents a browser's numbers hold exactly, as on bills' side (E20).
 
 | Part | What it shows |
 |---|---|
@@ -121,6 +121,8 @@ The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, 
 
 - **V30.** Each part has a designed empty state, and nothing divides by zero. With nothing owed, Owed to us and Overdue show $0.00 and 0 invoices, as What we owe does beside them, and "Nothing owed." takes How late's place. With no payments in the 12 months, the figures show $0.00 and "No payments in the last 12 months." takes the chart's place.
 - **V31.** The row follows today, so invoices move into Overdue, and along the groups, as days pass, and it reads its figures again when the day changes, as the dashboard does.
+
+Invoices also give the cash flow at the top of the Money section its money in, the payments by the date they were paid, and its money expected in, the open invoices, each on its due date plus its customer's average days paid late ([Y2, Y5 and Y6](cash-flow.md#the-forecast)).
 
 ## Screens
 
@@ -144,7 +146,7 @@ On a deal's or an organization's page, below the page's own panels and its Quote
 
 ### Money section
 
-Invoices' side is the left column of the dashboard's Money section, with bills' side beside it, built from the same parts so the two read across ([Dashboard](dashboard.md#dashboard-1)): Owed to us above, 332px tall, level with What we owe, and Payments received below, 360px tall, level with Spending by category.
+Invoices' side is the left column of the dashboard's Money section, under the cash flow's row ([Screens](cash-flow.md#screens)), with bills' side beside it, built from the same parts so the two read across ([Dashboard](dashboard.md#dashboard-1)): Owed to us above, 332px tall, level with What we owe, and Payments received below, 360px tall, level with Spending by category.
 
 ```
 +---------------------------------------------+

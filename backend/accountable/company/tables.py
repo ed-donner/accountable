@@ -1,4 +1,17 @@
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, LargeBinary, Table, Text, column
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    Table,
+    Text,
+    column,
+)
 
 from accountable.db import TABLE_OPTIONS, metadata, utc_now
 from accountable.users import users
@@ -22,11 +35,20 @@ company_settings = Table(
     # How invoices look (B18): Classic in Midnight until someone chooses.
     Column("invoice_design", Text, nullable=False, server_default="classic"),
     Column("accent_color", Text, nullable=False, server_default="#073B4C"),
+    # The cash at the start of a day, which the cash flow counts from, in whole cents and
+    # below zero for an overdrawn account (B23, B24). Blank until someone enters one.
+    Column("opening_balance_cents", BigInteger),
+    Column("opening_balance_on", Date),
     Column("created_at", DateTime, nullable=False, default=utc_now),
     Column("updated_at", DateTime, nullable=False, default=utc_now),
     # Blank until someone saves them, and again after the clearing steps (B9).
     Column("updated_by", ForeignKey(users.c.id), index=True),
     CheckConstraint(column("id") == 1, name="one_row"),
+    # An amount needs its day and a day its amount, so the cash flow never has one alone.
+    CheckConstraint(
+        column("opening_balance_cents").is_(None) == column("opening_balance_on").is_(None),
+        name="opening_balance_together",
+    ),
     **TABLE_OPTIONS,
 )
 

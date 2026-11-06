@@ -174,7 +174,10 @@ def test_a_quote_holds_its_deal_and_its_lines_go_with_it(database):
 def test_the_check_constraints_match(database):
     actual, expected = live(), declared()
     assert actual["activities"]["checks"] == {"ck_activities_one_parent": "(contact_id IS NULL) != (deal_id IS NULL)"}
-    assert actual["company_settings"]["checks"] == {"ck_company_settings_one_row": "id = 1"}
+    assert actual["company_settings"]["checks"] == {
+        "ck_company_settings_one_row": "id = 1",
+        "ck_company_settings_opening_balance_together": "(opening_balance_cents IS NULL) = (opening_balance_on IS NULL)",
+    }
     assert actual["quotes"]["checks"] == {"ck_quotes_status": "status IN ('draft', 'sent', 'accepted', 'declined')"}
     assert actual["bills"]["checks"] == {
         "ck_bills_category": "category IN ('software', 'contractors', 'travel', 'office', 'marketing', 'other')"
@@ -439,6 +442,8 @@ BLANK_SETTINGS = {
     "invoice_prefix": "INV-",
     "invoice_design": "classic",
     "accent_color": "#073B4C",
+    "opening_balance_cents": None,
+    "opening_balance_on": None,
     "updated_by": None,
 }
 
@@ -790,3 +795,83 @@ def test_upgrading_gives_invoices_already_issued_their_order_by_issue_date_then_
     with db.reading() as conn:
         rows = conn.execute(select(invoices.c.number, invoices.c.issue_order).order_by(invoices.c.id)).all()
     assert [tuple(row) for row in rows] == [("INV-0001", 1), ("INV-0003", 3), ("INV-0002", 2), (None, None)]
+
+
+@pytest.fixture
+def database_from_before_the_opening_balance(tmp_path, monkeypatch):
+    """At 0010, with records, an issued invoice's count and settings someone has saved, as the team's database is."""
+    path = tmp_path / "before-opening-balance.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    fill_at(path, "0010")
+    with db.writing() as conn:
+        conn.execute(insert(users).values(id="teammate-dana", name="Dana Whitfield", email="dana@team.example"))
+        conn.execute(
+            update(company_settings).values(
+                company_name="Our Real Company",
+                tax_rate=6000,
+                invoice_design="ledger",
+                updated_by="teammate-dana",
+                updated_at=WHEN,
+            )
+        )
+        documents.take_number(conn, "invoice")
+    db.dispose()
+    yield path
+    db.dispose()
+
+
+def test_upgrading_from_before_the_opening_balance_keeps_the_settings_and_gives_none(
+    database_from_before_the_opening_balance,
+):
+    """SQLite rebuilds the settings table for the check, so the row, who changed it and its ids must come through whole (B13)."""
+    before = everything()
+    assert "opening_balance_cents" not in live()["company_settings"]["columns"]
+    with db.reading() as conn:
+        old_columns = [column for column in company_settings.c if not column.name.startswith("opening_balance")]
+        old_settings = dict(conn.execute(select(*old_columns)).one()._mapping)
+    db.dispose()
+
+    assert db.prepare_database(nothing) is False
+
+    assert all(before.values())
+    assert everything() == before
+    [settings] = the_settings()
+    assert settings == {**old_settings, "opening_balance_cents": None, "opening_balance_on": None}
+    assert (settings["company_name"], settings["updated_by"], settings["updated_at"]) == (
+        "Our Real Company",
+        "teammate-dana",
+        WHEN,
+    )
+    assert "AUTOINCREMENT" in built_tables()["company_settings"]
+    assert live()["company_settings"]["indexes"] == {"ix_company_settings_updated_by": ("updated_by",)}
+    with db.writing() as conn:
+        assert documents.take_number(conn, "invoice") == "INV-0002"
+        assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+
+
+@pytest.mark.parametrize(
+    "half",
+    [{"opening_balance_cents": 4_000_000}, {"opening_balance_on": date(2025, 12, 1)}],
+    ids=["an amount alone", "a date alone"],
+)
+def test_after_the_upgrade_the_database_refuses_half_an_opening_balance(database_from_before_the_opening_balance, half):
+    assert db.prepare_database(nothing) is False
+    with pytest.raises(IntegrityError), db.writing() as conn:
+        conn.execute(update(company_settings).values(**half))
+    with db.writing() as conn:
+        conn.execute(
+            update(company_settings).values(opening_balance_cents=-425000, opening_balance_on=date(2025, 12, 1))
+        )
+    [settings] = the_settings()
+    assert (settings["opening_balance_cents"], settings["opening_balance_on"]) == (-425000, date(2025, 12, 1))
+
+
+def test_on_postgres_the_opening_balance_is_64_bit_and_kept_whole(postgres_sql):
+    """$1 trillion in cents is far past Postgres's integer, and the check keeps the two together (B24)."""
+    assert "ALTER TABLE company_settings ADD COLUMN opening_balance_cents BIGINT;" in postgres_sql
+    assert "ALTER TABLE company_settings ADD COLUMN opening_balance_on DATE;" in postgres_sql
+    assert (
+        "ALTER TABLE company_settings ADD CONSTRAINT ck_company_settings_opening_balance_together "
+        "CHECK ((opening_balance_cents IS NULL) = (opening_balance_on IS NULL));"
+    ) in postgres_sql

@@ -1,6 +1,7 @@
 """Fills a database to the Q1 limits: 1,000 contacts, 500 deals, 5,000 activities, 500 products,
 1,000 quotes with 5,000 lines between them, the last a draft with 100 lines for the speed tests,
-1,000 invoices with 3,000 lines and 1,500 payments, and 1,000 bills.
+1,000 invoices with 3,000 lines and 1,500 payments, and 1,000 bills, with an opening balance
+from before the oldest payment, so the cash flow folds every day of them.
 
 Run on its own, it replaces everything in the ACCOUNTABLE_DB database, for the
 end-to-end stress tests. It refuses to touch the real data folder.
@@ -58,6 +59,7 @@ def fill(conn: Connection, today: date) -> None:
     _quotes(conn, today, now, deal_ids, product_ids)
     _invoices(conn, today, now, organization_ids, deal_ids, product_ids)
     _bills(conn, today, now, organization_ids)
+    _opening_balance(conn, today)
 
 
 def _crm_and_products(
@@ -366,6 +368,17 @@ def _bills(conn: Connection, today: date, now: datetime, organization_ids: Seque
             }
         )
     conn.execute(insert(bills), bill_rows)
+
+
+def _opening_balance(conn: Connection, today: date) -> None:
+    """400 days back, before the oldest payment and paid bill, which are under a year old."""
+    from accountable.company.tables import company_settings
+
+    conn.execute(
+        update(company_settings).values(
+            opening_balance_cents=25_000_000, opening_balance_on=today - timedelta(days=400)
+        )
+    )
 
 
 def main() -> int:

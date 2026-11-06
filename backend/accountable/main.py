@@ -22,16 +22,22 @@ from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from accountable import api, auth, cli, db, search, settings, users
+from accountable.bills import cash as bills_cash
 from accountable.bills import router as bills
 from accountable.bills import schemas as bills_schemas
 from accountable.bills import tables as bills_tables
+from accountable.cash import Cash
+from accountable.cashflow import router as cashflow
+from accountable.cashflow import schemas as cashflow_schemas
 from accountable.company import router as company_settings
 from accountable.company import schemas as company_schemas
 from accountable.company.documents import Numbered
+from accountable.crm import cash as crm_cash
 from accountable.crm import schemas as crm_schemas
 from accountable.crm import search as crm_search
 from accountable.crm.routers import activities, contacts, dashboard, deals, meta, organizations
 from accountable.holds import Hold
+from accountable.invoices import cash as invoices_cash
 from accountable.invoices import schemas as invoices_schemas
 from accountable.invoices import tables as invoices_tables
 from accountable.invoices.routers import invoices, money, payments, pdf
@@ -57,6 +63,8 @@ class Area:
     """What the top bar's search finds among its records."""
     holds: Sequence[Hold] = ()
     """Which of its records hold a deal or an organization, so that can't be deleted (D4)."""
+    cash: Cash | None = None
+    """The money it moves or expects, for the cash flow (Y1 to Y22)."""
     numbered: Sequence[Numbered] = ()
     """Where its documents keep the numbers they take, so a new prefix can't match one (B6)."""
 
@@ -77,6 +85,7 @@ AREAS = [
         routers=[meta.router, organizations.router, contacts.router, deals.router, activities.router, dashboard.router],
         messages=crm_schemas.FIELD_MESSAGES,
         kinds=crm_search.KINDS,
+        cash=crm_cash.CASH,
     ),
     Area(routers=[products.router], messages=products_schemas.FIELD_MESSAGES, kinds=products_search.KINDS),
     Area(routers=[company_settings.router], messages=company_schemas.FIELD_MESSAGES),
@@ -91,10 +100,13 @@ AREAS = [
         routers=[money.router, invoices.router, payments.router, pdf.router],
         messages=invoices_schemas.FIELD_MESSAGES,
         holds=invoices_tables.HOLDS,
+        cash=invoices_cash.CASH,
         numbered=invoices_tables.NUMBERED,
     ),
     # Bills aren't searched from the top bar (K1), and each one holds its supplier (D4).
-    Area(routers=[bills.router], messages=bills_schemas.FIELD_MESSAGES, holds=bills_tables.HOLDS),
+    Area(routers=[bills.router], messages=bills_schemas.FIELD_MESSAGES, holds=bills_tables.HOLDS, cash=bills_cash.CASH),
+    # The cash flow keeps no records, and reads every area's money from the app.
+    Area(routers=[cashflow.router], messages=cashflow_schemas.FIELD_MESSAGES),
 ]
 
 
@@ -114,6 +126,7 @@ def make_app(
     app = FastAPI(title="Accountable", docs_url=None, redoc_url=None, openapi_url=None, lifespan=_lifespan(shared))
     app.state.sign_in = auth.LocalSignIn() if shared is None else auth.SupabaseSignIn(shared, keys)
     app.state.holds = [hold for area in AREAS for hold in area.holds]
+    app.state.cash = [area.cash for area in AREAS if area.cash is not None]
     app.state.numbered = [numbered for area in AREAS for numbered in area.numbered]
 
     # Each middleware added goes outside the ones before it, so a request meets these

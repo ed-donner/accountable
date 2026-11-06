@@ -1,8 +1,9 @@
-"""The company settings' request and reply models, their checks, and the messages for their fields (B4 to B7)."""
+"""The company settings' request and reply models, their checks, and the messages for their fields (B4 to B7, B24)."""
 
 import base64
 import binascii
 import re
+from datetime import date
 from decimal import Decimal
 from typing import Annotated, Any, Literal
 
@@ -30,6 +31,11 @@ DESIGN_MESSAGE = "Choose a design"
 ACCENT_FORMAT_MESSAGE = "Enter a color as # and six hex digits, such as #0E6B6B"
 ACCENT_LIGHT_MESSAGE = "Too light to read on white. Choose a darker color"
 LOGO_MESSAGE = "Choose a PNG or JPEG image"
+OPENING_AMOUNT_MESSAGE = "Enter an amount in dollars and cents, such as 25,000.00"
+OPENING_LIMIT_MESSAGE = "Keep the opening balance within $1 trillion either way"
+OPENING_AMOUNT_MISSING_MESSAGE = "Enter the opening balance"
+OPENING_DATE_MESSAGE = "Choose the date of the opening balance"
+OPENING_DATE_FUTURE_MESSAGE = "The date can't be in the future"
 
 # For a value of the wrong kind, such as a prefix sent as null or the payment terms as text.
 FIELD_MESSAGES = {
@@ -41,6 +47,8 @@ FIELD_MESSAGES = {
     "invoice_design": DESIGN_MESSAGE,
     "accent_color": ACCENT_FORMAT_MESSAGE,
     "logo": LOGO_MESSAGE,
+    "opening_balance_cents": OPENING_AMOUNT_MESSAGE,
+    "opening_balance_on": OPENING_DATE_MESSAGE,
 }
 
 DESIGNS = ("classic", "banner", "ledger")
@@ -162,6 +170,13 @@ def _decoded(value: Any) -> bytes:
         raise ValueError(LOGO_MESSAGE) from error
 
 
+def _within_a_trillion(cents: int) -> int:
+    """Either way, so an overdrawn account can be entered too (B24)."""
+    if abs(cents) > api.MAX_CENTS:
+        raise ValueError(OPENING_LIMIT_MESSAGE)
+    return cents
+
+
 def prefixes_clash(quote: str, invoice: str) -> bool:
     """Whether a quote's number and an invoice's could ever be the same (B6)."""
     quote, invoice = quote.lower(), invoice.lower()
@@ -179,6 +194,8 @@ QuotePrefix = Annotated[str, AfterValidator(_prefix(QUOTE_PREFIX_BLANK_MESSAGE))
 InvoicePrefix = Annotated[str, AfterValidator(_prefix(INVOICE_PREFIX_BLANK_MESSAGE))]
 AccentColor = Annotated[str, AfterValidator(_accent)]
 # Checked as an image by logo.check in the router, once it's bytes.
+# Strict, so 49.5, "4950" and true are refused rather than rounded or read as cents.
+OpeningBalance = Annotated[StrictInt, AfterValidator(_within_a_trillion)]
 LogoFile = Annotated[bytes, BeforeValidator(_decoded), WithJsonSchema({"type": "string", "contentEncoding": "base64"})]
 
 
@@ -198,6 +215,9 @@ class SettingsUpdate(api.Request):
     accent_color: AccentColor | MISSING = MISSING
     # The file, or None to remove it. Left out, the logo stays as it is.
     logo: LogoFile | None | MISSING = MISSING
+    # Both None removes the opening balance. One without the other is refused in the router (B23).
+    opening_balance_cents: OpeningBalance | None | MISSING = MISSING
+    opening_balance_on: date | None | MISSING = MISSING
 
 
 class Logo(BaseModel):
@@ -223,5 +243,8 @@ class CompanySettings(BaseModel):
     invoice_design: Design
     accent_color: str
     logo: Logo | None
+    opening_balance_cents: int | None
+    """Whole cents, below zero for an overdrawn account, or None with no opening balance (B23)."""
+    opening_balance_on: date | None
     updated_at: api.UtcTime
     updated_by: Person | None

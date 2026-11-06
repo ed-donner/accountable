@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 // The app's modules load with this file, so the test's own time is starting the app.
 import "./App";
+import { cashFlowReply } from "./cashflow/test-cash-flow";
 import { META, mockApi, user } from "./test-utils";
 
 describe("starting the app", () => {
@@ -12,6 +13,7 @@ describe("starting the app", () => {
       "GET /me": { id: "alex", name: "Alex Rivera", email: "alex@accountable.example", initials: "AR" },
       "GET /local/teammates": [{ id: "alex", name: "Alex Rivera", email: "alex@accountable.example", initials: "AR" }],
       "POST /local/sign-in": { token: "alex-token" },
+      "GET /cash-flow": cashFlowReply(),
       "GET /invoices/money": {
         owed: { cents: "0", count: 0 },
         overdue: { cents: "0", count: 0 },
@@ -53,6 +55,7 @@ describe("starting the app", () => {
     expect(bar.getByLabelText("Search organizations, contacts, deals and products")).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
     const money = within(await page.findByRole("region", { name: "Money" }));
+    expect(await money.findByRole("region", { name: "Cash flow" })).toBeTruthy();
     expect(await money.findByRole("region", { name: "Owed to us" })).toBeTruthy();
     expect(await money.findByRole("region", { name: "What we owe" })).toBeTruthy();
   });

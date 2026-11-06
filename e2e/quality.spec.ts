@@ -379,13 +379,16 @@ test("the Company settings form can be tabbed through in order, with a focus rin
     .getByRole("banner")
     .getByRole("button", { name: `Menu for ${SIGNED_IN.name}` })
     .focus();
-  const reached = [...(await tabThrough(page, 10))];
+  // Chrome steps through a date box's month, day and year, then its calendar button, so As of takes four presses.
+  const reached = [...(await tabThrough(page, 15))];
   expect(reached).toEqual([
     "BUTTON Save settings",
     "INPUT Company name",
     "TEXTAREA Address",
     "INPUT Email",
     "INPUT Phone",
+    "INPUT Opening balance",
+    "INPUT As of",
     "INPUT Tax label",
     "INPUT Tax rate",
     "INPUT Payment terms",

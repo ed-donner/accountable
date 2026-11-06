@@ -4,13 +4,13 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Company settings
 
-- **B1.** The company settings are one set of details for the whole team, kept in the database: the company name, address, email and phone, a tax label and rate, the payment terms in days, the prefixes for quote and invoice numbers, and how quotes and invoices look: their design, accent color and logo (B18). They're there for quotes and invoices. Quotes use the company's details on their PDFs, the tax on their totals and the quote prefix in their numbers, and each quote keeps the details and the tax as they were when it was sent, so a later save here never changes a quote a customer has ([Q17](quotes.md#amounts-and-tax), [Q30](quotes.md#the-pdf)). Invoices use them the same way, keeping what's written on them as it was when they were issued, while their look follows the settings as they are when the PDF is made ([V11](invoices.md#issuing)).
+- **B1.** The company settings are one set of details for the whole team, kept in the database: the company name, address, email and phone, a tax label and rate, the payment terms in days, the prefixes for quote and invoice numbers, how quotes and invoices look: their design, accent color and logo (B18), and the opening balance the dashboard's cash flow starts from (B23). They're there for quotes and invoices, and for the cash flow, which also takes its likely deals' payment terms from them ([Y13](cash-flow.md#likely-deals)). Quotes use the company's details on their PDFs, the tax on their totals and the quote prefix in their numbers, and each quote keeps the details and the tax as they were when it was sent, so a later save here never changes a quote a customer has ([Q17](quotes.md#amounts-and-tax), [Q30](quotes.md#the-pdf)). Invoices use them the same way, keeping what's written on them as it was when they were issued, while their look follows the settings as they are when the PDF is made ([V11](invoices.md#issuing)).
 - **B2.** Company settings, in the menu under your initials ([N7](shell.md#app-shell)), opens the Company settings page at `/settings`. Like a section, it has its own address (N2) and keeps the top bar, but it isn't one of the top bar's sections, so no section is marked as current while it's open.
 - **B3.** Anyone who can sign in can see and change the settings, and everyone sees the same ones. A teammate's save shows when the window is used again or the page is refreshed, as with records. If two people save at once, the last save wins.
 
 ### Fields and rules
 
-- **B4.** Every save needs the company name, the tax rate, the payment terms, both prefixes, the design and the accent color. The address, email, phone, tax label and logo can be blank. Spaces at the ends of a field are dropped, and an optional field left blank is saved blank.
+- **B4.** Every save needs the company name, the tax rate, the payment terms, both prefixes, the design and the accent color. The address, email, phone, tax label, logo and opening balance can be blank. Spaces at the ends of a field are dropped, and an optional field left blank is saved blank.
 
 | Field | Rule | Message beside the field |
 |---|---|---|
@@ -50,8 +50,9 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 | Prefixes | QT- and INV- |
 | Design and accent color | Banner, in `#0E6B6B`, a deep teal |
 | Logo | A made-up logo for Plainsong Systems, a PNG kept with the sample data |
+| Opening balance | $40,000.00 as of the first day of the cash flow's first month, 11 months before the month of seeding, so the line covers the whole year and stays above zero in every month (M3) |
 
-- **B13.** A database that already existed before the company settings came in, such as the team's Supabase database or an existing `data/accountable.db`, doesn't get the made-up company, because its name could end up on the team's real invoices. It starts with the defaults: the company name, address, email and phone blank, Sales tax as the label at a rate of 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, `#073B4C`, and no logo. No one shows as having changed them (B9). Clearing the sample data in Supabase (C11) puts the settings back to these same defaults, removing the logo, with no one recorded, so a made-up company never stays on the team's real app.
+- **B13.** A database that already existed before the company settings came in, such as the team's Supabase database or an existing `data/accountable.db`, doesn't get the made-up company, because its name could end up on the team's real invoices. It starts with the defaults: the company name, address, email and phone blank, Sales tax as the label at a rate of 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, `#073B4C`, no logo and no opening balance. No one shows as having changed them (B9). Clearing the sample data in Supabase (C11) puts the settings back to these same defaults, removing the logo, with no one recorded, so a made-up company never stays on the team's real app.
 - **B14.** Until someone saves a company name, the page says "No company name yet. Enter one below." Every save needs the name (B4), so once one is saved, only the clearing steps in C11 can take it away again.
 
 ### For quotes and invoices
@@ -76,6 +77,16 @@ These are what quotes and invoices share, kept in `company/` so both use the sam
 | Accent color | Required. `#` and six hex digits, at least 4.5:1 against white | Not a hex color: Enter a color as # and six hex digits, such as #0E6B6B. Too light: Too light to read on white. Choose a darker color |
 | Logo | Optional. A real PNG or JPEG, up to 1 MB and 2,000 pixels on each side | Not a PNG or JPEG: Choose a PNG or JPEG image. Too big: Choose an image of 1 MB or less. Too many pixels: Choose an image no more than 2,000 pixels wide or tall |
 
+### Cash
+
+- **B23.** The opening balance is the cash the business had in the bank at the start of a chosen day, entered once, and the dashboard's cash flow counts from it ([Y9](cash-flow.md#the-cash-balance)). It's two fields that go together, the amount and the day it's as of, on a Cash panel. They're settings like the rest: saved by Save settings, shared by the whole team, and covered by B3, B5 and B8 to B10. Both blank means there's no opening balance, which is how the settings start (B13), and clearing both takes it away, leaving the cash flow with no balance line.
+- **B24.** The amount is in dollars and cents, read by its digits as a price is (G4), and kept as whole cents. It can be below zero, typed with a minus sign in front, for an account that was overdrawn. The date can't be after today, the backend's for a save and the page's as it's typed, and a date that was fine when it was saved stays fine. A save that changes other settings checks the opening balance as it will be saved, as B5 says.
+
+| Field | Rule | Message beside the field |
+|---|---|---|
+| Opening balance | Optional, but needed when As of has a date. Dollars and cents, at most two figures after the point, from -$1 trillion to $1 trillion | Not an amount: Enter an amount in dollars and cents, such as 25,000.00. Past the limit: Keep the opening balance within $1 trillion either way. With a date but no amount: Enter the opening balance |
+| As of | Optional, but needed when there's an opening balance. A date, not after today | With an amount but no date: Choose the date of the opening balance. After today: The date can't be in the future |
+
 ## Screens
 
 ### Company settings page
@@ -84,11 +95,12 @@ The page title, "Company settings", sits at the top left, with the line from B9 
 
 - **Left:** a Company panel with Company name, Address, Email and Phone. The address box is four lines tall, and grows as more lines are typed.
 - **Right:** a Tax panel with Tax label and Tax rate, then a Quotes and invoices panel with Payment terms, Quote prefix and Invoice prefix.
+- **Left, under the Company panel:** a Cash panel with Opening balance and As of side by side. The amount box shows `$` at its start and its figures in JetBrains Mono, as a bill's amount does. Under them, a hint in muted ink: "The cash in the bank at the start of that day. The dashboard's cash flow counts from it. Put a minus sign in front if the account was overdrawn."
 
 Below them, across the whole width, a Documents panel. Its left part, about 40% of the width, holds Design, Accent color and Logo. Design is the three designs as cards side by side, each with a small drawing of its page and its name under it, working as one radio group, so the arrow keys move between them, with the chosen one ringed in Sea Green. Accent color is a round swatch that opens the browser's color picker, with the hex box beside it. Logo shows the logo on a white tile, or "No logo" in muted ink, with Choose logo and Remove logo after it, and the hint "PNG or JPEG, up to 1 MB." in muted ink. Its right part holds the sample invoice's first page, as in the invoice page's preview ([Invoice page](invoices.md#invoice-page)), scaled to fit.
 
 Each panel has its name as a section heading. Fields have their label above them, inputs in the page color, and errors beside the field in Raspberry text, as in the record forms. The tax rate box has % after it and the payment terms box has days after it, in muted ink. Those two boxes are short, so the unit sits beside the number. Under each prefix, a hint in muted ink says "Up to 10 letters, digits and hyphens." While no company name is saved, B14's message sits in the Company panel under its heading, in ink, after lucide-react's Info icon in Cerulean. It has no box behind it, so it can't be taken for a box to type in.
 
-Save settings sits at the top right, level with the page title, in Sea Green with Midnight text, as main buttons are, so it's in view while the page is at its top. Enter in a one-line box saves, and in the address box it starts a new line. At 1280 by 720, the company and tax panels and the button fit without scrolling, and the page scrolls to the Documents panel.
+Save settings sits at the top right, level with the page title, in Sea Green with Midnight text, as main buttons are, so it's in view while the page is at its top. Enter in a one-line box saves, and in the address box it starts a new line. At 1280 by 720, the company and tax panels and the button fit without scrolling, and the page scrolls to the Cash and Documents panels.
 
 There's no dialog on this page, and no Cancel: leaving the page is how to drop a change (B10).

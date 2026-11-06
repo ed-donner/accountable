@@ -4,7 +4,7 @@ import base64
 import io
 import json
 import re
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -114,6 +114,8 @@ def test_a_database_nobody_has_saved_has_the_defaults_and_no_one_recorded(api):
         "invoice_design": "classic",
         "accent_color": "#073B4C",
         "logo": None,
+        "opening_balance_cents": None,
+        "opening_balance_on": None,
         "updated_by": None,
     }
 
@@ -123,6 +125,8 @@ def test_a_save_keeps_every_field_and_says_who_saved_it_and_when(api):
     assert settings == {
         **EVERY_FIELD,
         "logo": None,
+        "opening_balance_cents": None,
+        "opening_balance_on": None,
         "updated_at": SAVED_AT,
         "updated_by": {"id": ALEX.id, "name": ALEX.name},
     }
@@ -242,6 +246,123 @@ def test_a_rate_with_more_than_three_places_is_refused_not_rounded(named):
 @pytest.mark.parametrize("thousandths, text", [(8875, "8.875"), (8500, "8.5"), (0, "0"), (100000, "100"), (1, "0.001")])
 def test_a_rate_is_written_out_with_no_trailing_zeros(thousandths, text):
     assert schemas.rate_text(thousandths) == text
+
+
+# The opening balance (B23, B24)
+
+OPENING = {
+    "not an amount": "Enter an amount in dollars and cents, such as 25,000.00",
+    "past the limit": "Keep the opening balance within $1 trillion either way",
+    "no amount": "Enter the opening balance",
+    "no date": "Choose the date of the opening balance",
+    "in the future": "The date can't be in the future",
+}
+A_TRILLION_IN_CENTS = 100_000_000_000_000
+AS_OF = {"opening_balance_cents": 4_000_000, "opening_balance_on": "2025-12-01"}
+
+
+def opening_balance() -> tuple[int | None, date | None]:
+    row = stored()
+    return row["opening_balance_cents"], row["opening_balance_on"]
+
+
+@pytest.mark.parametrize("cents", [4_000_000, -425_000, 0, 1, A_TRILLION_IN_CENTS, -A_TRILLION_IN_CENTS])
+def test_an_opening_balance_and_its_date_are_saved_together_below_zero_too(named, cents):
+    settings = saved(named.patch(SETTINGS, json={"opening_balance_cents": cents, "opening_balance_on": "2025-12-01"}))
+    assert (settings["opening_balance_cents"], settings["opening_balance_on"]) == (cents, "2025-12-01")
+    assert saved(named.get(SETTINGS)) == settings
+    assert opening_balance() == (cents, date(2025, 12, 1))
+
+
+def test_an_amount_without_a_date_is_refused(named):
+    reply = named.patch(SETTINGS, json={"opening_balance_cents": 4_000_000})
+    assert error_fields(reply) == {"opening_balance_on": OPENING["no date"]}
+    assert opening_balance() == (None, None)
+
+
+def test_a_date_without_an_amount_is_refused(named):
+    reply = named.patch(SETTINGS, json={"opening_balance_on": "2025-12-01"})
+    assert error_fields(reply) == {"opening_balance_cents": OPENING["no amount"]}
+    assert opening_balance() == (None, None)
+
+
+@pytest.mark.parametrize(
+    "cleared, problem",
+    [
+        ("opening_balance_on", {"opening_balance_on": OPENING["no date"]}),
+        ("opening_balance_cents", {"opening_balance_cents": OPENING["no amount"]}),
+    ],
+)
+def test_clearing_one_of_a_saved_pair_is_refused(named, cleared, problem):
+    """Checked against the settings as they'd be after the save, so the other one counts (B5)."""
+    saved(named.patch(SETTINGS, json=AS_OF))
+    assert error_fields(named.patch(SETTINGS, json={cleared: None})) == problem
+    assert opening_balance() == (4_000_000, date(2025, 12, 1))
+
+
+def test_clearing_both_removes_the_opening_balance(named):
+    saved(named.patch(SETTINGS, json=AS_OF))
+    settings = saved(named.patch(SETTINGS, json={"opening_balance_cents": None, "opening_balance_on": None}))
+    assert (settings["opening_balance_cents"], settings["opening_balance_on"]) == (None, None)
+    assert opening_balance() == (None, None)
+
+
+@pytest.mark.parametrize("cents", [A_TRILLION_IN_CENTS + 1, -A_TRILLION_IN_CENTS - 1, 10**30, -(10**30)])
+def test_an_amount_past_a_trillion_either_way_gets_its_own_message(named, cents):
+    reply = named.patch(SETTINGS, json={"opening_balance_cents": cents, "opening_balance_on": "2025-12-01"})
+    assert error_fields(reply) == {"opening_balance_cents": OPENING["past the limit"]}
+    assert opening_balance() == (None, None)
+
+
+@pytest.mark.parametrize("cents", [49.5, 4950.0, "4950", True, "abc", [4950]], ids=repr)
+def test_an_amount_that_isnt_whole_cents_is_refused_not_rounded(named, cents):
+    reply = named.patch(SETTINGS, json={"opening_balance_cents": cents, "opening_balance_on": "2025-12-01"})
+    assert error_fields(reply) == {"opening_balance_cents": OPENING["not an amount"]}
+    assert opening_balance() == (None, None)
+
+
+def test_a_fraction_of_a_cent_written_out_in_full_is_refused(named):
+    """The settings' routes read a number with a point exactly, so 4950.0000000000001 can't pass as 4950."""
+    reply = send_raw(named, '{"opening_balance_cents": 4950.0000000000001, "opening_balance_on": "2025-12-01"}')
+    assert error_fields(reply) == {"opening_balance_cents": OPENING["not an amount"]}
+
+
+@pytest.mark.parametrize("on", ["2025-13-01", "2025-02-30", "yesterday", "", True, [2025, 12, 1]], ids=repr)
+def test_a_date_that_isnt_one_is_refused(named, on):
+    reply = named.patch(SETTINGS, json={"opening_balance_cents": 4_000_000, "opening_balance_on": on})
+    assert error_fields(reply) == {"opening_balance_on": OPENING["no date"]}
+
+
+def test_a_date_of_today_is_kept_and_tomorrow_is_refused(named, local_app):
+    """Against the backend's today, so a browser whose clock is ahead can't save tomorrow (B24)."""
+    local_app.dependency_overrides[db.local_today] = lambda: date(2026, 11, 5)
+    saved(named.patch(SETTINGS, json={"opening_balance_cents": 4_000_000, "opening_balance_on": "2026-11-05"}))
+    reply = named.patch(SETTINGS, json={"opening_balance_cents": 4_000_000, "opening_balance_on": "2026-11-06"})
+    assert error_fields(reply) == {"opening_balance_on": OPENING["in the future"]}
+    assert opening_balance() == (4_000_000, date(2026, 11, 5))
+
+
+def test_a_date_that_was_fine_when_it_was_saved_stays_fine(named, local_app):
+    """Such as when the backend's today is a day behind the zone it was saved in."""
+    local_app.dependency_overrides[db.local_today] = lambda: date(2026, 11, 5)
+    saved(named.patch(SETTINGS, json={"opening_balance_cents": 4_000_000, "opening_balance_on": "2026-11-05"}))
+    local_app.dependency_overrides[db.local_today] = lambda: date(2026, 11, 4)
+    every_field = {"opening_balance_cents": -125, "opening_balance_on": "2026-11-05", "tax_rate": "5"}
+    assert saved(named.patch(SETTINGS, json=every_field))["opening_balance_cents"] == -125
+
+
+def test_a_save_of_other_settings_keeps_a_saved_opening_balance(named):
+    saved(named.patch(SETTINGS, json=AS_OF))
+    settings = saved(named.patch(SETTINGS, json={"tax_rate": "5", "payment_terms_days": 14}))
+    assert (settings["opening_balance_cents"], settings["opening_balance_on"]) == (4_000_000, "2025-12-01")
+
+
+def test_entering_an_opening_balance_records_who_did_and_saving_it_again_changes_nothing(named, sign_in_as, local_app):
+    saved(sign_in_as(DANA.id).patch(SETTINGS, json=AS_OF))
+    assert stored()["updated_by"] == DANA.id
+    local_app.dependency_overrides[db.utc_now] = lambda: datetime(2026, 11, 2, 9, 0)
+    saved(sign_in_as(ALEX.id).patch(SETTINGS, json=AS_OF))
+    assert stored()["updated_by"] == DANA.id
 
 
 # Payment terms

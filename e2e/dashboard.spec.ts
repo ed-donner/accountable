@@ -314,11 +314,24 @@ test.describe("with the sample data", () => {
       windowWidth: window.innerWidth,
     }));
     expect(sizes.width).toBeLessThanOrEqual(sizes.windowWidth);
-    // Sections other areas add come below that screen (H10), and the Money section fits a window of its own.
-    expect((await money.boundingBox())!.y).toBeGreaterThanOrEqual(sizes.windowHeight - 40);
-    expect((await money.boundingBox())!.height).toBeLessThanOrEqual(sizes.windowHeight);
+    // Sections other areas add come below that screen (H10).
+    const moneyBox = (await money.boundingBox())!;
+    expect(moneyBox.y).toBeGreaterThanOrEqual(sizes.windowHeight - 40);
 
-    // The whole section, invoices' side and bills' beside it, shows once the page is scrolled to it.
+    // The heading and the cash flow's row fit a window, and so does everything below the row.
+    const cashFlow = page.getByRole("region", { name: "Cash flow" });
+    await expect(cashFlow.getByRole("heading", { name: "Cash flow" })).toBeVisible();
+    const rowBox = (await cashFlow.boundingBox())!;
+    expect(rowBox.y + rowBox.height - moneyBox.y).toBeLessThanOrEqual(sizes.windowHeight);
+    const sidesTop = (await page.getByRole("region", { name: "Owed to us" }).boundingBox())!.y;
+    expect(moneyBox.y + moneyBox.height - sidesTop).toBeLessThanOrEqual(sizes.windowHeight);
+
+    // Scrolled so the section's top is at the window's top, as a reader scrolling to it would.
+    await money.evaluate((section) => window.scrollTo(0, section.getBoundingClientRect().top + window.scrollY));
+    await expect(money.getByRole("heading", { level: 2, name: "Money" })).toBeInViewport({ ratio: 1 });
+    await expect(cashFlow).toBeInViewport({ ratio: 1 });
+
+    // Invoices' side and bills' beside it show once the page is scrolled to them.
     await page.getByRole("region", { name: "Spending by category" }).scrollIntoViewIfNeeded();
     for (const name of ["Owed to us", "Payments received", "What we owe", "Spending by category"]) {
       await expect(page.getByRole("region", { name }), name).toBeInViewport({ ratio: 1 });

@@ -137,8 +137,9 @@ Dollars = Annotated[StrictInt, Field(ge=0, le=MAX_VALUE)]
 # Strict, so 49.5, "4950" and true are refused rather than rounded or read as numbers.
 Cents = Annotated[StrictInt, Field(ge=0, le=MAX_CENTS)]
 UtcTime = Annotated[datetime, PlainSerializer(_with_z, return_type=str)]
-# A sum of amounts in whole cents, sent as digits. Each amount fits a JavaScript number exactly,
-# but a sum of many can pass 2**53 cents, where it can't, so the page reads it as a BigInt.
+# A sum of money in whole cents, sent as digits, with a minus sign below zero, such as "-425000".
+# Each amount a sum adds up fits a JavaScript number exactly, but the sum can pass 2**53 cents,
+# where it can't, so the browser reads it as a BigInt (E20, Y20).
 CentsSum = Annotated[int, PlainSerializer(str, return_type=str, when_used="json")]
 
 

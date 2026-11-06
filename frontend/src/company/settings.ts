@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { api, fetchFile } from "../lib/api";
 import { base64Of } from "../lib/files";
+import { MAX_CENTS, parseSignedPrice, priceText } from "../lib/money";
 import { useWrite, type Person } from "../lib/records";
 import { EMAIL_MESSAGE, isEmail } from "../lib/validate";
 import { accentProblem, keptAccent } from "./accent";
@@ -31,6 +32,9 @@ export type CompanySettings = {
   invoice_design: InvoiceDesign;
   accent_color: string;
   logo: SavedLogo | null;
+  /** The cash at the start of opening_balance_on, in whole cents and below zero if overdrawn. Both null with none (B23). */
+  opening_balance_cents: number | null;
+  opening_balance_on: string | null;
   updated_at: string;
   /** Nobody, until someone saves them (B9, B13). */
   updated_by: Person | null;
@@ -82,6 +86,11 @@ export const QUOTE_PREFIX_BLANK_MESSAGE = "Enter a prefix, such as QT-";
 export const INVOICE_PREFIX_BLANK_MESSAGE = "Enter a prefix, such as INV-";
 export const PREFIX_CHARACTERS_MESSAGE = "Use up to 10 letters, digits and hyphens";
 export const CLASH_MESSAGE = "Clashes with the quote prefix. Neither can start with the other, ignoring capitals";
+export const OPENING_AMOUNT_MESSAGE = "Enter an amount in dollars and cents, such as 25,000.00";
+export const OPENING_LIMIT_MESSAGE = "Keep the opening balance within $1 trillion either way";
+export const OPENING_AMOUNT_MISSING_MESSAGE = "Enter the opening balance";
+export const OPENING_DATE_MESSAGE = "Choose the date of the opening balance";
+export const OPENING_DATE_FUTURE_MESSAGE = "The date can't be in the future";
 
 // Digits with an optional point, and at least one digit: 8.875, 8, .5 or 5.
 const RATE_DIGITS = /^(?=\.?\d)(\d*)(?:\.(\d*))?$/;
@@ -116,6 +125,28 @@ export function prefixProblem(text: string, blankMessage: string): string | unde
   return PREFIX.test(prefix) ? undefined : PREFIX_CHARACTERS_MESSAGE;
 }
 
+function openingAmountProblem(typed: string): string | undefined {
+  // Read with no limit first, so an amount past it gets its own message.
+  const cents = parseSignedPrice(typed, Infinity);
+  if (cents === null) return OPENING_AMOUNT_MESSAGE;
+  return Math.abs(cents) > MAX_CENTS ? OPENING_LIMIT_MESSAGE : undefined;
+}
+
+/**
+ * The amount and its date go together, both blank for no opening balance, and a date changed to
+ * one after today, the page's own as it's typed, is refused, while the saved one stays fine, as
+ * the backend keeps it (B23, B24). Dates are yyyy-MM-dd, so they compare as text.
+ */
+export function openingBalanceProblems(amount: string, on: string, today: string, savedOn: string | null): Problems {
+  const typed = amount.trim();
+  if (typed === "" && on === "") return {};
+  return {
+    opening_balance_cents: typed === "" ? OPENING_AMOUNT_MISSING_MESSAGE : openingAmountProblem(typed),
+    opening_balance_on:
+      on === "" ? OPENING_DATE_MESSAGE : on !== savedOn && on > today ? OPENING_DATE_FUTURE_MESSAGE : undefined,
+  };
+}
+
 /** Whether a quote's number and an invoice's could ever be the same (B6). */
 export function prefixesClash(quote: string, invoice: string): boolean {
   const [q, i] = [quote.trim().toLowerCase(), invoice.trim().toLowerCase()];
@@ -145,12 +176,15 @@ export type SettingsValues = {
   invoice_design: InvoiceDesign;
   accent_color: string;
   logo: LogoChoice;
+  /** Named as the API's fields are, so its messages land beside them, and typed text until it's sent. */
+  opening_balance_cents: string;
+  opening_balance_on: string;
 };
 
 type Problems = Partial<Record<keyof SettingsValues, string>>;
 
-/** Every field's message at once, the clash included, as the backend would give them (B4 to B6). */
-export function settingsProblems(values: SettingsValues): Problems {
+/** Every field's message at once, the clash included, as the backend would give them (B4 to B6, B24). */
+export function settingsProblems(values: SettingsValues, today: string, savedOn: string | null): Problems {
   const email = values.email.trim();
   const problems: Problems = {
     company_name: values.company_name.trim() === "" ? COMPANY_NAME_MESSAGE : undefined,
@@ -160,32 +194,38 @@ export function settingsProblems(values: SettingsValues): Problems {
     quote_prefix: prefixProblem(values.quote_prefix, QUOTE_PREFIX_BLANK_MESSAGE),
     invoice_prefix: prefixProblem(values.invoice_prefix, INVOICE_PREFIX_BLANK_MESSAGE),
     accent_color: accentProblem(values.accent_color),
+    ...openingBalanceProblems(values.opening_balance_cents, values.opening_balance_on, today, savedOn),
   };
   const bothFine = !problems.quote_prefix && !problems.invoice_prefix;
   if (bothFine && prefixesClash(values.quote_prefix, values.invoice_prefix)) problems.invoice_prefix = CLASH_MESSAGE;
   return problems;
 }
 
-export const settingsSchema = z
-  .object({
-    company_name: z.string(),
-    address: z.string(),
-    email: z.string(),
-    phone: z.string(),
-    tax_label: z.string(),
-    tax_rate: z.string(),
-    payment_terms_days: z.string(),
-    quote_prefix: z.string(),
-    invoice_prefix: z.string(),
-    invoice_design: z.enum(["classic", "banner", "ledger"]),
-    accent_color: z.string(),
-    logo: z.custom<LogoChoice>(),
-  })
-  .superRefine((values, context) => {
-    for (const [field, message] of Object.entries(settingsProblems(values))) {
-      if (message) context.addIssue({ code: "custom", path: [field], message });
-    }
-  });
+/** The form's checks, with today and the saved date for the opening balance's date. */
+export function settingsSchema(today: string, savedOn: string | null) {
+  return z
+    .object({
+      company_name: z.string(),
+      address: z.string(),
+      email: z.string(),
+      phone: z.string(),
+      tax_label: z.string(),
+      tax_rate: z.string(),
+      payment_terms_days: z.string(),
+      quote_prefix: z.string(),
+      invoice_prefix: z.string(),
+      invoice_design: z.enum(["classic", "banner", "ledger"]),
+      accent_color: z.string(),
+      logo: z.custom<LogoChoice>(),
+      opening_balance_cents: z.string(),
+      opening_balance_on: z.string(),
+    })
+    .superRefine((values, context) => {
+      for (const [field, message] of Object.entries(settingsProblems(values, today, savedOn))) {
+        if (message) context.addIssue({ code: "custom", path: [field], message });
+      }
+    });
+}
 
 export function toForm(settings: CompanySettings): SettingsValues {
   return {
@@ -201,6 +241,8 @@ export function toForm(settings: CompanySettings): SettingsValues {
     invoice_design: settings.invoice_design,
     accent_color: settings.accent_color,
     logo: { kind: "kept" },
+    opening_balance_cents: settings.opening_balance_cents === null ? "" : priceText(settings.opening_balance_cents),
+    opening_balance_on: settings.opening_balance_on ?? "",
   };
 }
 
@@ -208,7 +250,11 @@ function blankToNull(text: string): string | null {
   return text.trim() || null;
 }
 
-/** The rate goes as the typed text, so it reaches the backend exactly as typed (B7). */
+/**
+ * The rate goes as the typed text, so it reaches the backend exactly as typed (B7). The opening
+ * balance goes as whole cents, or null with its date when both are blank, which removes it (B23).
+ * The checks have already refused one without the other.
+ */
 export function toRequest(values: SettingsValues): SettingsRequest {
   return {
     company_name: values.company_name.trim(),
@@ -223,6 +269,8 @@ export function toRequest(values: SettingsValues): SettingsRequest {
     invoice_design: values.invoice_design,
     accent_color: keptAccent(values.accent_color),
     ...logoRequest(values.logo),
+    opening_balance_cents: parseSignedPrice(values.opening_balance_cents),
+    opening_balance_on: values.opening_balance_on || null,
   };
 }
 

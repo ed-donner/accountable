@@ -61,7 +61,7 @@ def fill_sample(conn: Connection) -> None:
     crm_sample_data.fill(conn, today)
     products_sample_data.fill(conn, today)
     bills_sample_data.fill(conn, today)
-    company_sample_data.fill(conn, db.utc_now())
+    company_sample_data.fill(conn, today, db.utc_now())
     quotes_sample_data.fill(conn, today)
     invoices_sample_data.fill(conn, today)
 

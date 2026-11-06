@@ -155,6 +155,14 @@ export function addBill(request: APIRequestContext, values: BillFields) {
   });
 }
 
+/** The opening balance the cash flow counts from, in whole cents, as of a yyyy-MM-dd day, or null for both to remove it (B23). */
+export async function setOpeningBalance(request: APIRequestContext, cents: number | null, on: string | null) {
+  const reply = await request.patch(`${API}/settings`, {
+    data: { opening_balance_cents: cents, opening_balance_on: on },
+  });
+  if (!reply.ok()) throw new Error(`PATCH /settings failed: ${reply.status()} ${await reply.text()}`);
+}
+
 /** An organization, a contact and a deal, for tests that need one of each. */
 export async function addLinkedDeal(request: APIRequestContext, name: string, deal: Partial<DealFields> = {}) {
   const organization = await addOrganization(request, `${name} Ltd`);

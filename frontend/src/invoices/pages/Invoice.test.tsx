@@ -30,6 +30,8 @@ const SETTINGS: CompanySettings = {
   invoice_design: "classic",
   accent_color: "#0E6B6B",
   logo: null,
+  opening_balance_cents: null,
+  opening_balance_on: null,
   updated_at: "2026-11-01T12:00:00Z",
   updated_by: DANA,
 };

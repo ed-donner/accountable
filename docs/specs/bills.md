@@ -56,6 +56,8 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 - **E23.** **Spending by category** shows, for each of the last 12 months including the current one, the total of the bills dated in that month, paid or not, stacked by category, with a category too small to see drawn 4px tall, as on the timeline. A bill counts in the month of its bill date, so a bill dated in a later month isn't on it yet. Months with no bills show as zero, and the current month is marked "so far". Above the chart, as above the payments chart beside it, the heading names this month, such as "Spending in November", with this month's total beside last month's. Pointing at a month shows each category's total and the month's. A legend names the six categories beside their swatches, and goes with the chart when there's nothing to show. A table behind the chart, for screen readers, gives each month's total for each category, and the month's total. With no bills in the 12 months, it says "Spending will show here once you've added bills."
 - **E24.** At the limits in Q1, the Money section's data arrives in under 200ms, as the dashboard's does.
 
+Bills also give the cash flow at the top of the Money section its money out, the paid bills by the date they were paid, and its money expected out, the unpaid bills, each on its due date ([Y2 and Y7](cash-flow.md#the-forecast)).
+
 ## Screens
 
 ### Bills table
@@ -80,7 +82,7 @@ In the left column of the organization's page, under its contacts and deals, in 
 
 ### Money section
 
-Bills' side is the right column of the dashboard's Money section, beside invoices' side and built from the same parts, so the two read across ([Dashboard](dashboard.md#dashboard-1)): What we owe above, 332px tall, level with Owed to us, and Spending by category below, 360px tall, level with Payments received.
+Bills' side is the right column of the dashboard's Money section, under the cash flow's row ([Screens](cash-flow.md#screens)), beside invoices' side and built from the same parts, so the two read across ([Dashboard](dashboard.md#dashboard-1)): What we owe above, 332px tall, level with Owed to us, and Spending by category below, 360px tall, level with Payments received.
 
 ```
 +---------------------------------------------+

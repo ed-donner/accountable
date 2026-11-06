@@ -901,6 +901,106 @@ Left as it is: `frontend.md` and `architecture.md` still call the Money section'
 
 `npm run check` passes: 6,274 tests in 9m 16s, of which 4,284 backend, 1,644 frontend, 329 end-to-end and 17 speed: this branch's tests with main's. One unit test took a second or more, `test_the_data_really_is_at_the_limits` at 1.1s, as before, while another run on the computer was busy.
 
+## Cash flow: design
+
+On the `cash-flow` branch, `docs/spec.md` and the area files now describe Accountable with the cash flow in it, as it will be once the branch merges. The intent, with the owner's answers on the 15 months, days paid late and the opening balance's date, is in `docs/changes/cash-flow/intent.md`. One area file is new: `docs/specs/cash-flow.md`, with Y1 to Y22 and the screens of the cash flow's row and its month dialog, and `settings.md` gains B23 and B24 for the opening balance. No code has changed yet.
+
+- **Where it lives:** a new later area, `cashflow/` on both sides, with no tables. It never imports invoices, bills or the CRM: each gives `main.py` its cash through a new top-level `cash.py`, as each gives its holds, and the cash flow's routes read it from the app. `GET /cash-flow` gives the 15 months, and `GET /cash-flow/expected?month=` what's expected in one of them.
+- **Company settings:** a Cash panel with Opening balance and As of, two new columns on `company_settings` from migration `0011`, blank by default. The sample company's is $40,000.00, as of the first day of the chart's first month. On a sample database built on Nov 5, 2026, that keeps the balance above zero in every month, at about $17,000 at its lowest, at the end of March.
+- **Dashboard:** the cash flow's row is first in the Money section. The `money` branch is reworking the rest of the section, so the spec only says that everything below the cash flow's row fits a 1440 by 900 window. Both branches change `dashboard.md`, `invoices.md`, `bills.md`, `frontend.md`, `testing.md` and `visual-design.md`, and the second to merge will need to bring them together.
+- **Colors:** three new tokens, Soft Sea Green, Soft Coral and Soft Marigold, for the forecast's bars and the likely deals' band. The Likely deals switch is a checkbox with the switch role, so it needs no new package.
+
+The project owner agreed the choices the spec made where the intent left them open, and they're now in the intent's Decisions: the new `cashflow/` area with each area's money given through `main.py` and `cash.py`, an opening balance that can be below zero, the sample company's $40,000.00, the chart's colors and figures, the switch hidden without an opening balance, a dialog for a month's list, and the average over every fully paid invoice. The forecast holds only what the invoices and bills say, the likely deals' band leaves out tax, and the sample invoices stay as they are, since another branch is reworking the sample data.
+
+Before the build: the `money` branch merges first, and this branch brings it in, putting the two branches' edits to the Money section's spec together. Once the reworked sample data is in, check that $40,000.00 still keeps the sample balance above zero in every month, as M3 asks. For the build: the SQL under Clear the sample data needs `opening_balance_cents = default, opening_balance_on = default` in its `update`, and its words should say it removes the opening balance too.
+
+The build plan is in `docs/changes/cash-flow/plan.md`: first bringing in the `money` branch's Money section, then five phases, the opening balance and the cash flow on the backend, the same two on the frontend, and end to end. Writing it settled two things in the spec: a month's list is `GET /cash-flow/expected?month=`, because `test_every_route.py` treats every part of a path that varies as a record's id, and the cash flow passes each area's cash the settings it has read, so the CRM reads none of its own and the figures keep to six reads.
+
+Bringing in `main`, with the `money` branch's Money section in it, met conflicts in this file and nine spec files, all where both branches had described the Money section. They're put together as the plan's Phase 0 says: the Money section as the `money` branch left it, two sides with shared rows, and the cash flow's full-width row above them. Invoices' and bills' rows are now sides throughout, the screens in `invoices.md` and `bills.md` point to the cash flow's row above their sides, and `dashboard.md`'s screen puts the cash flow's row first. The rule that the whole section fits 1440 by 900 gives way to the cash flow's, since the row and the two sides no longer fit together: the heading and the cash flow's row fit, and so does everything below the row. `frontend.md` merged without a conflict but still put `MoneySection` in `App.tsx` with invoices' and bills' rows, so it now names `components/MoneySection.tsx` and the two sides. No code had changed on this branch, so the code came in from `main` without conflicts. Phase 0's last step, reading the merged `MoneySection.tsx` and noting in the plan where the cash flow's row goes, is still to do. `MoneySection` takes its two sides as children in a two-column grid, so the row needs a place of its own above that grid.
+
+## Cash flow: build
+
+The cash flow is built, as `docs/changes/cash-flow/plan.md` set out, on top of the `money` branch's Money section.
+
+- **The opening balance:** migration `0011` adds `opening_balance_cents` and `opening_balance_on` to the company settings, both blank, with a check that keeps them together. On SQLite the check rebuilds the table, and the upgrade test shows the row, who last changed it, its index and its ids come through whole. Saving the settings checks B23 and B24 against the backend's today. A date is checked against today only when it changes, so one that was fine when it was saved stays fine. The Company settings page has the Cash panel, and `lib/money.ts` shows and reads amounts below zero.
+- **The sample company:** $40,000.00 as of the first day of the chart's first month, as B12 says. On every seeding day the tests try, the lowest month's balance is $14,287.57, so the figure stands.
+- **The cash flow:** `cash.py` at the top level, a `cash.py` in invoices, bills and the CRM, and `cashflow/` on both sides. The figures take six reads of the database and a month's list four. At the Q1 limits they take about 13ms in the backend's tests and 15ms end to end.
+- **The page:** `CashFlowRow`, `CashFlowChart` and `MonthDialog` in `frontend/src/cashflow/`. `MoneySection` takes the row as its `lead`, between the heading and the two sides, which was Phase 0's last step.
+
+What the build settled, now in the spec:
+
+- **The axis's figures are chosen with room for each** (`visual-design.md`). Recharts dropped figures that crowded each other by itself, including the one below zero, so the chart now picks $0, the ends and the halves where they fit, and shows all it picks.
+- **A month's list says how late an invoice's customer pays as the average its date took** (`cash-flow.md`), which is every customer's for one with no fully paid invoice yet.
+- **A month with no balance names itself in its tooltip** (`cash-flow.md`), so `ChartTooltip`'s leading figure is now optional.
+- **A sum of cents sent as digits** is `api.CentsSum`, which bills and the cash flow both use (`architecture.md`).
+- **`Month`** in `months.py` has its year and its first and last days (`architecture.md`).
+- **The frontend tests' replies** are in `frontend/src/cashflow/test-cash-flow.ts` (`architecture.md`).
+
+Small changes to tests the plan didn't foresee: `test_layout.py` finds the areas by their packages, since `cashflow/` keeps no tables; `test_every_route.py` gives a month's list a real month to read, and counts `month` among the query parameters that take text; and the Company settings form takes 15 presses of Tab, not 12, because Chrome steps through a date box's month, day and year and then its calendar button. The fold also ignores a payment or a paid bill dated after today, which the saves refuse anyway, so one could never show as money moved in the forecast.
+
+`npm run check` passes: 6,435 tests in 6m 51s, with 4,354 backend, 1,734 frontend, 328 end-to-end and 19 speed tests. Each new test was seen to fail on a broken copy of the code it covers. Two unit tests took a second or more, neither new: `test_logo.py`'s WEBP case, at 4.0s, and the limits' setup, at 1.1s.
+
+### After ui-check
+
+ui-check looked at the cash flow and the Cash panel in light and dark mode, on a copy with the sample data and one with the opening balance removed. It found one fault, and the owner changed one decision:
+
+- **The axis's lowest figure was cut in half,** and crowded the one above it, on a copy with no opening balance. The chart had no room under the plot for the lower half of the figure on its bottom edge, and the 16px kept between figures left only 4px between 12px labels. The chart now leaves 8px under the plot and keeps 20px between figures.
+- **The axis now fits what's shown, and grows when Likely deals is turned on.** The build first kept room for the band with the switch off too, so that turning it on moved nothing, but with the sample data that ran the axis to $1M and the bars were hard to read on a first visit. The forecast line's balances don't change with the switch, which is what the intent asks, so Y14 now says the line and the bars are drawn to the new scale, showing the same money. `CashFlowChart.test.tsx` reads the line's balances back off the axis with the switch off and on, and `e2e/cash-flow.spec.ts` compares every month's balance rather than the line's points.
+
+ui-check's polish items are left as they are: an error under a settings box rather than beside it, as every form has them; the dark-mode band's shade, which is the spec's Soft Marigold; this month's tall tooltip; and a long month list whose last group starts out of sight.
+
+`npm run check` passes again: 6,435 tests in 6m 46s. The new and rewritten tests each failed on a broken copy of the code: the axis kept steady, no room under the plot, and 16px between figures.
+
+### Review
+
+The reviewer's first pass read only part of the change, so it ran again in three parts, the backend, the frontend with the end-to-end tests, and the docs, each reading every line of its part. Style was left out, as the owner asked. It found one Important problem, now fixed:
+
+- **A month's list was counted before it was drawn.** In `e2e/cash-flow.spec.ts`, `waitForList` returned once the reply to `/cash-flow/expected` arrived, and "an invoice in a month's list opens its own page" then counted the dialog's Coming in groups at once, while the dialog was still empty. On a copy of the spec with the browser's CPU slowed 20 times, it counted none in all four months and failed on `invoice!` in one run of three. `waitForList` now waits for the list itself, its groups or the line saying nothing is expected, and the same copy passed six runs of six. The copy was deleted after.
+
+The review's nits are still open:
+
+- No test has two customers whose average days late differ, so one taking every customer's average would pass (Y5, Y6). Migration `0011`'s downgrade is never run. The sliver test checks a height of 4px when `CHART.least` is 6, and "is off each time" never remounts the row.
+- The Likely deals switch stays on when the opening balance is removed, and comes back on when one is added. A month's list reopened after a save shows the cached list until the new one arrives. The form compares the opening date as text, so a five-digit year passes it, though the backend refuses it. January's this-month label is taller than its row. A dialog left open past a month's end shows the old month, then a 404 on its next read.
+- `settings.md`'s B13 leaves out the opening balance when the settings are cleared. `backend.md`'s month list row names fields the reply doesn't use, and points at an "(API, above)" rule that isn't written there. `visual-design.md`'s "All charts" bullet says only the current month is labelled. `testing.md` leaves out the end-to-end test of a balance below zero. `plan.md` says 12 presses of Tab, where the test takes 15.
+
+`docs/changes/cash-flow/independent-review.md` arrived during the review, with three Important findings of its own, and isn't addressed here.
+
+`npm run check` passes after the fix: 6,435 tests in 7m 11s. Four unit tests took a second or more while another run was busy, none from this branch: `test_logo.py`'s WEBP case at 4.5s, `DataTable.test.tsx`'s paging at 1.4s, and the limits' setup and `QuoteForm.test.tsx`'s 101st line at 1.1s each.
+
+### Independent review
+
+`docs/changes/cash-flow/independent-review.md` found three Important problems. All three are fixed, and each new test failed on the code before its fix:
+
+1. **A deal closing at the end of the calendar broke both cash flow routes (Y13).** The CRM saves any close date, and `crm/cash.py` added the payment terms to it, which goes past Python's last day, Dec 31, 9999, for a date within the terms of it. Every read of the figures and of a month's list then failed with a 500, Likely deals on or off. A deal whose date plus its terms would pass the last day is now expected on that day, long after the forecast, which leaves it out. `test_cash_flow.py` saves Dec 1, Dec 2 and Dec 31, 9999 through the deals route and reads both routes. Dec 2 and Dec 31 failed with `OverflowError` before the fix, and Dec 1, the last date 30 days can be added to, passed.
+2. **A month's list read again and failing showed the old list as if it were current (N6).** The dialog showed "Couldn't load this." only with nothing read yet. Opened again, it showed the list it read before while it read it again, and when that read failed it kept the old invoices, bills and totals, or Nothing expected, with no warning. It now says "Couldn't refresh this, so it may be out of date." with Try again above what it kept, as the panels do. `MonthDialog.test.tsx` covers a list with groups and one with nothing expected.
+3. **The form refused a saved opening date that's after the page's today (B24).** The backend keeps a date that was fine when it was saved, but the form checked every date against the page's today, so with the clock put back a day, no other setting could be saved without changing the opening balance's date. The form's checks now take the saved date, and refuse only a date changed to one after today. `settings.test.ts` checks both, and `SettingsPage.test.tsx` saves the phone number with a saved date a day ahead.
+
+The review's two test coverage findings are still open: no test leaves the dashboard and comes back, or reloads, to show the Likely deals switch off again (Y15), and the likely deals' amounts are only checked with 0% tax, so tax added to them would pass (Y14).
+
+`npm run check` passes after the fixes: 6,442 tests in 7m 00s, with 4,357 backend, 1,738 frontend, 328 end-to-end and 19 speed tests. The same four unit tests as before took a second or more while another run was busy, none from this branch.
+
+Still to come: `docs/IMPROVE.md`.
+
+### Merged with main
+
+`main`, with One story in the sample data, the review fixes and the refactor in it, was merged into `cash-flow`. Fourteen files conflicted, and in each both sides had added to the same lines, so both are kept:
+
+- **`main.py`:** each `Area` has its `cash`, from this branch, and its `numbered`, from main's fix to B6, and the app gets both lists.
+- **`company/router.py`:** a save checks a changed prefix against the numbers already taken, from main, and the opening balance (B23, B24), from this branch, so `_refuse_what_breaks_the_rules` takes the connection, today and the numbered columns.
+- **`api.py` and `bills/schemas.py`:** both branches had moved `CentsSum` to `api.py`. It keeps this branch's comment, which says a sum below zero has a minus sign, and bills use `api.CentsSum` directly, as on main.
+- **Tests:** `test_sample_data.py` reads the dashboard and the Money section, from main, and the cash flow, from this branch, on each seeding day. `main.test.tsx` stands in for both `/invoices/money` and `/cash-flow`, and finds Cash flow, Owed to us and What we owe in the Money section.
+- **Spec:** in `spec.md`, `settings.md`, `architecture.md`, `backend.md`, `frontend.md`, `invoices.md` and `testing.md`, main's quotes in the invoice designs, its shared code in `company/`, its B6 numbers, its sums of invoices as digits and its characterization tests sit with this branch's opening balance and cash flow. The index gives `settings.md` B1 to B24, and `deploy.md` main's W1 to W10. Both sides' sections here are kept, main's first, since they reached `main` first.
+
+Outside the conflicts:
+
+- **`Quote.test.tsx`**, new on main, has a settings fixture from before the opening balance, which tsc refused. It now has `opening_balance_cents` and `opening_balance_on` as null, as the other settings fixtures do.
+- **`cashflow/queries.ts`** had a type of its own for a sum sent as digits, and main added the same one to `lib/money.ts` as `CentsSum`. The cash flow now uses main's, whose comment now says a sum below zero has a minus sign. `frontend.md` says the cash flow's sums arrive that way, and that a chart's bars, lines and band read them as plain numbers, where main's line named only bars.
+- **The sample data:** main's changed the sample lines and no total or payment, so the cash flow's figures didn't move. On the six seeding days the lowest month's balance is still $14,287.57, so $40,000.00 stands (B12).
+
+Left as it is: the run instructions below still say the Documents panel sets how invoices look, where on main it now sets quotes' look too. Main's own merge left that line, and nothing on this branch touches it.
+
+`npm run check` passes: 6,548 tests in 8m 03s, of which 4,442 backend, 1,748 frontend, 339 end-to-end and 19 speed: this branch's tests with main's. One unit test took a second or more, `test_the_data_really_is_at_the_limits` at 1.2s, as before, while another run on the computer was busy.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -943,9 +1043,9 @@ Invoices bills customers for won deals. New invoice on a won deal's page starts 
 
 Bills holds the bills the business receives from its suppliers. A supplier is any organization, so add a new one in Organizations first. Each bill has the supplier's bill number, a bill date, a due date 30 days later unless you change it, the amount and the tax as they appear on the bill, and a category. Bills opens on the unpaid ones, earliest due first, so overdue bills come first: a bill is overdue once its due date has passed. Mark paid asks the date you paid it, and Mark unpaid undoes it, with Undo on its message for 10 seconds. An organization's page lists its bills, and an organization with bills can't be deleted.
 
-Below the dashboard's own part, the Money section puts what customers owe us beside what we owe suppliers. On the left: what customers owe, how much is overdue and how late, and the payments received each month. On the right: what we owe and what's overdue, a timeline of the bills due in the next 30 days, and spending by category for the last 12 months.
+Below the dashboard's own part, the Money section starts with the cash flow: the money in and out in each of the last 12 months, the cash balance at each month's end, and a dashed forecast for the next 3 months from the open invoices and unpaid bills. The Likely deals switch adds the open deals as a band on top of the forecast, and clicking this month or a forecast month lists what's expected in it. The balance counts from the opening balance in Company settings, and without one the chart shows money in and out with no balance. Below the cash flow, the Money section puts what customers owe us beside what we owe suppliers. On the left: what customers owe, how much is overdue and how late, and the payments received each month. On the right: what we owe and what's overdue, a timeline of the bills due in the next 30 days, and spending by category for the last 12 months.
 
-The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. Its Documents panel sets how invoices look: one of three designs, an accent color and the company's logo, with a sample invoice that changes as you choose. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. Its Cash panel holds the opening balance, the cash in the bank at the start of a chosen day, which the dashboard's cash flow counts from. Its Documents panel sets how invoices look: one of three designs, an accent color and the company's logo, with a sample invoice that changes as you choose. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -955,7 +1055,7 @@ Click on the terminal window and press Ctrl+C.
 
 Accountable comes with made-up sample data so you can look around.
 
-- `npm run seed` replaces everything with fresh sample data, invoices and payments included, and puts back the made-up company's settings and logo.
+- `npm run seed` replaces everything with fresh sample data, invoices and payments included, and puts back the made-up company's settings, logo and opening balance.
 - `npm run empty` removes every record, invoices and payments included, so you can type in your own. It leaves the company settings and the logo as they are.
 
 Both tell you what will be lost and only go ahead if you type `yes`. Both are safe with the app running: refresh the browser to see the result. Both keep the four teammates, so there's still someone to sign in as. They only ever touch the local copy, never the team's data in Supabase.
@@ -1014,7 +1114,7 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, quote, invoice, payment and bill, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, no logo, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, quote, invoice, payment and bill, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, no logo, no opening balance, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
 begin;
@@ -1025,6 +1125,7 @@ update company_settings set
   company_name = default, address = default, email = default, phone = default,
   tax_label = default, tax_rate = default, payment_terms_days = default,
   quote_prefix = default, invoice_prefix = default, invoice_design = default, accent_color = default,
+  opening_balance_cents = default, opening_balance_on = default,
   updated_by = default, updated_at = now() at time zone 'utc';
 commit;
 ```

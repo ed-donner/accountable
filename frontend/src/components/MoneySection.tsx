@@ -5,18 +5,20 @@ import { Link } from "react-router";
 import { LoadFailed } from "./LoadFailed";
 
 /**
- * The dashboard's Money section (H10): what customers owe us on the left and what we owe
- * suppliers on the right, each side from its own area. The rows belong to the section, and
- * each side takes them as a subgrid, so the panels stay level across the two. The first row
- * holds a side's "Couldn't refresh this", which moves both sides down together.
+ * The dashboard's Money section (H10): a full-width row at its top, the cash flow's, then what
+ * customers owe us on the left and what we owe suppliers on the right, each side from its own
+ * area. The sides' rows belong to the section, and each side takes them as a subgrid, so the
+ * panels stay level across the two. The first row holds a side's "Couldn't refresh this",
+ * which moves both sides down together.
  */
-export function MoneySection({ children }: { children: ReactNode }) {
+export function MoneySection({ lead, children }: { lead?: ReactNode; children: ReactNode }) {
   return (
     // The dashboard's own part ends 16px above, so this keeps the 12px between its panels.
     <section aria-labelledby="money-heading" className="-mt-1 flex flex-col gap-3 px-5 pb-4">
       <h2 id="money-heading" className="text-[20px] leading-7 font-semibold">
         Money
       </h2>
+      {lead}
       <div className="grid grid-cols-2 grid-rows-[auto_332px_372px] gap-x-3">{children}</div>
     </section>
   );

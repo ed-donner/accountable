@@ -24,6 +24,10 @@
   --color-late-tint: #fdecf1;
   --color-grid: #e4ecee;
   --color-bar-soft: #839da5;
+  /* What the cash flow expects, halfway between each color and the panel. */
+  --color-sea-green-soft: #83ebd0;
+  --color-coral-soft: #fbc6b5;
+  --color-marigold-soft: #ffe0a2;
   --color-archived: #cdd8db;
   /* Behind a quote's preview and its scrollbar, the same in dark mode, because the preview
      shows the paper the customer gets. */
@@ -87,6 +91,9 @@
   --color-late-tint: #4b2436;
   --color-grid: #1e4350;
   --color-bar-soft: #6c858e;
+  --color-sea-green-soft: #098470;
+  --color-coral-soft: #815f56;
+  --color-marigold-soft: #857a43;
   --color-archived: #3b5862;
   --color-veil: rgb(0 0 0 / 50%);
 
@@ -186,6 +193,40 @@
   &:checked {
     background: var(--color-sea-green);
     box-shadow: none;
+  }
+}
+
+/* A checkbox with the switch role, such as the cash flow's Likely deals. Both tracks stand at
+   least 3:1 against the panel, and the knob's place, left for off and right for on, says which
+   it is, so its color never carries it alone. */
+@utility switch {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 9999px;
+  background: var(--color-muted);
+  cursor: pointer;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: var(--color-panel);
+  }
+
+  &:checked {
+    background: var(--color-sea-green-text);
+  }
+
+  &:checked::before {
+    left: 18px;
   }
 }
 

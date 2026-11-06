@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response
@@ -74,9 +74,9 @@ def _write_logo(conn: Connection, sent: dict[str, Any], checked: logo.Logo | Non
 
 
 def _refuse_what_breaks_the_rules(
-    conn: Connection, saved: Row, sent: dict, numbered: Sequence[documents.Numbered]
+    conn: Connection, saved: Row, sent: dict, today: date, numbered: Sequence[documents.Numbered]
 ) -> None:
-    """The checks on the settings as they'd be after the save, which no single field can make (B5, B6)."""
+    """The checks on the settings as they'd be after the save, which no single field can make (B5, B6, B24)."""
     after = {**saved._mapping, **sent}
     problems = {}
     if after["company_name"] is None:
@@ -91,8 +91,22 @@ def _refuse_what_breaks_the_rules(
         taken = documents.number_starting_with(conn, numbered, other, after[field])
         if taken is not None:
             problems[field] = schemas.taken_clash_message(other, taken)
+    problems.update(_opening_balance_problems(after, saved.opening_balance_on, today))
     if problems:
         raise api.FieldError(problems)
+
+
+def _opening_balance_problems(after: dict[str, Any], saved_on: date | None, today: date) -> dict[str, str]:
+    """The amount and its date go together (B23). A date changed to one after today is refused,
+    while one that was fine when it was saved stays fine (B24)."""
+    cents, on = after["opening_balance_cents"], after["opening_balance_on"]
+    if cents is not None and on is None:
+        return {"opening_balance_on": schemas.OPENING_DATE_MESSAGE}
+    if on is not None and cents is None:
+        return {"opening_balance_cents": schemas.OPENING_AMOUNT_MISSING_MESSAGE}
+    if on is not None and on != saved_on and on > today:
+        return {"opening_balance_on": schemas.OPENING_DATE_FUTURE_MESSAGE}
+    return {}
 
 
 @router.get("")
@@ -103,7 +117,11 @@ def get_settings() -> schemas.CompanySettings:
 
 @router.patch("")
 def save_settings(
-    body: schemas.SettingsUpdate, user: CurrentUser, now: api.Now, numbered: documents.AppNumbered
+    body: schemas.SettingsUpdate,
+    user: CurrentUser,
+    now: api.Now,
+    today: api.Today,
+    numbered: documents.AppNumbered,
 ) -> schemas.CompanySettings:
     sent = body.model_dump(exclude_unset=True)
     # Pillow reads the file before the write lock is taken, so a big logo holds up no one else's save.
@@ -112,7 +130,7 @@ def save_settings(
     # Read, checked and written under the write lock, so two quick saves can't each pass against the old values.
     with db.writing() as conn:
         saved = _read(conn)
-        _refuse_what_breaks_the_rules(conn, saved, fields, numbered)
+        _refuse_what_breaks_the_rules(conn, saved, fields, today, numbered)
         altered = who.alterations(fields, saved)
         if _write_logo(conn, sent, checked, now) or altered:
             conn.execute(update(company_settings).where(_the_row).values(**altered, **who.changed(user, now)))

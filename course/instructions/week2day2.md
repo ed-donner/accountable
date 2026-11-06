@@ -1,22 +1,50 @@
 # Week 2 Day 2 instructions
 
-All the prompts to build two features at the same time, each in its own worktree, and merge them into `main`.
+Today a team builds two features at the same time. The lead prepares `main` first, then two developers each build one feature with their own coding agent, in their own worktree, and the person who merges brings both together. I recommend that rather than running the exact same Coding Agent runs as me, you simply follow along with my checkpoints. At the end I've laid out every interim step if you'd rather build it yourself.
 
-## Start from main
+## Follow along with my checkpoints
 
-Your `main` holds your build from Day 5, and your last step on Day 5 pushed it to your fork.
+My checkpoints are branches, like my versions of the Week 1 days. In the `accountable` folder:
 
-Or to carry on from my Day 5 version. This keeps your own work on a branch called `my-day5` and moves your `main` onto my branch, then puts it on your fork:
+### The two intents
+
+```
+git checkout week2day2-intents
+```
+
+Read the two intents the developers agreed with their agents: `docs/changes/products/intent.md` and `docs/changes/company-settings/intent.md`. To see what the lead prepared before they started, look at the commits just before them:
+
+```
+git log --oneline -8
+```
+
+### The results
+
+```
+git checkout week2day2-end
+npm run seed
+npm run dev
+```
+
+`npm run seed` installs anything new the app needs, brings your local database up to date and puts the sample data back, with today's sample products and the sample company. It asks first, because it replaces what's in your local copy: type `yes`.
+
+Open the app, then look at Products in the top bar and Company settings in the menu under your initials. Then see how each feature got there, in `docs/changes/products/` and `docs/changes/company-settings/`: the intent, the plan and the independent review. `docs/STATUS.md` tells the story of each stage. Stop the app with Ctrl+C when you're done.
+
+## If you'd rather build it yourself
+
+These are the steps and prompts behind my checkpoints. They take several hours of agent time: my run of these two features took about seven.
+
+### Start from main
+
+Build on your own `main` from Day 5, or on my Day 5 version. To use mine, this keeps your own work on a branch called `my-day5` and moves your `main` onto my branch:
 
 ```
 git checkout main
 git branch my-day5
 git checkout --no-track -B main origin/week1day5-end
-git fetch fork
-git push --force-with-lease fork main
 ```
 
-## Prepare main for two developers
+### Prepare main for two developers
 
 Two changes that every feature from today on needs, made first, on their own branch, so the two developers don't each make them their own way:
 
@@ -47,14 +75,9 @@ git commit -m "Prepare: tests that run side by side"
 git checkout main
 git merge prepare
 git branch -d prepare
-git push fork main
 ```
 
-## Protect main on your fork
-
-**[GitHub step, to write from Ed's recording]** Steps to write from his recording, and to check against GitHub's docs first: a ruleset (or branch protection rule) on the fork's `main` that requires a pull request before merging (0 approvals, since one account can't approve its own pull request), requires the `check` job from CI to pass, and requires branches to be up to date before merging. The check can only be chosen once it has run on the repo, which it has, since Day 4. On a public fork this is free. The slides session checked the details on docs.github.com (`../briefing/W2D2_GITHUB_FACTS.md`): Settings, Rules, Rulesets, New ruleset, New branch ruleset; **a new ruleset starts Disabled, so Enforcement status goes to Active**; the required check's name is the job's, `check`; a push-triggered check counts, on the pull request's latest commit; a ruleset applies to everyone not on its bypass list. DRAFT AI SDLC W2D2 slide 9 shows the six steps, and these instructions should match it once Ed has recorded.
-
-## Two developers, two worktrees
+### Two developers, two worktrees
 
 Today you play two developers, each building one feature in their own folder with their own coding agent, and then the person who merges both.
 
@@ -78,11 +101,11 @@ Start Claude Code in each window (`claude`). Claude Code treats a worktree as pa
 
 **Both agents can run the tests at the same time,** after the change above. `npm run dev` still uses fixed ports, so in a second folder it stops with "Port 5173 is in use"; `ACCOUNTABLE_WEB_PORT` and `ACCOUNTABLE_API_PORT` move it.
 
-## Products
+### Products
 
 In the `accountable-products` window.
 
-### Plan
+#### Plan
 
 ````
 Create docs/changes/products/intent.md with the text below. Then read it with docs/spec.md and ask me about anything unclear, at most three questions. Update the intent with my answers.
@@ -128,7 +151,7 @@ git add .
 git commit -m "Plan: intent.md agreed"
 ```
 
-### Design
+#### Design
 
 ```
 Read the intent for this branch, in docs/changes/, and update docs/spec.md and the area files in docs/specs/ so they describe the product with this change, as it will be once it's merged. Add an area file if the change needs one. Use the brand skill. List any concerns at the top of your reply.
@@ -141,7 +164,7 @@ git add .
 git commit -m "Design: the spec"
 ```
 
-### Build
+#### Build
 
 ```
 Read the intent for this branch, in docs/changes/, with docs/spec.md, and write plan.md beside the intent with four sections: Files that change, Order of work, Risks and Proof. Proof lists the unit and end-to-end tests. The plan ends with the build, since ui-check, the review and docs/IMPROVE.md come later. Don't write any code yet.
@@ -163,7 +186,7 @@ git add .
 git commit -m "Build: products"
 ```
 
-### Test
+#### Test
 
 ```
 Run npm run check and fix failures until it passes. Then use the ui-check subagent to check the pages this change adds or changes, signed in, and show me its report and the screenshots.
@@ -184,7 +207,7 @@ git commit -m "Test: checks and ui-check"
 
 If git says there's nothing to commit, carry on.
 
-### Deploy
+#### Deploy
 
 Start a fresh session, then:
 
@@ -231,15 +254,11 @@ git add .
 git commit -m "Deploy: independent review"
 ```
 
-### Pull request
-
-**[GitHub step, to write from Ed's recording]** `git push fork products`, then open a pull request on the fork with `main` as its base (check that the base repository is the fork, since GitHub suggests the parent repo first), and wait for CI. Steps to write from his recording.
-
-## Company settings
+### Company settings
 
 In the `accountable-company-settings` window, at the same time as products.
 
-### Plan
+#### Plan
 
 ````
 Create docs/changes/company-settings/intent.md with the text below. Then read it with docs/spec.md and ask me about anything unclear, at most three questions. Update the intent with my answers.
@@ -286,7 +305,7 @@ git add .
 git commit -m "Plan: intent.md agreed"
 ```
 
-### Design, Build, Test and Deploy
+#### Design, Build, Test and Deploy
 
 The same prompts and commits as for products, in this window. The one difference is the build's commit:
 
@@ -295,23 +314,21 @@ git add .
 git commit -m "Build: company settings"
 ```
 
-## Merge both
+### Merge both
 
 You're now the person who merges. Products goes first.
 
-### Merge products
+#### Merge products
 
-**[GitHub step, to write from Ed's recording]** merge the products pull request on GitHub once CI passes.
-
-Then bring your own `main` up to date, in the `accountable` window:
+In the `accountable` window:
 
 ```
-git pull fork main
+git merge --no-ff products
 ```
 
-### Bring company settings up to date
+#### Bring company settings up to date
 
-The company settings pull request can't merge yet: GitHub says the branch has conflicts with `main`. In the `accountable-company-settings` window:
+Company settings was built before products was merged, so bring it up to date first. In the `accountable-company-settings` window:
 
 ```
 git merge main
@@ -347,13 +364,15 @@ git add .
 git commit -m "Merge: fix after merging main"
 ```
 
-Run `npm run check` yourself before you push.
+Run `npm run check`, then merge it, in the `accountable` window:
 
-**[GitHub step, to write from Ed's recording]** `git push fork company-settings`; CI runs on the updated branch; merge the pull request; then `git pull fork main` in the `accountable` window.
+```
+git merge --no-ff company-settings
+```
 
-### Clean up
+#### Clean up
 
-In the `accountable` window, once both pull requests are merged and `git pull fork main` has brought them in. Close the two worktree windows first.
+In the `accountable` window, once both are merged. Close the two worktree windows first.
 
 ```
 git worktree remove ../accountable-products

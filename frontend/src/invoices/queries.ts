@@ -27,6 +27,8 @@ export type InvoiceRow = {
   due_date: string | null;
   total_cents: number;
   owed_cents: number;
+  /** The quote it was made from, so a quote's page can find its invoice (V36). */
+  quote_id: number | null;
 };
 
 export type InvoiceLine = {
@@ -50,9 +52,13 @@ export type Payment = {
 };
 
 /** For a draft, the company and the tax are the settings as they are now. For an issued invoice, its copies (V11). */
+/** The quote an invoice was made from, with the tax it was priced at, as text, to compare with the settings' (V35). */
+export type QuoteLink = { id: number; number: string; tax_label: string | null; tax_rate: string };
+
 export type InvoiceDetail = InvoiceRow &
   Authorship & {
     status: "draft" | "issued" | "void";
+    quote: QuoteLink | null;
     days_late: number | null;
     deal_stage: Stage;
     company: { name: string | null; address: string | null; email: string | null; phone: string | null };
@@ -93,7 +99,7 @@ export type DraftRequest = {
 export type PaymentRequest = { paid_on: string; amount_cents: number; method: Method; reference: string | null };
 
 /** A deal's or an organization's invoices, for its panel, or every invoice. */
-export type InvoiceFilter = { deal_id: number } | { organization_id: number } | undefined;
+export type InvoiceFilter = { deal_id: number } | { organization_id: number } | { quote_id: number } | undefined;
 
 function filterQuery(filter: InvoiceFilter) {
   if (filter === undefined) return "";
@@ -128,6 +134,12 @@ export function useInvoices(filter?: InvoiceFilter) {
   return useDaily<InvoiceRow[]>(["invoices", "list", filter ?? null], `/invoices${filterQuery(filter)}`);
 }
 
+/** The one invoice a quote has made, null if none, and undefined until read (V36). */
+export function useQuoteInvoice(quoteId: number) {
+  const { data, error, refetch } = useInvoices({ quote_id: quoteId });
+  return { invoice: data === undefined ? undefined : (data[0] ?? null), error, refetch };
+}
+
 export function useInvoice(id: number) {
   return useDaily<InvoiceDetail>(["invoices", id], `/invoices/${id}`);
 }
@@ -149,6 +161,17 @@ function useInvoiceWrite<Input>(id: number, write: (input: Input) => Promise<Inv
 
 export function useStartInvoice() {
   return useWrite((dealId: number) => api<InvoiceDetail>("/invoices", { method: "POST", body: { deal_id: dealId } }));
+}
+
+/** Create invoice: the new invoice is shown at once, before everything is read again (V33). */
+export function useCreateInvoiceFromQuote() {
+  const client = useQueryClient();
+  const today = useToday();
+  return useWrite(async (quoteId: number) => {
+    const made = await api<InvoiceDetail>(`/invoices/from-quote/${quoteId}`, { method: "POST", body: {} });
+    client.setQueryData(["invoices", made.id, today], made);
+    return made;
+  });
 }
 
 export function useSaveDraft(id: number) {

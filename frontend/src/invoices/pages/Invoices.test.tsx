@@ -22,6 +22,7 @@ function row(id: number, changes: Partial<InvoiceRow> = {}): InvoiceRow {
     total_cents: 100000 * id,
     owed_cents: 100000 * id,
     issue_order: id,
+    quote_id: null,
     ...changes,
   };
 }

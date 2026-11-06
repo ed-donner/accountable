@@ -54,6 +54,7 @@ def with_id(path: str, value: object) -> str:
 SAMPLE_BODIES: dict[tuple[str, str], dict[str, Any]] = {
     ("POST", "/api/deals/{deal_id}/move"): {"stage": "new"},
     ("POST", "/api/invoices"): {"deal_id": 1},
+    ("POST", "/api/invoices/from-quote/{quote_id}"): {},
     ("POST", "/api/invoices/{invoice_id}/payments"): {"paid_on": "2026-10-01", "amount_cents": 100, "method": "card"},
 }
 
@@ -139,6 +140,7 @@ def test_the_routes_were_found():
     assert ("PATCH", "/api/invoices/{invoice_id}", "bill_to") in BODY_TEXT
     assert ("POST", "/api/invoices/{invoice_id}/issue", "bill_to") in BODY_TEXT
     assert ("POST", "/api/invoices/{invoice_id}/void") in WRITES
+    assert ("POST", "/api/invoices/from-quote/{quote_id}") in WRITES
     assert ("POST", "/api/invoices/{invoice_id}/payments", "reference") in BODY_TEXT
     assert ("POST", "/api/invoices/{invoice_id}/payments", "method") in BODY_TEXT
     assert ("POST", "/api/invoices/{invoice_id}/payments", "paid_on") in BODY_TEXT

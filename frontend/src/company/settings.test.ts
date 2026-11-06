@@ -5,6 +5,11 @@ import {
   CLASH_MESSAGE,
   COMPANY_NAME_MESSAGE,
   INVOICE_PREFIX_BLANK_MESSAGE,
+  OPENING_AMOUNT_MESSAGE,
+  OPENING_AMOUNT_MISSING_MESSAGE,
+  OPENING_DATE_FUTURE_MESSAGE,
+  OPENING_DATE_MESSAGE,
+  OPENING_LIMIT_MESSAGE,
   PAYMENT_TERMS_MESSAGE,
   PREFIX_CHARACTERS_MESSAGE,
   QUOTE_PREFIX_BLANK_MESSAGE,
@@ -46,7 +51,10 @@ const FILLED: SettingsValues = {
   invoice_design: "banner",
   accent_color: "#0e6b6b",
   logo: { kind: "kept" },
+  opening_balance_cents: "40,000.00",
+  opening_balance_on: "2025-12-01",
 };
+const TODAY = "2026-11-05";
 
 describe("the tax rate", () => {
   it.each(ACCEPTED_RATES)("accepts %j, as the backend does", (typed) => {
@@ -89,18 +97,21 @@ describe("a prefix", () => {
 
 describe("the whole form's checks", () => {
   it("finds nothing wrong with the sample company", () => {
-    expect(Object.values(settingsProblems(FILLED)).filter(Boolean)).toEqual([]);
+    expect(Object.values(settingsProblems(FILLED, TODAY)).filter(Boolean)).toEqual([]);
   });
 
   it("gives every bad field its message at once", () => {
-    const problems = settingsProblems({
-      ...FILLED,
-      company_name: " ",
-      email: "accounts",
-      tax_rate: "150",
-      payment_terms_days: "400",
-      quote_prefix: "QT_",
-    });
+    const problems = settingsProblems(
+      {
+        ...FILLED,
+        company_name: " ",
+        email: "accounts",
+        tax_rate: "150",
+        payment_terms_days: "400",
+        quote_prefix: "QT_",
+      },
+      TODAY,
+    );
     expect(problems).toMatchObject({
       company_name: COMPANY_NAME_MESSAGE,
       email: "Enter a valid email address",
@@ -111,11 +122,11 @@ describe("the whole form's checks", () => {
   });
 
   it("puts a clash on the invoice prefix", () => {
-    expect(settingsProblems({ ...FILLED, invoice_prefix: "qt-" }).invoice_prefix).toBe(CLASH_MESSAGE);
+    expect(settingsProblems({ ...FILLED, invoice_prefix: "qt-" }, TODAY).invoice_prefix).toBe(CLASH_MESSAGE);
   });
 
   it("leaves the blank optional fields alone", () => {
-    const problems = settingsProblems({ ...FILLED, address: "", email: "", phone: "", tax_label: "" });
+    const problems = settingsProblems({ ...FILLED, address: "", email: "", phone: "", tax_label: "" }, TODAY);
     expect(Object.values(problems).filter(Boolean)).toEqual([]);
   });
 });
@@ -149,6 +160,8 @@ describe("what a save sends", () => {
       invoice_design: "classic",
       accent_color: "#073B4C",
       logo: null,
+      opening_balance_cents: null,
+      opening_balance_on: null,
       updated_at: "2026-11-05T14:03:00Z",
       updated_by: null,
     };
@@ -165,6 +178,8 @@ describe("what a save sends", () => {
       invoice_design: "classic",
       accent_color: "#073B4C",
       logo: { kind: "kept" },
+      opening_balance_cents: "",
+      opening_balance_on: "",
     });
   });
 
@@ -184,9 +199,68 @@ describe("what a save sends", () => {
   });
 
   it("checks the accent color with the rest", () => {
-    expect(settingsProblems({ ...FILLED, accent_color: "#FFC145" }).accent_color).toBe(
+    expect(settingsProblems({ ...FILLED, accent_color: "#FFC145" }, TODAY).accent_color).toBe(
       "Too light to read on white. Choose a darker color",
     );
-    expect(settingsProblems(FILLED).accent_color).toBeUndefined();
+    expect(settingsProblems(FILLED, TODAY).accent_color).toBeUndefined();
+  });
+});
+
+describe("the opening balance", () => {
+  function problems(amount: string, on: string) {
+    const found = settingsProblems({ ...FILLED, opening_balance_cents: amount, opening_balance_on: on }, TODAY);
+    return { amount: found.opening_balance_cents, on: found.opening_balance_on };
+  }
+
+  it.each([
+    ["40,000.00", "2025-12-01"],
+    ["-4,250.00", "2025-12-01"],
+    ["-$0.29", "2025-12-01"],
+    ["0", TODAY],
+    ["1,000,000,000,000.00", "2020-01-01"],
+    ["-1000000000000", "2020-01-01"],
+    ["", ""],
+  ])("accepts %j as of %j", (amount, on) => {
+    expect(problems(amount, on)).toEqual({ amount: undefined, on: undefined });
+  });
+
+  it.each([
+    ["abc", OPENING_AMOUNT_MESSAGE],
+    ["49.505", OPENING_AMOUNT_MESSAGE],
+    ["--1", OPENING_AMOUNT_MESSAGE],
+    ["1-", OPENING_AMOUNT_MESSAGE],
+    ["1,000,000,000,000.01", OPENING_LIMIT_MESSAGE],
+    ["-1,000,000,000,000.01", OPENING_LIMIT_MESSAGE],
+    ["99999999999999999999", OPENING_LIMIT_MESSAGE],
+  ])("refuses %j with its message", (amount, message) => {
+    expect(problems(amount, "2025-12-01").amount).toBe(message);
+  });
+
+  it("needs its date with an amount, and its amount with a date", () => {
+    expect(problems("40,000.00", "")).toEqual({ amount: undefined, on: OPENING_DATE_MESSAGE });
+    expect(problems(" ", "2025-12-01")).toEqual({ amount: OPENING_AMOUNT_MISSING_MESSAGE, on: undefined });
+  });
+
+  it("takes a date of today and refuses tomorrow, against the page's today", () => {
+    expect(problems("100", TODAY).on).toBeUndefined();
+    expect(problems("100", "2026-11-06").on).toBe(OPENING_DATE_FUTURE_MESSAGE);
+    expect(settingsProblems({ ...FILLED, opening_balance_on: "2026-11-06" }, "2026-11-06").opening_balance_on).toBe(
+      undefined,
+    );
+  });
+
+  it("sends whole cents, below zero too, and both as null when both are blank", () => {
+    expect(toRequest(FILLED)).toMatchObject({ opening_balance_cents: 4_000_000, opening_balance_on: "2025-12-01" });
+    expect(toRequest({ ...FILLED, opening_balance_cents: " -$1,250.50 " }).opening_balance_cents).toBe(-125050);
+    const cleared = toRequest({ ...FILLED, opening_balance_cents: "", opening_balance_on: "" });
+    expect([cleared.opening_balance_cents, cleared.opening_balance_on]).toEqual([null, null]);
+  });
+
+  it("fills the form with the saved amount as it's edited, below zero too", () => {
+    const saved = { ...toRequest(FILLED), logo: null, updated_at: "2026-11-05T14:03:00Z", updated_by: null };
+    expect(toForm({ ...saved, opening_balance_cents: -125050 })).toMatchObject({
+      opening_balance_cents: "-1250.50",
+      opening_balance_on: "2025-12-01",
+    });
   });
 });

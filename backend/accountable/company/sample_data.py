@@ -4,12 +4,12 @@ Its email uses the reserved .example domain and its phone number is in the 555-0
 to 555-0199 range kept for fiction, so nothing points at a real company (M5).
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from sqlalchemy import Connection, delete, insert, update
 
-from accountable import who
+from accountable import months, who
 from accountable.company import logo
 from accountable.company.tables import company_logo, company_settings
 from accountable.users import TEAMMATES, add_missing_teammates
@@ -28,19 +28,33 @@ SAMPLE_COMPANY = {
     "accent_color": "#0E6B6B",
 }
 
+# $40,000.00, enough to keep the sample cash balance above zero in every month (B12).
+SAMPLE_OPENING_BALANCE_CENTS = 4_000_000
+
 # A made-up logo for the made-up company, drawn once and kept with the sample data.
 SAMPLE_LOGO = Path(__file__).with_name("sample-logo.png")
 
 [DANA_WHITFIELD] = [teammate.id for teammate in TEAMMATES if teammate.name == "Dana Whitfield"]
 
 
-def fill(conn: Connection, now: datetime) -> None:
-    """Writes the sample company and its logo over the settings, put down to Dana Whitfield at this moment (M7)."""
+def opening_day(today: date) -> date:
+    """The first day of the cash flow's first month, so its balance line covers the whole year (Y10)."""
+    return months.last_months(today)[0].first_day
+
+
+def fill(conn: Connection, today: date, now: datetime) -> None:
+    """Writes the sample company, its opening balance and its logo over the settings, put down
+    to Dana Whitfield at this moment (M7)."""
     add_missing_teammates(conn)
     conn.execute(
         update(company_settings)
         .where(company_settings.c.id == 1)
-        .values(**SAMPLE_COMPANY, **who.changed(DANA_WHITFIELD, now))
+        .values(
+            **SAMPLE_COMPANY,
+            opening_balance_cents=SAMPLE_OPENING_BALANCE_CENTS,
+            opening_balance_on=opening_day(today),
+            **who.changed(DANA_WHITFIELD, now),
+        )
     )
     image = SAMPLE_LOGO.read_bytes()
     checked = logo.check(image)

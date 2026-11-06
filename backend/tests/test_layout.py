@@ -8,8 +8,9 @@ import pytest
 from accountable.main import AREAS as APP_AREAS
 
 PACKAGE = Path(__file__).resolve().parents[1] / "accountable"
-# Each business area's folder, found by its tables, so a later area is held to the rules too.
-AREAS = sorted(path.parent.name for path in PACKAGE.glob("*/tables.py"))
+# Each business area's folder, found as a package, so a later area is held to the rules too,
+# the cash flow included, which keeps no tables.
+AREAS = sorted(path.parent.name for path in PACKAGE.glob("*/__init__.py"))
 # Where the app is put together. Everything else, every area's folder included, gets
 # what it needs from the top level.
 MAY_NAME_AN_AREA = {"main.py", "cli.py", "migrations/env.py"}
@@ -37,7 +38,7 @@ def names(path: Path, area: str) -> bool:
 
 
 def test_the_areas_are_found():
-    assert AREAS == ["bills", "company", "crm", "invoices", "products", "quotes"]
+    assert AREAS == ["bills", "cashflow", "company", "crm", "invoices", "products", "quotes"]
 
 
 def imported_areas(source: str) -> set[tuple[str, str]]:
@@ -128,6 +129,15 @@ def test_a_later_area_imports_only_the_first_areas_tables_and_the_crms_rules():
     assert ("crm", "tables") in imported_areas((PACKAGE / "invoices" / "tables.py").read_text())
 
 
+def test_the_cash_flow_imports_no_area_but_company():
+    """It reads every area's money from the app, in the terms of the top-level cash.py, never from the areas."""
+    found = set()
+    for path in sources():
+        if area_of(path) == "cashflow":
+            found |= {area for area, _ in imported_areas(path.read_text())} - {"cashflow"}
+    assert found == {"company"}
+
+
 def test_quotes_routes_start_with_quotes_alone():
     [quotes] = [area for area in APP_AREAS if any("quotes" in router.prefix for router in area.routers)]
     assert quotes.route_starts == {"quotes"}
@@ -151,8 +161,8 @@ def test_only_main_cli_and_the_migrations_name_an_area(area):
 
 
 @pytest.mark.parametrize("area", AREAS)
-@pytest.mark.parametrize("module", ["db.py", "search.py", "holds.py", "months.py"])
-def test_db_search_holds_and_months_never_name_an_area(module, area):
+@pytest.mark.parametrize("module", ["db.py", "search.py", "holds.py", "months.py", "cash.py"])
+def test_db_search_holds_months_and_cash_never_name_an_area(module, area):
     assert not names(PACKAGE / module, area)
 
 

@@ -144,6 +144,26 @@ const SCREENS: Screen[] = [
   },
 ];
 
+test("the cash flow says so when it can't load, leaves the rest of the Money section showing, and Try again works", async ({
+  page,
+  expectConsoleError,
+}) => {
+  expectConsoleError(/status of 500/);
+  const broken = await breakApi(page, "/api/cash-flow");
+
+  await page.goto("/");
+  const cashFlow = page.getByRole("region", { name: "Cash flow" });
+  await expect(cashFlow.getByText("Couldn't load this.")).toBeVisible();
+  await expect(page.getByRole("link", { name: /^What we owe/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Owed to us" })).toBeVisible();
+  await expect(page.getByText("Couldn't load this.")).toHaveCount(1);
+
+  broken.on = false;
+  await cashFlow.getByRole("button", { name: "Try again" }).click();
+  await expect(cashFlow.getByRole("list", { name: "Legend" })).toBeVisible();
+  await expect(cashFlow.getByText("Couldn't load this.")).toHaveCount(0);
+});
+
 async function solidRecords(request: APIRequestContext): Promise<Ids> {
   const { deal, contact, organization } = await addLinkedDeal(request, "Solid");
   await addActivity(request, { deal_id: deal.id, description: "Something happened" });

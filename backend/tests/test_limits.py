@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from accountable import db
 from accountable.bills.tables import bills
+from accountable.company.tables import company_settings
 from accountable.crm.tables import activities, contacts, deals
 from accountable.invoices.tables import invoice_lines, invoices, payments
 from accountable.products.tables import products
@@ -47,6 +48,9 @@ def median_ms(api, path: str) -> float:
 
 def test_the_data_really_is_at_the_limits(full):
     with db.reading() as conn:
+        opening_on = conn.execute(select(company_settings.c.opening_balance_on)).scalar_one()
+        assert opening_on < conn.execute(select(func.min(payments.c.paid_on))).scalar_one()
+        assert opening_on < conn.execute(select(func.min(bills.c.paid_on))).scalar_one()
         assert conn.scalar(select(func.count()).select_from(contacts)) == 1000
         assert conn.scalar(select(func.count()).select_from(deals)) == 500
         assert conn.scalar(select(func.count()).select_from(activities)) == 5000
@@ -65,7 +69,13 @@ def test_the_data_really_is_at_the_limits(full):
     assert shown == {"draft", "issued", "part_paid", "overdue", "paid", "void"}
 
 
-@pytest.mark.parametrize("path", ["/api/dashboard", "/api/invoices/money", "/api/bills/dashboard"])
+# November is the first forecast month, since conftest's today is Oct 31, 2026.
+CASH_FLOW_MONTH = "/api/cash-flow/expected?month=2026-11"
+
+
+@pytest.mark.parametrize(
+    "path", ["/api/dashboard", "/api/invoices/money", "/api/bills/dashboard", "/api/cash-flow", CASH_FLOW_MONTH]
+)
 def test_the_dashboard_and_its_money_section_are_quick(full, path):
     elapsed = median_ms(full, path)
     print(f"{path}: {elapsed:.1f}ms")
@@ -137,6 +147,10 @@ QUERIES = {
     "/api/invoices/money": 2,
     # The invoice, its lines, its payments, and the settings a draft follows.
     "/api/invoices/{invoice}": 4,
+    # The settings, the payments, the invoices, the paid bills, the unpaid bills and the open deals (Y22).
+    "/api/cash-flow": 6,
+    # The settings, the invoices, the unpaid bills and the open deals.
+    CASH_FLOW_MONTH: 4,
 }
 
 

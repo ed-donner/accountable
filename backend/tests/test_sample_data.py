@@ -8,6 +8,7 @@ import pytest
 from accountable import cli, db
 from accountable.bills import sample_data as bill_samples
 from accountable.bills.tables import CATEGORIES, bill_number_key, bills
+from accountable.cashflow import router as cash_flow
 from accountable.company import documents, logo, tax
 from accountable.company import sample_data as company_samples
 from accountable.company.tables import company_logo, company_settings
@@ -16,6 +17,7 @@ from accountable.crm.tables import activities, contacts, deals, organizations, s
 from accountable.invoices import figures
 from accountable.invoices import sample_data as invoice_samples
 from accountable.invoices.tables import invoice_lines, invoices, payments
+from accountable.main import AREAS
 from accountable.products import sample_data as product_samples
 from accountable.products.tables import name_key, products
 from accountable.quotes import sample_data as quote_samples
@@ -44,7 +46,7 @@ def seeded(request, rows_by_day, database):
             sample_data.fill(conn, today)
             product_samples.fill(conn, today)
             bill_samples.fill(conn, today)
-            company_samples.fill(conn, datetime.combine(today, time(12)))
+            company_samples.fill(conn, today, datetime.combine(today, time(12)))
             quote_samples.fill(conn, today)
             invoice_samples.fill(conn, today)
             next_number = documents.take_number(conn, "quote")
@@ -66,7 +68,9 @@ def seeded(request, rows_by_day, database):
                 "invoice_lines": rows_of(conn, invoice_lines),
                 "payments": rows_of(conn, payments),
                 "logo": rows_of(conn, company_logo),
+                "settings": conn.execute(select(company_settings)).one(),
             }
+        rows_by_day[today]["cash_flow"] = cash_flow.cash_flow([area.cash for area in AREAS if area.cash], today)
     return rows_by_day[today]
 
 
@@ -349,7 +353,7 @@ def test_the_same_content_each_time(database):
         sample_data.fill(conn, day)
         product_samples.fill(conn, day)
         bill_samples.fill(conn, day)
-        company_samples.fill(conn, datetime.combine(day, time(12)))
+        company_samples.fill(conn, day, datetime.combine(day, time(12)))
         quote_samples.fill(conn, day)
         invoice_samples.fill(conn, day)
 
@@ -453,6 +457,22 @@ def test_a_new_database_gets_the_sample_company_from_dana_whitfield_on_the_seedi
     with db.reading() as conn:
         assert conn.execute(select(company_logo.c.media_type)).scalar_one() == "image/png"
         assert len(conn.execute(select(invoices)).all()) == 33
+
+
+def test_the_sample_companys_opening_balance_is_as_of_the_cash_flows_first_day(seeded):
+    """11 months before the month of seeding, so the line covers the whole year, across the turn of a year too (B12, Y10)."""
+    today = seeded["today"]
+    first_day = date(today.year - (today.month < 12), (today.month % 12) + 1, 1)
+    assert seeded["settings"].opening_balance_cents == 4_000_000
+    assert seeded["settings"].opening_balance_on == first_day
+
+
+def test_the_sample_cash_balance_covers_the_year_and_the_forecast_and_stays_above_zero(seeded):
+    """So the cash flow shows a year of history and three months of forecast from the first visit (B12, M3)."""
+    flow = seeded["cash_flow"]
+    assert all(month.balance_cents is not None and month.balance_cents > 0 for month in flow.months)
+    assert all(month.in_cents > 0 for month in flow.months[:11])
+    assert sum(month.expected_in_cents + month.expected_out_cents for month in flow.months[-4:]) > 0
 
 
 def test_the_sample_company_points_at_nothing_real():

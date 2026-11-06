@@ -68,7 +68,7 @@ function appCode() {
 
 describe("the layout rules", () => {
   it("find every area", () => {
-    expect(AREAS).toEqual(["bills", "crm", "invoices", "products", "quotes"]);
+    expect(AREAS).toEqual(["bills", "cashflow", "crm", "invoices", "products", "quotes"]);
   });
 
   it("read where each import leads", () => {
@@ -128,6 +128,16 @@ describe("the layout rules", () => {
       .flatMap((file) => imported(file).map((target) => ({ file, target })))
       .filter(({ file, target }) => isLaterArea(target) && areaOf(target) !== areaOf(file));
     expect(wrong).toEqual([]);
+  });
+});
+
+describe("the cash flow", () => {
+  it("imports no area, the CRM's queries included", () => {
+    const importing = appCode()
+      .filter((file) => areaOf(file) === "cashflow")
+      .flatMap((file) => imported(file).map((target) => ({ file, target })));
+    expect(importing.some(({ target }) => target.startsWith("cashflow/"))).toBe(true); // Looking in the right place.
+    expect(importing.filter(({ target }) => ![undefined, "cashflow"].includes(areaOf(target)))).toEqual([]);
   });
 });
 

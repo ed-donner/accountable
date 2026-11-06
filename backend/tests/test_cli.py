@@ -1,4 +1,5 @@
 import io
+from datetime import date
 
 import pytest
 from accountable import cli, db, users
@@ -244,13 +245,21 @@ def test_empty_before_the_first_start_leaves_an_empty_database(tmp_path, monkeyp
     db.dispose()
 
 
-OUR_OWN = {"company_name": "Our Real Company", "tax_rate": 6000, "quote_prefix": "Q-", "updated_by": "someone-real"}
+OUR_OWN = {
+    "company_name": "Our Real Company",
+    "tax_rate": 6000,
+    "quote_prefix": "Q-",
+    "opening_balance_cents": -125_000,
+    "opening_balance_on": date(2026, 3, 1),
+    "updated_by": "someone-real",
+}
+OPENING_BALANCE = ("opening_balance_cents", "opening_balance_on")
 
 
 def the_settings() -> dict:
     with db.reading() as conn:
         row = conn.execute(select(company_settings)).one()._mapping
-    return {name: row[name] for name in (*SAMPLE_COMPANY, "updated_by")}
+    return {name: row[name] for name in (*SAMPLE_COMPANY, *OPENING_BALANCE, "updated_by")}
 
 
 @pytest.fixture
@@ -260,9 +269,16 @@ def changed_settings(with_records):
         conn.execute(update(company_settings).values(**OUR_OWN))
 
 
-def test_seed_puts_the_sample_company_back_over_changed_settings(changed_settings):
+def test_seed_puts_the_sample_company_back_over_changed_settings(changed_settings, monkeypatch):
+    """Its opening balance included, as of the first day of the cash flow's first month (B12)."""
+    monkeypatch.setattr(db, "local_today", lambda: date(2026, 11, 5))
     assert cli.main(["seed", "--yes"]) == 0
-    assert the_settings() == {**SAMPLE_COMPANY, "updated_by": "teammate-dana-whitfield"}
+    assert the_settings() == {
+        **SAMPLE_COMPANY,
+        "opening_balance_cents": 4_000_000,
+        "opening_balance_on": date(2025, 12, 1),
+        "updated_by": "teammate-dana-whitfield",
+    }
 
 
 def test_empty_leaves_the_settings_as_they_were(changed_settings):

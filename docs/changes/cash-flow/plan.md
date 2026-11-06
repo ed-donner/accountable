@@ -137,6 +137,8 @@ Five phases after the merge. Each ends with `npm run check:quick` passing, and P
 2. Put the two branches' spec edits together, as above.
 3. Read the merged `MoneySection.tsx` and `monthColumns.tsx`, and note in this plan where the cash flow row goes.
 
+   The merged `MoneySection` takes its two sides as children in a two-column grid. It now also takes a `lead`, a full-width row between its heading and that grid, and `App.tsx` passes it `CashFlowRow`. `monthColumns.tsx`'s `MUTED_AXIS_TEXT` and `centsAxis` fit the cash flow's axis. Its column width is 18px, as the cash flow's is, and its "so far" over a column doesn't fit, since the cash flow puts "so far" under the month's label.
+
 Done when `npm run check:quick` passes on the merged branch, before any code of this change.
 
 ### Phase 1: the opening balance on the backend

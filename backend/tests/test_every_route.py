@@ -65,6 +65,9 @@ def sample_body(method: str, path: str) -> dict[str, Any]:
 DESCRIBED = app.openapi()
 # A made-up value for each type of query parameter a route can require, such as search's q.
 SAMPLE_QUERY_VALUES = {"string": "harbor", "integer": "1"}
+# A value a route's own check takes, where it needs one. The fixed today is Oct 31, 2026,
+# so November is a forecast month.
+SAMPLE_QUERIES = {("GET", "/api/cash-flow/expected"): {"month": "2026-11"}}
 # Text JSON can carry that a database can't store: Postgres refuses a NUL character
 # outright, and neither database can encode half of a two-part character.
 UNSTORABLE_TEXT = {"a NUL character": "Harbor\x00Pine", "half of a two-part character": "\ud800"}
@@ -77,8 +80,9 @@ def query_parameters(method: str, path: str) -> list[dict[str, Any]]:
 
 def target(method: str, path: str) -> str:
     """An address that reaches the route: id 1 for a record, and a value for each query parameter it requires."""
+    samples = SAMPLE_QUERIES.get((method, path), {})
     required = {
-        parameter["name"]: SAMPLE_QUERY_VALUES[parameter["schema"]["type"]]
+        parameter["name"]: samples.get(parameter["name"], SAMPLE_QUERY_VALUES[parameter["schema"]["type"]])
         for parameter in query_parameters(method, path)
         if parameter.get("required")
     }
@@ -166,7 +170,10 @@ def test_the_routes_were_found():
     assert ("PATCH", "/api/bills/{bill_id}", "paid_on") in BODY_TEXT
     assert ("POST", "/api/bills", "bill_number") in BODY_TEXT
     assert ("GET", "/api/bills/dashboard") in READS
-    assert QUERY_TEXT == [("GET", "/api/search", "q")]
+    assert ("GET", "/api/cash-flow") in READS
+    assert ("GET", "/api/cash-flow/expected") in READS
+    assert target("GET", "/api/cash-flow/expected") == "/api/cash-flow/expected?month=2026-11"
+    assert QUERY_TEXT == [("GET", "/api/cash-flow/expected", "month"), ("GET", "/api/search", "q")]
     assert LOCAL_SIGN_IN_TEXT == [("POST", "/api/local/sign-in", "user_id")]
     assert len(RECORD_ROUTES) > 15
     assert LOCAL_SIGN_IN == [("GET", "/api/local/teammates"), ("POST", "/api/local/sign-in")]

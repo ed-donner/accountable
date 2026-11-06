@@ -40,6 +40,13 @@ test("what needs doing next is on the dashboard itself", async ({ page }) => {
   await expect(page.getByTestId("follow-up-counts")).toContainText("overdue");
 });
 
+test("how much cash the business will have, and when, is on the dashboard itself", async ({ page }) => {
+  const cashFlow = page.getByRole("region", { name: "Cash flow" });
+  await cashFlow.scrollIntoViewIfNeeded();
+  await expect(cashFlow).toContainText(/Cash today-?\$[\d,]+\.\d\d/);
+  await expect(cashFlow).toContainText(/End of [A-Z][a-z]+-?\$[\d,]+\.\d\dExpected/);
+});
+
 test("what customers owe and what's overdue are on the dashboard itself", async ({ page }) => {
   const owed = page.getByRole("region", { name: "Owed to us" });
   await owed.scrollIntoViewIfNeeded();

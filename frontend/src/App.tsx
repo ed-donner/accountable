@@ -5,6 +5,7 @@ import { RouterProvider } from "react-router/dom";
 
 import { BillsPanel } from "./bills/BillsPanel";
 import { BillsMoney } from "./bills/charts/MoneySection";
+import { CashFlowRow } from "./cashflow/CashFlowRow";
 import { Bill } from "./bills/pages/Bill";
 import { Bills } from "./bills/pages/Bills";
 import { SettingsPage } from "./company/SettingsPage";
@@ -81,10 +82,13 @@ const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [
   { name: "bills", Panel: BillsPanel },
 ];
 
-/** One Money section, below the dashboard's own part: what customers owe us, from invoices, beside what we owe, from bills. */
+/**
+ * One Money section, below the dashboard's own part: the cash flow across its top, then what
+ * customers owe us, from invoices, beside what we owe, from bills.
+ */
 function Money() {
   return (
-    <MoneySection>
+    <MoneySection lead={<CashFlowRow />}>
       <InvoicesMoney />
       <BillsMoney />
     </MoneySection>

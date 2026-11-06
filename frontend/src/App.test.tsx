@@ -2,6 +2,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { cashFlowReply, quietMonths } from "./cashflow/test-cash-flow";
 import { THEME_KEY } from "./lib/theme";
 import { META, mockApi, startSignedIn, user, type Call } from "./test-utils";
 
@@ -20,6 +21,8 @@ const SETTINGS = {
   invoice_design: "classic",
   accent_color: "#073B4C",
   logo: null,
+  opening_balance_cents: null,
+  opening_balance_on: null,
   updated_at: "2026-10-31T12:00:00Z",
   updated_by: null,
 };
@@ -134,6 +137,8 @@ const NORTHWIND = {
   updated_by: null,
 };
 
+// No opening balance, and no money in or out yet.
+const NO_CASH_FLOW = cashFlowReply({ opening: false, months: quietMonths() });
 const NO_MONEY = {
   today: "2026-10-31",
   owed: { total_cents: "0", count: 0 },
@@ -192,6 +197,7 @@ beforeEach(() => {
     "GET /me": ALEX,
     "GET /local/teammates": [ALEX],
     "POST /local/sign-in": { token: "alex-token" },
+    "GET /cash-flow": NO_CASH_FLOW,
     "GET /invoices/money": NO_INVOICE_MONEY,
     "GET /bills/dashboard": NO_MONEY,
   });
@@ -413,13 +419,13 @@ describe("the app, signed in", () => {
       "What we owe$0.000 unpaid bills",
     );
     expect(await money.findByText("Nothing owed.")).toBeTruthy();
-    // One section for both: what customers owe us, from invoices, beside what we owe, from bills.
-    expect(money.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual([
-      "Owed to us",
-      "Payments received",
-      "What we owe",
-      "Spending by category",
-    ]);
+    expect(await money.findByText("Cash flow will show here once money comes in or goes out.")).toBeTruthy();
+    // One section for all three: the cash flow across its top, then what customers owe us, from
+    // invoices, beside what we owe, from bills.
+    const regions = money
+      .getAllByRole("region")
+      .map((region) => region.getAttribute("aria-label") ?? region.querySelector("h3")?.textContent);
+    expect(regions).toEqual(["Cash flow", "Owed to us", "Payments received", "What we owe", "Spending by category"]);
     expect(screen.getAllByRole("heading", { level: 2, name: "Money" })).toHaveLength(1);
     expect(screen.getAllByRole("heading", { level: 2 }).at(-1)?.textContent).toBe("Money");
   });
@@ -428,6 +434,7 @@ describe("the app, signed in", () => {
     mockApi({
       "GET /me": ALEX,
       "GET /meta": META,
+      "GET /cash-flow": NO_CASH_FLOW,
       "GET /invoices/money": () => ({ status: 500, body: { detail: "Something went wrong." } }),
       "GET /bills/dashboard": NO_MONEY,
     });
@@ -438,6 +445,24 @@ describe("the app, signed in", () => {
     expect(money.queryByRole("region", { name: "Owed to us" })).toBeNull();
     expect(await money.findByRole("link", { name: /^What we owe/ })).toBeTruthy();
     expect(money.getByRole("region", { name: "Spending by category" })).toBeTruthy();
+  });
+
+  it("keeps both sides of the Money section showing when the cash flow can't load", async () => {
+    mockApi({
+      "GET /me": ALEX,
+      "GET /meta": META,
+      "GET /cash-flow": () => ({ status: 500, body: { detail: "Something went wrong." } }),
+      "GET /invoices/money": NO_INVOICE_MONEY,
+      "GET /bills/dashboard": NO_MONEY,
+    });
+    visit("/");
+    render(<App />);
+    const money = within(await screen.findByRole("region", { name: "Money" }));
+    const cashFlow = within(money.getByRole("region", { name: "Cash flow" }));
+    expect(await cashFlow.findByText("Couldn't load this.")).toBeTruthy();
+    expect(await money.findByRole("link", { name: /^What we owe/ })).toBeTruthy();
+    expect(await money.findByText("Nothing owed.")).toBeTruthy();
+    expect(money.getAllByText("Couldn't load this.")).toHaveLength(1);
   });
 
   it("opens a bill's page at its address", async () => {

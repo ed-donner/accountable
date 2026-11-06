@@ -25,6 +25,8 @@ const SAMPLE: CompanySettings = {
   invoice_design: "banner",
   accent_color: "#0E6B6B",
   logo: null,
+  opening_balance_cents: 4_000_000,
+  opening_balance_on: "2025-12-01",
   updated_at: "2026-11-05T12:00:00Z",
   updated_by: DANA,
 };
@@ -43,6 +45,8 @@ const DEFAULTS: CompanySettings = {
   invoice_design: "classic",
   accent_color: "#073B4C",
   logo: null,
+  opening_balance_cents: null,
+  opening_balance_on: null,
   updated_at: "2026-11-01T12:00:00Z",
   updated_by: null,
 };
@@ -66,6 +70,8 @@ const BOXES = [
   "Payment terms",
   "Quote prefix",
   "Invoice prefix",
+  "Opening balance",
+  "As of",
 ];
 
 function box(label: string) {
@@ -155,6 +161,8 @@ describe("the Company settings page", () => {
       "30",
       "QT-",
       "INV-",
+      "40000.00",
+      "2025-12-01",
     ]);
   });
 
@@ -164,6 +172,8 @@ describe("the Company settings page", () => {
     expect(panel("Company").getByLabelText("Address")).toBeTruthy();
     expect(panel("Tax").getByLabelText("Tax rate")).toBeTruthy();
     expect(panel("Quotes and invoices").getByLabelText("Invoice prefix")).toBeTruthy();
+    expect(panel("Cash").getByLabelText("Opening balance")).toBeTruthy();
+    expect(panel("Cash").getByLabelText("As of")).toBeTruthy();
   });
 
   it("says what the rate and the terms are in, and hints at what a prefix can hold", async () => {
@@ -281,6 +291,8 @@ describe("saving", () => {
       invoice_prefix: "INV-",
       invoice_design: "banner",
       accent_color: "#0E6B6B",
+      opening_balance_cents: 4_000_000,
+      opening_balance_on: "2025-12-01",
     });
   });
 
@@ -373,6 +385,102 @@ describe("saving", () => {
 
     await waitFor(() => expect(failed).toHaveBeenCalledWith("Something went wrong."));
     expect(box("Company name").value).toBe("Plainsong Studios");
+  });
+});
+
+const OPENING_HINT =
+  "The cash in the bank at the start of that day. The dashboard's cash flow counts from it. " +
+  "Put a minus sign in front if the account was overdrawn.";
+
+function setDate(label: string, value: string) {
+  fireEvent.change(box(label), { target: { value } });
+}
+
+describe("the Cash panel", () => {
+  it("shows $ before the amount, and the hint for both boxes", async () => {
+    await open({});
+    expect(box("Opening balance").previousElementSibling?.textContent).toBe("$");
+    expect(box("As of").type).toBe("date");
+    expect(screen.getByRole("textbox", { name: "Opening balance", description: OPENING_HINT })).toBeTruthy();
+    expect(box("As of").getAttribute("aria-describedby")).toBe(box("Opening balance").getAttribute("aria-describedby"));
+  });
+
+  it.each([
+    ["abc", "2025-12-01", "Opening balance", "Enter an amount in dollars and cents, such as 25,000.00"],
+    ["1,000,000,000,000.01", "2025-12-01", "Opening balance", "Keep the opening balance within $1 trillion either way"],
+    ["", "2025-12-01", "Opening balance", "Enter the opening balance"],
+    ["40,000.00", "", "As of", "Choose the date of the opening balance"],
+  ])("shows an amount of %j as of %j its message beside %s, and sends nothing", async (amount, on, label, message) => {
+    const { calls } = await open({});
+    await retype("Opening balance", amount);
+    setDate("As of", on);
+    await user().click(saveButton());
+
+    expect(await screen.findByText(message)).toBeTruthy();
+    expect(messageBeside(label)).toBe(message);
+    expect(box(label).getAttribute("aria-invalid")).toBe("true");
+    expect(patches(calls)).toEqual([]);
+  });
+
+  it("refuses a date after the page's today, and sends nothing", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 5, 12, 0) });
+    onTestFinished(() => void vi.useRealTimers());
+    const { calls } = await open({});
+    setDate("As of", "2026-11-06");
+    await user().click(saveButton());
+
+    expect(await screen.findByText("The date can't be in the future")).toBeTruthy();
+    expect(messageBeside("As of")).toBe("The date can't be in the future");
+    expect(patches(calls)).toEqual([]);
+  });
+
+  it("sends an amount with a minus sign in front as cents below zero, as of today", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 5, 12, 0) });
+    onTestFinished(() => void vi.useRealTimers());
+    const { calls } = await open({ "PATCH /settings": SAMPLE });
+    await retype("Opening balance", "-4,250.00");
+    setDate("As of", "2026-11-05");
+    await user().click(saveButton());
+
+    await waitFor(() => expect(patches(calls)).toHaveLength(1));
+    expect(patches(calls)[0].body).toMatchObject({ opening_balance_cents: -425000, opening_balance_on: "2026-11-05" });
+  });
+
+  it("sends both as null when both are cleared, which removes the opening balance", async () => {
+    const { calls } = await open(
+      savingBackend(SAMPLE, { ...SAMPLE, opening_balance_cents: null, opening_balance_on: null }),
+    );
+    await retype("Opening balance", "");
+    setDate("As of", "");
+    await user().click(saveButton());
+
+    await waitFor(() => expect(patches(calls)).toHaveLength(1));
+    expect(patches(calls)[0].body).toMatchObject({ opening_balance_cents: null, opening_balance_on: null });
+    await waitFor(() => expect(box("Opening balance").value).toBe(""));
+    expect(box("As of").value).toBe("");
+  });
+
+  it("puts the backend's messages beside their boxes", async () => {
+    await open({
+      "PATCH /settings": () => ({
+        status: 422,
+        body: { detail: "Check the form.", fields: { opening_balance_on: "The date can't be in the future" } },
+      }),
+    });
+    await user().click(saveButton());
+
+    expect(await screen.findByText("The date can't be in the future")).toBeTruthy();
+    expect(messageBeside("As of")).toBe("The date can't be in the future");
+  });
+
+  it("shows what was saved after a save, below zero too", async () => {
+    await open(savingBackend(SAMPLE, { ...SAMPLE, opening_balance_cents: -125050, opening_balance_on: "2025-11-01" }));
+    await retype("Opening balance", "-1,250.5");
+    setDate("As of", "2025-11-01");
+    await user().click(saveButton());
+
+    await waitFor(() => expect(box("Opening balance").value).toBe("-1250.50"));
+    expect(box("As of").value).toBe("2025-11-01");
   });
 });
 

@@ -832,6 +832,29 @@ The build plan is in `docs/changes/cash-flow/plan.md`: first bringing in the `mo
 
 Bringing in `main`, with the `money` branch's Money section in it, met conflicts in this file and nine spec files, all where both branches had described the Money section. They're put together as the plan's Phase 0 says: the Money section as the `money` branch left it, two sides with shared rows, and the cash flow's full-width row above them. Invoices' and bills' rows are now sides throughout, the screens in `invoices.md` and `bills.md` point to the cash flow's row above their sides, and `dashboard.md`'s screen puts the cash flow's row first. The rule that the whole section fits 1440 by 900 gives way to the cash flow's, since the row and the two sides no longer fit together: the heading and the cash flow's row fit, and so does everything below the row. `frontend.md` merged without a conflict but still put `MoneySection` in `App.tsx` with invoices' and bills' rows, so it now names `components/MoneySection.tsx` and the two sides. No code had changed on this branch, so the code came in from `main` without conflicts. Phase 0's last step, reading the merged `MoneySection.tsx` and noting in the plan where the cash flow's row goes, is still to do. `MoneySection` takes its two sides as children in a two-column grid, so the row needs a place of its own above that grid.
 
+## Cash flow: build
+
+The cash flow is built, as `docs/changes/cash-flow/plan.md` set out, on top of the `money` branch's Money section.
+
+- **The opening balance:** migration `0011` adds `opening_balance_cents` and `opening_balance_on` to the company settings, both blank, with a check that keeps them together. On SQLite the check rebuilds the table, and the upgrade test shows the row, who last changed it, its index and its ids come through whole. Saving the settings checks B23 and B24 against the backend's today. A date is checked against today only when it changes, so one that was fine when it was saved stays fine. The Company settings page has the Cash panel, and `lib/money.ts` shows and reads amounts below zero.
+- **The sample company:** $40,000.00 as of the first day of the chart's first month, as B12 says. On every seeding day the tests try, the lowest month's balance is $14,287.57, so the figure stands.
+- **The cash flow:** `cash.py` at the top level, a `cash.py` in invoices, bills and the CRM, and `cashflow/` on both sides. The figures take six reads of the database and a month's list four. At the Q1 limits they take about 13ms in the backend's tests and 15ms end to end.
+- **The page:** `CashFlowRow`, `CashFlowChart` and `MonthDialog` in `frontend/src/cashflow/`. `MoneySection` takes the row as its `lead`, between the heading and the two sides, which was Phase 0's last step.
+
+What the build settled, now in the spec:
+
+- **The axis always has room for the likely deals' band** (`visual-design.md`, Charts). Otherwise turning the switch on rescaled the axis, which moved the line and squashed the bars, where Y14 says the switch changes nothing else. The cost shows on the sample data: its likely deals reach about $580k by the forecast's end, against a balance of about $250k, so with the switch off the axis still runs to $1M and the bars are short. If the owner would rather the axis grew with the switch on, the line would move when it's turned on, and Y14 and `CashFlowChart.test.tsx` would change with it.
+- **The axis's figures are chosen with room for each** (`visual-design.md`). Recharts dropped figures that crowded each other by itself, including the one below zero, so the chart now picks $0, the ends and the halves where they fit, and shows all it picks.
+- **A month's list says how late an invoice's customer pays as the average its date took** (`cash-flow.md`), which is every customer's for one with no fully paid invoice yet.
+- **A month with no balance names itself in its tooltip** (`cash-flow.md`), so `ChartTooltip`'s leading figure is now optional.
+- **A sum of cents sent as digits** is `api.CentsSum`, which bills and the cash flow both use (`architecture.md`).
+- **`Month`** in `months.py` has its year and its first and last days (`architecture.md`).
+- **The frontend tests' replies** are in `frontend/src/cashflow/test-cash-flow.ts` (`architecture.md`).
+
+Small changes to tests the plan didn't foresee: `test_layout.py` finds the areas by their packages, since `cashflow/` keeps no tables; `test_every_route.py` gives a month's list a real month to read, and counts `month` among the query parameters that take text; and the Company settings form takes 15 presses of Tab, not 12, because Chrome steps through a date box's month, day and year and then its calendar button. The fold also ignores a payment or a paid bill dated after today, which the saves refuse anyway, so one could never show as money moved in the forecast.
+
+`npm run check` passes: 6,435 tests in 6m 51s, with 4,354 backend, 1,734 frontend, 328 end-to-end and 19 speed tests. Each new test was seen to fail on a broken copy of the code it covers. Two unit tests took a second or more, neither new: `test_logo.py`'s WEBP case, at 4.0s, and the limits' setup, at 1.1s. Still to come, after the plan: ui-check, the review and `docs/IMPROVE.md`.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -874,9 +897,9 @@ Invoices bills customers for won deals. New invoice on a won deal's page starts 
 
 Bills holds the bills the business receives from its suppliers. A supplier is any organization, so add a new one in Organizations first. Each bill has the supplier's bill number, a bill date, a due date 30 days later unless you change it, the amount and the tax as they appear on the bill, and a category. Bills opens on the unpaid ones, earliest due first, so overdue bills come first: a bill is overdue once its due date has passed. Mark paid asks the date you paid it, and Mark unpaid undoes it, with Undo on its message for 10 seconds. An organization's page lists its bills, and an organization with bills can't be deleted.
 
-Below the dashboard's own part, the Money section puts what customers owe us beside what we owe suppliers. On the left: what customers owe, how much is overdue and how late, and the payments received each month. On the right: what we owe and what's overdue, a timeline of the bills due in the next 30 days, and spending by category for the last 12 months.
+Below the dashboard's own part, the Money section starts with the cash flow: the money in and out in each of the last 12 months, the cash balance at each month's end, and a dashed forecast for the next 3 months from the open invoices and unpaid bills. The Likely deals switch adds the open deals as a band on top of the forecast, and clicking this month or a forecast month lists what's expected in it. The balance counts from the opening balance in Company settings, and without one the chart shows money in and out with no balance. Below the cash flow, the Money section puts what customers owe us beside what we owe suppliers. On the left: what customers owe, how much is overdue and how late, and the payments received each month. On the right: what we owe and what's overdue, a timeline of the bills due in the next 30 days, and spending by category for the last 12 months.
 
-The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. Its Documents panel sets how invoices look: one of three designs, an accent color and the company's logo, with a sample invoice that changes as you choose. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
+The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. Its Cash panel holds the opening balance, the cash in the bank at the start of a chosen day, which the dashboard's cash flow counts from. Its Documents panel sets how invoices look: one of three designs, an accent color and the company's logo, with a sample invoice that changes as you choose. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
 ### Stop it
 
@@ -886,7 +909,7 @@ Click on the terminal window and press Ctrl+C.
 
 Accountable comes with made-up sample data so you can look around.
 
-- `npm run seed` replaces everything with fresh sample data, invoices and payments included, and puts back the made-up company's settings and logo.
+- `npm run seed` replaces everything with fresh sample data, invoices and payments included, and puts back the made-up company's settings, logo and opening balance.
 - `npm run empty` removes every record, invoices and payments included, so you can type in your own. It leaves the company settings and the logo as they are.
 
 Both tell you what will be lost and only go ahead if you type `yes`. Both are safe with the app running: refresh the browser to see the result. Both keep the four teammates, so there's still someone to sign in as. They only ever touch the local copy, never the team's data in Supabase.
@@ -945,7 +968,7 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, quote, invoice, payment and bill, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, no logo, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, quote, invoice, payment and bill, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, no logo, no opening balance, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
 begin;
@@ -956,6 +979,7 @@ update company_settings set
   company_name = default, address = default, email = default, phone = default,
   tax_label = default, tax_rate = default, payment_terms_days = default,
   quote_prefix = default, invoice_prefix = default, invoice_design = default, accent_color = default,
+  opening_balance_cents = default, opening_balance_on = default,
   updated_by = default, updated_at = now() at time zone 'utc';
 commit;
 ```

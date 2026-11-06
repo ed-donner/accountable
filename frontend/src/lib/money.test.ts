@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_CENTS, money, parsePrice, price, priceText, shortMoney } from "./money";
+import { MAX_CENTS, money, parsePrice, parseSignedPrice, price, priceText, shortMoney } from "./money";
 
 describe("money", () => {
   it("shows whole dollars with the currency and separators", () => {
@@ -92,5 +92,62 @@ describe("parsePrice", () => {
   it("gives back the same cents from what priceText shows", () => {
     const samples = [...Array.from({ length: 10_001 }, (_, cents) => cents), 114999, 900_719_925, MAX_CENTS];
     for (const cents of samples) expect(parsePrice(priceText(cents))).toBe(cents);
+  });
+});
+
+describe("amounts below zero", () => {
+  it.each([
+    [-425000, "-$4,250.00"],
+    [-7, "-$0.07"],
+    [-MAX_CENTS, "-$1,000,000,000,000.00"],
+  ])("price shows %i cents as %s, with the sign before the currency", (cents, shown) => {
+    expect(price(cents)).toBe(shown);
+  });
+
+  it("price shows a BigInt below zero to the cent, past what a JavaScript number holds", () => {
+    expect(price(-9_200_000_000_000_001n)).toBe("-$92,000,000,000,000.01");
+    expect(price(-425000n)).toBe("-$4,250.00");
+    expect(price(-7n)).toBe("-$0.07");
+  });
+
+  it("shortMoney puts the sign before the currency", () => {
+    expect(shortMoney(-40000)).toBe("-$40k");
+    expect(shortMoney(-1200000)).toBe("-$1.2M");
+    expect(shortMoney(-950)).toBe("-$950");
+  });
+
+  it("priceText shows the sign for editing", () => {
+    expect(priceText(-125000)).toBe("-1250.00");
+    expect(priceText(-29)).toBe("-0.29");
+  });
+});
+
+describe("parseSignedPrice", () => {
+  it.each([
+    ["-1,250.00", -125000],
+    ["-$1,250.00", -125000],
+    ["-0.29", -29],
+    [" -0.29 ", -29],
+    ["1250", 125000],
+    ["$1,250.00", 125000],
+    ["0", 0],
+    ["-0", 0],
+    ["-1,000,000,000,000.00", -MAX_CENTS],
+    ["1,000,000,000,000.00", MAX_CENTS],
+  ])("reads %j as %i cents, by its digits", (text, cents) => {
+    expect(parseSignedPrice(text)).toBe(cents);
+  });
+
+  it.each(["--1", "1-", "-", "- 5", "$-5", "-49.505", "-1000000000000.01", "1000000000000.01", "abc", ""])(
+    "refuses %j",
+    (text) => {
+      expect(parseSignedPrice(text)).toBeNull();
+    },
+  );
+
+  it("gives back the same cents from what priceText shows, below zero too", () => {
+    for (const cents of [-MAX_CENTS, -114999, -29, -1, 0, 1, 29, 114999, MAX_CENTS]) {
+      expect(parseSignedPrice(priceText(cents))).toBe(cents);
+    }
   });
 });

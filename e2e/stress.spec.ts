@@ -1,7 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { card, column, fillToLimits } from "./helpers";
+import { card, column, fillToLimits, isoDay } from "./helpers";
 
 test.beforeAll(fillToLimits);
 
@@ -99,6 +99,20 @@ test("the Money section's data arrives in under 200ms", async ({ page, sessionTo
   console.log(`Money data: ${elapsed.toFixed(1)}ms`);
   expect(elapsed).toBeLessThan(200);
 });
+
+// The cash flow's figures and a month's list, this month's, from every payment and bill (Q1, Y22).
+for (const [name, route] of [
+  ["The cash flow's", "/api/cash-flow"],
+  ["A month's list's", `/api/cash-flow/expected?month=${isoDay().slice(0, 7)}`],
+]) {
+  test(`${name} data arrives in under 200ms`, async ({ page, sessionToken }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("revenue-this-month")).toBeVisible();
+    const elapsed = await medianRead(page, sessionToken, route);
+    console.log(`${name} data: ${elapsed.toFixed(1)}ms`);
+    expect(elapsed).toBeLessThan(200);
+  });
+}
 
 test("an invoice's PDF downloads in under a second", async ({ page, request, sessionToken }) => {
   const invoices: { id: number; number: string | null }[] = await (await request.get("/api/invoices")).json();

@@ -169,7 +169,7 @@ def _entry(on: date, kind: str, source_id: int, event: str, link: str, lines: li
     return values, [line for line in lines if line[1] or line[2]]
 
 
-def _invoice_entries(conn: sa.Connection) -> tuple[list[Entry], list[int]]:
+def _invoice_entries(conn: sa.Connection) -> tuple[list[Entry], set[int]]:
     """The issue entries, and which of them are for a void invoice, which also get a reversal."""
     rows = conn.execute(
         sa.select(_invoices)
@@ -191,7 +191,7 @@ def _invoice_entries(conn: sa.Connection) -> tuple[list[Entry], list[int]]:
         )
         for row in rows
     ]
-    return entries, [place for place, row in enumerate(rows) if row.status == "void"]
+    return entries, {row.id for row in rows if row.status == "void"}
 
 
 def _payment_entries(conn: sa.Connection) -> list[Entry]:
@@ -268,19 +268,21 @@ def _ids(conn: sa.Connection) -> dict[tuple[str, int, str], int]:
 
 def _post_existing_records(conn: sa.Connection) -> None:
     now = datetime.now(UTC).replace(tzinfo=None)
-    invoices, void_places = _invoice_entries(conn)
-    originals = [*invoices, *_payment_entries(conn), *_bill_entries(conn), *_opening_balance_entries(conn)]
+    invoices, void_ids = _invoice_entries(conn)
+    everything = [*invoices, *_payment_entries(conn), *_bill_entries(conn), *_opening_balance_entries(conn)]
+    # An event with no money in it, such as an opening balance of $0.00, posts no entry at all (J3).
+    originals = [entry for entry in everything if entry[1]]
     if not originals:
         return
     _write(conn, originals, [None] * len(originals), now)
     # A void invoice's reversal has the issue entry's lines with the sides swapped, dated the same.
     given = _ids(conn)
     reversals, reversed_ids = [], []
-    for place in void_places:
-        values, lines = originals[place]
-        swapped = [(account, credit, debit) for account, debit, credit in lines]
-        reversals.append(({**values, "event": "invoice_voided"}, swapped))
-        reversed_ids.append(given[(values["kind"], values["source_id"], values["event"])])
+    for values, lines in originals:
+        if values["kind"] == "invoice" and values["source_id"] in void_ids:
+            swapped = [(account, credit, debit) for account, debit, credit in lines]
+            reversals.append(({**values, "event": "invoice_voided"}, swapped))
+            reversed_ids.append(given[(values["kind"], values["source_id"], values["event"])])
     if reversals:
         _write(conn, reversals, reversed_ids, now)
 

@@ -1056,6 +1056,24 @@ def test_an_overdrawn_opening_balance_is_posted_with_the_sides_swapped(tmp_path,
     db.dispose()
 
 
+def test_an_opening_balance_of_zero_gets_no_entry(tmp_path, monkeypatch):
+    """J3: an event with no money in it posts no entry at all, in the migration as in the app."""
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(tmp_path / "zero.db"))
+    db.dispose()
+    at_0011_with_records(tmp_path / "zero.db", opening=0)
+    db.prepare_database(nothing)
+    assert [entry for entry in posted() if entry[0] == "opening_balance"] == []
+    with db.reading() as conn:
+        empty = conn.scalar(
+            select(func.count())
+            .select_from(journal_entries)
+            .where(journal_entries.c.id.not_in(select(journal_lines.c.entry_id)))
+        )
+    assert empty == 0
+    hold()
+    db.dispose()
+
+
 def test_a_database_with_no_records_gets_no_entries(tmp_path, monkeypatch):
     monkeypatch.setenv("ACCOUNTABLE_DB", str(tmp_path / "bare.db"))
     db.dispose()

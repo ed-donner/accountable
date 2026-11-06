@@ -77,10 +77,20 @@ CASH_FLOW_MONTH = "/api/cash-flow/expected?month=2026-11"
 
 
 BOOKS = ["/api/books/balances", "/api/books/months", "/api/books/entries"]
+AGED_BALANCES = ["/api/aged-balances/customers", "/api/aged-balances/suppliers"]
 
 
 @pytest.mark.parametrize(
-    "path", ["/api/dashboard", "/api/invoices/money", "/api/bills/dashboard", "/api/cash-flow", CASH_FLOW_MONTH, *BOOKS]
+    "path",
+    [
+        "/api/dashboard",
+        "/api/invoices/money",
+        "/api/bills/dashboard",
+        "/api/cash-flow",
+        CASH_FLOW_MONTH,
+        *BOOKS,
+        *AGED_BALANCES,
+    ],
 )
 def test_the_dashboard_and_its_money_section_are_quick(full, path):
     elapsed = median_ms(full, path)
@@ -162,6 +172,9 @@ QUERIES = {
     "/api/books/balances": 1,
     "/api/books/months": 2,
     "/api/books/entries": 3,
+    # Each view is one grouped read of the invoices and payments, or of the bills (X20).
+    "/api/aged-balances/customers": 1,
+    "/api/aged-balances/suppliers": 1,
 }
 
 

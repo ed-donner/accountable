@@ -22,6 +22,8 @@ from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from accountable import api, auth, cli, db, search, settings, users
+from accountable.aging import router as aging_router
+from accountable.aging import schemas as aging_schemas
 from accountable.bills import cash as bills_cash
 from accountable.bills import router as bills
 from accountable.bills import schemas as bills_schemas
@@ -111,6 +113,8 @@ AREAS = [
     Area(routers=[cashflow.router], messages=cashflow_schemas.FIELD_MESSAGES),
     # The books keep their own tables, post nothing from here, and give no holds, cash or search kinds.
     Area(routers=[books_router.router], messages=books_schemas.FIELD_MESSAGES),
+    # Aged balances keep no records and read the invoices and bills. They hold nothing, and give no search kinds or cash.
+    Area(routers=[aging_router.router], messages=aging_schemas.FIELD_MESSAGES),
 ]
 
 

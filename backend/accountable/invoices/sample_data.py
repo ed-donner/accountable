@@ -9,11 +9,13 @@ value. It's added after the deal was won, issued that day, so INV-0001 is the ol
 
 - the newest of this month's wins are drafts, at least 2 even on the 1st;
 - one deal from about four months ago was invoiced, voided, and invoiced again and paid;
-- one invoice in each group of How late is overdue, two of them part paid;
-- about 4 not yet due are part paid, last month's first, leaving at least 2 issued with nothing paid;
+- two invoices in each of the four overdue groups of How late are left for different organizations, some
+  part paid, so the aged balances have customers in every part;
+- about 2 not yet due are part paid, last month's first, and the latest 2 are left issued with nothing
+  paid, so even with eight overdue, most invoices are paid;
 - the oldest is paid on its issue date, and one invoice is paid late, today, so each of the 12
   months has a payment: the latest win of each month is always paid, and its payment lands next month;
-- the rest not yet due are issued, and every other one is paid, in one or two payments.
+- every other one, the rest not yet due included, is paid, in one or two payments.
 """
 
 from collections.abc import Sequence
@@ -33,10 +35,10 @@ from accountable.products.tables import products
 from accountable.sample import Line, moment, sold_lines
 from accountable.users import add_missing_teammates, teammate
 
-# Days late for the overdue invoices, one in each group of How late, and the share of each paid.
-OVERDUE = [(10, 0), (45, 40), (75, 0), (120, 25)]
+# Days late for the overdue invoices, two in each group of How late, and the share of each paid.
+OVERDUE = [(10, 0), (22, 30), (45, 40), (55, 0), (75, 0), (85, 50), (120, 25), (150, 0)]
 VOIDED_DAYS_AGO = 120
-PART_PAID_NOT_DUE = 4
+PART_PAID_NOT_DUE = 2
 KEPT_ISSUED = 2
 """At least this many are issued and not yet due, with nothing paid."""
 DRAFTS = (2, 3)
@@ -101,13 +103,18 @@ def _latest_of_each_month(wins: Sequence[Row]) -> set[int]:
     return {deal.id for deal in latest.values()}
 
 
-def _closest(candidates: list[Planned], days_late: int, today: date, terms: int) -> Planned | None:
-    """The invoice whose lateness is nearest the days given, in the same group of How late."""
+def _closest(
+    candidates: list[Planned], days_late: int, today: date, terms: int, avoid: frozenset[int] | set[int] = frozenset()
+) -> Planned | None:
+    """The invoice whose lateness is nearest the days given, in the same group of How late, and not
+    for an organization to avoid."""
     wanted = figures.late_group(today - timedelta(days=days_late), today)
     fitting = [
         plan
         for plan in candidates
-        if plan.issue_date is not None and figures.late_group(plan.issue_date + timedelta(days=terms), today) == wanted
+        if plan.issue_date is not None
+        and plan.deal.organization_id not in avoid
+        and figures.late_group(plan.issue_date + timedelta(days=terms), today) == wanted
     ]
     due = today - timedelta(days=days_late + terms)
 
@@ -171,7 +178,9 @@ class _Plan:
         part_paid = max(min(PART_PAID_NOT_DUE, len(not_due) - KEPT_ISSUED), 0)
         for number, plan in enumerate(not_due[:part_paid]):
             self._part_paid(plan, 30 + number * 5, 5 + number)
-        past_due = [plan for plan in self._issued() if self._due(plan) < self.today]
+        # The ones between are paid early, leaving the latest issued.
+        paid_early = not_due[part_paid : max(len(not_due) - KEPT_ISSUED, part_paid)]
+        past_due = [plan for plan in self._issued() if plan in paid_early or self._due(plan) < self.today]
         for number, plan in enumerate(past_due):
             _paid_in_full(plan, self.totals[plan.deal.id], number, self.today)
         # One paid late, today, so this month has a payment even on the 1st. Not a month's latest
@@ -181,13 +190,18 @@ class _Plan:
             late[-1].paid = [(self.today, self.totals[late[-1].deal.id])]
 
     def _overdue(self) -> None:
-        """Left unpaid, or part paid, from the older wins. A month's latest win is left unpaid only if nothing else fits."""
+        """Left unpaid, or part paid, from the older wins, for a different organization in each group's
+        two. A month's latest win is left unpaid only if nothing else fits."""
+        in_group: dict[str, set[int]] = {}
         for days_late, share in OVERDUE:
             overdue = [plan for plan in self._issued() if self._due(plan) < self.today]
             unpaid_may_be = [plan for plan in overdue if share or plan.deal.id not in self.latest]
-            chosen = _closest(unpaid_may_be, days_late, self.today, self.terms)
+            group = figures.late_group(self.today - timedelta(days=days_late), self.today)
+            taken = in_group.setdefault(group, set())
+            chosen = _closest(unpaid_may_be, days_late, self.today, self.terms, taken)
             if chosen is None:
                 continue
+            taken.add(chosen.deal.organization_id)
             if share:
                 self._part_paid(chosen, share, 6)
             else:

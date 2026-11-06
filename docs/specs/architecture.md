@@ -217,8 +217,9 @@ frontend/src/
                                   lead, then two sides in shared rows, and the parts both sides are built from:
                                   MoneyColumn, OwingPanel, MoneyFigure and MonthsPanel
     charts/                       what any area's chart can use: ChartTooltip, useSize, and the axes' text and the top
-                                  of a money axis, and monthColumns.tsx, the layout the Money section's two month
-                                  charts share
+                                  of a money axis, monthColumns.tsx, the layout the Money section's two month
+                                  charts share, and lateness.ts, the five parts of how late money is with their labels
+                                  and colors, which How late and the aged balances share (X12)
   crm/
     queries.ts, deals.ts, Timeline.tsx, searchGroups.tsx and others
     forms/                        organization, contact, deal and activity forms
@@ -278,9 +279,8 @@ frontend/src/
                                   views' rows, kept in the address (X8)
     AgedTable.tsx                 a view's table: each organization's row, its bar, its five parts, the items under an open
                                   row, Show 25 more and the totals row
-    AgedBar.tsx                   one organization's stacked bar, with Recharts, in the part colors, and the table behind it
+    AgedBar.tsx                   one organization's stacked bar, with Recharts, in the part colors, and the list behind it
                                   for screen readers
-    parts.ts                      the five parts in order, with their labels and colors
     test-aged.ts                  the page's tests' replies, for a today of Nov 5, 2026, and the chart's size
   cashflow/                       the cash flow, a later area that imports no other area
     queries.ts                    its types, and reading the months and a month's list, keyed by the day

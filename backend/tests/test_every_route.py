@@ -173,6 +173,8 @@ def test_the_routes_were_found():
     assert ("GET", "/api/cash-flow") in READS
     assert ("GET", "/api/cash-flow/expected") in READS
     assert target("GET", "/api/cash-flow/expected") == "/api/cash-flow/expected?month=2026-11"
+    for route in [("GET", "/api/aged-balances/customers"), ("GET", "/api/aged-balances/suppliers")]:
+        assert route in READS, route
     for route in [
         ("GET", "/api/books/balances"),
         ("GET", "/api/books/months"),
@@ -180,6 +182,8 @@ def test_the_routes_were_found():
     ]:
         assert route in READS, route
     assert QUERY_TEXT == [
+        ("GET", "/api/aged-balances/customers", "on"),
+        ("GET", "/api/aged-balances/suppliers", "on"),
         ("GET", "/api/books/balances", "on"),
         ("GET", "/api/books/entries", "account"),
         ("GET", "/api/books/entries", "from"),

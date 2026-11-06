@@ -2,6 +2,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { customersReply } from "./aging/test-aged";
 import { cashFlowReply, quietMonths } from "./cashflow/test-cash-flow";
 import { THEME_KEY } from "./lib/theme";
 import { META, mockApi, startSignedIn, user, type Call } from "./test-utils";
@@ -559,7 +560,6 @@ describe("the app, signed in", () => {
     ["/accounting/profit-and-loss", "Profit and loss", "What the business earned"],
     ["/accounting/balance-sheet", "Balance sheet", "What the business owns and owes"],
     ["/accounting/journal", "Journal", "Every entry in the books"],
-    ["/accounting/aged-balances", "Aged balances", "What customers owe"],
   ])("opens %s inside the top bar, with no section marked", async (address, title, words) => {
     mockApi({ "GET /meta": META, "GET /me": ALEX });
     render(<App />);
@@ -567,6 +567,18 @@ describe("the app, signed in", () => {
     expect((await heading()).textContent).toBe(title);
     expect(screen.getByText("This report is coming soon.")).toBeTruthy();
     expect(screen.getByText(new RegExp(words))).toBeTruthy();
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
+    expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+  });
+
+  it("opens Aged balances inside the top bar on Customers, with its report and no section marked", async () => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX, "GET /aged-balances/customers": customersReply() });
+    render(<App />);
+    visit("/accounting/aged-balances");
+    expect((await heading()).textContent).toBe("Aged balances");
+    expect(screen.getByRole("radio", { name: "Customers" }).getAttribute("aria-checked")).toBe("true");
+    expect(await screen.findByRole("link", { name: "Bluebird Bakery" })).toBeTruthy();
+    expect(screen.queryByText("This report is coming soon.")).toBeNull();
     expect(topBar().getAllByRole("link")).toHaveLength(9);
     expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
   });

@@ -3,9 +3,11 @@
 Six suppliers are added for the bills, and four of the CRM's customers send bills too, so
 each of those is both. The CRM's sample data goes in first, because these point at its
 organizations. Every bill is due 30 days after its bill date. One due today or later is
-unpaid, and one due before today was paid a few days before its due date, apart from three
-left overdue. Those three, and the two latest trips, are dated from the seeding day, which
-keeps at least 6 bills due in the next 30 days and 3 overdue whatever the day.
+unpaid, and one due before today was paid a few days before its due date, apart from nine
+left overdue. Those, and the two latest trips, are dated from the seeding day, which keeps
+at least 6 bills due in the next 30 days and 9 overdue whatever the day. Two different
+suppliers have unpaid bills in each part of the aged balances: not yet due, and 1 to 30, 31 to
+60, 61 to 90 and over 90 days past due, and Wayfarer Travel has some in four of them.
 """
 
 from dataclasses import dataclass
@@ -81,8 +83,8 @@ TRIPS = [
     (287, 54000, 0, "Train and hotel, Copperline Electric"),
     (330, 112000, 9940, "Flights, Greyfriars Property"),
 ]
-# The trip left overdue.
-OVERDUE_TRIP_DAYS = 42
+# The trips left overdue, which are due 12, 31, 74 and 100 days ago.
+OVERDUE_TRIP_DAYS = {42, 61, 104, 130}
 # Online ads, in 9 of the 12 months: one dated from the seeding day and left overdue, and the
 # rest on the 20th, with their months back.
 OVERDUE_ADS = (36, 195000)
@@ -157,8 +159,24 @@ def _one_offs(today: date) -> list[SampleBill]:
         SampleBill("Marlowe Insurance", "other", days_ago(300), 640000, notes="Yearly business insurance"),
         SampleBill("Ironwood Joinery", "office", days_ago(268), 790000, 70113, "Desks and shelving for the office"),
         SampleBill("Saltmarsh Studio", "marketing", days_ago(240), 285000, notes="Brochure design"),
-        SampleBill("Northwind Software", "software", days_ago(212), 960000, 85200, "Yearly license renewal"),
-        SampleBill("Signalbox Marketing", "marketing", days_ago(121), 1250000, 110938, "Stand at the trade show"),
+        SampleBill(
+            "Northwind Software",
+            "software",
+            days_ago(212),
+            960000,
+            85200,
+            "Yearly license renewal",
+            left_overdue=True,
+        ),
+        SampleBill(
+            "Signalbox Marketing",
+            "marketing",
+            days_ago(110),
+            1250000,
+            110938,
+            "Stand at the trade show",
+            left_overdue=True,
+        ),
         SampleBill(
             "Saltmarsh Studio",
             "marketing",
@@ -179,7 +197,7 @@ def _trips(today: date) -> list[SampleBill]:
             cents,
             tax,
             notes,
-            left_overdue=days == OVERDUE_TRIP_DAYS,
+            left_overdue=days in OVERDUE_TRIP_DAYS,
         )
         for days, cents, tax, notes in TRIPS
     ]

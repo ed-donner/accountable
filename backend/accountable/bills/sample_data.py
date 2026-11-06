@@ -63,7 +63,7 @@ NUMBERING = {
 # Hosting rises with use, oldest month first.
 HOSTING = [38000, 38650, 39120, 39800, 40240, 41075, 41630, 42310, 43085, 43900, 44720, 46000]
 # A contractor's month of hours, oldest first.
-CONTRACTOR = [712500, 680000, 745000, 798750, 820000, 765000, 884500, 920000, 836250, 790000, 857500, 903750]
+CONTRACTOR = [212500, 230000, 245000, 298750, 320000, 365000, 484500, 620000, 736250, 790000, 857500, 903750]
 # Days before the seeding day, amount and tax in cents, and where to. Most carry tax.
 TRIPS = [
     (5, 48000, 4260, "Train and hotel, visit to Lantern Hotels"),
@@ -154,11 +154,11 @@ def _one_offs(today: date) -> list[SampleBill]:
         return today - timedelta(days=days)
 
     return [
-        SampleBill("Marlowe Insurance", "other", days_ago(300), 640000, notes="Yearly business insurance"),
-        SampleBill("Ironwood Joinery", "office", days_ago(268), 790000, 70113, "Desks and shelving for the office"),
+        SampleBill("Marlowe Insurance", "other", days_ago(150), 640000, notes="Yearly business insurance"),
+        SampleBill("Ironwood Joinery", "office", days_ago(110), 790000, 70113, "Desks and shelving for the office"),
         SampleBill("Saltmarsh Studio", "marketing", days_ago(240), 285000, notes="Brochure design"),
-        SampleBill("Northwind Software", "software", days_ago(212), 960000, 85200, "Yearly license renewal"),
-        SampleBill("Signalbox Marketing", "marketing", days_ago(121), 1250000, 110938, "Stand at the trade show"),
+        SampleBill("Northwind Software", "software", days_ago(130), 960000, 85200, "Yearly license renewal"),
+        SampleBill("Signalbox Marketing", "marketing", days_ago(90), 1250000, 110938, "Stand at the trade show"),
         SampleBill(
             "Saltmarsh Studio",
             "marketing",

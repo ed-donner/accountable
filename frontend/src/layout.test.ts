@@ -199,3 +199,15 @@ describe("files that read data", () => {
     }
   });
 });
+
+describe("the balance sheet", () => {
+  it("is in books/, which still imports no other area, and the stacked segments it shares import no area", () => {
+    const own = appCode().filter((file) => areaOf(file) === "books");
+    expect(own).toEqual(expect.arrayContaining(["books/balance.ts", "books/queries.ts", "books/BalanceBars.tsx"]));
+    expect(
+      own.flatMap((file) => imported(file)).filter((target) => ![undefined, "books"].includes(areaOf(target))),
+    ).toEqual([]);
+    expect(appCode()).toContain("components/charts/StackSegment.tsx");
+    expect(imported("components/charts/StackSegment.tsx").filter((target) => areaOf(target) !== undefined)).toEqual([]);
+  });
+});

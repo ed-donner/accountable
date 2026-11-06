@@ -2,7 +2,10 @@ import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { stops } from "./books/balance";
+import { balancesReply } from "./books/test-balance";
 import { cashFlowReply, quietMonths } from "./cashflow/test-cash-flow";
+import { todayIso } from "./lib/dates";
 import { THEME_KEY } from "./lib/theme";
 import { META, mockApi, startSignedIn, user, type Call } from "./test-utils";
 
@@ -557,7 +560,6 @@ describe("the app, signed in", () => {
 
   it.each([
     ["/accounting/profit-and-loss", "Profit and loss", "What the business earned"],
-    ["/accounting/balance-sheet", "Balance sheet", "What the business owns and owes"],
     ["/accounting/journal", "Journal", "Every entry in the books"],
     ["/accounting/aged-balances", "Aged balances", "What customers owe"],
   ])("opens %s inside the top bar, with no section marked", async (address, title, words) => {
@@ -588,7 +590,8 @@ describe("the app, signed in", () => {
   });
 
   it("gets the menu's Accounting links from App.tsx, and opens a page from one", async () => {
-    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    const days = stops(todayIso()).map((stop) => [`GET /books/balances?on=${stop.day}`, balancesReply(stop.day)]);
+    mockApi({ "GET /meta": META, "GET /me": ALEX, ...Object.fromEntries(days) });
     render(<App />);
     visit("/");
     await heading();

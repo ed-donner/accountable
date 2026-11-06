@@ -8,6 +8,7 @@ import pytest
 from accountable import cli, db
 from accountable.bills import sample_data as bill_samples
 from accountable.bills.tables import CATEGORIES, bill_number_key, bills
+from accountable.books import accounts
 from accountable.books.tables import journal_entries, journal_lines
 from accountable.cashflow import router as cash_flow
 from accountable.company import documents, logo, tax
@@ -901,3 +902,34 @@ def test_the_books_cash_today_equals_the_cash_flows_to_the_cent(seeded):
         if line.account == "cash" and dated[line.entry_id] <= seeded["today"]
     )
     assert cash == seeded["cash_flow"].cash_today
+
+
+def stops_of(today: date) -> list[date]:
+    """The balance sheet's 12 stops (X2): the last day of each of the 11 months before this one, then today."""
+    first = today.replace(day=1)
+    stops = [today]
+    for _ in range(11):
+        first = first - timedelta(days=1)
+        stops.append(first)
+        first = first.replace(day=1)
+    return sorted(stops)
+
+
+def test_every_balance_sheet_stop_has_every_account_above_zero_and_the_sides_equal(seeded):
+    """X18: Cash, Receivable, Payable, Tax payable, Owner's equity and Profit to date at each of the 12 stops."""
+    dated = {entry.id: entry.entry_date for entry in seeded["entries"]}
+    for stop in stops_of(seeded["today"]):
+        debits, credits = Counter(), Counter()
+        for line in seeded["journal_lines"]:
+            if dated[line.entry_id] <= stop:
+                debits[line.account] += line.debit_cents
+                credits[line.account] += line.credit_cents
+        balance = {key: accounts.balance(key, debits[key], credits[key]) for key in accounts.KEYS}
+        expenses = sum(balance[key] for key in accounts.KEYS if key.startswith("expense_"))
+        profit = balance["revenue"] - expenses
+        shown = {key: balance[key] for key in ("cash", "receivable", "payable", "tax_payable", "owners_equity")}
+        assert all(value > 0 for value in shown.values()), f"{stop}: {shown}"
+        assert profit > 0, f"{stop}: profit {profit}"
+        assert balance["cash"] + balance["receivable"] == (
+            balance["payable"] + balance["tax_payable"] + balance["owners_equity"] + profit
+        ), stop

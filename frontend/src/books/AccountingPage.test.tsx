@@ -4,7 +4,6 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { AgedBalances } from "./pages/AgedBalances";
-import { BalanceSheet } from "./pages/BalanceSheet";
 import { Journal } from "./pages/Journal";
 import { ProfitAndLoss } from "./pages/ProfitAndLoss";
 import { Shell, type Section } from "../components/Shell";
@@ -24,12 +23,6 @@ const PAGES = [
     ProfitAndLoss,
     "Profit and loss",
     "What the business earned and what it spent each month, and the profit or loss that leaves.",
-  ],
-  [
-    "/accounting/balance-sheet",
-    BalanceSheet,
-    "Balance sheet",
-    "What the business owns and owes on any day you choose, and what's left over for the owner.",
   ],
   [
     "/accounting/journal",

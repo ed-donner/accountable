@@ -9,7 +9,7 @@ import { price } from "../../lib/money";
 import { plural } from "../../lib/words";
 import { CategoryLabel, categoryStyle } from "../categories";
 import type { DueBill } from "../queries";
-import { StackSegment, stackScale } from "./StackSegment";
+import { StackSegment, stackScale } from "../../components/charts/StackSegment";
 
 /** Today and the 30 days after it, both ends included (E22). */
 const DAYS = 31;

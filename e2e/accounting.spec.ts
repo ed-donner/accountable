@@ -8,17 +8,14 @@ import { addBill, addIssuedInvoice, isoDay, resetToSampleData } from "./helpers"
 test.describe.configure({ mode: "serial" });
 test.beforeAll(resetToSampleData);
 
-const PAGES = [
+// The words of each page that is still a placeholder. Balance sheet has its own file, balance-sheet.spec.ts.
+const PAGES: { label: string; path: string; words: string | null }[] = [
   {
     label: "Profit and loss",
     path: "/accounting/profit-and-loss",
     words: "What the business earned and what it spent each month, and the profit or loss that leaves.",
   },
-  {
-    label: "Balance sheet",
-    path: "/accounting/balance-sheet",
-    words: "What the business owns and owes on any day you choose, and what's left over for the owner.",
-  },
+  { label: "Balance sheet", path: "/accounting/balance-sheet", words: null },
   {
     label: "Journal",
     path: "/accounting/journal",
@@ -62,6 +59,7 @@ test("the menu has Accounting with its four links, in order, between the themes 
 
 for (const mode of ["light", "dark"] as const) {
   for (const { label, path, words } of PAGES) {
+    if (words === null) continue;
     test(`${label} opens from the menu in ${mode} mode with its title and its words`, async ({ page }) => {
       await page.goto("/");
       await menuButton(page).click();

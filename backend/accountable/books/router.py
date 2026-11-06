@@ -135,30 +135,32 @@ def totals_by_month(
     return schemas.Months(months=replies)
 
 
-def _matching(account: str | None, first: date | None, last: date | None):
+def _matching(accounts_wanted: list[str] | None, first: date | None, last: date | None):
     """The conditions on entries for the page and its count."""
     conditions = []
     if first is not None:
         conditions.append(journal_entries.c.entry_date >= first)
     if last is not None:
         conditions.append(journal_entries.c.entry_date <= last)
-    if account is not None:
+    if accounts_wanted:
         conditions.append(
-            exists().where(journal_lines.c.entry_id == journal_entries.c.id, journal_lines.c.account == account)
+            exists().where(
+                journal_lines.c.entry_id == journal_entries.c.id, journal_lines.c.account.in_(accounts_wanted)
+            )
         )
     return conditions
 
 
 @router.get("/entries")
 def entries(
-    account: Annotated[schemas.AccountQuery | None, Query()] = None,
+    account: schemas.ENTRIES_ACCOUNTS = None,
     first: Annotated[date | None, Query(alias="from")] = None,
     last: Annotated[date | None, Query(alias="to")] = None,
     limit: schemas.Limit = schemas.DEFAULT_LIMIT,
     offset: schemas.Offset = 0,
 ) -> schemas.Entries:
     """The entries behind a figure, newest first and then by id, each with all of its lines."""
-    conditions = _matching(account, first, last)
+    conditions = _matching(schemas.check_accounts(account), first, last)
     with db.reading() as conn:
         page = conn.execute(
             select(

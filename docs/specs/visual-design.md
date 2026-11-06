@@ -179,7 +179,8 @@ Plain business English, short labels, no exclamation marks.
 |---|---|
 | Buttons | Add deal, Save deal, Delete deal, Log activity, Add product, Save product, Archive, Restore, New quote, Save quote, Mark as sent, Accept, Decline, Copy to new draft, New invoice, Add line, Save draft, Issue invoice, Delete draft, Record payment, Void, Download PDF, Choose logo, Remove logo, Add bill, Save bill, Delete bill, Mark paid, Mark unpaid, Undo, Show all bills |
 | Menu button, for screen readers | Menu for Alex Rivera |
-| Menu | Theme. Light. Dark. System. Company settings. Sign out. |
+| Menu | Theme. Light. Dark. System. Accounting. Profit and loss. Balance sheet. Journal. Aged balances. Company settings. Sign out. |
+| Accounting pages | This report is coming soon. What the business earned and what it spent each month, and the profit or loss that leaves. What the business owns and owes on any day you choose, and what's left over for the owner. Every entry in the books, newest first, each linking to the invoice, payment or bill it came from. What customers owe and what the business owes, grouped by how late each amount is. |
 | Sign-in | Sign in. Email. Password. |
 | Sign-in failed | That email and password don't match. |
 | Sign-in service unreachable | Can't reach the sign-in service. Check your internet connection. |

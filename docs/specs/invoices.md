@@ -124,6 +124,8 @@ The page is paper, white with its own ink, `#1F2A30`, and muted ink, `#5B6970`, 
 
 Invoices also give the cash flow at the top of the Money section its money in, the payments by the date they were paid, and its money expected in, the open invoices, each on its due date plus its customer's average days paid late ([Y2, Y5 and Y6](cash-flow.md#the-forecast)).
 
+- **V32.** Invoices post to the books ([J5 and J6](books.md#entries)), each inside the save that causes it (J7). Issuing an invoice debits Receivable with its total and credits Revenue with its subtotal and Tax payable with its tax, dated its issue date. Recording a payment debits Cash and credits Receivable, dated the payment's date. Voiding an invoice reverses its issue entry, and deleting a payment reverses its entry, each dated as the entry it reverses. A draft, saving a draft and deleting a draft post nothing. So Receivable always equals what issued invoices say is still owed (J11).
+
 ## Screens
 
 ### Invoices table

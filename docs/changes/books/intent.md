@@ -47,3 +47,9 @@ A new Accounting section in the menu has four pages for the reports to come: Pro
 - Deleting a bill reverses its bill entry, and its paid entry too if it was paid; marking a bill unpaid reverses the paid entry, each dated as the entry it reverses.
 - Changing the opening balance or its date reverses the old entry and posts a new one; clearing it only reverses.
 - "Cash today" counts entries dated up to and including today, matching the cash flow's definition, so entries dated in the future don't count.
+- "Accounting section in the menu" means the menu under the initials, as a group of four links, not a tenth top bar link: the bar's nine sections must fit at 1280px (N1), and every test that counts its links stays as it is.
+- The books are an area at the bottom of the layout, beside `company/`, importing only the top level, so invoices, bills and `company/` can post inside their own transactions without importing each other. Each posting passes plain values, never another area's table.
+- Each entry keeps the page it links to, set when it's posted: a payment's is its invoice's, since payments have no page, and the opening balance's is `/settings`. A deleted record's entries keep their address, which shows the "no longer exists" page.
+- `npm run empty` and the clearing steps are the only things that remove entries, and only with the records. Empty then posts the opening balance's entry again from the settings it leaves, so the books agree with them.
+- The ledger's Cash counts every entry, while the cash flow counts only from the opening balance's date, so they can differ if money moved before that date. The sample data moves none, which is what success criterion 4 tests. The cash flow itself isn't changed.
+- A bill save posts only when the amount, tax, category, bill date or paid date changed, and a bill with no change to money, such as its notes, due date or supplier, posts nothing.

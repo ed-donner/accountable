@@ -1,9 +1,10 @@
 {
-  "about": "Invoices given to invoices/layout.py and invoices/layout.ts, and the text of every line drawn, page by page, in the order drawn. Both sides must give these exactly.",
+  "about": "Quotes and invoices given to company/layout.py and company/layout.ts, and the text of every line drawn, page by page, in the order drawn. Both sides must give these exactly.",
   "cases": [
     {
       "name": "a short invoice in Classic",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "classic",
         "accent": "#0E6B6B",
         "logo": {
@@ -17,9 +18,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Annual support plan",
@@ -96,7 +97,8 @@
     },
     {
       "name": "a short invoice in Banner, paid",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "banner",
         "accent": "#0E6B6B",
         "logo": {
@@ -110,9 +112,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Annual support plan",
@@ -195,7 +197,8 @@
     },
     {
       "name": "a short invoice in Ledger, part paid and overdue",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "ledger",
         "accent": "#0E6B6B",
         "logo": {
@@ -209,9 +212,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Annual support plan",
@@ -293,7 +296,8 @@
     },
     {
       "name": "a description that wraps",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "classic",
         "accent": "#0E6B6B",
         "logo": {
@@ -307,9 +311,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Data migration, per system",
@@ -367,7 +371,8 @@
     },
     {
       "name": "one word longer than its column",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "banner",
         "accent": "#0E6B6B",
         "logo": {
@@ -381,9 +386,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Integration",
@@ -441,7 +446,8 @@
     },
     {
       "name": "a Bill to of six lines",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "ledger",
         "accent": "#0E6B6B",
         "logo": {
@@ -455,9 +461,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine Holdings Ltd\nAttn: Sam Carter, Head of Operations\nUnit 4, Dock Road\nRiverside Industrial Estate\nPortland, OR 97201\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine Holdings Ltd\nAttn: Sam Carter, Head of Operations\nUnit 4, Dock Road\nRiverside Industrial Estate\nPortland, OR 97201\nsam@harbor.example",
         "lines": [
           {
             "name": "Annual support plan",
@@ -537,7 +543,8 @@
     },
     {
       "name": "explicit line breaks",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "classic",
         "accent": "#0E6B6B",
         "logo": {
@@ -551,9 +558,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Premium support plan",
@@ -611,7 +618,8 @@
     },
     {
       "name": "a run of spaces",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "classic",
         "accent": "#0E6B6B",
         "logo": {
@@ -625,9 +633,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor   &   Pine\n   Indented line\nTrailing spaces   ",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor   &   Pine\n   Indented line\nTrailing spaces   ",
         "lines": [
           {
             "name": "Annual support plan",
@@ -704,7 +712,8 @@
     },
     {
       "name": "a company address of many lines",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "banner",
         "accent": "#0E6B6B",
         "logo": {
@@ -718,9 +727,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Annual support plan",
@@ -806,7 +815,8 @@
     },
     {
       "name": "100 lines over several pages",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "ledger",
         "accent": "#0E6B6B",
         "logo": {
@@ -820,9 +830,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Line 1 for a stretch of work",
@@ -1895,7 +1905,8 @@
     },
     {
       "name": "a void invoice",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "classic",
         "accent": "#0E6B6B",
         "logo": {
@@ -1909,9 +1920,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Annual support plan",
@@ -1990,7 +2001,8 @@
     },
     {
       "name": "a draft",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "banner",
         "accent": "#0E6B6B",
         "logo": {
@@ -2004,9 +2016,9 @@
           "phone": "(718) 555-0142"
         },
         "number": null,
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": null,
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": null,
         "lines": [
           {
             "name": "Annual support plan",
@@ -2082,7 +2094,8 @@
     },
     {
       "name": "no logo, no email or phone",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "ledger",
         "accent": "#0E6B6B",
         "logo": null,
@@ -2093,9 +2106,9 @@
           "phone": null
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Annual support plan",
@@ -2170,7 +2183,8 @@
     },
     {
       "name": "a tall logo",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "ledger",
         "accent": "#0E6B6B",
         "logo": {
@@ -2184,9 +2198,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Annual support plan",
@@ -2263,7 +2277,8 @@
     },
     {
       "name": "huge figures",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "classic",
         "accent": "#0E6B6B",
         "logo": {
@@ -2277,9 +2292,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Everything",
@@ -2334,7 +2349,8 @@
     },
     {
       "name": "totals that don't fit after the last line move to a new page",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "classic",
         "accent": "#0E6B6B",
         "logo": {
@@ -2348,9 +2364,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Line 1 for a stretch of work",
@@ -2489,7 +2505,8 @@
     },
     {
       "name": "a line taller than a page, in Classic",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "classic",
         "accent": "#0E6B6B",
         "logo": {
@@ -2503,9 +2520,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Setup and configuration",
@@ -2637,7 +2654,8 @@
     },
     {
       "name": "a line taller than a page, in Banner",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "banner",
         "accent": "#0E6B6B",
         "logo": {
@@ -2651,9 +2669,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Setup and configuration",
@@ -2786,7 +2804,8 @@
     },
     {
       "name": "a line taller than a page, in Ledger",
-      "invoice": {
+      "document": {
+        "kind": "invoice",
         "design": "ledger",
         "accent": "#0E6B6B",
         "logo": {
@@ -2800,9 +2819,9 @@
           "phone": "(718) 555-0142"
         },
         "number": "INV-0042",
-        "issue_date": "2026-10-31",
-        "due_date": "2026-11-30",
-        "bill_to": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
+        "date": "2026-10-31",
+        "end_date": "2026-11-30",
+        "recipient": "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
         "lines": [
           {
             "name": "Setup and configuration",
@@ -2929,6 +2948,286 @@
           "Total",
           "$5,334.88",
           "INV-0042, page 2 of 2"
+        ]
+      ]
+    },
+    {
+      "name": "a quote in Classic, a draft",
+      "document": {
+        "kind": "quote",
+        "design": "classic",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "QT-0004",
+        "date": "2026-11-05",
+        "end_date": "2026-12-05",
+        "recipient": "Harbor & Pine\nSam Carter\nsam.carter@harborpine.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": "draft"
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Quote",
+          "DRAFT",
+          "Number",
+          "QT-0004",
+          "Date",
+          "Nov 5, 2026",
+          "Valid until",
+          "Dec 5, 2026",
+          "Prepared for",
+          "Harbor & Pine",
+          "Sam Carter",
+          "sam.carter@harborpine.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "QT-0004, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "a quote in Banner, with its total in the band",
+      "document": {
+        "kind": "quote",
+        "design": "banner",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "QT-0004",
+        "date": "2026-11-05",
+        "end_date": "2026-12-05",
+        "recipient": "Harbor & Pine\nSam Carter\nsam.carter@harborpine.example",
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Quote",
+          "QT-0004",
+          "Date",
+          "Nov 5, 2026",
+          "Valid until",
+          "Dec 5, 2026",
+          "Total",
+          "$14,534.81",
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Prepared for",
+          "Harbor & Pine",
+          "Sam Carter",
+          "sam.carter@harborpine.example",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "QT-0004, page 1 of 1"
+        ]
+      ]
+    },
+    {
+      "name": "a quote in Ledger, prepared for nobody",
+      "document": {
+        "kind": "quote",
+        "design": "ledger",
+        "accent": "#0E6B6B",
+        "logo": {
+          "width": 600,
+          "height": 200
+        },
+        "company": {
+          "name": "Plainsong Systems",
+          "address": "48 Orchard Row, Suite 210\nBrooklyn, NY 11201",
+          "email": "accounts@plainsong.example",
+          "phone": "(718) 555-0142"
+        },
+        "number": "QT-0004",
+        "date": "2026-11-05",
+        "end_date": "2026-12-05",
+        "recipient": null,
+        "lines": [
+          {
+            "name": "Annual support plan",
+            "description": "Email and phone support on weekdays, 9 to 5.",
+            "quantity": 2,
+            "unit_price_cents": 360000
+          },
+          {
+            "name": "Training day, on site",
+            "description": "Up to 12 people, at the customer's site. Travel is extra.",
+            "quantity": 3,
+            "unit_price_cents": 125000
+          },
+          {
+            "name": "Setup and configuration",
+            "description": null,
+            "quantity": 1,
+            "unit_price_cents": 240000
+          }
+        ],
+        "subtotal_cents": 1335000,
+        "tax_cents": 118481,
+        "total_cents": 1453481,
+        "paid_cents": 0,
+        "tax_label": "Sales tax",
+        "tax_rate": "8.875",
+        "mark": null
+      },
+      "pages": [
+        [
+          "Plainsong Systems",
+          "48 Orchard Row, Suite 210",
+          "Brooklyn, NY 11201",
+          "accounts@plainsong.example",
+          "(718) 555-0142",
+          "Quote",
+          "Number",
+          "QT-0004",
+          "Date",
+          "Nov 5, 2026",
+          "Valid until",
+          "Dec 5, 2026",
+          "Description",
+          "Qty",
+          "Unit price",
+          "Amount",
+          "Annual support plan",
+          "Email and phone support on weekdays, 9 to 5.",
+          "2",
+          "$3,600.00",
+          "$7,200.00",
+          "Training day, on site",
+          "Up to 12 people, at the customer's site. Travel is extra.",
+          "3",
+          "$1,250.00",
+          "$3,750.00",
+          "Setup and configuration",
+          "1",
+          "$2,400.00",
+          "$2,400.00",
+          "Subtotal",
+          "$13,350.00",
+          "Sales tax (8.875%)",
+          "$1,184.81",
+          "Total",
+          "$14,534.81",
+          "QT-0004, page 1 of 1"
         ]
       ]
     }

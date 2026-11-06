@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import pytest
 from accountable import db
-from accountable.invoices import layout, pdf
+from accountable.company import layout, pdf
 from conftest import TODAY
 from PIL import Image
 from pypdf import PdfReader
@@ -138,9 +138,9 @@ def test_the_fonts_are_carried_in_the_file_cut_down_and_its_title_is_the_number(
 @pytest.fixture(scope="module")
 def hundred_lines() -> PdfReader:
     """Made once, from the shared case, for the tests that read it."""
-    cases = json.loads((db.ROOT / "shared" / "invoice-layout-cases.json").read_text())["cases"]
+    cases = json.loads((db.ROOT / "shared" / "document-layout-cases.json").read_text())["cases"]
     [case] = [case for case in cases if case["name"] == "100 lines over several pages"]
-    return read(pdf.draw(layout.lay_out(case["invoice"]), title="INV-0042", logo=None))
+    return read(pdf.draw(layout.lay_out(case["document"]), title="INV-0042", logo=None))
 
 
 def test_100_lines_run_over_pages_with_the_headings_and_the_page_on_each(hundred_lines):

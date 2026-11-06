@@ -1,0 +1,564 @@
+--- page 1 ---
+Plainsong Systems
+48 Orchard Row
+Brooklyn, NY 11201
+accounts@plainsong.example
+(718) 555-0142
+Invoice
+Number
+INV-0001
+Issued
+Oct 31, 2026
+Due
+Nov 30, 2026
+Bill to
+Harbor & Pine
+Attn: Sam Carter
+sam@harbor.example
+Description
+Qty
+Unit price
+Amount
+Product 001
+Seat 1
+1
+$49.51
+$49.51
+Product 002
+Seat 2
+2
+$49.52
+$99.04
+Product 003
+Seat 3
+3
+$49.53
+$148.59
+Product 004
+Seat 4
+4
+$49.54
+$198.16
+Product 005
+Seat 5
+5
+$49.55
+$247.75
+Product 006
+Seat 6
+6
+$49.56
+$297.36
+Product 007
+Seat 7
+7
+$49.57
+$346.99
+Product 008
+Seat 8
+8
+$49.58
+$396.64
+Product 009
+Seat 9
+9
+$49.59
+$446.31
+Product 010
+Seat 10
+10
+$49.60
+$496.00
+Product 011
+Seat 11
+11
+$49.61
+$545.71
+INV-0001, page 1 of 7
+--- page 2 ---
+Description
+Qty
+Unit price
+Amount
+Product 012
+Seat 12
+12
+$49.62
+$595.44
+Product 013
+Seat 13
+13
+$49.63
+$645.19
+Product 014
+Seat 14
+14
+$49.64
+$694.96
+Product 015
+Seat 15
+15
+$49.65
+$744.75
+Product 016
+Seat 16
+16
+$49.66
+$794.56
+Product 017
+Seat 17
+17
+$49.67
+$844.39
+Product 018
+Seat 18
+18
+$49.68
+$894.24
+Product 019
+Seat 19
+19
+$49.69
+$944.11
+Product 020
+Seat 20
+20
+$49.70
+$994.00
+Product 021
+Seat 21
+21
+$49.71
+$1,043.91
+Product 022
+Seat 22
+22
+$49.72
+$1,093.84
+Product 023
+Seat 23
+23
+$49.73
+$1,143.79
+Product 024
+Seat 24
+24
+$49.74
+$1,193.76
+Product 025
+Seat 25
+25
+$49.75
+$1,243.75
+Product 026
+Seat 26
+26
+$49.76
+$1,293.76
+Product 027
+Seat 27
+27
+$49.77
+$1,343.79
+Product 028
+Seat 28
+28
+$49.78
+$1,393.84
+INV-0001, page 2 of 7
+--- page 3 ---
+Description
+Qty
+Unit price
+Amount
+Product 029
+Seat 29
+29
+$49.79
+$1,443.91
+Product 030
+Seat 30
+30
+$49.80
+$1,494.00
+Product 031
+Seat 31
+31
+$49.81
+$1,544.11
+Product 032
+Seat 32
+32
+$49.82
+$1,594.24
+Product 033
+Seat 33
+33
+$49.83
+$1,644.39
+Product 034
+Seat 34
+34
+$49.84
+$1,694.56
+Product 035
+Seat 35
+35
+$49.85
+$1,744.75
+Product 036
+Seat 36
+36
+$49.86
+$1,794.96
+Product 037
+Seat 37
+37
+$49.87
+$1,845.19
+Product 038
+Seat 38
+38
+$49.88
+$1,895.44
+Product 039
+Seat 39
+39
+$49.89
+$1,945.71
+Product 040
+Seat 40
+40
+$49.90
+$1,996.00
+Product 041
+Seat 41
+41
+$49.91
+$2,046.31
+Product 042
+Seat 42
+42
+$49.92
+$2,096.64
+Product 043
+Seat 43
+43
+$49.93
+$2,146.99
+Product 044
+Seat 44
+44
+$49.94
+$2,197.36
+Product 045
+Seat 45
+45
+$49.95
+$2,247.75
+INV-0001, page 3 of 7
+--- page 4 ---
+Description
+Qty
+Unit price
+Amount
+Product 046
+Seat 46
+46
+$49.96
+$2,298.16
+Product 047
+Seat 47
+47
+$49.97
+$2,348.59
+Product 048
+Seat 48
+48
+$49.98
+$2,399.04
+Product 049
+Seat 49
+49
+$49.99
+$2,449.51
+Product 050
+Seat 50
+50
+$50.00
+$2,500.00
+Product 051
+Seat 51
+51
+$50.01
+$2,550.51
+Product 052
+Seat 52
+52
+$50.02
+$2,601.04
+Product 053
+Seat 53
+53
+$50.03
+$2,651.59
+Product 054
+Seat 54
+54
+$50.04
+$2,702.16
+Product 055
+Seat 55
+55
+$50.05
+$2,752.75
+Product 056
+Seat 56
+56
+$50.06
+$2,803.36
+Product 057
+Seat 57
+57
+$50.07
+$2,853.99
+Product 058
+Seat 58
+58
+$50.08
+$2,904.64
+Product 059
+Seat 59
+59
+$50.09
+$2,955.31
+Product 060
+Seat 60
+60
+$50.10
+$3,006.00
+Product 061
+Seat 61
+61
+$50.11
+$3,056.71
+Product 062
+Seat 62
+62
+$50.12
+$3,107.44
+INV-0001, page 4 of 7
+--- page 5 ---
+Description
+Qty
+Unit price
+Amount
+Product 063
+Seat 63
+63
+$50.13
+$3,158.19
+Product 064
+Seat 64
+64
+$50.14
+$3,208.96
+Product 065
+Seat 65
+65
+$50.15
+$3,259.75
+Product 066
+Seat 66
+66
+$50.16
+$3,310.56
+Product 067
+Seat 67
+67
+$50.17
+$3,361.39
+Product 068
+Seat 68
+68
+$50.18
+$3,412.24
+Product 069
+Seat 69
+69
+$50.19
+$3,463.11
+Product 070
+Seat 70
+70
+$50.20
+$3,514.00
+Product 071
+Seat 71
+71
+$50.21
+$3,564.91
+Product 072
+Seat 72
+72
+$50.22
+$3,615.84
+Product 073
+Seat 73
+73
+$50.23
+$3,666.79
+Product 074
+Seat 74
+74
+$50.24
+$3,717.76
+Product 075
+Seat 75
+75
+$50.25
+$3,768.75
+Product 076
+Seat 76
+76
+$50.26
+$3,819.76
+Product 077
+Seat 77
+77
+$50.27
+$3,870.79
+Product 078
+Seat 78
+78
+$50.28
+$3,921.84
+Product 079
+Seat 79
+79
+$50.29
+$3,972.91
+INV-0001, page 5 of 7
+--- page 6 ---
+Description
+Qty
+Unit price
+Amount
+Product 080
+Seat 80
+80
+$50.30
+$4,024.00
+Product 081
+Seat 81
+81
+$50.31
+$4,075.11
+Product 082
+Seat 82
+82
+$50.32
+$4,126.24
+Product 083
+Seat 83
+83
+$50.33
+$4,177.39
+Product 084
+Seat 84
+84
+$50.34
+$4,228.56
+Product 085
+Seat 85
+85
+$50.35
+$4,279.75
+Product 086
+Seat 86
+86
+$50.36
+$4,330.96
+Product 087
+Seat 87
+87
+$50.37
+$4,382.19
+Product 088
+Seat 88
+88
+$50.38
+$4,433.44
+Product 089
+Seat 89
+89
+$50.39
+$4,484.71
+Product 090
+Seat 90
+90
+$50.40
+$4,536.00
+Product 091
+Seat 91
+91
+$50.41
+$4,587.31
+Product 092
+Seat 92
+92
+$50.42
+$4,638.64
+Product 093
+Seat 93
+93
+$50.43
+$4,689.99
+Product 094
+Seat 94
+94
+$50.44
+$4,741.36
+Product 095
+Seat 95
+95
+$50.45
+$4,792.75
+Product 096
+Seat 96
+96
+$50.46
+$4,844.16
+INV-0001, page 6 of 7
+--- page 7 ---
+Description
+Qty
+Unit price
+Amount
+Product 097
+Seat 97
+97
+$50.47
+$4,895.59
+Product 098
+Seat 98
+98
+$50.48
+$4,947.04
+Product 099
+Seat 99
+99
+$50.49
+$4,998.51
+Product 100
+Seat 100
+100
+$50.50
+$5,050.00
+Subtotal
+$253,358.50
+Sales tax (8.875%)
+$22,485.57
+Total
+$275,844.07
+INV-0001, page 7 of 7

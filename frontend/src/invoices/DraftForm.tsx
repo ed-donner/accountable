@@ -12,7 +12,7 @@ import { LoadFailed } from "../components/LoadFailed";
 import { SidePanel } from "../components/RecordLayout";
 import { parsePrice, price, priceText } from "../lib/money";
 import { useProducts } from "../products/queries";
-import { companyMessage, fieldMessage, lineNameMessage, unprintable } from "./characters";
+import { companyMessage, fieldMessage, lineNameMessage, unprintable } from "../company/characters";
 import type { DraftRequest, InvoiceDetail } from "./queries";
 
 export const BILL_TO_BLANK = "Enter who the invoice is for";

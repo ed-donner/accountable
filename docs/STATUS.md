@@ -869,6 +869,38 @@ The duplication the review found is for a later change: two PDF engines and thei
 
 `npm run check` passes: 6,203 tests in 10m 08s, of which 4,221 backend, 1,636 frontend, 329 end-to-end and 17 speed, with another worktree's run busy alongside. One unit test took a second or more, `test_the_data_really_is_at_the_limits` at 1.1s, as before.
 
+## Refactor: quotes and invoices share their code
+
+Built on the `refactor` branch from `docs/changes/refactor/plan.md`, in eight small steps, with the 68 characterization tests run after each one. The characterization tests themselves came first, in `test_quote_invoice_figures.py`, `test_quote_invoice_numbers.py` and `test_quote_invoice_pdfs.py`, with each PDF's text recorded in `backend/tests/characterization/`.
+
+- **Lines and figures:** both areas save their lines with `write_lines()` and `same_lines()` in `company/lines.py`, carry them in their replies as one `Line`, and work out their figures with `document_figures()`, `subtotal()` and `on_subtotal()`. Each keeps its own rules for what a new line starts from, and its own messages, so a quote line still needs its quantity and price sent and an invoice line still starts from its product.
+- **The company on a document:** `Company`, `details_now()` and `company_in()` in `company/documents.py`, so sending a quote, declining a draft and issuing an invoice copy the same columns the same way.
+- **PDFs:** ReportLab for both, from `company/layout.py` and `company/pdf.py`, in the design, accent color and logo the settings have at the download. fpdf2, fontTools, `quotes/pdf.py` and `quotes/fonts/` are gone. A quote has its own words in the invoice's places: Quote, Date, Valid until, Prepared for, and Total in Banner's band, from `kinds` in `shared/document-designs.json`. A character the fonts lack is left out of a quote's PDF, as fpdf2 left it out before. Invoice PDFs are byte for byte what they were, checked after each step that touched them.
+- **The quote page's preview:** drawn by `company/DocumentDrawing.tsx` from `company/layout.ts`, as an invoice's is, so the preview and the PDF still match (Q31). The page reads the settings and the logo with the quote, and says so with Try again if they can't be read. Its form, buttons and saving are as they were.
+- **Moved and renamed:** the layout, drawing, fonts and character checks from `invoices/` to `company/` on both sides, and the shared files to `document-designs.json`, `document-fonts.json` and `document-layout-cases.json`, with three quote cases among the layout cases. `--color-paper-ink` and `--color-paper-band` went with the old quote sheet.
+
+What changed in the characterization tests, as agreed before the work began: the four quote records, taken again from the new output after checking each by hand, and in the file test the lines about the fonts, the title and the logo, with the test's name, which said "has no logo". One more line changed, beyond what was agreed: the sent-and-draft test builds the draft's expected text from the sent one by swapping in the old Draft chip, so it now swaps in the DRAFT mark under the title, with its comment. Two docstrings in `test_quote_invoice_pdfs.py` still mention fpdf2 and were left as they are. The other 63 tests, the figures and numbers files whole, didn't change.
+
+Tests written for the old look changed with it: `test_quote_pdf.py` now goes through the API, `QuoteDocument.test.tsx` became `QuotePreview.test.tsx`, `InvoicePreview.test.tsx` split into `DocumentDrawing.test.tsx` and `SampleInvoice.test.tsx`, and `e2e/quotes.spec.ts` reads the PDF's new text and checks the preview's white page in dark mode.
+
+`npm run check` passes: 6,237 tests in 8m 26s, of which 4,262 backend, 1,641 frontend, 317 end-to-end and 17 speed. A 100-line quote's preview updates in 14.1ms after a keystroke, where it took 15.3ms before, and its PDF downloads in 70ms, where fpdf2 took 216ms. One unit test took a second or more, `test_the_data_really_is_at_the_limits`, at 1.1s, as on the invoices merge, while another run on the computer was busy.
+
+Still to do by hand: a quote's PDF opened beside its preview in each of the three designs, with a logo and a dark and a light accent color, and printed once in black and white, as the invoices' designs were.
+
+## Refactor: merged with main
+
+`main`, with Money: one section, One story in the sample data and the review fixes in it, was merged into `refactor`. Five files conflicted, and in each the two sides had changed different things that sat side by side, so both are kept:
+
+- **`company/documents.py`:** only the imports. This branch added `Company`, `details_now()` and `company_in()`, and main added `Numbered` and the check of a new prefix against the numbers already taken (B6).
+- **`spec.md`, `architecture.md` and `testing.md`:** this branch's files moved to `company/`, `SampleInvoice.tsx`, `document-fonts.json`, the designs quotes share and the designs in Look and brand, with main's sides of the Money section, its sums past 2^53 cents, New invoice's dialog closing (F11) and the Draft chip's shape. `architecture.md`'s rule for `company/` names both `documents.py` taking each kind's numbered column from `main.py` and the files this branch added there.
+- **`STATUS.md`:** both sides' sections, main's first, since they reached `main` first.
+
+Outside the conflicts: main changed no file this branch moved, renamed or deleted, and nothing outside the change records still names an old path. Main's new sample lines don't reach the characterization tests, which add their own quotes and invoices. Git joined `invoices/schemas.py`, `App.tsx` and `invoices/pages/Invoice.tsx`, which both sides changed in different places, and each reads right: main's changes to them were the review's `CentsSum` and Draft chip, and this branch's the shared `Company`, `Line` and drawing.
+
+Left as it is: `frontend.md` and `architecture.md` still call the Money section's parts rows in two places, as on `main`, which main's own merge noted.
+
+`npm run check` passes: 6,274 tests in 9m 16s, of which 4,284 backend, 1,644 frontend, 329 end-to-end and 17 speed: this branch's tests with main's. One unit test took a second or more, `test_the_data_really_is_at_the_limits` at 1.1s, as before, while another run on the computer was busy.
+
 ## Running Accountable
 
 Accountable runs two ways:

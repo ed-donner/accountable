@@ -25,12 +25,10 @@
   --color-grid: #e4ecee;
   --color-bar-soft: #839da5;
   --color-archived: #cdd8db;
-  /* The quote document's paper, the same in dark mode, because it shows the paper the
-     customer gets. quotes/pdf.py draws the PDF in these values, and a test compares them. */
+  /* Behind a quote's preview and its scrollbar, the same in dark mode, because the preview
+     shows the paper the customer gets. */
   --color-paper: #ffffff;
-  --color-paper-ink: #073b4c;
   --color-paper-muted: #4a6b76;
-  --color-paper-band: #f0f4f5;
   /* The same mix Tailwind makes for bg-midnight/40. */
   --color-veil: color-mix(in oklab, var(--color-midnight) 40%, transparent);
 

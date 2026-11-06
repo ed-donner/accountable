@@ -1,10 +1,6 @@
-import { addDays, format, parseISO } from "date-fns";
 import { useMemo } from "react";
 
-import type { SampleLook } from "../company/documentPreview";
-import { totals } from "../company/tax";
-import { todayIso } from "../lib/dates";
-import { DESIGNS, layOut, type FontKey, type InvoiceValues, type Item, type Page } from "./layout";
+import { DESIGNS, layOut, type DocumentValues, type FontKey, type Item, type Page } from "./layout";
 
 /** The app's own fonts, as the PDF carries them: the same faces at the same weights. */
 const FONTS: Record<FontKey, { family: string; weight: number }> = {
@@ -55,11 +51,13 @@ function Drawn({ item, logoUrl }: { item: Item; logoUrl: string | null }) {
 
 function PageDrawn({
   items,
+  title,
   number,
   of,
   logoUrl,
 }: {
   items: Page;
+  title: string;
   number: number;
   of: number;
   logoUrl: string | null;
@@ -70,7 +68,7 @@ function PageDrawn({
         viewBox={`0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}`}
         width="100%"
         role="img"
-        aria-label={`Invoice preview, page ${number} of ${of}`}
+        aria-label={`${title} preview, page ${number} of ${of}`}
         className="block"
       >
         <rect width={PAGE_WIDTH} height={PAGE_HEIGHT} fill={DESIGNS.colors.paper} />
@@ -83,7 +81,7 @@ function PageDrawn({
 }
 
 type Props = {
-  invoice: InvoiceValues;
+  values: DocumentValues;
   /** The logo's address, such as a data address, or null to leave it out. */
   logoUrl: string | null;
   /** How many pages to show, such as 1 for the settings' sample. Every page by default. */
@@ -91,64 +89,20 @@ type Props = {
 };
 
 /**
- * An invoice exactly as the customer will see it (V19, V24): the layout's pages as SVG, one
- * under another, scaled to the column. Text is SVG text drawn by React, never markup (V25).
+ * A quote or an invoice exactly as the customer will see it (V19, V24, Q31): the layout's pages
+ * as SVG, one under another, scaled to the column, as pdf.py draws them. Text is SVG text drawn
+ * by React, never markup (V25, Q32). Each page is named for screen readers, such as "Quote
+ * preview, page 1 of 2".
  */
-export function InvoicePreview({ invoice, logoUrl, pages }: Props) {
-  const laidOut = useMemo(() => layOut(invoice), [invoice]);
+export function DocumentDrawing({ values, logoUrl, pages }: Props) {
+  const laidOut = useMemo(() => layOut(values), [values]);
   const shown = pages === undefined ? laidOut : laidOut.slice(0, pages);
+  const title = DESIGNS.kinds[values.kind].words.title;
   return (
     <div className="flex flex-col gap-6">
       {shown.map((items, index) => (
-        <PageDrawn key={index} items={items} number={index + 1} of={laidOut.length} logoUrl={logoUrl} />
+        <PageDrawn key={index} items={items} title={title} number={index + 1} of={laidOut.length} logoUrl={logoUrl} />
       ))}
     </div>
   );
-}
-
-const SAMPLE_LINES = [
-  {
-    name: "Annual support plan",
-    description: "Email and phone support on weekdays, 9 to 5.",
-    quantity: 2,
-    unit_price_cents: 360000,
-  },
-  {
-    name: "Training day, on site",
-    description: "Up to 12 people, at the customer's site.",
-    quantity: 3,
-    unit_price_cents: 125000,
-  },
-  { name: "Setup and configuration", description: null, quantity: 1, unit_price_cents: 240000 },
-];
-
-/** A made-up invoice in the look the Company settings page has chosen, before it's saved (B19). */
-export function SampleInvoice({ look }: { look: SampleLook }) {
-  const today = todayIso();
-  const invoice = useMemo<InvoiceValues>(() => {
-    const figures = totals(SAMPLE_LINES, look.taxRate);
-    const blank = (text: string) => text.trim() || null;
-    return {
-      design: look.design,
-      accent: look.accent,
-      logo: look.logo && { width: look.logo.width, height: look.logo.height },
-      company: {
-        name: blank(look.company.name) ?? "Your company",
-        address: blank(look.company.address),
-        email: blank(look.company.email),
-        phone: blank(look.company.phone),
-      },
-      number: `${look.invoicePrefix}0042`,
-      issue_date: today,
-      due_date: format(addDays(parseISO(today), look.paymentTermsDays), "yyyy-MM-dd"),
-      bill_to: "Harbor & Pine\nAttn: Sam Carter\nsam@harbor.example",
-      lines: SAMPLE_LINES,
-      ...figures,
-      paid_cents: 0,
-      tax_label: blank(look.taxLabel),
-      tax_rate: look.taxRate,
-      mark: null,
-    };
-  }, [look, today]);
-  return <InvoicePreview invoice={invoice} logoUrl={look.logo?.url ?? null} pages={1} />;
 }

@@ -374,6 +374,7 @@ describe("the app, signed in", () => {
         tax_rate: "0",
       },
       "GET /products": [],
+      "GET /settings": SETTINGS,
     });
     render(<App />);
     visit("/quotes/4");

@@ -1,22 +1,25 @@
-"""Draws a laid-out invoice on a ReportLab canvas (V24 to V28).
+"""A quote's or an invoice's PDF: laid out by layout.py and drawn on a ReportLab canvas (V24 to V28, Q30 to Q32).
 
-It decides nothing: every place comes from layout.py, which the preview draws from too. Text
-is drawn as text with drawString and its kin, never through Paragraph or any of ReportLab's
-markup, so anything typed shows exactly as typed (V25). The fonts are carried in the file,
-cut down to the characters it uses, so it looks the same on any computer.
+Drawing decides nothing: every place comes from layout.py, which the pages' previews draw from
+too. Text is drawn as text with drawString and its kin, never through Paragraph or any of
+ReportLab's markup, so anything typed shows exactly as typed (V25, Q32). The fonts are carried
+in the file, cut down to the characters it uses, so it looks the same on any computer.
 """
 
 import io
 from functools import cache
+from typing import Any
 
+from fastapi import Response
 from reportlab.lib.colors import HexColor
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
+from sqlalchemy import Row
 
-from accountable.invoices import fonts
-from accountable.invoices.layout import DESIGNS, Item, Page
+from accountable.company import characters, fonts
+from accountable.company.layout import DESIGNS, Item, Page, lay_out
 
 PAGE_WIDTH = DESIGNS["page"]["width"]
 PAGE_HEIGHT = DESIGNS["page"]["height"]
@@ -96,3 +99,36 @@ def draw(pages: list[Page], *, title: str, logo: bytes | None) -> bytes:
         pdf.showPage()
     pdf.save()
     return made.getvalue()
+
+
+def look(settings: Row, logo: Row | None) -> dict[str, Any]:
+    """How quotes and invoices look, as Company settings have it at this moment (B18, V13): the
+    design, the accent color and the logo's size, as the layout takes them."""
+    return {
+        "design": settings.invoice_design,
+        "accent": settings.accent_color,
+        "logo": None if logo is None else {"width": logo.width, "height": logo.height},
+    }
+
+
+def download(document: dict[str, Any], logo: Row | None) -> Response:
+    """The document laid out and drawn now, as a download named after its number, such as
+    QT-0004.pdf. A number is a prefix's letters, digits and hyphens and its figures (B4), so the
+    name needs no escaping."""
+    number = document["number"]
+    made = draw(lay_out(_drawable(document)), title=number, logo=None if logo is None else logo.image)
+    return Response(
+        made, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{number}.pdf"'}
+    )
+
+
+def _drawable(value: Any) -> Any:
+    """The document's values with each character the fonts can't draw left out of their text, so
+    the PDF leaves it blank rather than print a box (Q31)."""
+    if isinstance(value, str):
+        return characters.printable(value)
+    if isinstance(value, list):
+        return [_drawable(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _drawable(item) for key, item in value.items()}
+    return value

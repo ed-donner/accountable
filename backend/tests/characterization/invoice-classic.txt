@@ -1,0 +1,48 @@
+--- page 1 ---
+Plainsong Systems
+48 Orchard Row
+Brooklyn, NY 11201
+accounts@plainsong.example
+(718) 555-0142
+Invoice
+Number
+INV-0001
+Issued
+Oct 31, 2026
+Due
+Nov 30, 2026
+Bill to
+Harbor & Pine
+Attn: Sam Carter
+sam@harbor.example
+Description
+Qty
+Unit price
+Amount
+Pro license
+One named user
+2
+$49.50
+$99.00
+Annual support plan
+Phone and email
+Next business day
+1
+$3,600.00
+$3,600.00
+Training day
+Up to 12 people
+1
+$1,257.00
+$1,257.00
+Subtotal
+$4,956.00
+Sales tax (8.875%)
+$439.85
+Total
+$5,395.85
+Paid
+$1,000.00
+Balance due
+$4,395.85
+INV-0001, page 1 of 1

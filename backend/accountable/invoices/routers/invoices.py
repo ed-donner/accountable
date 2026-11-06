@@ -6,6 +6,7 @@ so a draft a teammate has just issued is never changed (V12).
 """
 
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -14,10 +15,11 @@ from sqlalchemy import Connection, Row, and_, delete, func, insert, or_, select,
 
 from accountable import api, db, who
 from accountable.auth import CurrentUser
-from accountable.company import documents, tax
+from accountable.company import characters, documents, tax
+from accountable.company.lines import LineToSave, document_figures, lines_of, same_lines, write_lines
 from accountable.company.schemas import rate_text
 from accountable.crm.tables import contacts, deals, organizations
-from accountable.invoices import characters, figures, schemas
+from accountable.invoices import figures, schemas
 from accountable.invoices.tables import DRAFT, ISSUED, VOID, invoice_lines, invoices, payments
 from accountable.products.tables import products
 from accountable.users import person, users
@@ -93,10 +95,8 @@ def _row_fields(row: Any, total_cents: int, paid_cents: int, today: date) -> dic
     }
 
 
-def _lines(conn: Connection, invoice_id: int) -> Sequence[Row]:
-    return conn.execute(
-        select(invoice_lines).where(invoice_lines.c.invoice_id == invoice_id).order_by(invoice_lines.c.position)
-    ).all()
+def _lines(conn: Connection, invoice_id: int) -> list[Row]:
+    return lines_of(conn, invoice_lines.c.invoice_id, invoice_id)
 
 
 def _payments(conn: Connection, invoice_id: int) -> list[schemas.Payment]:
@@ -114,18 +114,10 @@ def _payments(conn: Connection, invoice_id: int) -> list[schemas.Payment]:
     ]
 
 
-def _written_on(conn: Connection, row: Any) -> tuple[schemas.Company, str | None, int]:
+def _written_on(conn: Connection, row: Any) -> tuple[documents.Company, str | None, int]:
     """The company and the tax: the settings as they are now on a draft, and the copies made at issue otherwise."""
-    if row.status != DRAFT:
-        company = schemas.Company(
-            name=row.company_name, address=row.company_address, email=row.company_email, phone=row.company_phone
-        )
-        return company, row.tax_label, row.tax_rate
-    settings = documents.current_settings(conn)
-    company = schemas.Company(
-        name=settings.company_name, address=settings.address, email=settings.email, phone=settings.phone
-    )
-    return company, settings.tax_label, settings.tax_rate
+    details = documents.details_now(documents.current_settings(conn)) if row.status == DRAFT else row._mapping
+    return documents.company_in(details), details["tax_label"], details["tax_rate"]
 
 
 def detail(conn: Connection, invoice_id: int, today: date) -> schemas.InvoiceDetail:
@@ -134,9 +126,9 @@ def detail(conn: Connection, invoice_id: int, today: date) -> schemas.InvoiceDet
     lines = _lines(conn, invoice_id)
     paid = _payments(conn, invoice_id)
     company, tax_label, rate = _written_on(conn, row)
-    if row.status == DRAFT:
-        totals = figures.draft_totals(lines, rate)
-    else:
+    line_replies, totals = document_figures(lines, rate)
+    if row.status != DRAFT:
+        # The figures fixed when it was issued (V11).
         totals = tax.Totals(subtotal_cents=row.subtotal_cents, tax_cents=row.tax_cents, total_cents=row.total_cents)
     paid_cents = sum(payment.amount_cents for payment in paid)
     fields = _row_fields(row, totals.total_cents, paid_cents, today)
@@ -149,10 +141,7 @@ def detail(conn: Connection, invoice_id: int, today: date) -> schemas.InvoiceDet
         company=company,
         tax_label=tax_label,
         tax_rate=rate_text(rate),
-        lines=[
-            schemas.Line(**line._mapping, amount_cents=tax.line_amount(line.quantity, line.unit_price_cents))
-            for line in lines
-        ],
+        lines=line_replies,
         subtotal_cents=totals.subtotal_cents,
         tax_cents=totals.tax_cents,
         paid_cents=paid_cents,
@@ -210,7 +199,7 @@ def list_invoices(
         rate = documents.current_settings(conn).tax_rate
     replies = []
     for row in rows:
-        total = row.subtotal + tax.tax_on(row.subtotal, rate) if row.status == DRAFT else row.total_cents
+        total = tax.on_subtotal(row.subtotal, rate).total_cents if row.status == DRAFT else row.total_cents
         replies.append(schemas.InvoiceRow(**_row_fields(row, total, row.paid, today)))
     return replies
 
@@ -260,7 +249,7 @@ def _draft(conn: Connection, invoice_id: int) -> Row:
     return row
 
 
-def _resolved_lines(conn: Connection, invoice_id: int, sent: list[schemas.DraftLine]) -> list[dict[str, Any]]:
+def _resolved_lines(conn: Connection, invoice_id: int, sent: list[schemas.DraftLine]) -> list[LineToSave]:
     """The lines as they'll be saved: a saved line keeps its product and name, and a new one takes its product's (V6)."""
     saved = {line.id: line for line in _lines(conn, invoice_id)}
     wanted = [line.product_id for line in sent if line.id not in saved and line.product_id is not None]
@@ -270,41 +259,24 @@ def _resolved_lines(conn: Connection, invoice_id: int, sent: list[schemas.DraftL
     }
     resolved, problems, kept = [], {}, set()
     for place, line in enumerate(sent):
-        given = line.model_dump(exclude={"id", "product_id"})
         if line.id in saved and line.id not in kept:
             kept.add(line.id)
-            start = saved[line.id]._mapping
+            start = LineToSave.saved(saved[line.id])
         elif line.product_id in on_the_price_list:
             product = on_the_price_list[line.product_id]
-            start = {
-                "id": None,
-                "product_id": product.id,
-                "name": product.name,
-                "description": product.description,
-                "quantity": 1,
-                "unit_price_cents": product.unit_price_cents,
-            }
+            start = LineToSave(None, product.id, product.name, product.description, 1, product.unit_price_cents)
         else:
             problems[f"lines.{place}.product_id"] = schemas.PRODUCT_MESSAGE
             continue
-        resolved.append(
-            {
-                "id": start["id"],
-                "product_id": start["product_id"],
-                "name": start["name"],
-                "description": given.get("description", start["description"]),
-                "quantity": given.get("quantity", start["quantity"]),
-                "unit_price_cents": given.get("unit_price_cents", start["unit_price_cents"]),
-            }
-        )
+        # Only what was sent: a description, quantity or price left out keeps the line's own.
+        resolved.append(replace(start, **line.model_dump(exclude={"id", "product_id"})))
     if problems:
         raise api.FieldError(problems)
     return resolved
 
 
-def _check_subtotal(lines: list[dict[str, Any]]) -> None:
-    subtotal = sum(tax.line_amount(line["quantity"], line["unit_price_cents"]) for line in lines)
-    if subtotal > tax.MAX_SUBTOTAL_CENTS:
+def _check_subtotal(lines: list[LineToSave]) -> None:
+    if tax.subtotal(lines) > tax.MAX_SUBTOTAL_CENTS:
         raise api.FieldError({"subtotal": tax.SUBTOTAL_MESSAGE})
 
 
@@ -315,7 +287,7 @@ def _text_problem(value: str | None, fits: Callable[[str | None], bool], too_lon
     return characters.field_message(found) if found else None
 
 
-def _check_text(bill_to: str | None, lines: list[dict[str, Any]]) -> None:
+def _check_text(bill_to: str | None, lines: list[LineToSave]) -> None:
     """Every save of a draft, whatever sends it, holds a Bill to and descriptions within their
     limits and only what the invoice's fonts can draw (V8, V9). They're checked as they'll be
     saved, so a Bill to filled in from the deal, or a description taken from a product, is too."""
@@ -323,45 +295,12 @@ def _check_text(bill_to: str | None, lines: list[dict[str, Any]]) -> None:
     if problem := _text_problem(bill_to, schemas.bill_to_fits, schemas.BILL_TO_TOO_LONG):
         problems["bill_to"] = problem
     for place, line in enumerate(lines):
-        if problem := _text_problem(line["description"], schemas.description_fits, schemas.DESCRIPTION_TOO_LONG):
+        if problem := _text_problem(line.description, schemas.description_fits, schemas.DESCRIPTION_TOO_LONG):
             problems[f"lines.{place}.description"] = problem
-        if found := characters.unprintable(line["name"]):
+        if found := characters.unprintable(line.name):
             problems[f"lines.{place}.name"] = characters.line_name_message(found)
     if problems:
         raise api.FieldError(problems)
-
-
-_LINE_FIELDS = ("product_id", "name", "description", "quantity", "unit_price_cents")
-
-
-def _same_lines(saved: Sequence[Row], lines: list[dict[str, Any]]) -> bool:
-    def written(line: Any) -> tuple:
-        return (line["id"], *(line[field] for field in _LINE_FIELDS))
-
-    return [written(row._mapping) for row in saved] == [written(line) for line in lines]
-
-
-def _write_lines(conn: Connection, invoice_id: int, lines: list[dict[str, Any]], now: datetime) -> None:
-    """Saved lines are changed in place, so each keeps its id and the name it was added with."""
-    kept = [line["id"] for line in lines if line["id"] is not None]
-    conn.execute(delete(invoice_lines).where(invoice_lines.c.invoice_id == invoice_id, invoice_lines.c.id.not_in(kept)))
-    for position, line in enumerate(lines, start=1):
-        values = {field: line[field] for field in ("description", "quantity", "unit_price_cents")}
-        if line["id"] is None:
-            conn.execute(
-                insert(invoice_lines).values(
-                    invoice_id=invoice_id,
-                    position=position,
-                    product_id=line["product_id"],
-                    name=line["name"],
-                    created_at=now,
-                    **values,
-                )
-            )
-        else:
-            conn.execute(
-                update(invoice_lines).where(invoice_lines.c.id == line["id"]).values(position=position, **values)
-            )
 
 
 def _save_draft(conn: Connection, draft: Row, body: schemas.Draft, user: str, now: datetime) -> None:
@@ -371,13 +310,13 @@ def _save_draft(conn: Connection, draft: Row, body: schemas.Draft, user: str, no
     if "lines" in body.model_fields_set and isinstance(body.lines, list):
         lines = _resolved_lines(conn, draft.id, body.lines)
     else:
-        lines = [dict(row._mapping) for row in saved_lines]
+        lines = [LineToSave.saved(row) for row in saved_lines]
     _check_subtotal(lines)
     _check_text(sent.get("bill_to", draft.bill_to), lines)
     altered = who.alterations(sent, draft)
-    lines_altered = not _same_lines(saved_lines, lines)
+    lines_altered = not same_lines(saved_lines, lines)
     if lines_altered:
-        _write_lines(conn, draft.id, lines, now)
+        write_lines(conn, invoice_lines.c.invoice_id, draft.id, lines, now)
     if altered or lines_altered:
         conn.execute(update(invoices).where(invoices.c.id == draft.id).values(**altered, **who.changed(user, now)))
 
@@ -447,12 +386,7 @@ def _issue(conn: Connection, invoice_id: int, user: str, today: date, now: datet
             issue_date=today,
             due_date=today + timedelta(days=settings.payment_terms_days),
             organization_id=draft.deal_organization_id,
-            company_name=settings.company_name,
-            company_address=settings.address,
-            company_email=settings.email,
-            company_phone=settings.phone,
-            tax_label=settings.tax_label,
-            tax_rate=settings.tax_rate,
+            **documents.details_now(settings),
             subtotal_cents=totals.subtotal_cents,
             tax_cents=totals.tax_cents,
             total_cents=totals.total_cents,

@@ -1,13 +1,14 @@
 """What the company settings give the areas that make documents, quotes and invoices: the
-settings as saved, and each document's number (B15). The layout rules let any area import
-company/, so these are for them.
+settings as saved, the company's details as a document shows them, and each document's number
+(B15). The layout rules let any area import company/, so these are for them.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends, Request
+from pydantic import BaseModel
 from sqlalchemy import Column, Connection, Row, func, insert, select, update
 
 from accountable.company.tables import company_logo, company_settings, number_counters
@@ -26,6 +27,39 @@ def current_settings(conn: Connection) -> Row:
     of a percent as the table keeps it (B7), the payment terms, the two prefixes, and how
     documents look: the design and the accent color (B18)."""
     return conn.execute(select(company_settings).where(_the_row)).one()
+
+
+class Company(BaseModel):
+    """The company's details on a quote or an invoice: fixed on it once it's sent, declined or
+    issued, or the settings' as they are now on a draft (Q30, V11)."""
+
+    name: str | None
+    address: str | None
+    email: str | None
+    phone: str | None
+
+
+def details_now(settings: Row) -> dict[str, Any]:
+    """The company's details and the tax as the settings have them, named as the columns a quote
+    or an invoice fixes them in when it's sent or issued."""
+    return {
+        "company_name": settings.company_name,
+        "company_address": settings.address,
+        "company_email": settings.email,
+        "company_phone": settings.phone,
+        "tax_label": settings.tax_label,
+        "tax_rate": settings.tax_rate,
+    }
+
+
+def company_in(details: Mapping[str, Any]) -> Company:
+    """The company as a document shows it, from the columns it fixed them in or from details_now()."""
+    return Company(
+        name=details["company_name"],
+        address=details["company_address"],
+        email=details["company_email"],
+        phone=details["company_phone"],
+    )
 
 
 def current_logo(conn: Connection) -> Row | None:

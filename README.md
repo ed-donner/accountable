@@ -13,7 +13,7 @@ _If you're looking at this in VS Code or Cursor, right-click `README.md` in the 
 - `docs/`: the documents for Accountable, such as what we build and the tech stack it uses.
 - `course/`: your guides. [course/SETUP.md](course/SETUP.md) installs the tools, and [course/coding_agents/](course/coding_agents/) has the steps for each coding agent.
 - `course/for_agents/`: guides for your coding agent, so it can help you with the course.
-- `course/instructions/`: extra instructions for some days, such as the review policy for Week 1 Day 3, every prompt for Week 1 Days 4 and 5, and the worktree demo for Week 2 Day 1.
+- `course/instructions/`: extra instructions for some days, such as the review policy for Week 1 Day 3, every prompt for Week 1 Days 4 and 5, the worktree demo for Week 2 Day 1, my checkpoints for Week 2 Days 2 to 4, and every prompt for Week 2 Day 5.
 - `AGENTS.md`: the instructions your coding agent reads at the start of each session.
 - `community_contributions/`: work shared by students, added by pull request.
 
@@ -55,8 +55,12 @@ You can follow the whole course with your own build. On each day that we work on
 | `git checkout week1day3-end` | My build from Week 1 Day 3 in Claude Code: the MVP of the sales CRM, with its documents and tests |
 | `git checkout week1day4-end` | My build from Week 1 Day 4 in Claude Code: the harness (my coding standards, `npm run check`, hooks and CI) and dark mode. Install gitleaks first, as the Day 4 instructions show, because its commit hook needs it |
 | `git checkout week1day5-end` | My build from Week 1 Day 5 in Claude Code: the reviewer and ui-check subagents, then sign-in with Supabase, search and the user menu, ready to deploy to Render. To run it against Supabase or deploy it, you need your own Supabase project and `.env`, as the Day 5 instructions show |
+| `git checkout week2day2-end` | My build from Week 2 Day 2: products and company settings, built as two features at the same time |
+| `git checkout week2day3-end` | My build from Week 2 Day 3: quotes, invoices and bills, the cash flow chart and one Money section |
+| `git checkout week2day4-end` | My build from Week 2 Day 4, from a software factory on GitHub: the double-entry books, profit and loss, a balance sheet, the journal, aged balances, and an invoice made from an accepted quote |
+| `git checkout week2day5-end` | My build from Week 2 Day 5: the AI Copilot. It needs an OpenRouter key in your `.env`, as the Day 5 instructions show |
 
-Commit your own changes before you switch branches.
+Commit your own changes before you switch branches. From Week 2 Day 2 on, run `npm run seed` after you switch, then `npm run dev`. `npm run seed` brings your local database up to date and puts the sample data back, and it asks first: type `yes`.
 
 Your `main` holds your own build for the whole course, and each change gets a branch of its own that you merge into `main` (Week 1 Day 3 explains this). If you've been building your own version and want to carry on from mine instead, keep yours on a branch, then move your `main` onto my branch for the day you want:
 
@@ -86,3 +90,11 @@ I'd love to see what you build! Please share it with a pull request to `communit
 ### Week 2: Positioned for the industry of the future
 
 **Day 1: AI SDLC in Industry.** No code today: how the AI SDLC lifecycles work for teams, with AWS's AI-DLC v2 in the most detail. At the end I demo git worktrees, and the steps are in [course/instructions/week2day1.md](course/instructions/week2day1.md) if you'd like to follow along.
+
+**Day 2: Deliver as a Team.** A team builds two features at the same time: products and company settings. The lead prepares `main` first, then two developers each build one feature with their own coding agent in their own worktree, and the person who merges brings both together. Follow along with my checkpoints in [course/instructions/week2day2.md](course/instructions/week2day2.md). My build: `git checkout week2day2-end`, then `npm run seed` and `npm run dev`.
+
+**Day 3: Large Codebases, Security, Testing.** A bigger team builds quotes, invoices and bills at the same time, and the integration lead merges them, tracking down a bug along the way. Then the lead makes one Money section while four developers work on the merged code: a review, a refactor, the sample data and a cash flow chart. Follow along with my checkpoints in [course/instructions/week2day3.md](course/instructions/week2day3.md). My build: `git checkout week2day3-end`, then `npm run seed` and `npm run dev`.
+
+**Day 4: Cloud Agents, Software Factory.** A software factory builds the accounting side of Accountable. Each issue starts a coding agent on GitHub's own computers, which takes it through the six stages and opens a pull request. A second agent reviews each one, and the lead merges. The books come first, then profit and loss, a balance sheet, the journal, aged balances, and an invoice made from an accepted quote. Follow along with my checkpoints in [course/instructions/week2day4.md](course/instructions/week2day4.md). My build: `git checkout week2day4-end`, then `npm run seed` and `npm run dev`.
+
+**Day 5: Capstone.** Build an AI Copilot into your own version of Accountable: a panel where you ask about your CRM and books in plain English and have it make changes for you. You take it through the six stages from one intent, then deploy it to Render. Its model comes from OpenRouter, which offers free models. Every prompt is in [course/instructions/week2day5.md](course/instructions/week2day5.md). Then your assignment: an import from Salesforce, Pipedrive or another CRM of your choice. My build: `git checkout week2day5-end`, then `npm run seed` and `npm run dev`.

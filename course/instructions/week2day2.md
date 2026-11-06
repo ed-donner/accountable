@@ -1,10 +1,10 @@
 # Week 2 Day 2 instructions
 
-Today a team builds two features at the same time. The lead prepares `main` first, then two developers each build one feature with their own coding agent, in their own worktree, and the person who merges brings both together. On the course, you follow along with my checkpoints. Every prompt I used is at the end, if you'd rather build it yourself.
+Today a team builds two features at the same time. The lead prepares `main` first, then two developers each build one feature with their own coding agent, in their own worktree, and the person who merges brings both together. I recommend that rather than running the exact same Coding Agent runs as me, you simply follow along with my checkpoints. At the end I've laid out every interim step if you'd rather build it yourself.
 
 ## Follow along with my checkpoints
 
-My checkpoints are branches, like my versions of the Week 1 days, so they came with your copy of the repo. In the `accountable` folder:
+My checkpoints are branches, like my versions of the Week 1 days. In the `accountable` folder:
 
 ### The two intents
 

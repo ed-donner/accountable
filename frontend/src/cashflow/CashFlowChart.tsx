@@ -25,6 +25,8 @@ import type { CashFlow, CashMonth } from "./queries";
 export const CHART = {
   /** Room above the plot for "Forecast" over the three forecast months. */
   top: 24,
+  /** Room under the plot for the lower half of the axis's lowest figure, which sits on the plot's bottom edge. */
+  bottom: 8,
   axisWidth: 56,
   columnWidth: 18,
   /** The gap in the panel color between what's moved this month and what's still expected. */
@@ -87,8 +89,8 @@ type Scale = { top: number; bottom: number };
 
 /**
  * One money axis for the bars and the line, running below zero for money out and any balance
- * below it. It always has room for the likely deals' band, so turning the switch on adds the
- * band and moves nothing else (Y14).
+ * below it. It fits what's shown, so the bars can be read with the switch off, and grows to make
+ * room for the likely deals' band when the switch is on, which leaves every figure as it was (Y14).
  */
 function scaleOf(columns: Column[]): Scale {
   const values = columns.flatMap((column) => [
@@ -105,8 +107,8 @@ function scaleOf(columns: Column[]): Scale {
   return { top, bottom };
 }
 
-/** The least room between two of the axis's figures, which are 12px tall. */
-const TICK_ROOM = 16;
+/** The least room between two of the axis's figures, which are 12px tall, so 8px clear between them. */
+const TICK_ROOM = 20;
 
 /**
  * The axis's figures: $0, then each end, then halfway to each, each only where it has room, so
@@ -351,8 +353,8 @@ export function CashFlowChart({ flow, withDeals, labelRefs, onOpen }: Props) {
   const { ref, size } = useSize();
   const { months } = flow;
   const lastPast = lastPastIndex(months);
-  const plotHeight = size.height - CHART.top;
-  const scale = scaleOf(columnsOf(months, true, (value) => value));
+  const plotHeight = size.height - CHART.top - CHART.bottom;
+  const scale = scaleOf(columnsOf(months, withDeals, (value) => value));
   const least = leastValue(scale, plotHeight);
   const ticks = ticksOf(scale, plotHeight);
   const columns = columnsOf(months, withDeals, (value) => (value > 0 ? Math.max(value, least) : 0));
@@ -385,7 +387,7 @@ export function CashFlowChart({ flow, withDeals, labelRefs, onOpen }: Props) {
               height={size.height}
               data={columns}
               stackOffset="sign"
-              margin={{ top: CHART.top, right: 0, bottom: 0, left: 0 }}
+              margin={{ top: CHART.top, right: 0, bottom: CHART.bottom, left: 0 }}
               onClick={(state) => openAt(Number(state?.activeTooltipIndex))}
               className={months.some((month) => month.kind !== "past") ? "cursor-pointer" : undefined}
             >

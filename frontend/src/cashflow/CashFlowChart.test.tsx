@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderApp, user } from "../test-utils";
 import { CashFlowRow } from "./CashFlowRow";
-import { COLUMN, TODAY, cashFlowReply, sizeTheChart } from "./test-cash-flow";
+import { COLUMN, HEIGHT, TODAY, cashFlowReply, sizeTheChart } from "./test-cash-flow";
 import type { MonthReply } from "./queries";
 
 beforeEach(() => {
@@ -70,6 +70,29 @@ function lines() {
     solid: points(curves.find((curve) => !curve.getAttribute("stroke-dasharray"))),
     dashed: points(curves.find((curve) => curve.getAttribute("stroke-dasharray"))),
   };
+}
+
+/** The axis's figures, top to bottom as drawn, each with where it sits. */
+function axisFigures() {
+  return [...chart().querySelectorAll(".recharts-cartesian-axis-tick-value")]
+    .map((tick) => ({ text: tick.textContent, y: Number(tick.closest("text")?.getAttribute("y")) }))
+    .sort((a, b) => b.y - a.y);
+}
+
+/** A figure such as $250k or -$50k in cents. */
+function centsOf(figure: string | null) {
+  const [, sign, amount, unit] = /^(-?)\$([\d.]+)(k|M)?$/.exec(figure ?? "") ?? [];
+  const cents = Number(amount) * (unit === "M" ? 1e8 : unit === "k" ? 1e5 : 100);
+  return sign ? -cents : cents;
+}
+
+/** The balance at each point of the dashed line, read back off the axis, to the nearest $100. */
+function dashedCents() {
+  const figures = axisFigures();
+  const zero = figures.find((figure) => figure.text === "$0")!;
+  const top = figures[figures.length - 1];
+  const centsPerPixel = centsOf(top.text) / (zero.y - top.y);
+  return lines().dashed.map(([, y]) => Math.round(((zero.y - y) * centsPerPixel) / 10_000) * 10_000);
 }
 
 function middleOf(column: number) {
@@ -177,19 +200,17 @@ describe("the balance line", () => {
   });
 
   it("keeps the axis's figures apart, with $0 and the end below zero, however far below zero it runs", async () => {
-    // Every balance $500k overdrawn, while money in and out run to a few thousand above and below zero.
+    // Every balance $500k overdrawn, and $40k in in June, so the axis's top, $50k, sits about 19px above $0.
+    const overdrawn = balances(Object.fromEntries([...Array(15).keys()].map((index) => [index, "-50000000"])));
     await show(
-      cashFlowReply({
-        months: balances(Object.fromEntries([...Array(15).keys()].map((index) => [index, "-50000000"]))),
-      }),
+      cashFlowReply({ months: { ...overdrawn, "2026-06": { ...overdrawn["2026-06"], in_cents: "4000000" } } }),
     );
-    const ticks = [...chart().querySelectorAll(".recharts-cartesian-axis-tick-value")].map((tick) => ({
-      text: tick.textContent,
-      y: Number(tick.closest("text")?.getAttribute("y")),
-    }));
+    const ticks = axisFigures();
     expect(ticks.map((tick) => tick.text)).toEqual(expect.arrayContaining(["$0", "-$500k"]));
     const ys = ticks.map((tick) => tick.y).sort((a, b) => a - b);
-    for (let index = 1; index < ys.length; index++) expect(ys[index] - ys[index - 1]).toBeGreaterThanOrEqual(16);
+    for (let index = 1; index < ys.length; index++) expect(ys[index] - ys[index - 1]).toBeGreaterThanOrEqual(20);
+    // The lowest figure, 12px tall and centred on its line, still fits inside the chart.
+    expect(ys[ys.length - 1] + 6).toBeLessThanOrEqual(HEIGHT);
   });
 
   it("can go below zero, which the axis shows with its minus sign", async () => {
@@ -201,23 +222,20 @@ describe("the balance line", () => {
 });
 
 describe("the likely deals' band", () => {
-  it("is drawn only with the switch on, and leaves the line, the bars and the axis as they were", async () => {
-    // Deals that reach $300k by February, well over the balance, so the axis has made room for them.
+  it("is drawn only with the switch on, growing the axis to fit it, and the line shows the same balances", async () => {
+    // Deals that reach $300k by February, well over the balance, which runs from $65,300 to $72,100.
     await show(cashFlowReply({ months: { "2027-02": { balance_with_deals_cents: "30000000" } } }));
-    const before = {
-      lines: lines(),
-      bars: bars("sea-green-soft").map(measure),
-      html: chart().querySelector(".recharts-yAxis")?.outerHTML,
-    };
+    const forecast = [6_530_000, 6_850_000, 6_970_000, 7_090_000, 7_210_000];
+    expect(axisFigures().map((tick) => tick.text)).toEqual(["$0", "$50k", "$100k"]);
+    expect(dashedCents()).toEqual(forecast);
     expect(chart().querySelector(".recharts-area-area")).toBeNull();
 
     await user().click(screen.getByRole("switch", { name: "Likely deals" }));
 
     const band = await waitFor(() => chart().querySelector(".recharts-area-area")!);
     expect(band.getAttribute("fill")).toBe("var(--color-marigold-soft)");
-    expect(lines()).toEqual(before.lines);
-    expect(bars("sea-green-soft").map(measure)).toEqual(before.bars);
-    expect(chart().querySelector(".recharts-yAxis")?.outerHTML).toBe(before.html);
+    expect(axisFigures().map((tick) => tick.text)).toEqual(["$0", "$250k", "$500k"]);
+    expect(dashedCents()).toEqual(forecast);
   });
 
   it("runs from last month's point, between the balance and the balance with the deals", async () => {

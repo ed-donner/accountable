@@ -91,22 +91,51 @@ test("a fresh copy shows a year of history and three months of forecast at the t
   await expect(figure(page, /^End of /)).toContainText("Expected");
 });
 
-test("turning on likely deals adds the band and its figure, and leaves the forecast as it was", async ({ page }) => {
+/** Each month's balance at its end, from the table behind the chart, which the line is drawn from. */
+async function monthEnds(page: Page) {
+  const table = row(page).getByRole("table");
+  const column = (await table.getByRole("columnheader").allTextContents()).indexOf("Cash at the end");
+  const rows = await table.getByRole("row").all();
+  return Promise.all(rows.slice(1).map((month) => month.locator("th, td").nth(column).textContent()));
+}
+
+/** The highest figure on the money axis, in cents. */
+async function axisTop(page: Page) {
+  const figures = await chart(page).locator(".recharts-cartesian-axis-tick-value").allTextContents();
+  return Math.max(
+    ...figures.map((text) => {
+      const [, sign, amount, unit] = /^(-?)\$([\d.]+)(k|M)?$/.exec(text) ?? [];
+      const cents = Number(amount) * (unit === "M" ? 1e8 : unit === "k" ? 1e5 : 100);
+      return sign ? -cents : cents;
+    }),
+  );
+}
+
+test("turning on likely deals adds the band and its figure, and leaves the forecast's balances as they were", async ({
+  page,
+}) => {
   await openCashFlow(page);
-  const before = { lines: await lines(page), end: await figure(page, /^End of /).textContent() };
+  const before = {
+    ends: await monthEnds(page),
+    end: await figure(page, /^End of /).textContent(),
+    top: await axisTop(page),
+  };
   await expect(chart(page).locator(".recharts-area-area")).toHaveCount(0);
 
   await row(page).getByRole("switch", { name: "Likely deals" }).click();
 
   await expect(chart(page).locator(".recharts-area-area")).toHaveCount(1);
   await expect(figure(page, "With likely deals")).toBeVisible();
-  expect(await lines(page)).toEqual(before.lines);
+  // The axis fits what's shown, so it makes room for the band, while the line shows the same balances.
+  expect(await axisTop(page)).toBeGreaterThanOrEqual(before.top);
+  expect(await monthEnds(page)).toEqual(before.ends);
   expect(await figure(page, /^End of /).textContent()).toBe(before.end);
 
   await row(page).getByRole("switch", { name: "Likely deals" }).click();
   await expect(chart(page).locator(".recharts-area-area")).toHaveCount(0);
   await expect(row(page).getByText("With likely deals")).toHaveCount(0);
-  expect(await lines(page)).toEqual(before.lines);
+  expect(await axisTop(page)).toBe(before.top);
+  expect(await monthEnds(page)).toEqual(before.ends);
 });
 
 async function waitForList(page: Page, open: () => Promise<void>) {

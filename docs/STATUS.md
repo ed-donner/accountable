@@ -843,7 +843,6 @@ The cash flow is built, as `docs/changes/cash-flow/plan.md` set out, on top of t
 
 What the build settled, now in the spec:
 
-- **The axis always has room for the likely deals' band** (`visual-design.md`, Charts). Otherwise turning the switch on rescaled the axis, which moved the line and squashed the bars, where Y14 says the switch changes nothing else. The cost shows on the sample data: its likely deals reach about $580k by the forecast's end, against a balance of about $250k, so with the switch off the axis still runs to $1M and the bars are short. If the owner would rather the axis grew with the switch on, the line would move when it's turned on, and Y14 and `CashFlowChart.test.tsx` would change with it.
 - **The axis's figures are chosen with room for each** (`visual-design.md`). Recharts dropped figures that crowded each other by itself, including the one below zero, so the chart now picks $0, the ends and the halves where they fit, and shows all it picks.
 - **A month's list says how late an invoice's customer pays as the average its date took** (`cash-flow.md`), which is every customer's for one with no fully paid invoice yet.
 - **A month with no balance names itself in its tooltip** (`cash-flow.md`), so `ChartTooltip`'s leading figure is now optional.
@@ -853,7 +852,20 @@ What the build settled, now in the spec:
 
 Small changes to tests the plan didn't foresee: `test_layout.py` finds the areas by their packages, since `cashflow/` keeps no tables; `test_every_route.py` gives a month's list a real month to read, and counts `month` among the query parameters that take text; and the Company settings form takes 15 presses of Tab, not 12, because Chrome steps through a date box's month, day and year and then its calendar button. The fold also ignores a payment or a paid bill dated after today, which the saves refuse anyway, so one could never show as money moved in the forecast.
 
-`npm run check` passes: 6,435 tests in 6m 51s, with 4,354 backend, 1,734 frontend, 328 end-to-end and 19 speed tests. Each new test was seen to fail on a broken copy of the code it covers. Two unit tests took a second or more, neither new: `test_logo.py`'s WEBP case, at 4.0s, and the limits' setup, at 1.1s. Still to come, after the plan: ui-check, the review and `docs/IMPROVE.md`.
+`npm run check` passes: 6,435 tests in 6m 51s, with 4,354 backend, 1,734 frontend, 328 end-to-end and 19 speed tests. Each new test was seen to fail on a broken copy of the code it covers. Two unit tests took a second or more, neither new: `test_logo.py`'s WEBP case, at 4.0s, and the limits' setup, at 1.1s.
+
+### After ui-check
+
+ui-check looked at the cash flow and the Cash panel in light and dark mode, on a copy with the sample data and one with the opening balance removed. It found one fault, and the owner changed one decision:
+
+- **The axis's lowest figure was cut in half,** and crowded the one above it, on a copy with no opening balance. The chart had no room under the plot for the lower half of the figure on its bottom edge, and the 16px kept between figures left only 4px between 12px labels. The chart now leaves 8px under the plot and keeps 20px between figures.
+- **The axis now fits what's shown, and grows when Likely deals is turned on.** The build first kept room for the band with the switch off too, so that turning it on moved nothing, but with the sample data that ran the axis to $1M and the bars were hard to read on a first visit. The forecast line's balances don't change with the switch, which is what the intent asks, so Y14 now says the line and the bars are drawn to the new scale, showing the same money. `CashFlowChart.test.tsx` reads the line's balances back off the axis with the switch off and on, and `e2e/cash-flow.spec.ts` compares every month's balance rather than the line's points.
+
+ui-check's polish items are left as they are: an error under a settings box rather than beside it, as every form has them; the dark-mode band's shade, which is the spec's Soft Marigold; this month's tall tooltip; and a long month list whose last group starts out of sight.
+
+`npm run check` passes again: 6,435 tests in 6m 46s. The new and rewritten tests each failed on a broken copy of the code: the axis kept steady, no room under the plot, and 16px between figures.
+
+Still to come: the review and `docs/IMPROVE.md`.
 
 ## Running Accountable
 

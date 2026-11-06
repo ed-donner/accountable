@@ -43,6 +43,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 ## Bill page
 
 - **E18.** A bill's page shows its bill number, its supplier as a link to the organization, its status chip, its total, the amount before tax and the tax, its category, its bill date, due date and paid date, its notes, and who added it and last changed it, as in R6. It has Edit, Mark paid or Mark unpaid, and Delete. There's no timeline, because nothing is logged against a bill. An address that couldn't be a bill, or names one that doesn't exist, shows "This bill no longer exists" with a link back to Bills (N4).
+- **E26.** A bill's page has an Accounting panel with the entries it made, its own and its paid entries, with the reversals and the entries that replaced them after a change, unpaid or paid again ([J19](books.md#the-journal-and-the-ledgers)), oldest first, read when the page opens and again after Edit, Mark paid or Mark unpaid. The panel is read only, and its accounts link to their ledgers.
 
 ## An organization's bills
 
@@ -70,6 +71,8 @@ Laid out like the other tables ([Screens](records.md#screens)): the page title w
 ### Bill page
 
 The two columns of the other record pages ([Screens](records.md#screens)). The page title is "Bill INV-0042", with the status chip after it and Edit, Mark paid or Mark unpaid, and Delete at the right. Under the title, "From Northwind Software" names the supplier, as a link. The left column holds the details panel: the total in JetBrains Mono at the headline figure size, then the amount before tax and the tax, the category with its swatch, the bill date, the due date and the paid date, or "Not paid yet" in muted ink, with the lines from R6 at its foot in muted ink. The right column holds the notes on a panel of their own, in body text with their line breaks kept, or "No notes." in muted ink.
+
+The notes panel is followed by the Accounting panel ([Accounting panels](books.md#accounting-panels)) in the right column.
 
 ### Bill form
 

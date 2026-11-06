@@ -109,7 +109,8 @@ backend/accountable/
   migrations/                     Alembic, with batch mode on. 0006 adds number_counters, 0007 bills, 0008 quotes
                                   and quote_lines, 0009 the invoices tables, company_logo, and the design and accent
                                   color settings, 0010 each invoice's issue_order, and 0011 the opening balance's two
-                                  columns, blank, and 0012 the books' two tables, with the entries for the records already there
+                                  columns, blank, 0012 the books' two tables, with the entries for the records already there,
+                                  and 0013 the entries' description and document, filled in for the entries already there
   crm/
     tables.py                     SQLAlchemy Core tables, and RECORDS, the ones seed and empty count
     schemas.py                    the CRM's Pydantic request and reply models, and the messages for its fields
@@ -154,7 +155,11 @@ backend/accountable/
     post.py                       posting and reversing entries inside the caller's transaction: one function for each
                                   thing an area does to the money, which checks an entry balances before writing it (J3 to J7)
     schemas.py                    the reply models for the reads, and the messages for their parameters
-    router.py                     GET /books/balances, /books/months and /books/entries, and their queries (J12)
+    describe.py                   the description and document number of each event's entry (J4), the one place the wording is
+                                  written for new entries. Migration 0013 writes the same wording in SQL of its own, since a migration
+                                  must not change when the app does, and a test checks the two agree
+    router.py                     GET /books/balances, /books/months, /books/entries and /books/accounts/{key}/ledger, and their
+                                  queries, including the ledger's running balance by window function (J12, J18)
   quotes/                         quotes (Q5 to Q37), which imports only crm/tables.py, crm/rules.py, products/tables.py
                                   and company/
     tables.py                     the quotes and quote_lines tables, RECORDS, and the hold a quote has on its deal
@@ -260,12 +265,22 @@ frontend/src/
                                   SpendingChart, and StackSegment, which draws a segment of a stacked column for
                                   both and keeps a small one tall enough to see
     pages/                        Bills and Bill
-  books/                          the Accounting pages (J15, J16), which import no other area and read nothing yet
-    AccountingPage.tsx            the placeholder every Accounting page is: its title, "This report is coming soon." and
-                                  what the report will show
-    pages/                        ProfitAndLoss, BalanceSheet, Journal and AgedBalances, each a title and a sentence
-                                  handed to AccountingPage
-    links.ts                      the four pages' addresses and labels, which App.tsx gives the menu and its routes
+  books/                          the Accounting pages and panels (J15 to J22), which import no other area, and which the invoice
+                                  and bill pages import for their Accounting panels, as every area may import the books
+    queries.ts                    its types, and reading the entries, an account's ledger and its months, keyed by the day
+    AccountingPage.tsx            the placeholder Profit and loss, Balance sheet and Aged balances are: a title, "This report
+                                  is coming soon." and what the report will show
+    EntryList.tsx                 draws entries as J17 and the Entries screen describe: the heading, the lines in Debit and
+                                  Credit columns, the totals and the Reversal and Reversed chips. Journal and the panels share it
+    AccountLink.tsx               an account's name as a link to its ledger
+    AccountingPanel.tsx           the Accounting panel an invoice, a payment and a bill each show, which reads the entries
+                                  one record made (J19) and takes the kind and the id
+    useLoadMore.ts                loading a page at a time, as the end of the list scrolls into view, with a Load more button (J20)
+    charts/                       BalanceChart, one account's balance by month, built from the shared tooltip, useSize and axes
+    pages/                        ProfitAndLoss, BalanceSheet and AgedBalances, each a title and a sentence handed to
+                                  AccountingPage, and Journal and Ledger
+    links.ts                      the four pages' addresses and labels, which App.tsx gives the menu and its routes, and the
+                                  ledger's address, which has no link in the menu
   cashflow/                       the cash flow, a later area that imports no other area
     queries.ts                    its types, and reading the months and a month's list, keyed by the day
     CashFlowRow.tsx               the full-width row at the top of the Money section: the figures, the legend, the

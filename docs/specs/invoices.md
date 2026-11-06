@@ -72,6 +72,7 @@ An invoice due today isn't overdue, as a deal due today isn't late. Days late is
 ### The invoice page
 
 - **V19.** A draft's page has the draft's form beside a live preview of the invoice, exactly as the customer will see it, which follows every keystroke. An issued invoice's page has the same preview beside its details: what it shows as, its total, what's paid and what's owed, a bar of how much is paid and what's still owed, its due date and, once overdue, how many days late, its payments, and Download PDF, Record payment and Void. A draft shows who added it and last changed it, as in R6. An issued invoice shows who added it and who issued it and when, such as "Issued by Dana Whitfield on Oct 30, 2026", and a void one who voided it and when. An address that couldn't be an invoice, or names one that doesn't exist, shows "This invoice no longer exists" with a link back to Invoices (N4).
+- **V33.** An issued or void invoice's page has an Accounting panel with the entries it made, issue and, if voided, reversal ([J19](books.md#the-journal-and-the-ledgers)), read when the page opens. Each payment's row has an Accounting button that opens that payment's entries under the row, read when it's opened and read again after the payment's invoice changes, and closes again. A draft's page has no panel. The panel is read only, and its accounts link to their ledgers.
 
 ### On deals and organizations
 
@@ -141,6 +142,8 @@ The page title is the number, or "Draft invoice" for a draft, with its chip afte
 **An issued invoice:** the left column holds a details panel, with the total at the headline figure size, the bar, and under it "$750.00 paid" and "$500.00 owed" in JetBrains Mono, then the issue and due dates, with an Overdue chip and "12 days late" once it's late, and the lines from V19 at the foot in muted ink. The bar is 8px tall and fully round: the paid part in Sea Green, and the owed part in the line color, or in Raspberry once it's overdue. Below comes a Payments panel, with Record payment at its top and each payment as a row: its date, amount, method and reference, then who recorded it in muted ink, with a delete button labeled "Delete payment of $500.00". The title's buttons are Void, a secondary button, while it has no payments, and Download PDF, the main button.
 
 Record payment opens a dialog like the other forms, with Date, Amount, which shows `$` at its start, Method as a select, and Reference. Its button reads Record payment.
+
+**Accounting:** an issued or void invoice's left column ends with the Accounting panel ([Accounting panels](books.md#accounting-panels)), below the Payments panel. Each payment's row has a small text button "Accounting" after its delete button, with the lucide-react ChevronDown icon before it, which opens that payment's entries in the same layout under the row, inside the Payments panel, and reads "Hide accounting" while open.
 
 ### Invoices panels
 

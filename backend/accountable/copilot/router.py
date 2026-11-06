@@ -110,14 +110,19 @@ class Turn:
             yield event
 
     async def _make(self, call_id: str, checked: tools.Checked[Any]) -> AsyncIterator[str]:
-        """The change the person confirmed, run once, as them (Z15). The model is told how it went."""
+        """The change the person confirmed, run once, as them (Z15). The model is told how it went: a change
+        made comes with the step's words, since the record's data alone doesn't say it was made, and the model
+        would answer that it's still waiting for the person to confirm."""
         step = next(self._step_ids)
         yield _running(step, checked)
         outcome = await self._run(checked)
         yield _finished(step, outcome)
-        link = outcome.link if isinstance(outcome, tools.Done) else None
+        if isinstance(outcome, tools.Done):
+            link, told = outcome.link, {"done": outcome.words, **outcome.told}
+        else:
+            link, told = None, outcome.told
         yield schemas.line(schemas.OutcomeEvent(words=outcome.words, link=link))
-        self._tell(call_id, outcome.told)
+        self._tell(call_id, told)
 
     async def _ask(self, messages: Sequence[schemas.Message]) -> AsyncIterator[str]:
         """Asks the model until it answers or asks for a change, at most 8 times in a row (Z20)."""

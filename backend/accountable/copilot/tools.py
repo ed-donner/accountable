@@ -4,7 +4,8 @@ anything runs, and what every tool's reply is made of (Z8 to Z15).
 A tool is a look-up, in lookups.py, or a change, in changes.py. Each names the routes it
 calls, from Z8's and Z11's tables, and its run and card are given a Caller limited to those
 routes. What the model is told is JSON: {"data": ...}, with a list as {"rows", "matched"} and
-long text cut, or {"refused": "the API's words"}.
+long text cut, or {"refused": "the API's words"}. A change the person confirmed adds its step's
+words as "done", which the turn does (Z15).
 """
 
 import json

@@ -373,6 +373,18 @@ def test_a_confirm_runs_the_call_in_pending_once_then_carries_on_to_the_answer(a
     assert told(result)["data"]["stage"] == "negotiation"
 
 
+def test_a_confirmed_change_tells_the_model_it_was_made_in_the_steps_words(api, stand_in, harbor):
+    # With the record's data alone, a real model answered that the move would happen once confirmed.
+    model_ = stand_in(calling(("move_deal", {"id": harbor["renewal"], "stage": "won"})), answering("Done."))
+    events = chat(api, answered(card_for(api), "confirm"))
+    [step] = [event for event in events if event["type"] == "step" and event["state"] == "done"]
+    [outcome] = [event for event in events if event["type"] == "outcome"]
+    result = told(model_.asked[-1][-1])
+    assert set(result) == {"done", "data"}
+    assert result["done"] == step["words"] == outcome["words"] == "Moved Harbor & Pine renewal to Won."
+    assert result["data"]["stage"] == "won"
+
+
 def test_a_confirmed_change_the_api_refuses_says_why_and_the_model_is_told(api, stand_in, harbor, make):
     gone = make.deal("Short-lived", stage="new")
     model_ = stand_in(calling(("move_deal", {"id": gone, "stage": "won"})), answering("It's gone."))

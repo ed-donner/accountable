@@ -92,7 +92,7 @@ test("Create invoice makes a draft with the quote's lines to the cent, and the q
   await link.click();
   await expect(page).toHaveURL(new RegExp(`/quotes/${quote.id}$`));
   await expect(page.getByRole("button", { name: "Create invoice" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Draft" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Draft invoice" })).toBeVisible();
 
   await page.getByRole("button", { name: "Open invoice" }).click();
   await expect(page).toHaveURL(new RegExp(`/invoices/${made.id}$`));

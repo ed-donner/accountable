@@ -145,7 +145,7 @@ describe("Open invoice and the invoice line", () => {
   it("call a draft one a draft", async () => {
     mockApi({ "GET /invoices?quote_id=4": [DRAFT_ROW] });
     show();
-    expect((await screen.findByRole("link", { name: "Draft" })).getAttribute("href")).toBe("/invoices/43");
+    expect((await screen.findByRole("link", { name: "Draft invoice" })).getAttribute("href")).toBe("/invoices/43");
     expect(screen.getByRole("button", { name: "Open invoice" })).toBeTruthy();
   });
 

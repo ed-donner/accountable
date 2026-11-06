@@ -69,7 +69,7 @@ export function QuoteInvoiceLine({ quoteId, status }: Props) {
   return (
     <Detail label="Invoice">
       <Link to={`/invoices/${invoice.id}`} className="link num text-[13px]">
-        {invoice.number ?? "Draft"}
+        {invoice.number ?? "Draft invoice"}
       </Link>
     </Detail>
   );

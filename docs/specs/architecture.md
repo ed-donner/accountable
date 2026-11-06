@@ -236,8 +236,8 @@ frontend/src/
                                   and colors, which How late and the aged balances share (X12)
                                   categories.tsx, the six bill categories in order with their labels, colors and round
                                   swatch, and StackSegment, which draws a segment of a stacked column and keeps a small
-                                  one tall enough to see, which the Money section's Spending by category and the
-                                  Profit and loss chart both use
+                                  one tall enough to see, which the Money section's Spending by category, the
+                                  Profit and loss chart and the balance sheet's bars all use
   crm/
     queries.ts, deals.ts, Timeline.tsx, searchGroups.tsx and others
     forms/                        organization, contact, deal and activity forms
@@ -285,11 +285,9 @@ frontend/src/
     charts/                       MoneySection, with BillsMoney, bills' side of the Money section, DueTimeline and
                                   SpendingChart
     pages/                        Bills and Bill
-  books/                          the Accounting pages and panels (J15 to J22), which import no other area, and which the invoice
+  books/                          the Accounting pages and panels (J15 to J22, and the Balance sheet's X1 to X18), which import no other area, and which the invoice
                                   and bill pages import for their Accounting panels, as every area may import the books
-    queries.ts                    its types, and reading the entries, an account's ledger and its months, keyed by the day
-    AccountingPage.tsx            the placeholder Balance sheet is: a title, "This report is coming soon." and what the report
-                                  will show
+    queries.ts                    its types, and reading the entries, an account's ledger and its months, keyed by the day, and the balances on a day (X10)
     EntryList.tsx                 draws entries as J17 and the Entries screen describe: the heading, the lines in Debit and
                                   Credit columns, the totals and the Reversal and Reversed chips. Journal and the panels share it
     AccountLink.tsx               an account's name as a link to its ledger
@@ -297,8 +295,7 @@ frontend/src/
                                   one record made (J19) and takes the kind and the id
     useLoadMore.ts                loading a page at a time, as the end of the list scrolls into view, with a Load more button (J20)
     charts/                       BalanceChart, one account's balance by month, built from the shared tooltip, useSize and axes
-    pages/                        BalanceSheet, a title and a sentence handed to AccountingPage, and Journal, Ledger and
-                                  ProfitAndLoss, the pages of their own
+    pages/                        BalanceSheet, Journal, Ledger and ProfitAndLoss, the pages
     profit/                       Profit and loss, which reads only /api/books/profit-and-loss:
       queries.ts                  its types, the read for a period and a day, and the read of the entries behind a figure
       ProfitChart.tsx             the 12 months' columns and profit line, with Recharts, and the table behind it
@@ -307,6 +304,12 @@ frontend/src/
       EntriesDialog.tsx           the entries behind a figure, with Show more
       figures.ts                  sums, the margin and the changes as words, and no sums of their own
       test-profit.ts              the tests' replies for a today of Nov 5, 2026, and the chart's size
+    balance.ts                    the balance sheet's own sums, in BigInt: the 12 stops, the columns' figures, Profit
+                                  to date, the totals and the difference, with no React in it
+    DateSlider.tsx                the range input with the stops' month names under it
+    BalanceBars.tsx               the two stacked bars, drawn with Recharts and StackSegment, and the table behind them
+    BalanceColumns.tsx            the two columns of accounts and their totals, and the mark that the sides are equal
+    EntriesDialog.tsx             the entries behind a figure, with Show more
     links.ts                      the four pages' addresses and labels, which App.tsx gives the menu and its routes, and the
                                   ledger's address, which has no link in the menu
   aging/                          the Aged balances page (X1 to X20), which imports no other area

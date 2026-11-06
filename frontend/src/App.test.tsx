@@ -3,8 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
 import { customersReply } from "./aging/test-aged";
+import { stops } from "./books/balance";
+import { balancesReply } from "./books/test-balance";
 import { pageReply } from "./books/profit/test-profit";
 import { cashFlowReply, quietMonths } from "./cashflow/test-cash-flow";
+import { todayIso } from "./lib/dates";
 import { THEME_KEY } from "./lib/theme";
 import { META, mockApi, startSignedIn, user, type Call } from "./test-utils";
 
@@ -557,20 +560,6 @@ describe("the app, signed in", () => {
     expect(await screen.findByLabelText("Company name")).toBeTruthy();
   });
 
-  it.each([["/accounting/balance-sheet", "Balance sheet", "What the business owns and owes"]])(
-    "opens %s inside the top bar, with no section marked",
-    async (address, title, words) => {
-      mockApi({ "GET /meta": META, "GET /me": ALEX });
-      render(<App />);
-      visit(address);
-      expect((await heading()).textContent).toBe(title);
-      expect(screen.getByText("This report is coming soon.")).toBeTruthy();
-      expect(screen.getByText(new RegExp(words))).toBeTruthy();
-      expect(topBar().getAllByRole("link")).toHaveLength(9);
-      expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
-    },
-  );
-
   it("opens the Journal inside the top bar, with no section marked, as a real page", async () => {
     mockApi({
       "GET /meta": META,
@@ -670,7 +659,8 @@ describe("the app, signed in", () => {
   });
 
   it("gets the menu's Accounting links from App.tsx, and opens a page from one", async () => {
-    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    const days = stops(todayIso()).map((stop) => [`GET /books/balances?on=${stop.day}`, balancesReply(stop.day)]);
+    mockApi({ "GET /meta": META, "GET /me": ALEX, ...Object.fromEntries(days) });
     render(<App />);
     visit("/");
     await heading();

@@ -215,7 +215,7 @@ def _entry_fields(row, lines: list[schemas.Line], names: dict[tuple[str, int], s
 @router.get("/entries")
 def entries(
     labels: AppLabels,
-    account: Annotated[schemas.AccountQuery | None, Query()] = None,
+    account: schemas.ENTRIES_ACCOUNTS = None,
     first: Annotated[date | None, Query(alias="from")] = None,
     last: Annotated[date | None, Query(alias="to")] = None,
     q: Annotated[schemas.TextQuery | None, Query()] = None,
@@ -230,7 +230,7 @@ def entries(
     """
     if (kind is None) != (source_id is None):
         raise api.FieldError({"source_id" if kind else "kind": schemas.TOGETHER_MESSAGE})
-    conditions = _matching([account] if account else [], first, last, q, kind, source_id)
+    conditions = _matching(schemas.check_accounts(account) or [], first, last, q, kind, source_id)
     order = (
         (journal_entries.c.entry_date, journal_entries.c.id)
         if kind is not None

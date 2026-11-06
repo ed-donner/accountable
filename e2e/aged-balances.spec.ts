@@ -102,6 +102,8 @@ test("Suppliers by keyboard shows bills linking to them, with the focus ring", a
   await customers.focus();
   await expect(customers).toHaveCSS("outline-color", FOCUS.light);
   await page.keyboard.press("ArrowRight");
+  // The toggle group moves the focus a moment after the key, so wait for it before pressing Space.
+  await expect(page.getByRole("radio", { name: "Suppliers" })).toBeFocused();
   await page.keyboard.press("Space");
   await expect(page).toHaveURL(/view=suppliers/);
   const { rows } = await totalFor(request, "suppliers");

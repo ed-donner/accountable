@@ -184,3 +184,44 @@ export function useAccountMonths(key: string) {
       })),
   });
 }
+
+export type BalancesReply = {
+  on: string;
+  accounts: { key: string; name: string; type: string; balance_cents: CentsSum }[];
+};
+
+/** An entry as the balance sheet's dialog lists it. */
+export type EntryReply = Entry;
+
+/** A day's figures are read again after a save, and otherwise when a minute has passed, so moving the slider back to a day read earlier reads nothing. */
+const FRESH_MS = 60_000;
+
+/** Every read sits under ["books"], so the invalidation after any save reaches them all. */
+export function balancesQuery(day: string) {
+  return {
+    queryKey: ["books", "balances", day],
+    queryFn: () => api<BalancesReply>(`/books/balances?on=${day}`),
+    staleTime: FRESH_MS,
+  };
+}
+
+/** A day's balances, keeping the day before's on screen while this one is on its way (X10). */
+export function useBalances(day: string) {
+  return useQuery({ ...balancesQuery(day), placeholderData: keepPreviousData });
+}
+
+/** The entries with a line in any of the accounts, dated up to the day, newest first, 100 at a time (X11, X14). */
+export function useEntriesUpTo(accounts: readonly string[], day: string) {
+  return useInfiniteQuery({
+    queryKey: ["books", "entries", "up-to", accounts, day],
+    queryFn: ({ pageParam }) => {
+      const wanted = accounts.map((key) => `account=${encodeURIComponent(key)}`).join("&");
+      return api<EntriesReply>(`/books/entries?${wanted}&to=${day}&limit=${PAGE}&offset=${pageParam}`);
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last, all) => {
+      const read = all.reduce((sum, page) => sum + page.entries.length, 0);
+      return read < last.total && last.entries.length > 0 ? read : undefined;
+    },
+  });
+}

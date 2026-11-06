@@ -100,6 +100,15 @@ def is_text(schema: dict[str, Any]) -> bool:
     return schema.get("type") == "string" or any(is_text(choice) for choice in schema.get("anyOf", []))
 
 
+def is_text_query(schema: dict[str, Any]) -> bool:
+    """Text, or a query that may be given more than once, such as the entries' account."""
+    return is_text(schema) or any(
+        is_text(choice.get("items", {}))
+        for choice in [schema, *schema.get("anyOf", [])]
+        if choice.get("type") == "array"
+    )
+
+
 def body_text_fields(method: str, path: str) -> list[str]:
     """The text fields in the route's request body, dates and choices included, as the app describes them."""
     body = DESCRIBED["paths"][path][method.lower()].get("requestBody")
@@ -118,7 +127,7 @@ QUERY_TEXT = [
     (method, path, parameter["name"])
     for method, path in ROUTES
     for parameter in query_parameters(method, path)
-    if is_text(parameter["schema"])
+    if is_text_query(parameter["schema"])
 ]
 
 

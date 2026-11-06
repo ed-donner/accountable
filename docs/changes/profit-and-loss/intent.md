@@ -39,3 +39,8 @@ The Profit and loss page under Accounting opens with a chart of the last 12 mont
 - Figures are net of reversing entries (a voided invoice or a changed bill nets to what is now true), and the entry list shows every entry behind a figure, reversals included, so the list adds up to the figure.
 - When revenue is 0 the margin shows as "–" rather than a percentage, and its change is shown in percentage points, or as new when the period before has no margin.
 - A change on a figure that is 0 in both periods shows as "–" rather than 0%, and a figure whose earlier period was 0 but now isn't shows as "new".
+- The spec gets its own area file, `profit-and-loss.md` (X1 to X19), and the page reads two routes under `/api/books`, one for the figures and one for the entries behind a figure, so the books stay the only source; the other three Accounting pages stay placeholders.
+- Revenue columns are ink, not Sea Green, because Sea Green is Software's color on the same chart. The profit line is ink with a panel-colored casing so it shows over the columns.
+- The books can't import invoices or bills, so the entries dialog gets each record's name (invoice number, bill number and supplier) from a function each area gives `main.py`, as they give their holds and cash. A record that has been deleted shows as "Deleted bill" with no link.
+- The arrows stop at the period holding the earliest entry on Revenue or an expense account, the chosen period isn't kept in the address, and the Profit margin opens Profit's entries, since the margin has none of its own.
+- Changes are worked out by the backend in whole numbers, shown in plain ink with their sign and never as good or bad, since a rise in expenses isn't a fault in itself.

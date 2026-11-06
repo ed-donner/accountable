@@ -6,7 +6,7 @@ import { mockApi, renderApp, user, type Call } from "../../test-utils";
 import type { Category, DueBill, MoneyFigures, SpendingMonth } from "../queries";
 import { dueDays } from "./DueTimeline";
 import { BillsMoney } from "./MoneySection";
-import { LEAST_HEIGHT, StackSegment, stackScale } from "./StackSegment";
+import { LEAST_HEIGHT, StackSegment, stackScale } from "../../components/charts/StackSegment";
 
 const WIDTH = 600;
 const HEIGHT = 240;

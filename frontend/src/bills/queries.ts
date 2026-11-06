@@ -7,7 +7,9 @@ import { useNotify } from "../lib/notify";
 import { useWrite, type Authorship } from "../lib/records";
 import { useToday } from "../lib/useToday";
 
-export type Category = "software" | "contractors" | "travel" | "office" | "marketing" | "other";
+import type { Category } from "../components/charts/categories";
+
+export type { Category };
 
 /** Amounts are always whole cents, and the total is the backend's: the amount plus the tax (E4). */
 export type Bill = {

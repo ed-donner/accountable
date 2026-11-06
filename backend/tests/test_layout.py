@@ -226,3 +226,24 @@ def test_sqlite_specific_code_stays_in_db():
     for path in sources():
         if path.name != "db.py":
             assert "sqlite3" not in path.read_text(), path
+
+
+def test_labels_is_a_top_level_file_that_names_no_area():
+    assert (PACKAGE / "labels.py").exists()
+    assert not any(names(PACKAGE / "labels.py", area) for area in AREAS)
+
+
+def test_the_areas_labels_import_only_the_top_level_and_the_first_areas_tables():
+    """invoices/labels.py and bills/labels.py read their own tables, and the supplier's name from the CRM's."""
+    for area in ("invoices", "bills"):
+        found = imported_areas((PACKAGE / area / "labels.py").read_text())
+        assert found
+        assert all(other == area or later_area_may_import(other, module) for other, module in found), area
+        assert not {other for other, _ in found} & {"books", "cashflow", "quotes"}
+    assert ("crm", "tables") in imported_areas((PACKAGE / "bills" / "labels.py").read_text())
+
+
+def test_the_books_name_no_record_so_their_labels_come_from_the_app():
+    found = {area for path in sources() if area_of(path) == "books" for area, _ in imported_areas(path.read_text())}
+    assert found <= {"books"}
+    assert "labels" in (PACKAGE / "books" / "router.py").read_text()

@@ -50,3 +50,12 @@ def expense_for(category: str) -> str:
 def balance(key: str, debits: int, credits: int) -> int:
     """Above zero when the account is on its usual side."""
     return debits - credits if BY_KEY[key].debit_normal else credits - debits
+
+
+EXPENSE_ACCOUNTS = tuple(account.key for account in CHART if account.type == EXPENSE)
+"""The six expense accounts, in the chart's order, which is the bill categories' order (E6)."""
+
+
+def category_of(key: str) -> str:
+    """The bill category key for an expense account's key, such as "software" for "expense_software"."""
+    return key.removeprefix("expense_")

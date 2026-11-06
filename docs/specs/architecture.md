@@ -220,6 +220,10 @@ frontend/src/
     charts/                       what any area's chart can use: ChartTooltip, useSize, and the axes' text and the top
                                   of a money axis, and monthColumns.tsx, the layout the Money section's two month
                                   charts share
+                                  categories.tsx, the six bill categories in order with their labels, colors and round
+                                  swatch, and StackSegment, which draws a segment of a stacked column and keeps a small
+                                  one tall enough to see, which the Money section's Spending by category and the
+                                  Profit and loss chart both use
   crm/
     queries.ts, deals.ts, Timeline.tsx, searchGroups.tsx and others
     forms/                        organization, contact, deal and activity forms
@@ -260,12 +264,10 @@ frontend/src/
     pages/                        Invoices and Invoice
   bills/                          the bills from suppliers, a later area
     queries.ts                    its types, reads and saves, the Money figures, and marking a bill paid and unpaid
-    categories.tsx                the six categories in order, with their labels, colors and round swatch
     status.tsx                    unpaid, overdue and paid from today, their chip, and the paid date's checks
     BillForm.tsx, MarkPaidDialog.tsx, DeleteBill.tsx, and BillsPanel.tsx, an organization's bills
     charts/                       MoneySection, with BillsMoney, bills' side of the Money section, DueTimeline and
-                                  SpendingChart, and StackSegment, which draws a segment of a stacked column for
-                                  both and keeps a small one tall enough to see
+                                  SpendingChart
     pages/                        Bills and Bill
   books/                          the Accounting pages (J15, J16, X1 to X19), which import no other area
     AccountingPage.tsx            the placeholder the three reports still to come are: its title, "This report is coming
@@ -278,6 +280,8 @@ frontend/src/
       Statement.tsx               the statement's rows, their amounts as buttons, and the changes
       PeriodSwitch.tsx            the Month, Quarter and Year switch and the arrows
       EntriesDialog.tsx           the entries behind a figure, with Show more
+      figures.ts                  sums, the margin and the changes as words, and no sums of their own
+      test-profit.ts              the tests' replies for a today of Nov 5, 2026, and the chart's size
     links.ts                      the four pages' addresses and labels, which App.tsx gives the menu and its routes
   cashflow/                       the cash flow, a later area that imports no other area
     queries.ts                    its types, and reading the months and a month's list, keyed by the day

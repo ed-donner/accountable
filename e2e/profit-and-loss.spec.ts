@@ -123,7 +123,8 @@ test("the chart has the last 12 months and each month's revenue and expenses are
     expect(BigInt(each.revenue_cents), each.month).toBeGreaterThan(0n);
     expect(BigInt(each.expenses_cents), each.month).toBeGreaterThan(0n);
   }
-  await expect(page.getByText("so far")).toHaveCount(2);
+  // This month says "so far" in the period switch, under its column and in the chart's table for screen readers.
+  await expect(page.getByText("so far")).toHaveCount(3);
 });
 
 test("the statement for this month adds up, and says profit isn't the same as cash", async ({ page, request }) => {
@@ -133,7 +134,7 @@ test("the statement for this month adds up, and says profit isn't the same as ca
       "Revenue counts on the day an invoice is issued and expenses on the bill date, so profit isn't the same as cash.",
     ),
   ).toBeVisible();
-  await expect(statement(page).getByText(monthName(new Date()))).toBeVisible();
+  await expect(statement(page).getByText(monthName(new Date()), { exact: true })).toBeVisible();
   const amount = async (name: RegExp) => cents(await statement(page).getByRole("button", { name }).textContent());
   const revenue = await amount(/^Revenue, /);
   const expenses = await amount(/^Total expenses, /);
@@ -207,8 +208,10 @@ test("a statement amount, the margin and each part of the chart open the entries
   expect(profit.sum).toBe(profit.headline);
   await dialog.getByRole("button", { name: "Close" }).click();
 
+  // The table behind the chart is for the keyboard and screen readers, so it opens with Enter.
   const march = months(page).getByRole("row").nth(6);
-  await march.getByRole("button").first().click();
+  await march.getByRole("button").first().focus();
+  await page.keyboard.press("Enter");
   await expect(dialog).toBeVisible();
   const column = await dialogSums(dialog);
   expect(column.sum).toBe(column.headline);

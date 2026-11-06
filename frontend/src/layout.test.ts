@@ -134,6 +134,24 @@ describe("the layout rules", () => {
   });
 });
 
+describe("quotes and invoices", () => {
+  const importedBy = (area: string) =>
+    appCode()
+      .filter((file) => areaOf(file) === area)
+      .flatMap((file) => imported(file));
+
+  it("import nothing of each other, so the quote's page is handed its invoice controls", () => {
+    expect(importedBy("quotes").some((target) => target.startsWith("quotes/"))).toBe(true); // Looking in the right place.
+    expect(importedBy("quotes").filter((target) => areaOf(target) === "invoices")).toEqual([]);
+    expect(importedBy("invoices").filter((target) => areaOf(target) === "quotes")).toEqual([]);
+  });
+
+  it("meet in App.tsx, which hands the quote page the invoice controls", () => {
+    expect(imported("App.tsx")).toContain("invoices/QuoteInvoice.tsx");
+    expect(readFileSync(path.join(SOURCE, "App.tsx"), "utf8")).toContain("<Quote invoice=");
+  });
+});
+
 describe("the cash flow", () => {
   it("imports no area, the CRM's queries included", () => {
     const importing = appCode()

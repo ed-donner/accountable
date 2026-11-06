@@ -12,6 +12,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import Connection, Row, and_, delete, func, insert, or_, select, update
+from sqlalchemy.exc import IntegrityError
 
 from accountable import api, db, who
 from accountable.auth import CurrentUser
@@ -23,6 +24,7 @@ from accountable.crm.tables import contacts, deals, organizations
 from accountable.invoices import figures, schemas
 from accountable.invoices.tables import DRAFT, ISSUED, VOID, invoice_lines, invoices, payments
 from accountable.products.tables import products
+from accountable.quotes.tables import quote_lines, quotes
 from accountable.users import person, users
 
 router = APIRouter(prefix="/invoices")
@@ -93,6 +95,7 @@ def _row_fields(row: Any, total_cents: int, paid_cents: int, today: date) -> dic
         "due_date": row.due_date,
         "total_cents": total_cents,
         "owed_cents": figures.owed(row.status, status_total, paid_cents),
+        "quote_id": row.quote_id,
     }
 
 
@@ -121,6 +124,15 @@ def _written_on(conn: Connection, row: Any) -> tuple[documents.Company, str | No
     return documents.company_in(details), details["tax_label"], details["tax_rate"]
 
 
+def _quote_link(conn: Connection, quote_id: int | None) -> schemas.QuoteLink | None:
+    if quote_id is None:
+        return None
+    quote = conn.execute(select(quotes).where(quotes.c.id == quote_id)).one()
+    return schemas.QuoteLink(
+        id=quote.id, number=quote.number, tax_label=quote.tax_label, tax_rate=rate_text(quote.tax_rate)
+    )
+
+
 def detail(conn: Connection, invoice_id: int, today: date) -> schemas.InvoiceDetail:
     """One invoice with everything its page and its PDF show."""
     row = get_row(conn, invoice_id)
@@ -139,6 +151,7 @@ def detail(conn: Connection, invoice_id: int, today: date) -> schemas.InvoiceDet
         status=row.status,
         days_late=figures.days_late(fields["shows_as"], row.due_date, today),
         deal_stage=row.deal_stage,
+        quote=_quote_link(conn, row.quote_id),
         company=company,
         tax_label=tax_label,
         tax_rate=rate_text(rate),
@@ -153,7 +166,7 @@ def detail(conn: Connection, invoice_id: int, today: date) -> schemas.InvoiceDet
     )
 
 
-def _list_query(deal_id: int | None, organization_id: int | None):
+def _list_query(deal_id: int | None, organization_id: int | None, quote_id: int | None):
     """Every invoice with its deal, its organization, its paid total and, for a draft, its subtotal, in one query."""
     paid = (
         select(payments.c.invoice_id, func.sum(payments.c.amount_cents).label("paid"))
@@ -179,6 +192,8 @@ def _list_query(deal_id: int | None, organization_id: int | None):
     )
     if deal_id is not None:
         query = query.where(invoices.c.deal_id == deal_id)
+    if quote_id is not None:
+        query = query.where(invoices.c.quote_id == quote_id)
     if organization_id is not None:
         # Those issued to it, and the drafts on its deals (V21).
         query = query.where(
@@ -192,11 +207,11 @@ def _list_query(deal_id: int | None, organization_id: int | None):
 
 @router.get("")
 def list_invoices(
-    today: api.Today, deal_id: api.QueryId = None, organization_id: api.QueryId = None
+    today: api.Today, deal_id: api.QueryId = None, organization_id: api.QueryId = None, quote_id: api.QueryId = None
 ) -> list[schemas.InvoiceRow]:
-    """Every invoice, newest first, or a deal's or an organization's, for its panel (V20, V21, V22)."""
+    """Every invoice, newest first, or a deal's or an organization's, for its panel, or the one made from a quote (V20, V21, V22, V36)."""
     with db.reading() as conn:
-        rows = conn.execute(_list_query(deal_id, organization_id)).all()
+        rows = conn.execute(_list_query(deal_id, organization_id, quote_id)).all()
         rate = documents.current_settings(conn).tax_rate
     replies = []
     for row in rows:
@@ -234,6 +249,58 @@ def start_invoice(body: schemas.NewInvoice, user: CurrentUser, today: api.Today,
             .returning(invoices.c.id)
         ).scalar_one()
         return detail(conn, new_id, today)
+
+
+def _existing_invoice(conn: Connection, quote_id: int) -> Row | None:
+    return conn.execute(select(invoices.c.id, invoices.c.number).where(invoices.c.quote_id == quote_id)).one_or_none()
+
+
+def _quote_to_invoice(conn: Connection, quote_id: int) -> Row:
+    """The accepted quote with its deal's stage, or the reason it can't make an invoice (V33, V37)."""
+    quote = conn.execute(
+        select(quotes, deals.c.stage.label("deal_stage"))
+        .join(deals, quotes.c.deal_id == deals.c.id)
+        .where(quotes.c.id == quote_id)
+    ).one_or_none()
+    if quote is None:
+        raise HTTPException(404, "Quote not found")
+    if quote.status != "accepted":
+        raise refuse(schemas.quote_not_accepted(quote.number))
+    if existing := _existing_invoice(conn, quote_id):
+        raise refuse(schemas.quote_has_an_invoice(quote.number, existing.number))
+    if quote.deal_stage != "won":
+        raise refuse(schemas.quote_deal_not_won(quote.number))
+    return quote
+
+
+def _insert_from_quote(conn: Connection, quote: Row, user: str, now: datetime) -> int:
+    """The draft with the quote's Prepared for as its Bill to, and the quote's lines copied whole (V34).
+
+    None of V8 and V9 is checked on what's copied (V38). A later save checks them as it does any draft's.
+    The insert is in a savepoint, so the unique index refusing a racing second invoice leaves the
+    transaction usable on Postgres too, and the refusal can name the invoice that won.
+    """
+    bill_to = figures.bill_to(quote.prepared_for_organization, quote.prepared_for_contact, quote.prepared_for_email)
+    values = {"deal_id": quote.deal_id, "quote_id": quote.id, "status": DRAFT, "bill_to": bill_to}
+    try:
+        with conn.begin_nested():
+            new_id = conn.execute(
+                insert(invoices).values(**values, **who.added(user, now)).returning(invoices.c.id)
+            ).scalar_one()
+    except IntegrityError:
+        existing = _existing_invoice(conn, quote.id)
+        raise refuse(schemas.quote_has_an_invoice(quote.number, existing.number if existing else None)) from None
+    copied = [LineToSave.saved(line) for line in lines_of(conn, quote_lines.c.quote_id, quote.id)]
+    write_lines(conn, invoice_lines.c.invoice_id, new_id, [replace(line, id=None) for line in copied], now)
+    return new_id
+
+
+@router.post("/from-quote/{quote_id}", status_code=201)
+def start_from_quote(quote_id: api.PathId, user: CurrentUser, today: api.Today, now: api.Now) -> schemas.InvoiceDetail:
+    """Create invoice on an accepted quote (V33). The quote itself isn't written to."""
+    with db.writing() as conn:
+        quote = _quote_to_invoice(conn, quote_id)
+        return detail(conn, _insert_from_quote(conn, quote, user, now), today)
 
 
 @router.get("/{invoice_id}")

@@ -933,3 +933,14 @@ def test_every_balance_sheet_stop_has_every_account_above_zero_and_the_sides_equ
         assert balance["cash"] + balance["receivable"] == (
             balance["payable"] + balance["tax_payable"] + balance["owners_equity"] + profit
         ), stop
+
+
+def test_each_accepted_quote_is_linked_to_the_first_invoice_on_its_deal_and_no_other_invoice_is_linked(seeded):
+    """The invoice made from the quote (V36). A deal invoiced twice has the quote on the first, which was voided."""
+    accepted = {quote.id: quote for quote in seeded["quotes"] if quote.status == "accepted"}
+    linked = {row.quote_id: row for row in seeded["invoices"] if row.quote_id is not None}
+    assert len([row for row in seeded["invoices"] if row.quote_id is not None]) == len(linked)
+    assert set(linked) == set(accepted) and accepted
+    for quote_id, row in linked.items():
+        first = min(other.id for other in seeded["invoices"] if other.deal_id == row.deal_id)
+        assert (row.deal_id, row.id) == (accepted[quote_id].deal_id, first), accepted[quote_id].number

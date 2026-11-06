@@ -8,6 +8,7 @@ from accountable.crm.tables import deals, organizations
 from accountable.db import TABLE_OPTIONS, metadata, utc_now
 from accountable.holds import Hold
 from accountable.products.tables import products
+from accountable.quotes.tables import quotes
 from accountable.users import users
 
 # Paid, overdue and part paid are worked out, never kept (V3).
@@ -23,6 +24,9 @@ invoices = Table(
     # The organization it was issued to, set on issuing. Blank on a draft.
     Column("organization_id", ForeignKey(organizations.c.id), index=True),
     Column("status", Text, nullable=False, default=DRAFT),
+    # The accepted quote it was made from (V33), set once when the draft is made. No delete rule, since
+    # quotes are never deleted. Unique, so a quote has one invoice (V37), and blank for the rest.
+    Column("quote_id", ForeignKey(quotes.c.id), index=True, unique=True),
     # Set on issuing (B15). Both databases let a unique column hold many blanks, so drafts don't clash.
     Column("number", Text),
     # The count the number took on issuing, so Number sorts in the order issued, whatever the prefix (V22).

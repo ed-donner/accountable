@@ -1,0 +1,1 @@
+This branch is behind {{BASE}}. Run git merge origin/{{BASE}}. If git stops on conflicts, resolve each one so that both changes keep working, reading both changes' intents in docs/changes/. Then run npm run check:quick and fix failures until it passes. Leave the commits to me.

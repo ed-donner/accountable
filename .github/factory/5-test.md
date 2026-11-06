@@ -1,0 +1,1 @@
+Run npm run check:quick and fix failures until it passes. Then use the ui-check subagent to check the pages this change adds or changes, signed in. Fix the problems it found that this change caused, then run npm run check:quick again. Write ui-check's last report to ui-check.md in this branch's folder in docs/changes/. Leave the commits to me.

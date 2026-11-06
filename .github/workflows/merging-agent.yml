@@ -1,0 +1,130 @@
+# The merging agent. After each merge into main, it brings the factory's other open pull requests up
+# to date: it merges main into each branch, resolves any conflicts, fixes what breaks and runs
+# npm run check:quick. Run it by hand for one branch from the Actions tab.
+
+name: Merging agent
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: The branch to bring up to date
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.list.outputs.branches }}
+    steps:
+      - id: list
+        env:
+          BASE: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          ONE: ${{ inputs.branch }}
+        run: |
+          if [ -n "$ONE" ]; then
+            BRANCHES=$(jq -cn --arg b "$ONE" '[$b]')
+          else
+            # Finished factory pull requests only: drafts are still being built.
+            BRANCHES=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base "$BASE" --label factory \
+              --json headRefName,isDraft --jq '[.[] | select(.isDraft | not) | .headRefName]')
+          fi
+          echo "branches=$BRANCHES" >> "$GITHUB_OUTPUT"
+
+  update:
+    needs: list
+    if: needs.list.outputs.branches != '[]'
+    name: "Merge main into ${{ matrix.branch }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(needs.list.outputs.branches) }}
+    concurrency:
+      group: merging-agent-${{ matrix.branch }}
+      cancel-in-progress: true
+    env:
+      BRANCH: ${{ matrix.branch }}
+      BASE: ${{ github.event.repository.default_branch }}
+      GH_TOKEN: ${{ github.token }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CLAUDE_ARGS: --permission-mode acceptEdits --allowedTools Bash,Read,Edit,MultiEdit,Write,Glob,Grep,TodoWrite,Task,Skill --mcp-config .mcp.json
+      PROTECTED: backend/tests/test_books_checks.py
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Already up to date?
+        id: behind
+        run: |
+          if git merge-base --is-ancestor "origin/$BASE" HEAD; then
+            echo "behind=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "behind=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v7
+        if: steps.behind.outputs.behind == 'true'
+        with:
+          node-version: 26
+          cache: npm
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        if: steps.behind.outputs.behind == 'true'
+
+      # The factory's own scripts and prompts always come from the default branch, never from the
+      # branch being worked on, so a change can't rewrite the factory's rules for itself.
+      - name: Use the factory's scripts from the default branch
+        if: steps.behind.outputs.behind == 'true'
+        run: |
+          git archive "origin/$BASE" .github/factory | tar -x -C "$RUNNER_TEMP"
+          echo "FACTORY=$RUNNER_TEMP/.github/factory" >> "$GITHUB_ENV"
+
+      # npm run check:quick looks for secrets with gitleaks, as the project's CI does.
+      - name: Install gitleaks
+        if: steps.behind.outputs.behind == 'true'
+        env:
+          VERSION: 8.30.1
+          SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          cd "$RUNNER_TEMP/gitleaks"
+          curl -fsSL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          echo "${SHA256}  gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf gitleaks.tar.gz gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+
+      - name: Install Claude Code, the npm packages and the Python environment
+        if: steps.behind.outputs.behind == 'true'
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          npm ci
+          uv sync --frozen
+          git config user.name "Accountable factory"
+          git config user.email "factory@users.noreply.github.com"
+
+      - name: Merge main in, resolve, check
+        if: steps.behind.outputs.behind == 'true'
+        run: node "$FACTORY/factory.mjs" merge
+
+      - name: Keep the agent's transcript
+        if: always() && steps.behind.outputs.behind == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: merging-agent-logs-${{ matrix.branch }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/factory-logs
+          if-no-files-found: ignore

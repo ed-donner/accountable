@@ -1,0 +1,60 @@
+# The review agent: a shared agent in the cloud that reviews every pull request a person opens on
+# this repo, with the same reviewer the developers run themselves (.claude/agents/reviewer.md).
+# The factory reviews its own pull requests as one of its stages.
+# It needs the same secret as the factory, CLAUDE_CODE_OAUTH_TOKEN.
+
+name: Review agent
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # Pull requests from branches in this repo only, never from someone else's fork.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !contains(github.event.pull_request.labels.*.name, 'factory')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BASE: ${{ github.event.pull_request.base.ref }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      GH_TOKEN: ${{ github.token }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CLAUDE_ARGS: --permission-mode acceptEdits --allowedTools Bash,Read,Write,Glob,Grep,Task
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The factory's own scripts and prompts always come from the default branch, never from the
+      # branch being worked on, so a change can't rewrite the factory's rules for itself.
+      - name: Use the factory's scripts from the default branch
+        run: |
+          git archive "origin/$BASE" .github/factory | tar -x -C "$RUNNER_TEMP"
+          echo "FACTORY=$RUNNER_TEMP/.github/factory" >> "$GITHUB_ENV"
+
+      - name: Install Claude Code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Review
+        run: node "$FACTORY/factory.mjs" review-pr
+
+      - name: Keep the agent's transcript
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: review-logs-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/factory-logs
+          if-no-files-found: ignore

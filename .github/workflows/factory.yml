@@ -1,0 +1,155 @@
+# The software factory. Label an issue "factory" and an agent takes it through the stages on its
+# own branch: Plan, Design, Build and Test, a draft pull request, a review by a second agent in a
+# fresh session, and the fixes. Then the pull request waits for a person to review and merge it.
+# The stages use the same prompts as the course's instructions, in .github/factory/.
+#
+# Setup, once for each repo: add the secret CLAUDE_CODE_OAUTH_TOKEN, made with
+# `claude setup-token`, and in Settings, Actions, General, tick "Allow GitHub Actions to create
+# and approve pull requests". The runs use the Claude subscription of whoever made the token.
+#
+# If a run stops partway, start it again from the stage that stopped, in the Actions tab:
+# Factory, Run workflow, with the issue's number and the stage.
+
+name: Factory
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: The issue's number
+        required: true
+      from:
+        description: The stage to start from (its branch must exist for any stage after plan)
+        type: choice
+        default: plan
+        options:
+          - plan
+          - design
+          - build-plan
+          - build
+          - test
+          - pull-request
+          - review
+          - review-fix
+          - finish
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  statuses: write
+
+jobs:
+  build:
+    # Only the repo's owner can start the factory, so nobody else's label or issue text can.
+    if: >-
+      (github.event_name == 'issues' && github.event.label.name == 'factory' && github.event.sender.login == github.repository_owner)
+      || (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner)
+    name: "Factory: ${{ github.event.issue.title || format('issue {0} from {1}', inputs.issue, inputs.from) }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    concurrency:
+      group: factory-issue-${{ github.event.issue.number || inputs.issue }}
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue }}
+      FROM: ${{ inputs.from || 'plan' }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      BASE: ${{ github.event.repository.default_branch }}
+      GH_TOKEN: ${{ github.token }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CLAUDE_ARGS: --permission-mode acceptEdits --allowedTools Bash,Read,Edit,MultiEdit,Write,Glob,Grep,TodoWrite,Task,Skill,mcp__playwright --mcp-config .mcp.json
+      # The books' checks, which no change may edit.
+      PROTECTED: backend/tests/test_books_checks.py
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+
+      - uses: astral-sh/setup-uv@v10.3.3
+
+      # The factory's own scripts and prompts always come from the default branch, never from the
+      # branch being worked on, so a change can't rewrite the factory's rules for itself.
+      - name: Use the factory's scripts from the default branch
+        run: |
+          git archive "origin/$BASE" .github/factory | tar -x -C "$RUNNER_TEMP"
+          echo "FACTORY=$RUNNER_TEMP/.github/factory" >> "$GITHUB_ENV"
+
+      # npm run check:quick looks for secrets with gitleaks, as the project's CI does.
+      - name: Install gitleaks
+        env:
+          VERSION: 8.30.1
+          SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          cd "$RUNNER_TEMP/gitleaks"
+          curl -fsSL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          echo "${SHA256}  gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf gitleaks.tar.gz gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+
+      - name: Install Claude Code, the npm packages and the Python environment
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          npm ci
+          uv sync --frozen
+
+      - name: Name the branch after the issue
+        run: |
+          ISSUE_TITLE=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json title --jq .title)
+          export ISSUE_TITLE
+          echo "ISSUE_TITLE=$ISSUE_TITLE" >> "$GITHUB_ENV"
+          {
+            echo "ISSUE_BODY<<FACTORY_ISSUE_BODY"
+            gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json body --jq .body
+            echo "FACTORY_ISSUE_BODY"
+          } >> "$GITHUB_ENV"
+          BRANCH=$(printf '%s' "$ISSUE_TITLE" | sed -E 's/^[Ii]ntent: *//' | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+          export BRANCH
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          if [ "$FROM" = plan ]; then git switch -c "$BRANCH"; else git switch "$BRANCH"; fi
+          git config user.name "Accountable factory"
+          git config user.email "factory@users.noreply.github.com"
+          node "$FACTORY/factory.mjs" start
+
+      - name: Plan
+        run: node "$FACTORY/factory.mjs" stage plan
+      - name: Design
+        run: node "$FACTORY/factory.mjs" stage design
+      - name: "Build: plan.md"
+        run: node "$FACTORY/factory.mjs" stage build-plan
+      - name: Build
+        run: node "$FACTORY/factory.mjs" stage build
+      - name: Test
+        run: node "$FACTORY/factory.mjs" stage test
+      - name: Open a draft pull request
+        run: node "$FACTORY/factory.mjs" pull-request
+      - name: Review, by a second agent in a fresh session
+        run: |
+          node "$FACTORY/factory.mjs" stage review
+          node "$FACTORY/factory.mjs" post-review
+      - name: Review fixes
+        run: node "$FACTORY/factory.mjs" stage review-fix
+      - name: Ready for a person to review and merge
+        run: node "$FACTORY/factory.mjs" finish
+
+      - name: Mark where it stopped
+        if: failure()
+        run: node "$FACTORY/factory.mjs" failed
+
+      - name: Keep the agents' transcripts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: factory-logs-${{ github.event.issue.number || inputs.issue }}
+          path: ${{ runner.temp }}/factory-logs
+          if-no-files-found: ignore

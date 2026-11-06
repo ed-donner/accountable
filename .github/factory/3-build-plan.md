@@ -1,0 +1,1 @@
+Read the intent for this branch, in docs/changes/, with docs/spec.md, and write plan.md beside the intent with four sections: Files that change, Order of work, Risks and Proof. Proof lists the unit and end-to-end tests. The plan ends with the build, since ui-check and the review come later. Don't write any code yet. Leave the commits to me.

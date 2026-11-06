@@ -89,7 +89,7 @@ function OrganizationRow({ row, view, largest, open, onToggle }: RowProps) {
   return (
     <>
       <tr className="cursor-pointer hover:bg-page" onClick={onToggle}>
-        <td className={`${CELL} min-w-[200px]`}>
+        <td className={`${CELL} min-w-[240px] whitespace-nowrap`}>
           <div className="flex items-center gap-1">
             <button
               type="button"

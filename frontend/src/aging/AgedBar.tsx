@@ -60,7 +60,7 @@ type TipProps = {
   noun: string;
 };
 
-/** The part pointed at: the organization, the part with its swatch, what's owed in it and how many (X13). */
+/** The part pointed at: the organization, the part with its swatch, what's owed in it and how many, in that order (X13). */
 function Tip({ active, payload, row, noun }: TipProps) {
   const key = payload?.[0]?.dataKey;
   const part = LATE_PARTS.find((late) => late.key === key);
@@ -68,14 +68,15 @@ function Tip({ active, payload, row, noun }: TipProps) {
   if (!active || !part || !sum) return null;
   return (
     <ChartTooltip
-      value={price(sum.cents)}
       label={
         <>
           <span className="block text-ink">{row.name}</span>
           <span className="flex items-center gap-1.5">
             <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: part.color }} />
-            {part.label}, {plural(sum.count, noun)}
+            {part.label}
           </span>
+          <span className="num block text-ink">{price(sum.cents)}</span>
+          <span className="block">{plural(sum.count, noun)}</span>
         </>
       }
     />

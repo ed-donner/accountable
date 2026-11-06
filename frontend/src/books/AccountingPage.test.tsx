@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 
 import { AgedBalances } from "./pages/AgedBalances";
 import { BalanceSheet } from "./pages/BalanceSheet";
-import { Journal } from "./pages/Journal";
 import { ProfitAndLoss } from "./pages/ProfitAndLoss";
 import { Shell, type Section } from "../components/Shell";
 import { queryDefaults } from "../lib/queryDefaults";
@@ -30,12 +29,6 @@ const PAGES = [
     BalanceSheet,
     "Balance sheet",
     "What the business owns and owes on any day you choose, and what's left over for the owner.",
-  ],
-  [
-    "/accounting/journal",
-    Journal,
-    "Journal",
-    "Every entry in the books, newest first, each linking to the invoice, payment or bill it came from.",
   ],
   [
     "/accounting/aged-balances",

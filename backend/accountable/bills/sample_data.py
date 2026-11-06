@@ -263,7 +263,8 @@ def fill(conn: Connection, today: date) -> None:
     supplier_ids = {**_add_suppliers(conn, today), **_customers(conn)}
     counted = dict.fromkeys(NUMBERING, 0)
     rows = []
-    for number, bill in enumerate(sample_bills(today)):
+    named = sample_bills(today)
+    for number, bill in enumerate(named):
         pattern, start = NUMBERING[bill.supplier]
         bill_number = pattern.format(start + counted[bill.supplier])
         counted[bill.supplier] += 1
@@ -284,11 +285,11 @@ def fill(conn: Connection, today: date) -> None:
             }
         )
     ids = conn.scalars(insert(bills).returning(bills.c.id, sort_by_parameter_order=True), rows)
-    for bill_id, row in zip(ids, rows, strict=True):
-        _post(conn, bill_id, row)
+    for bill_id, row, bill in zip(ids, rows, named, strict=True):
+        _post(conn, bill_id, row, bill.supplier)
 
 
-def _post(conn: Connection, bill_id: int, row: dict[str, Any]) -> None:
+def _post(conn: Connection, bill_id: int, row: dict[str, Any], supplier: str) -> None:
     """The bill's entry, put down to who added it, and its paid entry, put down to who marked it paid."""
     total = row["amount_cents"] + row["tax_cents"]
     books_post.bill_added(
@@ -297,10 +298,18 @@ def _post(conn: Connection, bill_id: int, row: dict[str, Any]) -> None:
         on=row["bill_date"],
         total_cents=total,
         category=row["category"],
+        bill_number=row["bill_number"],
+        supplier=supplier,
         user=row["created_by"],
         now=row["created_at"],
     )
     if row["paid_on"] is not None:
         books_post.bill_paid(
-            conn, bill_id=bill_id, on=row["paid_on"], total_cents=total, user=row["updated_by"], now=row["updated_at"]
+            conn,
+            bill_id=bill_id,
+            on=row["paid_on"],
+            total_cents=total,
+            bill_number=row["bill_number"],
+            user=row["updated_by"],
+            now=row["updated_at"],
         )

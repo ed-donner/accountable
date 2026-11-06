@@ -27,9 +27,12 @@ const AREAS = readdirSync(SOURCE).filter(
 // open, and nothing else of theirs. Later areas never import each other, and the first
 // ones never import them.
 const FIRST_AREAS = ["crm", "products"];
+// The one part of the books any area may import: the Accounting panel on its records (J19).
+const SHARED_FROM_BOOKS = "books/AccountingPanel.tsx";
 const BUILT_ON: Record<string, string[]> = {
   crm: ["crm/queries.ts", "crm/deals.ts"],
   products: ["products/queries.ts"],
+  books: [SHARED_FROM_BOOKS],
 };
 
 function areaOf(file: string) {
@@ -82,6 +85,9 @@ describe("the layout rules", () => {
     ["crm/queries.ts", true],
     ["crm/deals.ts", true],
     ["products/queries.ts", true],
+    ["books/AccountingPanel.tsx", true],
+    ["books/queries.ts", false],
+    ["books/EntryList.tsx", false],
     ["crm/pages/Deal.tsx", false],
     ["crm/StageChip.tsx", false],
     ["products/ProductForm.tsx", false],
@@ -129,7 +135,8 @@ describe("the layout rules", () => {
     const wrong = appCode()
       .filter(isLaterArea)
       .flatMap((file) => imported(file).map((target) => ({ file, target })))
-      .filter(({ file, target }) => isLaterArea(target) && areaOf(target) !== areaOf(file));
+      .filter(({ file, target }) => isLaterArea(target) && areaOf(target) !== areaOf(file))
+      .filter(({ target }) => target !== SHARED_FROM_BOOKS);
     expect(wrong).toEqual([]);
   });
 });
@@ -145,15 +152,41 @@ describe("the cash flow", () => {
 });
 
 describe("the books", () => {
-  it("import no other area, and only App.tsx names them", () => {
-    const own = appCode().filter((file) => areaOf(file) === "books");
-    expect(own).toContain("books/AccountingPage.tsx"); // The check is looking in the right place.
-    const importing = own.flatMap((file) => imported(file));
-    expect(importing.filter((target) => ![undefined, "books"].includes(areaOf(target)))).toEqual([]);
-    const naming = appCode()
+  const own = () => appCode().filter((file) => areaOf(file) === "books");
+  const outsideImportsOfBooks = () =>
+    appCode()
       .filter((file) => areaOf(file) !== "books")
-      .filter((file) => imported(file).some((target) => areaOf(target) === "books"));
-    expect(naming).toEqual(["App.tsx"]);
+      .flatMap((file) => imported(file).map((target) => ({ file, target })))
+      .filter(({ target }) => areaOf(target) === "books");
+
+  it("import no other area", () => {
+    expect(own()).toContain("books/AccountingPanel.tsx"); // The check is looking in the right place.
+    const importing = own().flatMap((file) => imported(file));
+    expect(importing.filter((target) => ![undefined, "books"].includes(areaOf(target)))).toEqual([]);
+  });
+
+  it("are named by App.tsx and, for the Accounting panel alone, by the invoice and bill pages", () => {
+    const wrong = outsideImportsOfBooks().filter(
+      ({ file, target }) => file !== "App.tsx" && target !== SHARED_FROM_BOOKS,
+    );
+    expect(wrong).toEqual([]);
+    const panelUsers = outsideImportsOfBooks()
+      .filter(({ target }) => target === SHARED_FROM_BOOKS)
+      .map(({ file }) => file);
+    expect(panelUsers.sort()).toEqual(["bills/pages/Bill.tsx", "invoices/pages/Invoice.tsx"]);
+  });
+
+  it("let any area import the Accounting panel and nothing else of theirs", () => {
+    const outside = outsideImportsOfBooks().filter(({ file }) => file !== "App.tsx");
+    expect(outside.length).toBeGreaterThan(0); // The check is looking in the right place.
+    expect(outside.every(({ target }) => target === SHARED_FROM_BOOKS)).toBe(true);
+    // Anything else of the books named from another area would show up here.
+    expect(outside.filter(({ target }) => target.startsWith("books/queries"))).toEqual([]);
+  });
+
+  it("keep the Accounting panel's own imports to the books and the shared parts", () => {
+    const panel = imported("books/AccountingPanel.tsx");
+    expect(panel.every((target) => [undefined, "books"].includes(areaOf(target)))).toBe(true);
   });
 });
 

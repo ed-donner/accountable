@@ -382,3 +382,10 @@ def test_empty_run_twice_leaves_cash_as_it_was(changed_settings):
 def test_empty_with_no_opening_balance_leaves_no_entry(with_records):
     assert cli.main(["empty", "--yes"]) == 0
     assert counts() == EMPTY
+
+
+def test_empty_reposts_the_opening_balance_with_its_description_and_no_document(changed_settings):
+    cli.main(["empty", "--yes"])
+    with db.reading() as conn:
+        [entry] = conn.execute(select(journal_entries.c.description, journal_entries.c.document)).all()
+    assert tuple(entry) == ("Opening balance set", None)

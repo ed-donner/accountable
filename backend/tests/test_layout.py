@@ -226,3 +226,8 @@ def test_sqlite_specific_code_stays_in_db():
     for path in sources():
         if path.name != "db.py":
             assert "sqlite3" not in path.read_text(), path
+
+
+def test_the_books_wording_imports_nothing_but_the_standard_library():
+    tree = ast.parse((PACKAGE / "books" / "describe.py").read_text())
+    assert not [node for node in ast.walk(tree) if isinstance(node, ast.Import | ast.ImportFrom)]

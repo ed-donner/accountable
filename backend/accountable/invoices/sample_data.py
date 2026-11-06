@@ -255,7 +255,14 @@ def _write(conn: Connection, plan: Planned, lines: list[Line], settings: Row, nu
             .returning(payments.c.id)
         ).scalar_one()
         books_post.payment_recorded(
-            conn, payment_id=payment_id, invoice_id=invoice_id, on=paid_on, cents=cents, user=recorder, now=recorded_at
+            conn,
+            payment_id=payment_id,
+            invoice_id=invoice_id,
+            on=paid_on,
+            cents=cents,
+            number=values["number"],
+            user=recorder,
+            now=recorded_at,
         )
 
 
@@ -270,6 +277,7 @@ def _post_issue(conn: Connection, invoice_id: int, values: dict[str, Any], plan:
         subtotal_cents=values["subtotal_cents"],
         tax_cents=values["tax_cents"],
         total_cents=values["total_cents"],
+        number=values["number"],
         user=values["issued_by"],
         now=issued_at,
     )

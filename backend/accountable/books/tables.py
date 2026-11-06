@@ -33,6 +33,10 @@ journal_entries = Table(
     Column("event", Text, nullable=False),
     # The page that opens the source. A deleted source keeps its address.
     Column("link", Text, nullable=False),
+    # A line of plain words written when the entry is posted, and the number the person knows the
+    # record by: blank for the opening balance (J4).
+    Column("description", Text, nullable=False, server_default=""),
+    Column("document", Text),
     # The entry this one reverses. At most one reversal per entry.
     Column("reverses_id", ForeignKey("journal_entries.id")),
     # Blank for the entries the migration posted for records that already existed (J8).
@@ -65,6 +69,7 @@ journal_lines = Table(
     ),
     Index("ix_journal_lines_entry_id", "entry_id"),
     Index("ix_journal_lines_account", "account"),
+    Index("ix_journal_lines_account_entry", "account", "entry_id"),
     **TABLE_OPTIONS,
 )
 

@@ -9,12 +9,13 @@ from collections import defaultdict
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Query
-from sqlalchemy import Connection, exists, func, select
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import Connection, exists, func, or_, select
 
 from accountable import api, db, months
 from accountable.books import accounts, schemas
-from accountable.books.tables import journal_entries, journal_lines
+from accountable.books.tables import BILL, BILL_PAYMENT, journal_entries, journal_lines
+from accountable.search import holding
 from accountable.users import person, users
 
 router = APIRouter(prefix="/books")
@@ -135,7 +136,14 @@ def totals_by_month(
     return schemas.Months(months=replies)
 
 
-def _matching(account: str | None, first: date | None, last: date | None):
+def _matching(
+    account: str | None,
+    first: date | None,
+    last: date | None,
+    text: str | None,
+    kind: str | None,
+    source_id: int | None,
+):
     """The conditions on entries for the page and its count."""
     conditions = []
     if first is not None:
@@ -146,6 +154,14 @@ def _matching(account: str | None, first: date | None, last: date | None):
         conditions.append(
             exists().where(journal_lines.c.entry_id == journal_entries.c.id, journal_lines.c.account == account)
         )
+    if text is not None:
+        contains = holding(text)
+        conditions.append(or_(contains(journal_entries.c.description), contains(journal_entries.c.document)))
+    if kind is not None and source_id is not None:
+        # A bill's paid entries have the bill as their source too.
+        kinds = [BILL, BILL_PAYMENT] if kind == BILL else [kind]
+        conditions.append(journal_entries.c.kind.in_(kinds))
+        conditions.append(journal_entries.c.source_id == source_id)
     return conditions
 
 
@@ -154,11 +170,24 @@ def entries(
     account: Annotated[schemas.AccountQuery | None, Query()] = None,
     first: Annotated[date | None, Query(alias="from")] = None,
     last: Annotated[date | None, Query(alias="to")] = None,
+    q: Annotated[schemas.TextQuery | None, Query()] = None,
+    kind: Annotated[schemas.KindQuery | None, Query()] = None,
+    source_id: Annotated[schemas.SourceQuery | None, Query()] = None,
     limit: schemas.Limit = schemas.DEFAULT_LIMIT,
     offset: schemas.Offset = 0,
 ) -> schemas.Entries:
-    """The entries behind a figure, newest first and then by id, each with all of its lines."""
-    conditions = _matching(account, first, last)
+    """The entries behind a figure, newest first and the newest posted first within a day, each with all of its lines.
+
+    Narrowed to one record's entries, by kind and id together, they come oldest first, as a panel shows them.
+    """
+    if (kind is None) != (source_id is None):
+        raise api.FieldError({"source_id" if kind else "kind": schemas.TOGETHER_MESSAGE})
+    conditions = _matching(account, first, last, q, kind, source_id)
+    order = (
+        (journal_entries.c.entry_date, journal_entries.c.id)
+        if kind is not None
+        else (journal_entries.c.entry_date.desc(), journal_entries.c.id.desc())
+    )
     with db.reading() as conn:
         page = conn.execute(
             select(
@@ -170,7 +199,7 @@ def entries(
             .outerjoin(_reversal, _reversal.c.reverses_id == journal_entries.c.id)
             .outerjoin(users, users.c.id == journal_entries.c.created_by)
             .where(*conditions)
-            .order_by(journal_entries.c.entry_date.desc(), journal_entries.c.id)
+            .order_by(*order)
             .limit(limit)
             .offset(offset)
         ).all()
@@ -183,6 +212,89 @@ def entries(
                 **{key: value for key, value in row._mapping.items() if key != "created_by"},
                 created_by=person(row.created_by, row.created_by_name, row.created_by_email),
                 lines=lines[row.id],
+            )
+            for row in page
+        ],
+    )
+
+
+@router.get("/accounts/{key}/ledger")
+def ledger(key: str, limit: schemas.Limit = schemas.DEFAULT_LIMIT, offset: schemas.Offset = 0) -> schemas.Ledger:
+    """Every line that touched the account, newest first, each with the account's running balance after it.
+
+    One query ranks the account's lines by date, entry and line and adds them up in the database, so a later
+    page has the same balances as the first (J14). A second counts the lines and totals the account.
+    """
+    account = accounts.BY_KEY.get(key)
+    if account is None:
+        raise HTTPException(404, "Account not found")
+    amount = (
+        journal_lines.c.debit_cents - journal_lines.c.credit_cents
+        if account.debit_normal
+        else journal_lines.c.credit_cents - journal_lines.c.debit_cents
+    )
+    ordering = (journal_entries.c.entry_date, journal_entries.c.id, journal_lines.c.id)
+    ranked = (
+        select(
+            journal_lines.c.id,
+            journal_lines.c.entry_id,
+            journal_lines.c.debit_cents,
+            journal_lines.c.credit_cents,
+            journal_entries.c.entry_date,
+            journal_entries.c.kind,
+            journal_entries.c.event,
+            journal_entries.c.description,
+            journal_entries.c.document,
+            journal_entries.c.link,
+            journal_entries.c.reverses_id,
+            _reversal.c.id.label("reversed_by_id"),
+            func.sum(amount).over(order_by=ordering).label("running"),
+        )
+        .join(journal_entries, journal_entries.c.id == journal_lines.c.entry_id)
+        .outerjoin(_reversal, _reversal.c.reverses_id == journal_entries.c.id)
+        .where(journal_lines.c.account == key)
+        .subquery()
+    )
+    with db.reading() as conn:
+        page = conn.execute(
+            select(ranked)
+            .order_by(ranked.c.entry_date.desc(), ranked.c.entry_id.desc(), ranked.c.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+        count, debits, credits, latest = conn.execute(
+            select(
+                func.count(),
+                func.coalesce(func.sum(journal_lines.c.debit_cents), 0),
+                func.coalesce(func.sum(journal_lines.c.credit_cents), 0),
+                func.max(journal_entries.c.entry_date),
+            )
+            .select_from(journal_lines)
+            .join(journal_entries, journal_entries.c.id == journal_lines.c.entry_id)
+            .where(journal_lines.c.account == key)
+        ).one()
+    return schemas.Ledger(
+        key=key,
+        name=account.name,
+        type=account.type,
+        balance_cents=accounts.balance(key, int(debits), int(credits)),
+        total=count,
+        last_entry_date=latest,
+        lines=[
+            schemas.LedgerLine(
+                id=row.id,
+                entry_id=row.entry_id,
+                entry_date=row.entry_date,
+                kind=row.kind,
+                event=row.event,
+                description=row.description,
+                document=row.document,
+                link=row.link,
+                is_reversal=row.reverses_id is not None,
+                is_reversed=row.reversed_by_id is not None,
+                debit_cents=row.debit_cents,
+                credit_cents=row.credit_cents,
+                balance_cents=int(row.running),
             )
             for row in page
         ],

@@ -76,7 +76,16 @@ def test_the_data_really_is_at_the_limits(full):
 CASH_FLOW_MONTH = "/api/cash-flow/expected?month=2026-11"
 
 
-BOOKS = ["/api/books/balances", "/api/books/months", "/api/books/entries"]
+BOOKS = [
+    "/api/books/balances",
+    "/api/books/months",
+    "/api/books/entries",
+    # A search and a filter together, and the biggest ledger's page (J14).
+    "/api/books/entries?q=limits&account=cash&from=2025-01-01&to=2026-12-31",
+    "/api/books/entries?kind=invoice&source_id=5",
+    "/api/books/accounts/cash/ledger",
+    "/api/books/accounts/receivable/ledger?offset=100",
+]
 
 
 @pytest.mark.parametrize(
@@ -162,6 +171,8 @@ QUERIES = {
     "/api/books/balances": 1,
     "/api/books/months": 2,
     "/api/books/entries": 3,
+    # The ranked page and the count with the account's totals.
+    "/api/books/accounts/cash/ledger": 2,
 }
 
 

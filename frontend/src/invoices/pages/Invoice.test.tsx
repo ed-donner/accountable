@@ -9,6 +9,7 @@ import type { CompanySettings } from "../../company/settings";
 import { todayIso } from "../../lib/dates";
 import { queryDefaults } from "../../lib/queryDefaults";
 import { holdSaves, mockApi, user, type Call } from "../../test-utils";
+import { entriesReply, entry } from "../../books/test-books";
 import type { DraftRequest, InvoiceDetail, InvoiceLine } from "../queries";
 import { Invoice } from "./Invoice";
 
@@ -213,6 +214,11 @@ describe("a draft's page", () => {
       expect(figures()).toEqual([dollars(item.subtotal), dollars(item.tax), dollars(item.total)]);
     },
   );
+
+  it("has no Accounting panel, because a draft posts nothing", async () => {
+    await draftPage();
+    expect(screen.queryByRole("region", { name: "Accounting" })).toBeNull();
+  });
 
   it("adds a line from the active products only, taking its name, price and description", async () => {
     await draftPage({ ...DRAFT, lines: [] });
@@ -568,6 +574,52 @@ describe("an issued invoice's page", () => {
     await user().click(within(question).getByRole("button", { name: "Delete payment" }));
     expect(await screen.findByText("No payments yet.")).toBeTruthy();
     expect(sent(calls, "DELETE")[0].path).toBe("/invoices/7/payments/3");
+  });
+
+  it("has an Accounting panel at the foot of the left column with the invoice's own entries", async () => {
+    const { calls } = await issuedPage(ISSUED, {
+      "GET /books/entries?kind=invoice&source_id=7&limit=500": entriesReply([
+        entry({ description: "Invoice INV-0042 issued" }),
+      ]),
+    });
+    const panel = screen.getByRole("region", { name: "Accounting" });
+    expect(await within(panel).findByRole("article")).toBeTruthy();
+    const payments = screen.getByRole("region", { name: "Payments" });
+    expect(payments.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // A payment has its own button, and its entries are not read until it is opened.
+    expect(calls.some((call) => call.path.includes("kind=payment"))).toBe(false);
+  });
+
+  it("says a void invoice's entries include the reversal", async () => {
+    await issuedPage(
+      { ...ISSUED, status: "void", shows_as: "void", payments: [], paid_cents: 0, owed_cents: 0 },
+      {
+        "GET /books/entries?kind=invoice&source_id=7&limit=500": entriesReply([
+          entry({ id: 1, reversed_by_id: 2 }),
+          entry({ id: 2, reverses_id: 1, description: "Invoice INV-0042 voided" }),
+        ]),
+      },
+    );
+    const panel = screen.getByRole("region", { name: "Accounting" });
+    expect(await within(panel).findAllByRole("article")).toHaveLength(2);
+    expect(within(panel).getByText("Reversal")).toBeTruthy();
+  });
+
+  it("opens a payment's entries under its row from the Accounting button, and closes them again", async () => {
+    await issuedPage(ISSUED, {
+      "GET /books/entries?kind=invoice&source_id=7&limit=500": entriesReply([]),
+      "GET /books/entries?kind=payment&source_id=3&limit=500": entriesReply([
+        entry({ description: "Payment received on INV-0042" }),
+      ]),
+    });
+    const [payment] = screen.getAllByTestId("payment");
+    const open = within(payment).getByRole("button", { name: "Accounting for payment of $750.00" });
+    expect(open.getAttribute("aria-expanded")).toBe("false");
+    await user().click(open);
+    expect(await within(payment).findByRole("article")).toBeTruthy();
+    expect(open.getAttribute("aria-expanded")).toBe("true");
+    await user().click(open);
+    expect(within(payment).queryByRole("article")).toBeNull();
   });
 
   it("offers Void only with no payments", async () => {

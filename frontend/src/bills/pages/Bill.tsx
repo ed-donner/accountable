@@ -12,6 +12,7 @@ import {
   SidePanel,
   type HeaderAction,
 } from "../../components/RecordLayout";
+import { AccountingPanel } from "../../books/AccountingPanel";
 import { ApiError } from "../../lib/api";
 import { formatDate } from "../../lib/dates";
 import { price } from "../../lib/money";
@@ -74,6 +75,7 @@ function BillRecord({ id }: { id: number }) {
             <p className="text-muted">No notes.</p>
           )}
         </SidePanel>
+        <AccountingPanel kind="bill" id={record.id} />
       </RecordColumns>
       {dialog === "edit" && <BillForm record={record} onClose={close} />}
       {dialog === "pay" && <MarkPaidDialog bill={record} onClose={close} />}

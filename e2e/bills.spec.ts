@@ -360,3 +360,31 @@ test("a bill's page says who added it and who marked it paid", async ({ page, re
   await expect(details(page)).toContainText(`Last changed by Dana Whitfield on ${shown(isoDay())}`);
   await expect(pageHeader(page).getByText("Paid", { exact: true })).toBeVisible();
 });
+
+test("a bill's Accounting panel shows each entry and reversal as it is added, paid and changed, and an account opens its ledger", async ({
+  page,
+  request,
+}) => {
+  const supplier = await addOrganization(request, "Northwind Software");
+  const bill = await addBill(request, { organization_id: supplier.id, bill_number: "NS-77" });
+  await page.goto(`/bills/${bill.id}`);
+  const panel = page.getByRole("region", { name: "Accounting" });
+  await expect(panel.getByRole("article")).toHaveCount(1);
+  await expect(panel).toContainText("Bill NS-77 from Northwind Software");
+
+  expect((await request.patch(`/api/bills/${bill.id}`, { data: { paid_on: isoDay() } })).ok()).toBe(true);
+  await page.reload();
+  await expect(panel.getByRole("article")).toHaveCount(2);
+  await expect(panel).toContainText("Bill NS-77 paid");
+
+  expect((await request.patch(`/api/bills/${bill.id}`, { data: { amount_cents: 25000 } })).ok()).toBe(true);
+  await page.reload();
+  // Added, paid, then the entry and the paid entry reversed and posted again.
+  await expect(panel.getByRole("article")).toHaveCount(6);
+  await expect(panel.getByText("Reversal")).toHaveCount(2);
+  await expect(panel.getByText("Reversed", { exact: true })).toHaveCount(2);
+
+  await panel.getByRole("link", { name: "Payable" }).first().click();
+  await expect(page).toHaveURL(/\/accounting\/accounts\/payable$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Payable" })).toBeVisible();
+});

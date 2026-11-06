@@ -7,8 +7,9 @@ from typing import Annotated
 from fastapi import Query
 from pydantic import AfterValidator, BaseModel
 
-from accountable.api import CentsSum, PageOffset, UtcTime
-from accountable.books import accounts
+from accountable.api import MAX_ID, CentsSum, PageOffset, UtcTime
+from accountable.books import accounts, tables
+from accountable.search import SearchText
 from accountable.users import Person
 
 DATE_MESSAGE = "Enter a date, such as 2026-12-31"
@@ -17,6 +18,10 @@ RANGE_MESSAGE = "The first month can't be after the last"
 TOO_MANY_MONTHS = "Choose up to 60 months"
 ACCOUNT_MESSAGE = "Choose one of the books' accounts"
 LIMIT_MESSAGE = "Choose a number from 1 to 500"
+KIND_MESSAGE = "Choose a kind of record: invoice, payment, bill, bill_payment or opening_balance"
+SOURCE_MESSAGE = "Enter a record's number"
+TOGETHER_MESSAGE = "Give the kind and the record's number together"
+SEARCH_MESSAGE = "Search for 1 to 100 characters"
 
 FIELD_MESSAGES = {
     "on": DATE_MESSAGE,
@@ -24,6 +29,9 @@ FIELD_MESSAGES = {
     "to": DATE_MESSAGE,
     "account": ACCOUNT_MESSAGE,
     "limit": LIMIT_MESSAGE,
+    "kind": KIND_MESSAGE,
+    "source_id": SOURCE_MESSAGE,
+    "q": SEARCH_MESSAGE,
 }
 
 MAX_MONTHS = 60
@@ -45,6 +53,16 @@ def _account(value: str) -> str:
     return value
 
 
+def _kind(value: str) -> str:
+    if value not in KINDS:
+        raise ValueError(KIND_MESSAGE)
+    return value
+
+
+KINDS = (tables.INVOICE, tables.PAYMENT, tables.BILL, tables.BILL_PAYMENT, tables.OPENING_BALANCE)
+KindQuery = Annotated[str, Query(), AfterValidator(_kind)]
+SourceQuery = Annotated[int, Query(ge=1, le=MAX_ID)]
+TextQuery = SearchText
 MonthQuery = Annotated[str, Query(), AfterValidator(_month)]
 AccountQuery = Annotated[str, Query(), AfterValidator(_account)]
 Limit = Annotated[int, Query(ge=1, le=500)]
@@ -96,6 +114,8 @@ class Entry(BaseModel):
     source_id: int
     event: str
     link: str
+    description: str
+    document: str | None
     reverses_id: int | None
     reversed_by_id: int | None
     created_by: Person | None
@@ -106,3 +126,32 @@ class Entry(BaseModel):
 class Entries(BaseModel):
     total: int
     entries: list[Entry]
+
+
+class LedgerLine(BaseModel):
+    """One line that touched the account, with the account's balance after it."""
+
+    id: int
+    entry_id: int
+    entry_date: date
+    kind: str
+    event: str
+    description: str
+    document: str | None
+    link: str
+    is_reversal: bool
+    is_reversed: bool
+    debit_cents: int
+    credit_cents: int
+    balance_cents: CentsSum
+
+
+class Ledger(BaseModel):
+    key: str
+    name: str
+    type: str
+    balance_cents: CentsSum
+    """After the account's newest line, so every entry counts, any dated after today included."""
+    total: int
+    last_entry_date: date | None
+    lines: list[LedgerLine]

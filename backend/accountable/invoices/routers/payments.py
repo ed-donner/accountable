@@ -68,6 +68,7 @@ def record_payment(
             invoice_id=invoice_id,
             on=received["paid_on"],
             cents=received["amount_cents"],
+            number=invoice.number,
             user=user,
             now=now,
         )

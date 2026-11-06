@@ -558,7 +558,6 @@ describe("the app, signed in", () => {
   it.each([
     ["/accounting/profit-and-loss", "Profit and loss", "What the business earned"],
     ["/accounting/balance-sheet", "Balance sheet", "What the business owns and owes"],
-    ["/accounting/journal", "Journal", "Every entry in the books"],
     ["/accounting/aged-balances", "Aged balances", "What customers owe"],
   ])("opens %s inside the top bar, with no section marked", async (address, title, words) => {
     mockApi({ "GET /meta": META, "GET /me": ALEX });
@@ -569,6 +568,60 @@ describe("the app, signed in", () => {
     expect(screen.getByText(new RegExp(words))).toBeTruthy();
     expect(topBar().getAllByRole("link")).toHaveLength(9);
     expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+  });
+
+  it("opens the Journal inside the top bar, with no section marked, as a real page", async () => {
+    mockApi({
+      "GET /meta": META,
+      "GET /me": ALEX,
+      "GET /books/entries?limit=100&offset=0": { total: 0, entries: [] },
+      "GET /books/entries?limit=1": { total: 0, entries: [] },
+    });
+    render(<App />);
+    visit("/accounting/journal");
+    expect((await heading()).textContent).toBe("Journal");
+    expect(await screen.findByText(/No entries yet/)).toBeTruthy();
+    expect(screen.queryByText("This report is coming soon.")).toBeNull();
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
+    expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+  });
+
+  it("opens an account's ledger at /accounting/accounts/cash, inside the top bar", async () => {
+    mockApi({
+      "GET /meta": META,
+      "GET /me": ALEX,
+      "GET /books/accounts/cash/ledger?limit=100&offset=0": {
+        key: "cash",
+        name: "Cash",
+        type: "asset",
+        balance_cents: "0",
+        total: 0,
+        last_entry_date: null,
+        lines: [],
+      },
+      "GET /books/months": { months: [] },
+    });
+    render(<App />);
+    visit("/accounting/accounts/cash");
+    expect((await heading()).textContent).toBe("Cash");
+    expect(await screen.findByText("No entries in this account yet.")).toBeTruthy();
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
+    expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+  });
+
+  it("says a ledger for a key that isn't an account no longer exists, with a link back to Journal", async () => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    render(<App />);
+    visit("/accounting/accounts/bank");
+    expect((await heading()).textContent).toBe("This account no longer exists");
+    expect(screen.getByRole("link", { name: "Back to Journal" }).getAttribute("href")).toBe("/accounting/journal");
+  });
+
+  it("leaves the other addresses under /accounting/accounts as no longer existing", async () => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    render(<App />);
+    visit("/accounting/accounts");
+    expect((await heading()).textContent).toBe("This page no longer exists");
   });
 
   it("opens Profit and loss at /accounting, replacing that address", async () => {

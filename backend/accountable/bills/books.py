@@ -19,7 +19,9 @@ def _total(bill: Mapping[str, Any]) -> int:
     return bill["amount_cents"] + bill["tax_cents"]
 
 
-def added(conn: Connection, bill_id: int, bill: Mapping[str, Any], user: str, now: datetime) -> None:
+def added(
+    conn: Connection, bill_id: int, bill: Mapping[str, Any], supplier: str | None, user: str, now: datetime
+) -> None:
     """A new bill posts its entry, and its paid entry too if it was added paid (E25)."""
     post.bill_added(
         conn,
@@ -27,6 +29,8 @@ def added(conn: Connection, bill_id: int, bill: Mapping[str, Any], user: str, no
         on=bill["bill_date"],
         total_cents=_total(bill),
         category=bill["category"],
+        bill_number=bill["bill_number"],
+        supplier=supplier,
         user=user,
         now=now,
     )
@@ -36,7 +40,14 @@ def added(conn: Connection, bill_id: int, bill: Mapping[str, Any], user: str, no
 def _post_paid(conn: Connection, bill_id: int, bill: Mapping[str, Any], user: str, now: datetime, event: str) -> None:
     if bill["paid_on"] is not None:
         post.bill_paid(
-            conn, bill_id=bill_id, on=bill["paid_on"], total_cents=_total(bill), user=user, now=now, event=event
+            conn,
+            bill_id=bill_id,
+            on=bill["paid_on"],
+            total_cents=_total(bill),
+            bill_number=bill["bill_number"],
+            user=user,
+            now=now,
+            event=event,
         )
 
 
@@ -66,6 +77,8 @@ def changed(
             on=after["bill_date"],
             total_cents=_total(after),
             category=after["category"],
+            bill_number=after["bill_number"],
+            supplier=None,
             user=user,
             now=now,
             event="bill_changed",

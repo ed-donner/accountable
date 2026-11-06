@@ -39,7 +39,9 @@ LOCAL_SIGN_IN = [(method, path) for method, path in routes(app) if path.startswi
 # Every route that needs a token, the same in both copies.
 ROUTES = [route for route in routes(app) if route not in LOCAL_SIGN_IN]
 WRITES = [(method, path) for method, path in ROUTES if method in ("POST", "PATCH")]
-RECORD_ROUTES = [(method, path) for method, path in ROUTES if "{" in path]
+# A route named by an account's key and not a record's id: it refuses a key that isn't one of the twelve with a 404.
+KEYED_ROUTES = [("GET", "/api/books/accounts/{key}/ledger")]
+RECORD_ROUTES = [(method, path) for method, path in ROUTES if "{" in path and (method, path) not in KEYED_ROUTES]
 READS = [(method, path) for method, path in ROUTES if method == "GET" and "{" not in path]
 TIMELINES = [path for method, path in ROUTES if path.endswith("/timeline")]
 
@@ -179,11 +181,14 @@ def test_the_routes_were_found():
         ("GET", "/api/books/entries"),
     ]:
         assert route in READS, route
+    assert KEYED_ROUTES[0] in ROUTES and KEYED_ROUTES[0] not in RECORD_ROUTES
     assert QUERY_TEXT == [
         ("GET", "/api/books/balances", "on"),
         ("GET", "/api/books/entries", "account"),
         ("GET", "/api/books/entries", "from"),
         ("GET", "/api/books/entries", "to"),
+        ("GET", "/api/books/entries", "q"),
+        ("GET", "/api/books/entries", "kind"),
         ("GET", "/api/books/months", "from"),
         ("GET", "/api/books/months", "to"),
         ("GET", "/api/cash-flow/expected", "month"),
@@ -232,6 +237,12 @@ def test_a_good_token_gets_past_the_check(copy, method, path):
 @pytest.mark.parametrize("value", [TOO_BIG, -TOO_BIG, 10**30, 0, -1, "abc", "1.5"])
 def test_an_id_that_cant_be_a_record_is_refused(client, method, path, value):
     assert client.request(method, with_id(path, value), json=sample_body(method, path)).status_code == 422
+
+
+@pytest.mark.parametrize("value", ["bank", "1", "Cash", "cash%00"])
+def test_a_key_that_is_not_an_account_is_simply_missing(client, value):
+    [(method, path)] = KEYED_ROUTES
+    assert client.request(method, with_id(path, value)).status_code == 404
 
 
 @pytest.mark.parametrize("method, path", RECORD_ROUTES)

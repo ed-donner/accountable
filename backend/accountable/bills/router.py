@@ -147,7 +147,8 @@ def add_bill(body: schemas.BillCreate, user: CurrentUser, now: api.Now, today: a
         saving.update(bill)
         values = {**bill, "bill_number_key": bill_number_key(bill["bill_number"]), **who.added(user, now)}
         new_id = conn.execute(insert(bills).values(**values).returning(bills.c.id)).scalar_one()
-        books.added(conn, new_id, bill, user, now)
+        supplier = conn.scalar(select(organizations.c.name).where(organizations.c.id == bill["organization_id"]))
+        books.added(conn, new_id, bill, supplier, user, now)
         return _detail(_get(conn, new_id))
 
 

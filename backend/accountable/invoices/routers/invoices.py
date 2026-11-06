@@ -402,6 +402,7 @@ def _issue(conn: Connection, invoice_id: int, user: str, today: date, now: datet
         subtotal_cents=totals.subtotal_cents,
         tax_cents=totals.tax_cents,
         total_cents=totals.total_cents,
+        number=taken.number,
         user=user,
         now=now,
     )

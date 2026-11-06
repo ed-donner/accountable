@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { queryDefaults } from "../../lib/queryDefaults";
 import { mockApi, user, type Call } from "../../test-utils";
+import { entriesReply, entry } from "../../books/test-books";
 import type { BillDetail } from "../queries";
 import { Bill } from "./Bill";
 
@@ -117,6 +118,26 @@ describe("a bill's page", () => {
     expect(notes.textContent).toBe("Ten seats.\nBilled monthly.");
     expect(notes.className).toContain("whitespace-pre-wrap");
     expect(headerButtons()).toEqual(["Edit", "Mark paid", "Delete"]);
+  });
+
+  it("has an Accounting panel below the notes with the bill's entries", async () => {
+    backend(SUBSCRIPTION, {
+      "GET /books/entries?kind=bill&source_id=9&limit=500": entriesReply([
+        entry({ description: "Bill INV-0042 from Northwind Software" }),
+      ]),
+    });
+    show();
+    const panel = await screen.findByRole("region", { name: "Accounting" });
+    expect(await within(panel).findByRole("article")).toBeTruthy();
+    const notes = screen.getByRole("region", { name: "Notes" });
+    expect(notes.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("says No entries. in the panel for a bill that posted none", async () => {
+    backend(SUBSCRIPTION, { "GET /books/entries?kind=bill&source_id=9&limit=500": entriesReply([]) });
+    show();
+    const panel = await screen.findByRole("region", { name: "Accounting" });
+    expect(await within(panel).findByText("No entries.")).toBeTruthy();
   });
 
   it("shows when it was paid, who last changed it, and Mark unpaid", async () => {

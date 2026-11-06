@@ -19,11 +19,8 @@ const PAGES = [
     path: "/accounting/balance-sheet",
     words: "What the business owns and owes on any day you choose, and what's left over for the owner.",
   },
-  {
-    label: "Journal",
-    path: "/accounting/journal",
-    words: "Every entry in the books, newest first, each linking to the invoice, payment or bill it came from.",
-  },
+  // A real page (J17), which has no placeholder to show.
+  { label: "Journal", path: "/accounting/journal", words: null },
   {
     label: "Aged balances",
     path: "/accounting/aged-balances",
@@ -74,6 +71,14 @@ for (const mode of ["light", "dark"] as const) {
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await expect(menu(page)).toHaveCount(0);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(label);
+      await expect(topBarLinks(page)).toHaveCount(9);
+      await expect(page.locator('nav[aria-label="Sections"] a[aria-current="page"]')).toHaveCount(0);
+      if (words === null) {
+        await expect(page.getByText("This report is coming soon.")).toHaveCount(0);
+        await expect(page.getByRole("searchbox", { name: "Search entries" })).toBeVisible();
+        await expect(page.getByRole("region", { name: "Entries" })).toHaveCSS("background-color", PANEL[mode]);
+        return;
+      }
       const panel = page.getByRole("region", { name: "Report status" });
       await expect(panel.getByText("This report is coming soon.")).toBeVisible();
       await expect(panel.getByText(words)).toBeVisible();

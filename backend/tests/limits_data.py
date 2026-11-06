@@ -307,7 +307,7 @@ def _invoices(
     made = _payments(rows, invoice_ids, today, now)
     payment_ids = conn.scalars(insert(payments).returning(payments.c.id, sort_by_parameter_order=True), made).all()
     _post_invoices(conn, rows, invoice_ids, now)
-    _post_payments(conn, made, payment_ids, now)
+    _post_payments(conn, made, payment_ids, dict(zip(invoice_ids, (row["number"] for row in rows), strict=True)), now)
 
 
 def _post_invoices(conn: Connection, rows: list[dict], invoice_ids: Sequence[int], now: datetime) -> None:
@@ -324,6 +324,7 @@ def _post_invoices(conn: Connection, rows: list[dict], invoice_ids: Sequence[int
             subtotal_cents=row["subtotal_cents"],
             tax_cents=row["tax_cents"],
             total_cents=row["total_cents"],
+            number=row["number"],
             user=row["issued_by"],
             now=now,
         )
@@ -331,7 +332,9 @@ def _post_invoices(conn: Connection, rows: list[dict], invoice_ids: Sequence[int
             post.reverse(conn, source=post.invoice_source(invoice_id), event="invoice_voided", user=None, now=now)
 
 
-def _post_payments(conn: Connection, made: list[dict], payment_ids: Sequence[int], now: datetime) -> None:
+def _post_payments(
+    conn: Connection, made: list[dict], payment_ids: Sequence[int], numbers: dict[int, str], now: datetime
+) -> None:
     from accountable.books import post
 
     for payment_id, payment in zip(payment_ids, made, strict=True):
@@ -341,6 +344,7 @@ def _post_payments(conn: Connection, made: list[dict], payment_ids: Sequence[int
             invoice_id=payment["invoice_id"],
             on=payment["paid_on"],
             cents=payment["amount_cents"],
+            number=numbers[payment["invoice_id"]],
             user=payment["created_by"],
             now=now,
         )
@@ -414,10 +418,26 @@ def _bills(conn: Connection, today: date, now: datetime, organization_ids: Seque
         total = row["amount_cents"] + row["tax_cents"]
         user = row["created_by"]
         post.bill_added(
-            conn, bill_id=bill_id, on=row["bill_date"], total_cents=total, category=row["category"], user=user, now=now
+            conn,
+            bill_id=bill_id,
+            on=row["bill_date"],
+            total_cents=total,
+            category=row["category"],
+            bill_number=row["bill_number"],
+            supplier=f"Supplier {row['organization_id']}",
+            user=user,
+            now=now,
         )
         if row["paid_on"] is not None:
-            post.bill_paid(conn, bill_id=bill_id, on=row["paid_on"], total_cents=total, user=user, now=now)
+            post.bill_paid(
+                conn,
+                bill_id=bill_id,
+                on=row["paid_on"],
+                total_cents=total,
+                bill_number=row["bill_number"],
+                user=user,
+                now=now,
+            )
 
 
 def _opening_balance(conn: Connection, today: date) -> None:

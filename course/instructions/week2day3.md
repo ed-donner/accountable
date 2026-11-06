@@ -1,26 +1,62 @@
 # Week 2 Day 3 instructions
 
-All the prompts to build quotes, invoices and bills at the same time, merge them, bring them together and add a cash flow chart.
+Today a bigger team builds three features at the same time, then five more pieces of work side by side. The lead prepares `main` first. Three developers each build one feature with their own coding agent in their own worktree, and the integration lead merges them, tracking down a bug found along the way. Then the lead makes one Money section while four developers work on the merged code, and the day ends with a first look at the whole app. I recommend that rather than running the exact same Coding Agent runs as me, you simply follow along with my checkpoints. At the end I've laid out every interim step if you'd rather build it yourself.
 
-## Start from main
+## Follow along with my checkpoints
+
+My checkpoints are branches, like my versions of the Week 1 days. In the `accountable` folder:
+
+### The three intents
+
+```
+git checkout week2day3-intents
+```
+
+Read the three intents the developers agreed with their agents, in `docs/changes/quotes/`, `docs/changes/invoices/` and `docs/changes/bills/`. To see what the lead prepared before they started, look at the commits just before them:
+
+```
+git log --oneline -10
+```
+
+### The three features merged
+
+```
+git checkout week2day3-merged
+npm run seed
+npm run dev
+```
+
+`npm run seed` installs anything new the app needs, brings your local database up to date and puts the sample data back, with the new quotes, invoices and bills. It asks first, because it replaces what's in your local copy: type `yes`.
+
+Open the app and look at Quotes, Invoices and Bills in the top bar, and at the Money section at the bottom of the dashboard. In `docs/changes/`, each feature has its plan and its independent review. Stop the app with Ctrl+C when you're done.
+
+### The day's end
+
+```
+git checkout week2day3-end
+npm run seed
+npm run dev
+```
+
+The cash flow chart now leads the Money section. Look at what was done after the merges: one Money section, the review of the three together, quotes now using the invoice designs after the refactor, and one story in the sample data. `docs/STATUS.md` tells the story of each stage. Stop the app with Ctrl+C when you're done.
+
+## If you'd rather build it yourself
+
+These are the steps and prompts behind my checkpoints. They take many hours of agent time, and the cash flow chart alone is a full feature.
+
+### Start from main
 
 Your `main` holds your build from Day 2, with products and company settings merged.
 
-Or to carry on from my Day 2 version. This keeps your own work on a branch called `my-week2day2` and moves your `main` onto my branch, then puts it on your fork:
-
-Your fork's `main` has the ruleset from Day 2, which blocks force pushes, so turn it off first: in your fork on GitHub, open Settings, then Rules, then Rulesets, set the ruleset's **Enforcement status** to **Disabled** and save. Then:
+Or to build on my Day 2 version, this keeps your own work on a branch called `my-week2day2` and moves your `main` onto my branch:
 
 ```
 git checkout main
 git branch my-week2day2
 git checkout --no-track -B main origin/week2day2-end
-git fetch fork
-git push --force-with-lease fork main
 ```
 
-Then set the ruleset back to **Active**.
-
-## Prepare main for three developers
+### Prepare main for three developers
 
 As on Day 2, the lead goes first. Quotes, invoices and bills will each need some of the same changes to shared code, so find them and make them once, before the three developers start.
 
@@ -34,7 +70,7 @@ Start a fresh session (`/clear` in Claude Code), then:
 Today three developers will build quotes, invoices and bills at the same time, each in its own worktree. Their intents are in course/instructions/week2day3.md. Read them with docs/spec.md and the code, and list what two or more of the three would each have to build or change in code they share, so I can make those changes once, first. For each, say which features need it and what you'd change, keeping what the app does the same. Don't change anything yet.
 ```
 
-Read the list. Two overlaps stay with the features on purpose: quotes and invoices each make their own PDF, and invoices and bills each add to a Money section on the dashboard. After the merges, the team brings those together, which is today's refactor. Then:
+Read the list. Two overlaps stay with the features on purpose: quotes and invoices each make their own PDF, and invoices and bills each add to a Money section on the dashboard. After the merges, the team brings those together, which is today's refactor. If the list asks you to decide anything, such as how the top bar fits the new sections, put your answers first in the same message, then:
 
 ```
 Make those changes on this branch, except anything for the PDFs or the Money section, which we'll bring together after the merges. Don't change what the app does. Update the spec and the layout tests to match, and run npm run check. Leave the commits to me.
@@ -54,22 +90,19 @@ Three or four agents will work on this computer at once, each in its own worktre
 ```
 git add .
 git commit -m "Prepare: test runs take turns"
-git push fork prepare
 ```
 
 In a real team each developer has their own computer, so nobody waits for anyone else's tests. Here you play the whole team on one.
 
-**[GitHub step, to write from Ed's recording]** `main` is protected since Day 2, so the lead's change goes through a pull request too: open one for `prepare` against the fork's `main`, and merge it once CI passes.
-
-Then bring your `main` up to date:
+Then merge it into `main`:
 
 ```
 git checkout main
-git pull fork main
+git merge --no-ff prepare
 git branch -d prepare
 ```
 
-## Three developers, three worktrees
+### Three developers, three worktrees
 
 From the `accountable` folder, on `main`:
 
@@ -88,11 +121,11 @@ uv sync
 
 Then start Claude Code in each window, and give all three their prompts at once. Since Prepare main, their test runs take turns.
 
-## The three features
+### The three features
 
 Each feature goes through the same stages as on Day 2, with the same prompts and commits, in its own window. Only the Plan prompt and the build's commit differ.
 
-### Quotes, in accountable-quotes
+#### Quotes, in accountable-quotes
 
 ````
 Create docs/changes/quotes/intent.md with the text below. Then read it with docs/spec.md and ask me about anything unclear, at most three questions. Update the intent with my answers.
@@ -141,7 +174,7 @@ On any open deal, you can create a quote: pick products, set quantities, and adj
 
 The build's commit is `git commit -m "Build: quotes"`.
 
-### Invoices, in accountable-invoices
+#### Invoices, in accountable-invoices
 
 ````
 Create docs/changes/invoices/intent.md with the text below. Then read it with docs/spec.md and ask me about anything unclear, at most three questions. Update the intent with my answers.
@@ -200,7 +233,7 @@ An Invoices section lists every invoice with its status and balance, each deal a
 
 The build's commit is `git commit -m "Build: invoices and payments"`.
 
-### Bills, in accountable-bills
+#### Bills, in accountable-bills
 
 ````
 Create docs/changes/bills/intent.md with the text below. Then read it with docs/spec.md and ask me about anything unclear, at most three questions. Update the intent with my answers.
@@ -250,7 +283,7 @@ A new Money section on the dashboard, below the sales charts, shows what we owe 
 
 The build's commit is `git commit -m "Build: bills"`.
 
-### The stages, in each window
+#### The stages, in each window
 
 After each Plan:
 
@@ -343,23 +376,25 @@ git add .
 git commit -m "Deploy: independent review"
 ```
 
-**[GitHub step, to write from Ed's recording]** push each branch to the fork and open its pull request against the fork's `main`.
+### Merge all three
 
-## Merge all three
-
-Quotes goes first, then invoices, then bills. Before the first merge, note where `main` is, so you can review the three together afterward:
+Merge them in the order they finish, so nobody waits. In my build that was bills, then quotes, then invoices. Before the first merge, note where `main` is, so you can review the three together afterward:
 
 ```
 git tag before-erp main
 ```
 
-### Merge quotes
+#### Merge bills
 
-**[GitHub step, to write from Ed's recording]** merge the quotes pull request on GitHub. Then, in the `accountable` window, `git pull fork main`.
+In the `accountable` window:
 
-### Bring invoices up to date and merge it
+```
+git merge --no-ff bills
+```
 
-In the `accountable-invoices` window:
+#### Bring quotes up to date and merge it
+
+In the `accountable-quotes` window:
 
 ```
 git merge main
@@ -388,45 +423,49 @@ git add .
 git commit -m "Merge: fix after merging main"
 ```
 
-Run `npm run check`, then push, let CI pass and merge the pull request. Then `git pull fork main` in the `accountable` window.
-
-### Bring bills up to date and merge it
-
-The same steps in the `accountable-bills` window.
-
-## Bring the three together
-
-You're now the integration lead. `main` takes changes only through pull requests, so work on a branch, in the `accountable` window:
+Run `npm run check`, then merge it, in the `accountable` window:
 
 ```
-git checkout -b money
+git merge --no-ff quotes
 ```
 
-### One Money section
+#### Bring invoices up to date and merge it
 
-Invoices and bills each added a Money section to the dashboard, and the cash flow chart goes at the top of it later, so this comes first. Start a fresh session, then:
+The same steps in the `accountable-invoices` window: `git merge main`, the merge prompt in a fresh session, `git add .`, `git commit --no-edit` and `npm run check:quick`.
+
+#### A bug that only shows sometimes
+
+In my build, `check:quick` passed here, but `npm run check` failed one test that had passed minutes before:
 
 ```
-Invoices and bills each added to the Money section of the dashboard, on their own. Make it one section designed as a whole, with what customers owe us and what we owe suppliers side by side, in the brand's style. Update the spec to match. Run npm run check when you're done. Leave the commits to me.
+FAIL  src/company/SettingsPage.test.tsx > saving > saves once, however quickly Save settings is pressed, says so and shows who saved
+AssertionError: expected '8.875' to be '8.5'
 ```
+
+Run on its own, it passed 15 times out of 15. A test that fails only sometimes is still a bug to find, so start a fresh session and say what you saw:
+
+```
+After merging main into this branch, npm run check failed one frontend test that had passed in npm run check:quick a few minutes before: "saves once, however quickly Save settings is pressed, says so and shows who saved" in frontend/src/company/SettingsPage.test.tsx, with "AssertionError: expected '8.875' to be '8.5'" at line 272. Run on its own, it passed 15 times out of 15, so it seems to fail only when the computer is busy. Find the root cause and show me the evidence before you fix anything. Then write a test that fails without the fix, fix it and run npm run check. Leave the commits to me.
+```
+
+Read its evidence before you let it fix anything. In my build it found that the settings form went back to the old settings for a moment after every save, and showed it with a trace of the form over hundreds of runs. Then:
 
 ```
 git add .
-git commit -m "Integrate: one Money section"
-git push fork money
+git commit -m "Fix: the settings form went back to the old settings after a save"
 ```
 
-Open its pull request, let CI pass and merge it. Then:
+If your build fails a different way, or not at all, use the same prompt with what you saw in place of the first three sentences.
+
+Run `npm run check`, then merge it, in the `accountable` window:
 
 ```
-git checkout main
-git pull fork main
-git branch -d money
+git merge --no-ff invoices
 ```
 
-## Four developers at once
+### Five at once
 
-Four more pieces of work can now go ahead side by side: a review of the three features together, the refactor, one story in the sample data, and the cash flow chart. From the `accountable` folder, on `main`:
+With the three features in `main`, five pieces of work go ahead side by side: the integration lead's one Money section, a review of the three features together, the refactor, one story in the sample data, and the cash flow chart, the day's finale. Cash flow's build needs the one Money section, so it plans first and builds once the Money section is merged. From the `accountable` folder, on `main`:
 
 ```
 git worktree add ../accountable-review -b review
@@ -435,9 +474,36 @@ git worktree add ../accountable-sample-story -b sample-story
 git worktree add ../accountable-cash-flow -b cash-flow
 ```
 
-Open each in its own VS Code window, run `npm install` and `uv sync` in each, start Claude Code, and give all four their first prompts at once.
+Open each in its own VS Code window, run `npm install` and `uv sync` in each, start Claude Code, and give all four their first prompts. Then start the Money section in the `accountable` window.
 
-### Review the three together, in accountable-review
+#### One Money section, in accountable
+
+Work on a branch of your own, in the `accountable` window:
+
+```
+git checkout -b money
+```
+
+Invoices and bills each added a Money section to the dashboard, and the cash flow chart goes at the top of it later. Start a fresh session, then:
+
+```
+Invoices and bills each added to the Money section of the dashboard, on their own. Make it one section designed as a whole, with what customers owe us and what we owe suppliers side by side, in the brand's style. Update the spec to match. Run npm run check when you're done. Leave the commits to me.
+```
+
+```
+git add .
+git commit -m "Integrate: one Money section"
+```
+
+Then merge it:
+
+```
+git checkout main
+git merge --no-ff money
+git branch -d money
+```
+
+#### Review the three together, in accountable-review
 
 Start a fresh session, then:
 
@@ -454,7 +520,7 @@ git add .
 git commit -m "Integrate: review fixes"
 ```
 
-### Refactor, in accountable-refactor
+#### Refactor, in accountable-refactor
 
 First, tests that pin down what the code does today:
 
@@ -470,7 +536,7 @@ git commit -m "Refactor: characterization tests"
 Then the refactor itself:
 
 ```
-Quotes and invoices each have their own code for line items, totals and the PDF. Bring it together so both use the same code, and so quotes also use the invoice design, accent color and logo chosen in Settings. Keep every characterization test passing without changing it. Update the spec to match. Run npm run check when you're done. Leave the commits to me.
+Quotes and invoices each have their own code for line items, totals and the PDF. Bring it together so both use the same code, and so quotes also use the invoice design, accent color and logo chosen in Settings. If they use two PDF libraries, keep the one invoices use. Change nothing else: not the database, the API's routes or what the pages do. Work in small steps, and run the characterization tests after each one, keeping every one passing without changing it. Update the spec to match. Run npm run check when you're done. Leave the commits to me.
 ```
 
 ```
@@ -478,7 +544,7 @@ git add .
 git commit -m "Refactor: one document renderer"
 ```
 
-### One story in the sample data, in accountable-sample-story
+#### One story in the sample data, in accountable-sample-story
 
 ```
 The sample data for quotes and invoices was written separately. Make it tell one story: every won deal from the last three months has an accepted quote and an invoice with the same lines and the same value as the deal, and the dashboard's figures agree with each other. Run npm run check when you're done. Leave the commits to me.
@@ -489,9 +555,9 @@ git add .
 git commit -m "Integrate: one story in the sample data"
 ```
 
-### Cash flow, in accountable-cash-flow
+#### Cash flow, in accountable-cash-flow
 
-The finale: a new feature built on all three. The same stages as this morning's features, starting with:
+The finale: a new feature built on all three, with the same stages as this morning's features, starting with:
 
 ````
 Create docs/changes/cash-flow/intent.md with the text below. Then read it with docs/spec.md and ask me about anything unclear, at most three questions. Update the intent with my answers.
@@ -533,11 +599,19 @@ A cash flow chart at the top of the dashboard's Money section. For each of the l
 5. On a fresh copy with the sample data, the chart shows a year of history and three months of forecast, and looks like it belongs on the dashboard.
 ````
 
-Then Design, Build, Test and Deploy with the same prompts and commits as the three features. The build's commit is `git commit -m "Build: cash flow"`.
+Then Plan's commit, Design, and plan.md with its commit, with the same prompts as the three features. These only write docs. Once the Money section is merged, bring the branch up to date so it has it:
 
-### Merge the four
+```
+git merge main
+```
 
-Push each branch and open its pull request as it finishes. Merge them in the order they finish. The first merges straight away. For each of the others, bring it up to date first, in its window:
+If git stops with conflicts, start a fresh session and use the merge prompt from this morning, then `git add .` and `git commit --no-edit`. Then Build and Test with the same prompts and commits as the three features. The build's commit is `git commit -m "Build: cash flow"`.
+
+Deploy goes faster than this morning's, with no IMPROVE step and Codex reading at the same time as the reviewer. Start a fresh session with the review prompt, and at the same time start Codex in a second terminal with its prompt. When the reviewer reports, send the review-fix prompt and commit with `git commit -m "Deploy: review fixes"`. If Claude Code mentions that `docs/changes/cash-flow/independent-review.md` appeared while it worked, that's Codex's review, and it gets read in the next step. When Codex has written `independent-review.md`, send the Codex fix prompt in the same Claude Code session and commit with `git commit -m "Deploy: independent review"`.
+
+#### Merge the others
+
+The Money section merges first, as above. Merge the other four in the order they finish, each with `git merge --no-ff <branch>` in the `accountable` window. Bring each one up to date first, in its window:
 
 ```
 git merge main
@@ -549,9 +623,9 @@ If git stops with conflicts, start a fresh session and use the same prompt as th
 Merging main into this branch stopped with conflicts. Resolve each one so that both changes keep working, keeping what each side added. Leave the commits to me.
 ```
 
-Then `git add .`, `git commit --no-edit` and `npm run check:quick`, with the same fix prompt if it fails. Push, let CI pass and merge the pull request, then `git pull fork main` in the `accountable` window.
+Then `git add .`, `git commit --no-edit` and `npm run check:quick`, with the same fix prompt if it fails. Then merge it into `main`.
 
-## Finish together
+### Finish together
 
 Back in the `accountable` window, on a branch of your own:
 
@@ -559,32 +633,24 @@ Back in the `accountable` window, on a branch of your own:
 git checkout -b finish
 ```
 
-### A bug
-
-```
-[What you saw, and the steps to see it.] Find the root cause and show me the evidence before you fix anything. Then write a test that fails without the fix, fix it and run npm run check. Leave the commits to me.
-```
-
-```
-git add .
-git commit -m "Fix: [the bug]"
-```
-
-### The first impression
+#### The first impression
 
 ```
 Use the ui-check subagent to check every page on a fresh copy of the app with the sample data, signed in, in light and dark mode, and show me its report and the screenshots.
 ```
 
-Fix what it finds with the same fix prompt as before, then push `finish`, open its pull request, let CI pass and merge it.
+Fix what it finds with the same fix prompt as before, then merge it:
 
-## Clean up
+```
+git checkout main
+git merge --no-ff finish
+```
+
+### Clean up
 
 Close the worktree windows, then in the `accountable` window:
 
 ```
-git checkout main
-git pull fork main
 git worktree remove ../accountable-quotes
 git worktree remove ../accountable-invoices
 git worktree remove ../accountable-bills

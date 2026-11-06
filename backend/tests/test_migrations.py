@@ -1162,3 +1162,102 @@ def test_on_postgres_the_books_tables_get_row_level_security_and_64_bit_cents_an
     assert "ck_journal_lines_account CHECK (account IN ('cash'" in lines
     assert "ck_journal_lines_one_side" in lines
     assert "CREATE UNIQUE INDEX ix_journal_entries_reverses_id ON journal_entries (reverses_id)" in postgres_sql
+
+
+# The quote an invoice was made from (0013)
+
+
+QUOTE = {
+    "number": "QT-0001",
+    "status": "accepted",
+    "quote_date": date(2026, 3, 1),
+    "valid_until": date(2026, 3, 31),
+    "subtotal_cents": 100000,
+    "created_at": WHEN,
+    "updated_at": WHEN,
+}
+
+
+@pytest.fixture
+def database_from_before_invoice_quotes(tmp_path, monkeypatch):
+    """At 0012 with the invoices, an accepted quote and the books' entries that came with them."""
+    path = tmp_path / "before-invoice-quotes.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    at_0011_with_records(path)
+    db._upgrade(path, "0012")
+    with db.writing() as conn:
+        insert_row(conn, quotes, deal_id=conn.scalar(select(deals.c.id)), **QUOTE)
+    db.dispose()
+    yield path
+    db.dispose()
+
+
+def invoice_rows() -> list[tuple]:
+    with db.reading() as conn:
+        return [
+            tuple(row)
+            for row in conn.execute(select(*(c for c in invoices.c if c.name != "quote_id")).order_by(invoices.c.id))
+        ]
+
+
+def test_0013_matches_the_invoices_table(database):
+    assert live()["invoices"]["indexes"]["ix_invoices_quote_id"] == ("quote_id",)
+    assert (("quote_id",), "quotes", None) in live()["invoices"]["foreign_keys"]
+    [index] = [i for i in inspect(db.engine()).get_indexes(invoices.name) if i["name"] == "ix_invoices_quote_id"]
+    assert index["unique"]
+
+
+def test_upgrading_leaves_every_invoice_as_it_was_with_no_quote(database_from_before_invoice_quotes):
+    with db.reading() as conn:
+        assert "quote_id" not in {c["name"] for c in inspect(conn).get_columns("invoices")}
+    before = invoice_rows()
+    db.dispose()
+
+    assert db.prepare_database(nothing) is False
+
+    assert before
+    assert invoice_rows() == before
+    with db.reading() as conn:
+        assert conn.scalars(select(invoices.c.quote_id)).all() == [None] * len(before)
+        assert conn.scalar(select(func.count()).select_from(quotes)) == 1
+        assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+
+
+def test_after_the_upgrade_the_database_gives_a_quote_one_invoice(database_from_before_invoice_quotes):
+    db.prepare_database(nothing)
+    with db.writing() as conn:
+        quote, deal = conn.execute(select(quotes.c.id, quotes.c.deal_id)).one()
+        insert_row(conn, invoices, deal_id=deal, quote_id=quote, created_at=WHEN, updated_at=WHEN)
+        insert_row(conn, invoices, deal_id=deal, created_at=WHEN, updated_at=WHEN)
+        insert_row(conn, invoices, deal_id=deal, created_at=WHEN, updated_at=WHEN)
+    with pytest.raises(IntegrityError), db.writing() as conn:
+        insert_row(conn, invoices, deal_id=deal, quote_id=quote, created_at=WHEN, updated_at=WHEN)
+    with pytest.raises(IntegrityError), db.writing() as conn:
+        insert_row(conn, invoices, deal_id=deal, quote_id=9999, created_at=WHEN, updated_at=WHEN)
+
+
+def test_downgrading_takes_the_column_and_its_index_and_keeps_the_invoices(database_from_before_invoice_quotes):
+    db.prepare_database(nothing)
+    before = invoice_rows()
+    db.dispose()
+    engine = db._sqlite_engine(
+        db._sqlite_url(database_from_before_invoice_quotes), foreign_keys=False, autocommit=False
+    )
+    config = Config()
+    config.set_main_option("script_location", str(db.MIGRATIONS).replace("%", "%%"))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.downgrade(config, "0012")
+    engine.dispose()
+
+    with db.reading() as conn:
+        assert "quote_id" not in {c["name"] for c in inspect(conn).get_columns("invoices")}
+        assert "ix_invoices_quote_id" not in {i["name"] for i in inspect(conn).get_indexes("invoices")}
+    assert invoice_rows() == before
+
+
+def test_on_postgres_an_invoice_has_a_quote_with_a_unique_index(postgres_sql):
+    assert "ADD COLUMN quote_id INTEGER" in postgres_sql
+    assert "FOREIGN KEY(quote_id) REFERENCES quotes (id)" in postgres_sql
+    assert "CREATE UNIQUE INDEX ix_invoices_quote_id ON invoices (quote_id)" in postgres_sql

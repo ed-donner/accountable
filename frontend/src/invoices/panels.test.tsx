@@ -53,6 +53,7 @@ const ROWS: InvoiceRow[] = [
     due_date: null,
     total_cents: 50000,
     owed_cents: 0,
+    quote_id: null,
   },
   {
     id: 8,
@@ -66,6 +67,7 @@ const ROWS: InvoiceRow[] = [
     due_date: "2026-11-29",
     total_cents: 125000,
     owed_cents: 50000,
+    quote_id: null,
   },
 ];
 

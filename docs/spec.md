@@ -10,7 +10,7 @@ A small business keeps track of its customers and sales in spreadsheets, inboxes
 
 ## What Accountable is
 
-Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. Beyond the CRM, it holds the business's price list and the quotes made from it, each on its deal, which a customer's yes turns into a won deal. It bills customers for won deals: invoices made from the price list, the payments against them, and what's still owed. And it keeps the bills the business receives from suppliers, with what it owes and what it spends. From the money coming in and going out, it shows the business's cash month by month, and what it's likely to be over the next three months. Behind all of it, it keeps double-entry books: every event that moves money posts a journal entry, so the figures can be checked the way an accountant would, and an Accounting menu has the pages the reports go on, of which Aged balances is the first to have its report: who owes the business money and whom it owes, and for how long, on any day up to today. It should feel sharp, modern and professional, and be a pleasure to use.
+Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for a small team, shared on the web: a private Salesforce that does the everyday CRM essentials really well. Beyond the CRM, it holds the business's price list and the quotes made from it, each on its deal, which a customer's yes turns into a won deal. It bills customers for won deals: invoices made from the price list, or from an accepted quote at one click, the payments against them, and what's still owed. And it keeps the bills the business receives from suppliers, with what it owes and what it spends. From the money coming in and going out, it shows the business's cash month by month, and what it's likely to be over the next three months. Behind all of it, it keeps double-entry books: every event that moves money posts a journal entry, so the figures can be checked the way an accountant would, and an Accounting menu has the pages the reports go on, of which Aged balances is the first to have its report: who owes the business money and whom it owes, and for how long, on any day up to today. It should feel sharp, modern and professional, and be a pleasure to use.
 
 **Who uses it:** a small sales team, sharing one Accountable every day with their own real data. Each person signs in with their own email and password, everyone works on the same records, and each record shows who added it. They start from the sample data to look around, then clear it and type in their own records. No other systems are involved yet.
 
@@ -39,8 +39,8 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - **Deal:** a potential sale, with an organization and a main contact, moving through six stages.
 - **Activity:** a note, call or email that happened, or needs to happen, with a contact or a deal, with an optional follow-up date.
 - **Product:** something the business sells, with a unique name, a description and a unit price in dollars and cents. It's archived rather than deleted once it's no longer sold.
-- **Quote:** the prices offered on a deal, as lines from the price list with a quantity and a price each, added up with the tax. It's a draft until it's sent, then accepted or declined, and it's never deleted.
-- **Invoice:** a bill for a won deal, made of lines from the price list, with tax from the company settings. It starts as a draft, gets its number when it's issued and never changes after, and can be voided but not deleted once issued.
+- **Quote:** the prices offered on a deal, as lines from the price list with a quantity and a price each, added up with the tax. It's a draft until it's sent, then accepted or declined, and it's never deleted. An accepted one can make one invoice.
+- **Invoice:** a bill for a won deal, made of lines from the price list, with tax from the company settings. It starts as a draft, gets its number when it's issued and never changes after, and can be voided but not deleted once issued. It can be made from an accepted quote, with the quote's lines, and then links to it.
 - **Payment:** money received against an issued invoice, in full or in part, with a date, an amount, a method and an optional reference.
 - **Journal entry:** a dated, balanced set of debits and credits that the app posts itself when money moves, never changed or deleted once posted. Posting an invoice, a payment, a bill or the opening balance each makes one, and undoing any of them makes another that cancels it ([books.md](specs/books.md#the-books)).
 - **Bill:** a bill the business has received from a supplier, which is an organization. It has the supplier's own bill number, a bill date and a due date, an amount before tax, the tax, a category and notes, and is unpaid or paid. An unpaid bill is overdue once its due date has passed.
@@ -58,7 +58,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 - A layout for phones
 - Credit notes or refunds. A mistake on an issued invoice is put right by voiding it, which needs its payments deleted first.
 - Emailing quotes or invoices, a page where a customer accepts a quote online, payment reminders, online payment or recurring invoices. A quote or an invoice reaches the customer as a downloaded PDF.
-- Turning a quote into an invoice
+- Invoicing part of a quote, a deposit, or one invoice for several quotes. An accepted quote makes one whole invoice.
 - A customer's address, or notes, on a quote
 - Bank details or other payment instructions on invoices
 - Quotes, invoices or bills in the top bar's search. Each section's table has a search of its own.
@@ -128,7 +128,8 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 | Draft | An invoice not yet issued, or a quote not yet sent. A draft invoice has no number, follows the company settings, and can be changed or deleted. A draft quote has its number, and can be changed but never deleted |
 | Issued invoice | An invoice that has its number, issue date and due date. It never changes, apart from the payments against it and being voided |
 | Void invoice | An issued invoice that was voided to put right a mistake. It keeps its number, is marked VOID, and nothing is owed on it |
-| Bill to | Who an invoice is for, as typed on the draft, filled in to start with from the deal's organization and main contact |
+| Bill to | Who an invoice is for, as typed on the draft, filled in to start with from the deal's organization and main contact, or from the quote's Prepared for on an invoice made from a quote |
+| Quote's invoice | The one invoice an accepted quote has made, draft, issued or void. It says which quote it is from, and the quote links to it ([V33 to V38](specs/invoices.md#from-a-quote), Q38) |
 | Issue date, due date | The day an invoice was issued, and that day plus the payment terms as they were then |
 | Balance, owed | An issued invoice's total less its payments. Nothing is owed on a draft or a void invoice |
 | Paid invoice | An issued invoice with nothing owed |
@@ -187,7 +188,7 @@ Around them, a search box in the top bar finds any organization, contact, deal o
 
 ## Area files
 
-Each area of the product has a file in `docs/specs/` with its requirements and, where it has one, its screen. The files under Across every area describe how the whole product looks and is built. Requirement ids, such as T5 or P4, are unique across the files. Q1 to Q4 are the quality rules above, and the quotes' requirements carry on from Q5.
+Each area of the product has a file in `docs/specs/` with its requirements and, where it has one, its screen. The files under Across every area describe how the whole product looks and is built. Requirement ids, such as T5 or P4, are unique across the files. Q1 to Q4 are the quality rules above, and the quotes' requirements carry on from Q5, to Q38.
 
 **Product areas**
 
@@ -200,8 +201,8 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [deals.md](specs/deals.md) | Stage changes, the pipeline board and its screen | S1 to S9, P1 to P11 |
 | [activities.md](specs/activities.md) | Activities, follow-ups and timelines | A1 to A7 |
 | [products.md](specs/products.md) | The price list: unit prices in dollars and cents, unique names, archiving and restoring, the product page, and their screens | G1 to G12 |
-| [quotes.md](specs/quotes.md) | Quotes: statuses, lines, amounts and tax, Prepared for, sending, accepting and declining, copying, the PDF, the Quotes section, the panels on deals and organizations, and their screens, with a quote's own words in the invoice designs | Q5 to Q37 |
-| [invoices.md](specs/invoices.md) | Invoices and payments: drafts, issuing, voiding, payments, the invoice page, the panels on deals and organizations, the Invoices table, the PDF, the three designs quotes share, invoices' side of the dashboard's Money section, what they post to the books, and their screens | V1 to V32 |
+| [quotes.md](specs/quotes.md) | Quotes: statuses, lines, amounts and tax, Prepared for, sending, accepting and declining, copying, the PDF, the Quotes section, the panels on deals and organizations, making an invoice from an accepted quote, and their screens, with a quote's own words in the invoice designs | Q5 to Q38 |
+| [invoices.md](specs/invoices.md) | Invoices and payments: drafts, drafts made from an accepted quote, issuing, voiding, payments, the invoice page, the panels on deals and organizations, the Invoices table, the PDF, the three designs quotes share, invoices' side of the dashboard's Money section, what they post to the books, and their screens | V1 to V38 |
 | [bills.md](specs/bills.md) | Bills from suppliers: amounts in cents, unique bill numbers, due dates, categories, paid, unpaid and overdue, the table, the form, the bill page, an organization's bills, bills' side of the dashboard's Money section, what they post to the books, and their screens | E1 to E25 |
 | [books.md](specs/books.md) | The double-entry books: the fixed chart of accounts, the entries every event posts and the reversals that undo them, posting in the same transaction, the records that already exist, the four checks, the balances, monthly totals and entries the backend gives the reports to come, and the Accounting pages with their menu links | J1 to J16 |
 | [aged-balances.md](specs/aged-balances.md) | The Aged balances page: what customers owe and what the business owes, for each organization, in five parts by days past due, as of a chosen day; how the totals agree with the books; the bars, the date picker, the open invoices and bills behind each organization; and its screen | X1 to X20 |

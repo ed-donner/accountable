@@ -23,9 +23,10 @@ FIRST_AREAS = {"books", "company", "crm", "products"}
 # foreign keys and reads, and the CRM's rules, so a deal changes stage the one way however
 # it's asked for. Later areas never import each other, and the first ones never import them.
 BUILT_ON = {"crm": {"tables", "rules"}, "products": {"tables"}, "books": {"post"}}
-# What one later area may also import, because it reads another later area's records: the aged
-# balances read the invoices and the bills, and keep no tables of their own.
-ALSO_BUILT_ON = {"aging": {"invoices": {"tables"}, "bills": {"tables"}}}
+# What one later area may also import, because it reads another later area's records, in one direction: the aged
+# balances read the invoices and the bills, and keep no tables of their own; invoices read the quotes' table, for
+# invoices.quote_id and to make an invoice from an accepted quote (V33). Quotes import nothing of invoices'.
+ALSO_BUILT_ON = {"aging": {"invoices": {"tables"}, "bills": {"tables"}}, "invoices": {"quotes": {"tables"}}}
 
 
 def sources() -> list[Path]:
@@ -107,6 +108,7 @@ def test_every_way_of_importing_an_area_is_seen(source, found):
         ("books", "post", True),
         ("books", "router", False),
         ("books", "tables", False),
+        ("quotes", "tables", False),
     ],
 )
 def test_a_later_area_may_import_only_what_it_builds_on(area, module, allowed):
@@ -125,6 +127,22 @@ def test_a_later_area_may_import_only_what_it_builds_on(area, module, allowed):
     ],
 )
 def test_only_the_aged_balances_may_import_the_invoices_and_bills_tables(importer, area, module, allowed):
+    assert later_area_may_import(area, module, importer) is allowed
+
+
+@pytest.mark.parametrize(
+    ("importer", "area", "module", "allowed"),
+    [
+        ("invoices", "quotes", "tables", True),
+        ("invoices", "quotes", "router", False),
+        ("invoices", "quotes", "document", False),
+        ("invoices", "bills", "tables", False),
+        ("bills", "quotes", "tables", False),
+        ("quotes", "invoices", "tables", False),
+        ("quotes", "crm", "tables", True),
+    ],
+)
+def test_only_invoices_may_import_the_quotes_tables(importer, area, module, allowed):
     assert later_area_may_import(area, module, importer) is allowed
 
 
@@ -178,6 +196,7 @@ def test_a_later_area_imports_only_the_first_areas_tables_and_the_crms_rules():
     assert ("products", "tables") in imported_areas((PACKAGE / "quotes" / "tables.py").read_text())
     assert ("crm", "tables") in imported_areas((PACKAGE / "bills" / "router.py").read_text())
     assert ("crm", "tables") in imported_areas((PACKAGE / "invoices" / "tables.py").read_text())
+    assert ("quotes", "tables") in imported_areas((PACKAGE / "invoices" / "tables.py").read_text())
 
 
 def test_the_aged_balances_import_only_tables_of_crm_invoices_and_bills():
@@ -256,3 +275,25 @@ def test_sqlite_specific_code_stays_in_db():
     for path in sources():
         if path.name != "db.py":
             assert "sqlite3" not in path.read_text(), path
+
+
+def test_quotes_import_nothing_of_invoices():
+    for path in sources():
+        if area_of(path) == "quotes":
+            assert "invoices" not in {area for area, _ in imported_areas(path.read_text())}, path
+
+
+def test_invoices_import_only_the_quotes_tables_of_quotes():
+    found = {
+        module
+        for path in sources()
+        if area_of(path) == "invoices"
+        for area, module in imported_areas(path.read_text())
+        if area == "quotes"
+    }
+    assert found == {"tables"}
+
+
+def test_the_invoice_from_a_quote_route_starts_with_invoices_alone():
+    [invoices] = [area for area in APP_AREAS if any("invoices" in router.prefix for router in area.routers)]
+    assert invoices.route_starts == {"invoices"}

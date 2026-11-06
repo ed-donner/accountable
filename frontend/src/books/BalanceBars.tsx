@@ -1,7 +1,7 @@
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
 
 import { ChartTooltip } from "../components/charts/ChartTooltip";
-import { MONTH_CHART, MUTED_AXIS_TEXT, centsAxis } from "../components/charts/monthColumns";
+import { MUTED_AXIS_TEXT, centsAxis } from "../components/charts/monthColumns";
 import { LEAST_HEIGHT, StackSegment } from "../components/charts/StackSegment";
 import { useSize } from "../components/charts/useSize";
 import { formatDate } from "../lib/dates";
@@ -13,6 +13,13 @@ const BAR_HEIGHT = 220;
 const BAR_WIDTH = 120;
 const NAMES_HEIGHT = 28;
 const ROOM_ABOVE = 8;
+
+/**
+ * The money axis's width. Its top is the larger side's exact total, so its labels are longer than the Money
+ * charts' round ones: up to 8 characters, such as $999.99M, at 7.2px each in the 12px mono axis text, after
+ * the 8px Recharts leaves between the axis and its labels.
+ */
+const AXIS_WIDTH = 66;
 
 /** The whole chart's height: the bars, the room above them and their names below. */
 export const CHART_HEIGHT = BAR_HEIGHT + ROOM_ABOVE + NAMES_HEIGHT;
@@ -158,7 +165,7 @@ export function BalanceBars({ figures, day }: { figures: Figure[]; day: string }
               />
               <YAxis
                 orientation="right"
-                width={MONTH_CHART.axisWidth}
+                width={AXIS_WIDTH}
                 domain={[0, top]}
                 ticks={[0, top / 2, top]}
                 tickFormatter={centsAxis}

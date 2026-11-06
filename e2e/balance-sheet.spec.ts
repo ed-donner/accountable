@@ -313,6 +313,19 @@ test("a bill dated after today is left out of today's stop, and the page balance
   await expect(panel(page).getByText("The two sides are equal.")).toBeVisible();
 });
 
+test("the money axis's labels fit inside the chart, the top one with its k", async ({ page }) => {
+  await open(page);
+  const surface = (await chart(page).locator("svg.recharts-surface").boundingBox())!;
+  const labels = chart(page).locator(".recharts-cartesian-axis-tick-value").filter({ hasText: /^\$/ });
+  await expect(labels).toHaveCount(3);
+  // The sample data's total is in the hundreds of thousands, the longest label the axis gets from it.
+  await expect(labels.filter({ hasText: /^\$\d+\.\dk$/ })).not.toHaveCount(0);
+  for (const label of await labels.all()) {
+    const box = (await label.boundingBox())!;
+    expect(box.x + box.width, await label.textContent()).toBeLessThanOrEqual(surface.x + surface.width);
+  }
+});
+
 for (const mode of ["light", "dark"] as const) {
   test(`the figures, swatches, bars and mark take their fonts and tokens in ${mode} mode`, async ({ page }) => {
     await page.goto("/");

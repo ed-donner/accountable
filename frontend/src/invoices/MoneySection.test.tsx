@@ -65,8 +65,13 @@ describe("invoices' side of the Money section", () => {
     ]);
     const bars = groups.map((group) => group.querySelector<HTMLElement>("span > span"));
     expect(bars[0]!.style.width).toBe("100%");
-    expect(bars[0]!.className).toContain("bg-cerulean");
-    expect(bars[1]!.className).toContain("bg-raspberry");
+    expect(bars.map((bar) => bar!.style.backgroundColor)).toEqual([
+      "var(--color-cerulean)",
+      "var(--color-marigold)",
+      "var(--color-coral)",
+      "var(--color-raspberry)",
+      "var(--color-deep-raspberry)",
+    ]);
   });
 
   it("shows the payments received this month beside last month's, over a chart of the 12 months", async () => {

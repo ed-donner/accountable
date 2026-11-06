@@ -122,6 +122,11 @@ for (const [name, route] of [
   ["The books' balances", "/api/books/balances"],
   ["The books' totals by month", "/api/books/months"],
   ["A page of the books' entries", "/api/books/entries"],
+  ["The profit and loss figures", "/api/books/profit-and-loss"],
+  [
+    "A page of the entries behind a figure",
+    `/api/books/profit-and-loss/entries?figure=profit&from=${isoDay(-90)}&to=${isoDay()}`,
+  ],
 ]) {
   test(`${name} arrive in under 200ms`, async ({ page, sessionToken }) => {
     await page.goto("/");
@@ -129,6 +134,36 @@ for (const [name, route] of [
     const elapsed = await medianRead(page, sessionToken, route);
     console.log(`${name}: ${elapsed.toFixed(1)}ms`);
     expect(elapsed).toBeLessThan(200);
+  });
+}
+
+// The aged balances, both views, from every invoice, payment and bill (Q1, X20).
+for (const [name, view] of [
+  ["Customers", "customers"],
+  ["Suppliers", "suppliers"],
+]) {
+  test(`The aged balances' ${name} data arrives in under 200ms`, async ({ page, sessionToken }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("revenue-this-month")).toBeVisible();
+    const elapsed = await medianRead(page, sessionToken, `/api/aged-balances/${view}`);
+    console.log(`Aged balances, ${name}: ${elapsed.toFixed(1)}ms`);
+    expect(elapsed).toBeLessThan(200);
+  });
+
+  test(`The aged balances' ${name} show their first 25 rows in under a second`, async ({ page }) => {
+    const readings: number[] = [];
+    for (let reading = 0; reading < 5; reading += 1) {
+      await page.goto("/");
+      await expect(page.getByTestId("revenue-this-month")).toBeVisible();
+      const start = Date.now();
+      await page.goto(`/accounting/aged-balances?view=${view}`);
+      await expect(page.getByRole("button", { name: /^(Invoices|Bills) of / })).toHaveCount(25);
+      // Show more names how many are left, up to 25.
+      await expect(page.getByRole("button", { name: /^Show \d+ more$/ })).toBeVisible();
+      readings.push(Date.now() - start);
+    }
+    console.log(`Aged balances, ${name}, 25 rows: ${median(readings)}ms`);
+    expect(median(readings)).toBeLessThan(1000);
   });
 }
 

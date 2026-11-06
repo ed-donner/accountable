@@ -8,15 +8,15 @@ written out here, as the tables are, so this migration doesn't change when the a
 
 Also adds the index the ledger's one pass over an account's lines uses.
 
-Revision ID: 0013
-Revises: 0012
+Revision ID: 0014
+Revises: 0013
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0013"
-down_revision = "0012"
+revision = "0014"
+down_revision = "0013"
 branch_labels = None
 depends_on = None
 

@@ -343,3 +343,82 @@ def test_sums_past_2_to_the_53_cents_are_sent_as_exact_digits(api):
     [march] = months(api, **{"from": "2026-03", "to": "2026-03"})
     assert figures(march, "payable") == ("0", expected, expected)
     assert figures(march, "expense_software") == (expected, "0", expected)
+
+
+def test_an_entry_has_a_label_that_is_its_records_name_or_nothing(books, make):
+    deal = make.deal()
+    invoice = make.invoice(deal, status="issued", number="INV-0042")
+    bill = make.bill(make.organization("Northwind Software"), "8841")
+    with db.writing() as conn:
+        post.invoice_issued(
+            conn,
+            invoice_id=invoice,
+            subtotal_cents=100,
+            tax_cents=0,
+            total_cents=100,
+            number="INV-0001",
+            **at(date(2026, 5, 1)),
+        )
+        post.bill_added(
+            conn,
+            bill_id=bill,
+            total_cents=100,
+            category="other",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 5, 2)),
+        )
+        post.bill_paid(conn, bill_id=bill, total_cents=100, bill_number="B-1", **at(date(2026, 5, 3)))
+    found = books.get(ENTRIES, params={"limit": 500}).json()["entries"]
+    labels = {(entry["kind"], entry["source_id"]): entry["label"] for entry in found}
+    assert labels[("invoice", invoice)] == "INV-0042"
+    assert labels[("bill", bill)] == "8841 from Northwind Software"
+    assert labels[("bill_payment", bill)] == "8841 from Northwind Software"
+    assert labels[("bill", 3)] is None  # deleted, or never a record
+    assert labels[("payment", 1)] is None
+    assert labels[("opening_balance", 1)] is None
+
+
+def test_a_page_of_100_entries_names_its_records_in_one_read_for_each_kind(books, make):
+    from sqlalchemy import event
+
+    deal = make.deal()
+    supplier = make.organization("Northwind Software")
+    made = [
+        (make.invoice(deal, status="issued", number=f"INV-{number:04d}"), make.bill(supplier, f"B{number}"))
+        for number in range(1, 51)
+    ]
+    with db.writing() as conn:
+        for invoice, bill in made:
+            post.invoice_issued(
+                conn,
+                invoice_id=invoice,
+                subtotal_cents=5,
+                tax_cents=0,
+                total_cents=5,
+                number="INV-0001",
+                **at(date(2026, 6, 1)),
+            )
+            post.bill_added(
+                conn,
+                bill_id=bill,
+                total_cents=5,
+                category="other",
+                bill_number="B-1",
+                supplier=None,
+                **at(date(2026, 6, 2)),
+            )
+    statements: list[str] = []
+
+    def count(_conn, _cursor, statement, *_rest) -> None:
+        statements.append(statement)
+
+    event.listen(db.engine(), "before_cursor_execute", count)
+    try:
+        reply = books.get(ENTRIES, params={"limit": 100, "from": "2026-06-01", "to": "2026-06-30"}).json()
+    finally:
+        event.remove(db.engine(), "before_cursor_execute", count)
+    assert len(reply["entries"]) == 100
+    assert all(entry["label"] for entry in reply["entries"])
+    # The page, the count, the lines, then a name for invoices and a name for bills.
+    assert len(statements) == 5, statements

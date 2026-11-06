@@ -51,6 +51,20 @@ ALREADY_VOID = "This invoice is already void."
 NO_PAYMENT_TAKEN = "A draft or a void invoice can't take a payment."
 DRAFT_HAS_NO_PDF = "A draft has no PDF. Issue it first."
 
+
+# Making an invoice from a quote (V33, V37)
+def quote_not_accepted(quote_number: str) -> str:
+    return f"{quote_number} hasn't been accepted, so it can't be invoiced."
+
+
+def quote_has_an_invoice(quote_number: str, invoice_number: str | None) -> str:
+    return f"{quote_number} already has {'an invoice, ' + invoice_number if invoice_number else 'a draft invoice'}."
+
+
+def quote_deal_not_won(quote_number: str) -> str:
+    return f"This deal is no longer won. Move it back to Won to invoice {quote_number}."
+
+
 # For a value of the wrong kind, such as a quantity sent as text, and for a field left out.
 FIELD_MESSAGES = {
     "bill_to": BILL_TO_TOO_LONG,
@@ -161,6 +175,8 @@ class InvoiceRow(BaseModel):
     due_date: date | None
     total_cents: int
     owed_cents: int
+    # The quote it was made from (V36), for the quote's page to find its invoice by.
+    quote_id: int | None
 
 
 class Payment(BaseModel):
@@ -173,6 +189,16 @@ class Payment(BaseModel):
     created_by: Person | None
 
 
+class QuoteLink(BaseModel):
+    """The quote an invoice was made from, with the tax it was priced at, which the page compares with the
+    settings' rate for V35's notice. The rate is text, as the invoice's own is."""
+
+    id: int
+    number: str
+    tax_label: str | None
+    tax_rate: str
+
+
 class InvoiceDetail(InvoiceRow, Authorship):
     """For a draft, the company and the tax are the settings as they are now. For an issued invoice, its copies (V11)."""
 
@@ -181,6 +207,7 @@ class InvoiceDetail(InvoiceRow, Authorship):
     deal_stage: str
     company: Company
     tax_label: str | None
+    quote: QuoteLink | None
     tax_rate: str
     lines: list[Line]
     subtotal_cents: int

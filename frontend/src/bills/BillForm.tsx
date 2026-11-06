@@ -14,7 +14,7 @@ import { showSaveError } from "../lib/saveErrors";
 import { useCloseIfUnreadable } from "../lib/useCloseIfUnreadable";
 import { useToday } from "../lib/useToday";
 import { link } from "../lib/validate";
-import { CATEGORIES } from "./categories";
+import { CATEGORIES } from "../components/charts/categories";
 import { useSaveBill, type Bill, type BillDetail, type BillValues, type Category } from "./queries";
 import { paidDateProblem } from "./status";
 

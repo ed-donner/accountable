@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 from accountable import cli, db
+from accountable.aging import ages as aging
 from accountable.bills import sample_data as bill_samples
 from accountable.bills.tables import CATEGORIES, bill_number_key, bills
 from accountable.books.tables import journal_entries, journal_lines
@@ -673,21 +674,61 @@ def test_every_status_with_most_paid(seeded):
     assert counts["paid"] > len(seeded["invoices"]) / 2
 
 
-def test_one_overdue_in_each_group_of_how_late(seeded):
+def test_two_organizations_overdue_in_each_group_of_how_late(seeded):
     paid = paid_on(seeded)
-    groups = Counter(
-        figures.late_group(row.due_date, seeded["today"])
-        for row in seeded["invoices"]
-        if row.status == "issued" and row.total_cents > paid.get(row.id, 0)
-    )
-    for group in ("not_due", "1_30", "31_60", "61_90", "over_90"):
-        assert groups[group] >= 1, group
+    groups: dict[str, set[int]] = {group: set() for group in figures.GROUPS}
+    for row in seeded["invoices"]:
+        if row.status == "issued" and row.total_cents > paid.get(row.id, 0):
+            groups[figures.late_group(row.due_date, seeded["today"])].add(row.organization_id)
+    for group, organizations_owing in groups.items():
+        assert len(organizations_owing) >= 2, group
     overdue_part_paid = [
         row
         for row in seeded["invoices"]
         if row.status == "issued" and row.due_date < seeded["today"] and 0 < paid.get(row.id, 0) < row.total_cents
     ]
     assert len(overdue_part_paid) >= 2
+
+
+def owed_by_customers(seeded) -> list[aging.Owed]:
+    paid = paid_on(seeded)
+    names = {row.id: row.name for row in seeded["organizations"]}
+    return [
+        aging.Owed(
+            row.id,
+            row.organization_id,
+            names[row.organization_id],
+            row.number,
+            row.due_date,
+            row.total_cents - paid.get(row.id, 0),
+        )
+        for row in seeded["invoices"]
+        if row.status == "issued" and row.total_cents > paid.get(row.id, 0)
+    ]
+
+
+def owed_to_suppliers(seeded) -> list[aging.Owed]:
+    names = {row.id: row.name for row in seeded["organizations"]}
+    return [
+        aging.Owed(
+            row.id,
+            row.organization_id,
+            names[row.organization_id],
+            row.bill_number,
+            row.due_date,
+            row.amount_cents + row.tax_cents,
+        )
+        for row in seeded["bills"]
+        if row.paid_on is None
+    ]
+
+
+@pytest.mark.parametrize("view", [owed_by_customers, owed_to_suppliers])
+def test_both_aged_balances_views_have_two_organizations_in_every_part_and_several_in_more_than_one(seeded, view):
+    rows, _ = aging.aged(view(seeded), seeded["today"])
+    for part in aging.PARTS:
+        assert sum(row.parts[part].count > 0 for row in rows) >= 2, part
+    assert sum(sum(sum_.count > 0 for sum_ in row.parts.values()) > 1 for row in rows) >= 2
 
 
 def test_a_payment_in_each_of_the_12_months_none_in_the_future_and_none_before_issue(seeded):
@@ -915,3 +956,31 @@ def test_every_sample_entry_has_a_description_and_all_but_the_opening_balance_ha
         else:
             assert entry.document == expected[entry.kind][entry.source_id]
             assert entry.document in entry.description
+
+
+def test_each_of_the_last_12_months_has_revenue_and_expenses_so_the_profit_and_loss_chart_is_full(seeded):
+    """X19: on every seeding day, the 1st included."""
+    dated = {entry.id: entry.entry_date for entry in seeded["entries"]}
+    revenue: dict[str, int] = {}
+    expenses: dict[str, int] = {}
+    for line in seeded["journal_lines"]:
+        month = month_of(dated[line.entry_id])
+        if line.account == "revenue":
+            revenue[month] = revenue.get(month, 0) + line.credit_cents - line.debit_cents
+        elif line.account.startswith("expense_"):
+            expenses[month] = expenses.get(month, 0) + line.debit_cents - line.credit_cents
+    for year, month in months_back(seeded["today"], 12):
+        key = f"{year}-{month:02d}"
+        assert revenue.get(key, 0) > 0, f"No revenue in {key}"
+        assert expenses.get(key, 0) > 0, f"No expenses in {key}"
+
+
+def test_each_accepted_quote_is_linked_to_the_first_invoice_on_its_deal_and_no_other_invoice_is_linked(seeded):
+    """The invoice made from the quote (V36). A deal invoiced twice has the quote on the first, which was voided."""
+    accepted = {quote.id: quote for quote in seeded["quotes"] if quote.status == "accepted"}
+    linked = {row.quote_id: row for row in seeded["invoices"] if row.quote_id is not None}
+    assert len([row for row in seeded["invoices"] if row.quote_id is not None]) == len(linked)
+    assert set(linked) == set(accepted) and accepted
+    for quote_id, row in linked.items():
+        first = min(other.id for other in seeded["invoices"] if other.deal_id == row.deal_id)
+        assert (row.deal_id, row.id) == (accepted[quote_id].deal_id, first), accepted[quote_id].number

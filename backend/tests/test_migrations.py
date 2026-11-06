@@ -1168,7 +1168,7 @@ def test_on_postgres_the_books_tables_get_row_level_security_and_64_bit_cents_an
     assert "CREATE UNIQUE INDEX ix_journal_entries_reverses_id ON journal_entries (reverses_id)" in postgres_sql
 
 
-# The journal's wording (0013)
+# The journal's wording (0014)
 
 _old_entries = table(
     "journal_entries",
@@ -1185,8 +1185,8 @@ _old_entries = table(
 def the_migration():
     import importlib.util
 
-    path = next(db.MIGRATIONS.glob("versions/0013_*.py"))
-    spec = importlib.util.spec_from_file_location("migration_0013", path)
+    path = next(db.MIGRATIONS.glob("versions/0014_*.py"))
+    spec = importlib.util.spec_from_file_location("migration_0014", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -1230,13 +1230,42 @@ def database_at_0012(tmp_path, monkeypatch):
     db.dispose()
 
 
+# The quote an invoice was made from (0013)
+
+
+QUOTE = {
+    "number": "QT-0001",
+    "status": "accepted",
+    "quote_date": date(2026, 3, 1),
+    "valid_until": date(2026, 3, 31),
+    "subtotal_cents": 100000,
+    "created_at": WHEN,
+    "updated_at": WHEN,
+}
+
+
+@pytest.fixture
+def database_from_before_invoice_quotes(tmp_path, monkeypatch):
+    """At 0012 with the invoices, an accepted quote and the books' entries that came with them."""
+    path = tmp_path / "before-invoice-quotes.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    at_0011_with_records(path)
+    db._upgrade(path, "0012")
+    with db.writing() as conn:
+        insert_row(conn, quotes, deal_id=conn.scalar(select(deals.c.id)), **QUOTE)
+    db.dispose()
+    yield path
+    db.dispose()
+
+
 def wording() -> list[tuple]:
     with db.reading() as conn:
         rows = conn.execute(select(journal_entries).order_by(journal_entries.c.id)).all()
     return [(row.kind, row.source_id, row.event, row.description, row.document) for row in rows]
 
 
-def test_0013_fills_in_each_kind_of_entry_in_the_wording(database_at_0012):
+def test_0014_fills_in_each_kind_of_entry_in_the_wording(database_at_0012):
     db.prepare_database(nothing)
     with db.reading() as conn:
         invoice_number = {
@@ -1263,7 +1292,7 @@ def test_0013_fills_in_each_kind_of_entry_in_the_wording(database_at_0012):
     ) in (found)
 
 
-def test_0013_gives_an_entry_whose_record_has_gone_its_events_words_and_no_document(database_at_0012):
+def test_0014_gives_an_entry_whose_record_has_gone_its_events_words_and_no_document(database_at_0012):
     db.prepare_database(nothing)
     found = wording()
     assert ("bill", 99, "bill_added", "Bill added", None) in found
@@ -1272,7 +1301,7 @@ def test_0013_gives_an_entry_whose_record_has_gone_its_events_words_and_no_docum
     assert ("payment", 1, "payment_deleted", "Payment deleted", None) in found
 
 
-def test_0013_takes_an_invoices_number_for_its_entries_and_its_payments(tmp_path, monkeypatch):
+def test_0014_takes_an_invoices_number_for_its_entries_and_its_payments(tmp_path, monkeypatch):
     monkeypatch.setenv("ACCOUNTABLE_DB", str(tmp_path / "numbered.db"))
     db.dispose()
     at_0012_with_records(tmp_path / "numbered.db")
@@ -1288,7 +1317,7 @@ def test_0013_takes_an_invoices_number_for_its_entries_and_its_payments(tmp_path
     db.dispose()
 
 
-def test_0013_takes_the_same_number_of_queries_for_5_entries_as_for_50(tmp_path, monkeypatch):
+def test_0014_takes_the_same_number_of_queries_for_5_entries_as_for_50(tmp_path, monkeypatch):
     totals = []
     for count in (1, 10):
         path = tmp_path / f"count-{count}.db"
@@ -1314,17 +1343,87 @@ def test_the_fill_equals_what_posting_wrote_on_the_sample_data(database):
     assert wording() == written
 
 
-def test_0013_makes_the_columns_and_the_index_and_has_one_head(database):
+def test_0014_makes_the_columns_and_the_index_and_has_one_head(database):
     columns = live()["journal_entries"]["columns"]
     assert columns["description"][1] is False
     assert columns["document"][1] is True
     assert live()["journal_lines"]["indexes"]["ix_journal_lines_account_entry"] == ("account", "entry_id")
     config = Config()
     config.set_main_option("script_location", str(db.MIGRATIONS))
-    assert ScriptDirectory.from_config(config).get_current_head() == "0013"
+    assert ScriptDirectory.from_config(config).get_current_head() == "0014"
 
 
-def test_on_postgres_0013_adds_the_columns_and_the_index(postgres_sql):
+def test_on_postgres_0014_adds_the_columns_and_the_index(postgres_sql):
     assert "ALTER TABLE journal_entries ADD COLUMN description TEXT DEFAULT '' NOT NULL;" in postgres_sql
     assert "ALTER TABLE journal_entries ADD COLUMN document TEXT;" in postgres_sql
     assert "CREATE INDEX ix_journal_lines_account_entry ON journal_lines (account, entry_id)" in postgres_sql
+
+
+def invoice_rows() -> list[tuple]:
+    with db.reading() as conn:
+        return [
+            tuple(row)
+            for row in conn.execute(select(*(c for c in invoices.c if c.name != "quote_id")).order_by(invoices.c.id))
+        ]
+
+
+def test_0013_matches_the_invoices_table(database):
+    assert live()["invoices"]["indexes"]["ix_invoices_quote_id"] == ("quote_id",)
+    assert (("quote_id",), "quotes", None) in live()["invoices"]["foreign_keys"]
+    [index] = [i for i in inspect(db.engine()).get_indexes(invoices.name) if i["name"] == "ix_invoices_quote_id"]
+    assert index["unique"]
+
+
+def test_upgrading_leaves_every_invoice_as_it_was_with_no_quote(database_from_before_invoice_quotes):
+    with db.reading() as conn:
+        assert "quote_id" not in {c["name"] for c in inspect(conn).get_columns("invoices")}
+    before = invoice_rows()
+    db.dispose()
+
+    assert db.prepare_database(nothing) is False
+
+    assert before
+    assert invoice_rows() == before
+    with db.reading() as conn:
+        assert conn.scalars(select(invoices.c.quote_id)).all() == [None] * len(before)
+        assert conn.scalar(select(func.count()).select_from(quotes)) == 1
+        assert conn.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+
+
+def test_after_the_upgrade_the_database_gives_a_quote_one_invoice(database_from_before_invoice_quotes):
+    db.prepare_database(nothing)
+    with db.writing() as conn:
+        quote, deal = conn.execute(select(quotes.c.id, quotes.c.deal_id)).one()
+        insert_row(conn, invoices, deal_id=deal, quote_id=quote, created_at=WHEN, updated_at=WHEN)
+        insert_row(conn, invoices, deal_id=deal, created_at=WHEN, updated_at=WHEN)
+        insert_row(conn, invoices, deal_id=deal, created_at=WHEN, updated_at=WHEN)
+    with pytest.raises(IntegrityError), db.writing() as conn:
+        insert_row(conn, invoices, deal_id=deal, quote_id=quote, created_at=WHEN, updated_at=WHEN)
+    with pytest.raises(IntegrityError), db.writing() as conn:
+        insert_row(conn, invoices, deal_id=deal, quote_id=9999, created_at=WHEN, updated_at=WHEN)
+
+
+def test_downgrading_takes_the_column_and_its_index_and_keeps_the_invoices(database_from_before_invoice_quotes):
+    db.prepare_database(nothing)
+    before = invoice_rows()
+    db.dispose()
+    engine = db._sqlite_engine(
+        db._sqlite_url(database_from_before_invoice_quotes), foreign_keys=False, autocommit=False
+    )
+    config = Config()
+    config.set_main_option("script_location", str(db.MIGRATIONS).replace("%", "%%"))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.downgrade(config, "0012")
+    engine.dispose()
+
+    with db.reading() as conn:
+        assert "quote_id" not in {c["name"] for c in inspect(conn).get_columns("invoices")}
+        assert "ix_invoices_quote_id" not in {i["name"] for i in inspect(conn).get_indexes("invoices")}
+    assert invoice_rows() == before
+
+
+def test_on_postgres_an_invoice_has_a_quote_with_a_unique_index(postgres_sql):
+    assert "ADD COLUMN quote_id INTEGER" in postgres_sql
+    assert "FOREIGN KEY(quote_id) REFERENCES quotes (id)" in postgres_sql
+    assert "CREATE UNIQUE INDEX ix_invoices_quote_id ON invoices (quote_id)" in postgres_sql

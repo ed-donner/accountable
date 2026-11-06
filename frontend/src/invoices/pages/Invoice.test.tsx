@@ -63,6 +63,8 @@ const DRAFT: InvoiceDetail = {
   due_date: null,
   total_cents: 0,
   owed_cents: 0,
+  quote_id: null,
+  quote: null,
   days_late: null,
   deal_stage: "won",
   company: { name: "Plainsong Systems", address: "48 Orchard Row", email: null, phone: null },
@@ -728,5 +730,55 @@ describe("an invoice's address", () => {
     open(DRAFT, { "GET /invoices/7": () => ({ status: 404, body: { detail: "Invoice not found" } }) });
     expect(await screen.findByRole("heading", { level: 1, name: "This invoice no longer exists" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Back to Invoices" })).toBeTruthy();
+  });
+});
+
+describe("an invoice made from a quote", () => {
+  const QUOTE = { id: 4, number: "QT-0004", tax_label: "Sales tax", tax_rate: "8.875" };
+  const FROM_QUOTE: InvoiceDetail = { ...DRAFT, quote: QUOTE, quote_id: 4 };
+  const NOTICE =
+    "QT-0004 was priced with Sales tax at 8.875%. Company settings now say 10%, so this draft's tax is worked out at 10%.";
+
+  it.each([
+    ["a draft", FROM_QUOTE],
+    ["an issued invoice", { ...ISSUED, quote: QUOTE, quote_id: 4 }],
+    ["a void one", { ...ISSUED, quote: QUOTE, quote_id: 4, status: "void" as const, shows_as: "void" as const }],
+  ])("says where it is from on %s, linking to the quote", async (_name, invoice) => {
+    open(invoice);
+    const link = await screen.findByRole("link", { name: "From quote QT-0004" });
+    expect(link.getAttribute("href")).toBe("/quotes/4");
+  });
+
+  it("says nothing of a quote on an invoice that wasn't made from one", async () => {
+    await draftPage();
+    expect(screen.queryByText(/From quote/)).toBeNull();
+    expect(screen.queryByText(/was priced with/)).toBeNull();
+  });
+
+  it("gives a notice with the quote's label and both rates while they differ", async () => {
+    await draftPage({ ...FROM_QUOTE, tax_rate: "10" });
+    expect((await screen.findByRole("status")).textContent).toBe(NOTICE);
+  });
+
+  it("gives no notice when the rates match", async () => {
+    await draftPage(FROM_QUOTE);
+    expect(screen.queryByText(/was priced with/)).toBeNull();
+  });
+
+  it("gives no notice for a label change alone", async () => {
+    await draftPage({ ...FROM_QUOTE, tax_label: "VAT" });
+    expect(screen.queryByText(/was priced with/)).toBeNull();
+  });
+
+  it("gives no notice once issued, which keeps the rate it was issued at", async () => {
+    await issuedPage({ ...ISSUED, quote: QUOTE, quote_id: 4, tax_rate: "10" });
+    expect(screen.queryByText(/was priced with/)).toBeNull();
+  });
+
+  it("shows a field that breaks the rules at once, as the quote had it", async () => {
+    const long = "x".repeat(1500);
+    await draftPage({ ...FROM_QUOTE, lines: [line(1, { description: long }), line(2)] });
+    expect(await screen.findByText("Keep the description to 1,000 characters or fewer")).toBeTruthy();
+    expect(screen.getAllByTestId("draft-line")).toHaveLength(2);
   });
 });

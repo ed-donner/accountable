@@ -3,9 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { AgedBalances } from "./pages/AgedBalances";
 import { BalanceSheet } from "./pages/BalanceSheet";
-import { ProfitAndLoss } from "./pages/ProfitAndLoss";
 import { Shell, type Section } from "../components/Shell";
 import { queryDefaults } from "../lib/queryDefaults";
 import { mockApi } from "../test-utils";
@@ -19,22 +17,10 @@ const SECTIONS: Section[] = Array.from({ length: 9 }, (_, place) => ({
 
 const PAGES = [
   [
-    "/accounting/profit-and-loss",
-    ProfitAndLoss,
-    "Profit and loss",
-    "What the business earned and what it spent each month, and the profit or loss that leaves.",
-  ],
-  [
     "/accounting/balance-sheet",
     BalanceSheet,
     "Balance sheet",
     "What the business owns and owes on any day you choose, and what's left over for the owner.",
-  ],
-  [
-    "/accounting/aged-balances",
-    AgedBalances,
-    "Aged balances",
-    "What customers owe and what the business owes, grouped by how late each amount is.",
   ],
 ] as const;
 

@@ -4,7 +4,7 @@ import { Download, Trash2 } from "lucide-react";
 import { AlertDialog } from "radix-ui";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { FormProvider, useForm, useWatch, type UseFormReturn } from "react-hook-form";
-import { useBlocker, useNavigate, useParams } from "react-router";
+import { Link, useBlocker, useNavigate, useParams } from "react-router";
 
 import { AccountingPanel } from "../../books/AccountingPanel";
 import { useCompanySettings, useSavedLogo, type CompanySettings } from "../../company/settings";
@@ -219,8 +219,13 @@ function useOnce() {
 
 function useDraftForm(invoice: InvoiceDetail) {
   const form = useForm<DraftValues>({ resolver: zodResolver(draftSchema), defaultValues: toDraftValues(invoice) });
-  const { reset, formState } = form;
+  const { reset, formState, trigger } = form;
   const filledFrom = useRef(invoice);
+  const fromQuote = invoice.quote !== null;
+  // A copy of a quote can break a rule a typed draft keeps (V38), so its messages show at once, beside their fields.
+  useEffect(() => {
+    if (fromQuote) void trigger();
+  }, [fromQuote, trigger]);
   // A newer read, such as a teammate's save, fills the form only if nothing has been typed since it was
   // filled, as in B10. Only a new reply does: refilling the same one would remount every line's boxes.
   useEffect(() => {
@@ -321,6 +326,8 @@ function DraftPage({ invoice, settings, logoUrl, refetch, notice }: Shown) {
           </button>
         </div>
       </PageHeader>
+      <FromQuote invoice={invoice} />
+      <TaxChanged invoice={invoice} />
       {notice}
       <form noValidate onSubmit={(event) => event.preventDefault()}>
         <Columns
@@ -357,6 +364,33 @@ function DraftPage({ invoice, settings, logoUrl, refetch, notice }: Shown) {
         />
       )}
     </FormProvider>
+  );
+}
+
+/** "From quote QT-0004", under the title of an invoice made from a quote, whatever its status (V36). */
+function FromQuote({ invoice }: { invoice: InvoiceDetail }) {
+  if (!invoice.quote) return null;
+  return (
+    <div className="px-6 pb-2.5">
+      <Link to={`/quotes/${invoice.quote.id}`} className="link text-[13px] leading-[18px] text-muted">
+        From quote <span className="num">{invoice.quote.number}</span>
+      </Link>
+    </div>
+  );
+}
+
+/**
+ * A draft made from a quote says when the tax rate has changed since, while the two rates differ
+ * and it is a draft. The draft's own rate is the settings' as they are now (V35).
+ */
+function TaxChanged({ invoice }: { invoice: InvoiceDetail }) {
+  const { quote } = invoice;
+  if (!quote || quote.tax_rate === invoice.tax_rate) return null;
+  return (
+    <p role="status" className="panel mx-5 mb-2.5 px-4 py-2">
+      {quote.number} was priced with {quote.tax_label ?? "tax"} at {quote.tax_rate}%. Company settings now say{" "}
+      {invoice.tax_rate}%, so this draft's tax is worked out at {invoice.tax_rate}%.
+    </p>
   );
 }
 
@@ -414,6 +448,7 @@ function IssuedPage({ invoice, settings, logoUrl, notice }: Shown) {
           </button>
         </div>
       </PageHeader>
+      <FromQuote invoice={invoice} />
       {notice}
       <Columns
         side={

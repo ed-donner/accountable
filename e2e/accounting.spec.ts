@@ -8,12 +8,8 @@ import { addBill, addIssuedInvoice, isoDay, resetToSampleData } from "./helpers"
 test.describe.configure({ mode: "serial" });
 test.beforeAll(resetToSampleData);
 
+// The placeholders. Profit and loss has its real page, which e2e/profit-and-loss.spec.ts covers.
 const PAGES = [
-  {
-    label: "Profit and loss",
-    path: "/accounting/profit-and-loss",
-    words: "What the business earned and what it spent each month, and the profit or loss that leaves.",
-  },
   {
     label: "Balance sheet",
     path: "/accounting/balance-sheet",
@@ -27,6 +23,8 @@ const PAGES = [
     words: "What customers owe and what the business owes, grouped by how late each amount is.",
   },
 ];
+// The pages that still say their report is coming. Aged balances has its report (X1 to X20).
+const PLACEHOLDERS = PAGES.filter(({ label }) => label !== "Aged balances");
 const PANEL = { light: "rgb(255, 255, 255)", dark: "rgb(11, 50, 64)" };
 const FOCUS = { light: "rgb(17, 138, 178)", dark: "rgb(76, 179, 214)" };
 
@@ -48,6 +46,7 @@ test("the menu has Accounting with its four links, in order, between the themes 
   await page.goto("/");
   await menuButton(page).click();
   await expect(menu(page).getByRole("menuitem")).toHaveText([
+    "Profit and loss",
     ...PAGES.map(({ label }) => label),
     "Company settings",
     "Sign out",
@@ -58,7 +57,7 @@ test("the menu has Accounting with its four links, in order, between the themes 
 });
 
 for (const mode of ["light", "dark"] as const) {
-  for (const { label, path, words } of PAGES) {
+  for (const { label, path, words } of PLACEHOLDERS) {
     test(`${label} opens from the menu in ${mode} mode with its title and its words`, async ({ page }) => {
       await page.goto("/");
       await menuButton(page).click();
@@ -90,6 +89,28 @@ for (const mode of ["light", "dark"] as const) {
     });
   }
 }
+
+test("Aged balances is no longer a placeholder, and is still the fourth link in the menu", async ({ page }) => {
+  await page.goto("/accounting/aged-balances");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Aged balances");
+  await expect(page.getByRole("region", { name: "Report status" })).toHaveCount(0);
+  await expect(page.getByText("This report is coming soon.")).toHaveCount(0);
+  await expect(page.getByRole("radio", { name: "Customers" })).toBeChecked();
+  await expect(topBarLinks(page)).toHaveCount(9);
+});
+
+test("Profit and loss opens from the menu as its real page, not a placeholder", async ({ page }) => {
+  await page.goto("/");
+  await menuButton(page).click();
+  await menu(page).getByRole("menuitem", { name: "Profit and loss" }).click();
+
+  await expect(page).toHaveURL(/\/accounting\/profit-and-loss$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Profit and loss");
+  await expect(page.getByRole("region", { name: "Statement" })).toBeVisible();
+  await expect(page.getByText("This report is coming soon.")).toHaveCount(0);
+  await expect(topBarLinks(page)).toHaveCount(9);
+  await expect(page.locator('nav[aria-label="Sections"] a[aria-current="page"]')).toHaveCount(0);
+});
 
 test("an Accounting page is reached by keyboard, with the focus ring on the menu button", async ({ page }) => {
   await page.goto("/organizations");

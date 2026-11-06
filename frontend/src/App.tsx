@@ -6,7 +6,7 @@ import { RouterProvider } from "react-router/dom";
 import { BillsPanel } from "./bills/BillsPanel";
 import { BillsMoney } from "./bills/charts/MoneySection";
 import { ACCOUNTING_LINKS } from "./books/links";
-import { AgedBalances } from "./books/pages/AgedBalances";
+import { AgedBalances } from "./aging/AgedBalances";
 import { BalanceSheet } from "./books/pages/BalanceSheet";
 import { Journal } from "./books/pages/Journal";
 import { LedgerPage } from "./books/pages/Ledger";
@@ -34,6 +34,7 @@ import { useMeta, type DealDetail, type OrganizationDetail } from "./crm/queries
 import { crmSearchGroups } from "./crm/searchGroups";
 import { SampleInvoice } from "./invoices/SampleInvoice";
 import { InvoicesMoney } from "./invoices/MoneySection";
+import { QuoteInvoiceButton, QuoteInvoiceLine } from "./invoices/QuoteInvoice";
 import { Invoice } from "./invoices/pages/Invoice";
 import { Invoices } from "./invoices/pages/Invoices";
 import { DealInvoices, OrganizationInvoices } from "./invoices/panels";
@@ -127,7 +128,7 @@ const router = createBrowserRouter([
       { path: "/products/:id", element: <Product /> },
       { path: "/quotes", element: <Quotes /> },
       { path: "/quotes/new", element: <NewDraft /> },
-      { path: "/quotes/:id", element: <Quote /> },
+      { path: "/quotes/:id", element: <Quote invoice={{ Button: QuoteInvoiceButton, Line: QuoteInvoiceLine }} /> },
       { path: "/invoices", element: <Invoices /> },
       { path: "/invoices/:id", element: <Invoice /> },
       { path: "/bills", element: <Bills /> },

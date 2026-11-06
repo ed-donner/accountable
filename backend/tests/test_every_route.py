@@ -56,6 +56,7 @@ def with_id(path: str, value: object) -> str:
 SAMPLE_BODIES: dict[tuple[str, str], dict[str, Any]] = {
     ("POST", "/api/deals/{deal_id}/move"): {"stage": "new"},
     ("POST", "/api/invoices"): {"deal_id": 1},
+    ("POST", "/api/invoices/from-quote/{quote_id}"): {},
     ("POST", "/api/invoices/{invoice_id}/payments"): {"paid_on": "2026-10-01", "amount_cents": 100, "method": "card"},
 }
 
@@ -69,7 +70,10 @@ DESCRIBED = app.openapi()
 SAMPLE_QUERY_VALUES = {"string": "harbor", "integer": "1"}
 # A value a route's own check takes, where it needs one. The fixed today is Oct 31, 2026,
 # so November is a forecast month.
-SAMPLE_QUERIES = {("GET", "/api/cash-flow/expected"): {"month": "2026-11"}}
+SAMPLE_QUERIES = {
+    ("GET", "/api/cash-flow/expected"): {"month": "2026-11"},
+    ("GET", "/api/books/profit-and-loss/entries"): {"figure": "revenue", "from": "2026-10-01", "to": "2026-10-31"},
+}
 # Text JSON can carry that a database can't store: Postgres refuses a NUL character
 # outright, and neither database can encode half of a two-part character.
 UNSTORABLE_TEXT = {"a NUL character": "Harbor\x00Pine", "half of a two-part character": "\ud800"}
@@ -141,6 +145,7 @@ def test_the_routes_were_found():
     assert ("PATCH", "/api/invoices/{invoice_id}", "bill_to") in BODY_TEXT
     assert ("POST", "/api/invoices/{invoice_id}/issue", "bill_to") in BODY_TEXT
     assert ("POST", "/api/invoices/{invoice_id}/void") in WRITES
+    assert ("POST", "/api/invoices/from-quote/{quote_id}") in WRITES
     assert ("POST", "/api/invoices/{invoice_id}/payments", "reference") in BODY_TEXT
     assert ("POST", "/api/invoices/{invoice_id}/payments", "method") in BODY_TEXT
     assert ("POST", "/api/invoices/{invoice_id}/payments", "paid_on") in BODY_TEXT
@@ -175,14 +180,20 @@ def test_the_routes_were_found():
     assert ("GET", "/api/cash-flow") in READS
     assert ("GET", "/api/cash-flow/expected") in READS
     assert target("GET", "/api/cash-flow/expected") == "/api/cash-flow/expected?month=2026-11"
+    for route in [("GET", "/api/aged-balances/customers"), ("GET", "/api/aged-balances/suppliers")]:
+        assert route in READS, route
     for route in [
         ("GET", "/api/books/balances"),
         ("GET", "/api/books/months"),
         ("GET", "/api/books/entries"),
+        ("GET", "/api/books/profit-and-loss"),
+        ("GET", "/api/books/profit-and-loss/entries"),
     ]:
         assert route in READS, route
     assert KEYED_ROUTES[0] in ROUTES and KEYED_ROUTES[0] not in RECORD_ROUTES
     assert QUERY_TEXT == [
+        ("GET", "/api/aged-balances/customers", "on"),
+        ("GET", "/api/aged-balances/suppliers", "on"),
         ("GET", "/api/books/balances", "on"),
         ("GET", "/api/books/entries", "account"),
         ("GET", "/api/books/entries", "from"),
@@ -191,6 +202,11 @@ def test_the_routes_were_found():
         ("GET", "/api/books/entries", "kind"),
         ("GET", "/api/books/months", "from"),
         ("GET", "/api/books/months", "to"),
+        ("GET", "/api/books/profit-and-loss", "period"),
+        ("GET", "/api/books/profit-and-loss", "on"),
+        ("GET", "/api/books/profit-and-loss/entries", "figure"),
+        ("GET", "/api/books/profit-and-loss/entries", "from"),
+        ("GET", "/api/books/profit-and-loss/entries", "to"),
         ("GET", "/api/cash-flow/expected", "month"),
         ("GET", "/api/search", "q"),
     ]

@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## The books
 
-Accountable keeps double-entry books in the background. Every event that moves money posts a journal entry, so the books say what the business earned, what it owns and what it owes, and can be checked the way an accountant would check them. Nobody types an entry: the invoices, payments, bills and the opening balance post their own, in the save that changes them. The books can be read, never changed. Every invoice, payment and bill shows the entries it made in an Accounting panel, the Journal page lists every entry with filters and a search, and an account's ledger charts its balance and follows it line by line. The other three reports, Profit and loss, Balance sheet and Aged balances, are still to come, and say so. The backend answers what they will ask: an account's balance on a date, each account's totals by month, and the entries behind any figure.
+Accountable keeps double-entry books in the background. Every event that moves money posts a journal entry, so the books say what the business earned, what it owns and what it owes, and can be checked the way an accountant would check them. Nobody types an entry: the invoices, payments, bills and the opening balance post their own, in the save that changes them. Every invoice, payment and bill shows the entries it made in an Accounting panel, the Journal page lists every entry with filters and a search, and an account's ledger charts its balance and follows it line by line. The reports are [Profit and loss](profit-and-loss.md#profit-and-loss) and Aged balances ([aged-balances.md](aged-balances.md#aged-balances)), which works out its figures from the invoices and bills and checks them against the books. Balance sheet still says its report is coming, and the backend already answers what they will ask: an account's balance on a date, each account's totals by month, and the entries behind any figure.
 
 ### Accounts
 
@@ -92,7 +92,7 @@ A save that changes nothing money-related, such as a bill's notes, due date or n
 - **J12.** The backend answers four questions, each from the entries alone, and none of them is stored:
   - **Balance on a date:** every account's balance on a day, counting every entry dated up to and including it (`GET /books/balances`). Without a day, it's today.
   - **Totals by month:** for each month in a range, each account's debits, its credits and its balance at the month's end (`GET /books/months`). Without a range, it's the last 12 months, as every chart by month shows.
-  - **The entries behind a figure:** the entries in a range of dates that touch an account, newest first, each with its lines, its source and the page that opens it (`GET /books/entries`). A balance on a day is the entries to that day, a month's figure the entries between the month's first and last days, so any figure can be traced to the invoices, payments and bills behind it, reversals included. The entries can also be narrowed to those whose description or document number holds some text, ignoring case, and to those a record made, by its kind and id (a bill's include its paid entries), which is what the Journal's search and the Accounting panels use ([J17 and J19](#the-journal-and-the-ledgers)).
+  - **The entries behind a figure:** the entries in a range of dates that touch an account, newest first, each with its lines, its source, the page that opens it and a label naming the record, such as the invoice's number or "8841 from Northwind Software" for a bill, or nothing if the record has been deleted or has no name, as a payment and the opening balance have none (`GET /books/entries`). The books don't read the areas to name a record: each area that posts gives `main.py` a function that names its records in one read, as it gives its holds and cash, so the label is the record's name now, not as it was when posted. A balance on a day is the entries to that day, a month's figure the entries between the month's first and last days, so any figure can be traced to the invoices, payments and bills behind it, reversals included. The entries can also be narrowed to those whose description or document number holds some text, ignoring case, and to those a record made, by its kind and id (a bill's include its paid entries), which is what the Journal's search and the Accounting panels use ([J17 and J19](#the-journal-and-the-ledgers)).
   - **An account's ledger:** every line that touched one account, newest first, each with the account's running balance after it, and the account's balance after its last line (`GET /books/accounts/{key}/ledger`). Lines are ordered by their entry's date, then by entry, then by line, and the running balance adds them up from the account's first line in that order, by J2's rule for the account, whichever page is asked for ([J18](#the-journal-and-the-ledgers)).
 
   Sums are sent as strings of digits, with a minus sign in front below zero, as the cash flow's are (Y20), because a sum of 46 invoices can pass what a browser holds exactly. A line's own amount is a number. The routes start with `/api/books` ([API](backend.md#api)).
@@ -102,15 +102,13 @@ A save that changes nothing money-related, such as a bill's notes, due date or n
 ### The Accounting pages
 
 - **J15.** The menu under the person's initials has an Accounting group of four links, Profit and loss, Balance sheet, Journal and Aged balances, between the themes and Company settings ([N7](shell.md#app-shell)). They open `/accounting/profit-and-loss`, `/accounting/balance-sheet`, `/accounting/journal` and `/accounting/aged-balances`, each with its own address (N2). An account's ledger opens at `/accounting/accounts/cash`, with the account's key from J1 after `accounts/`, and has no link in the menu. `/accounting` alone opens Profit and loss. Like Company settings, an Accounting page keeps the top bar, isn't one of its nine sections, and so leaves no section marked as current. Any other address under `/accounting` shows "This page no longer exists" (N4). A ledger for a key that isn't one of the twelve accounts shows "This account no longer exists" with a link back to Journal.
-- **J16.** Profit and loss, Balance sheet and Aged balances are still placeholders that say the report is coming and what it will show, in plain words. Each has its title, "This report is coming soon." and what it will hold. Journal is a real page ([J17](#the-journal-and-the-ledgers)) and has no placeholder:
+- **J16.** Profit and loss ([X1 to X19](profit-and-loss.md#profit-and-loss)) and Aged balances ([X1 to X20](aged-balances.md#aged-balances)) have their reports. Balance sheet is for now a placeholder that says the report is coming and what it will show, in plain words. It has its title, "This report is coming soon." and what it will hold. Journal is a real page ([J17](#the-journal-and-the-ledgers)) and has no placeholder:
 
 | Page | What it says it will show |
 |---|---|
-| Profit and loss | What the business earned and what it spent each month, and the profit or loss that leaves. |
 | Balance sheet | What the business owns and owes on any day you choose, and what's left over for the owner. |
-| Aged balances | What customers owe and what the business owes, grouped by how late each amount is. |
 
-  The three placeholders read nothing from the backend, so they never show a failed read, and they work with the network off apart from the app itself.
+  The placeholder reads nothing from the backend, so they never show a failed read, and they work with the network off apart from the app itself.
 
 ### The journal and the ledgers
 
@@ -133,9 +131,10 @@ Everything here is read only (J6). No page, panel or button in it adds, changes,
 
 ### Placeholder pages
 
-Profit and loss, Balance sheet and Aged balances. Each page is the page title at the top left, in Instrument Sans at the size the Company settings title has, semibold, in ink, and under it one panel on the page background, rounded with no outline, as the other panels are, in light and dark mode. The panel is about 560px wide and left-aligned under the title. In it, the lucide-react Info icon in Cerulean comes before "This report is coming soon." in semibold ink, then, under it in muted ink, the sentence for that page from J16. No button, no figure, no table and no gradient. It sits as it does on every page, under the top bar's floating bar with space around it, and there's no line across the top.
+Profit and loss has its own screen ([Screens](profit-and-loss.md#screens)), and so has Aged balances ([Aged balances page](aged-balances.md#aged-balances-page)), and Journal has its own ([Journal page](#journal-page)). The placeholder page is the page title at the top left, in Instrument Sans at the size the Company settings title has, semibold, in ink, and under it one panel on the page background, rounded with no outline, as the other panels are, in light and dark mode. The panel is about 560px wide and left-aligned under the title. In it, the lucide-react Info icon in Cerulean comes before "This report is coming soon." in semibold ink, then, under it in muted ink, the sentence for that page from J16. No button, no figure, no table and no gradient. It sits as it does on every page, under the top bar's floating bar with space around it, and there's no line across the top.
 
-The three pages share one component, which takes the title and the sentence, so the wording is in one place. Their words are the ones in J16, with no exclamation marks.
+The placeholder is one component, which takes the title and the sentence, so the wording is in one place. Its words are the ones in J16, with no exclamation marks.
+
 
 ### Entries
 

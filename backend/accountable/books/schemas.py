@@ -2,13 +2,13 @@
 
 import re
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Query
 from pydantic import AfterValidator, BaseModel
 
 from accountable.api import MAX_ID, CentsSum, PageOffset, UtcTime
-from accountable.books import accounts, tables
+from accountable.books import accounts, profit_and_loss, tables
 from accountable.search import SearchText
 from accountable.users import Person
 
@@ -22,6 +22,9 @@ KIND_MESSAGE = "Choose a kind of record: invoice, payment, bill, bill_payment or
 SOURCE_MESSAGE = "Enter a record's number"
 TOGETHER_MESSAGE = "Give the kind and the record's number together"
 SEARCH_MESSAGE = "Search for 1 to 100 characters"
+PERIOD_MESSAGE = "Choose a month, quarter or year"
+FIGURE_MESSAGE = "Choose a figure from the statement"
+FUTURE_MESSAGE = "The date can't be in the future"
 
 FIELD_MESSAGES = {
     "on": DATE_MESSAGE,
@@ -32,6 +35,8 @@ FIELD_MESSAGES = {
     "kind": KIND_MESSAGE,
     "source_id": SOURCE_MESSAGE,
     "q": SEARCH_MESSAGE,
+    "period": PERIOD_MESSAGE,
+    "figure": FIGURE_MESSAGE,
 }
 
 MAX_MONTHS = 60
@@ -121,6 +126,8 @@ class Entry(BaseModel):
     created_by: Person | None
     created_at: UtcTime
     lines: list[Line]
+    label: str | None = None
+    """What the source is called, such as an invoice's number, or nothing if it has been deleted or has no name."""
 
 
 class Entries(BaseModel):
@@ -155,3 +162,84 @@ class Ledger(BaseModel):
     total: int
     last_entry_date: date | None
     lines: list[LedgerLine]
+
+
+def _figure(value: str) -> str:
+    if value not in profit_and_loss.FIGURES:
+        raise ValueError(FIGURE_MESSAGE)
+    return value
+
+
+FigureQuery = Annotated[str, Query(), AfterValidator(_figure)]
+PeriodQuery = Annotated[Literal["month", "quarter", "year"], Query()]
+
+
+class Change(BaseModel):
+    kind: Literal["percent", "points", "new", "none"]
+    value: int | None
+    """A whole percent, or tenths of a point, or nothing."""
+
+
+class CategoryAmount(BaseModel):
+    category: str
+    """The bill category's key, such as "software"."""
+    name: str
+    cents: CentsSum
+
+
+class Figures(BaseModel):
+    revenue_cents: CentsSum
+    categories: list[CategoryAmount]
+    expenses_cents: CentsSum
+    profit_cents: CentsSum
+    margin_tenths: int | None
+
+
+class ChartMonth(Figures):
+    month: str
+    label: str
+    year: int
+    first: date
+    last: date
+
+
+class Changes(BaseModel):
+    revenue: Change
+    categories: list[Change]
+    expenses: Change
+    profit: Change
+    margin: Change
+
+
+class PeriodFigures(Figures):
+    kind: str
+    label: str
+    first: date
+    last: date
+
+
+class ShownPeriod(PeriodFigures):
+    current: bool
+    back_on: date | None
+    forward_on: date | None
+    changes: Changes
+
+
+class ProfitAndLoss(BaseModel):
+    today: date
+    months: list[ChartMonth]
+    period: ShownPeriod
+    previous: PeriodFigures | None
+
+
+class FigureEntry(Entry):
+    amount: CentsSum
+    """On the figure, with a minus sign where it takes the figure down."""
+
+
+class FigureEntries(BaseModel):
+    figure: str
+    count: int
+    total: CentsSum
+    """The figure for the range: the sum of every entry's amount, on every page."""
+    entries: list[FigureEntry]

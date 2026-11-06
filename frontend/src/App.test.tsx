@@ -2,6 +2,8 @@ import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { customersReply } from "./aging/test-aged";
+import { pageReply } from "./books/profit/test-profit";
 import { cashFlowReply, quietMonths } from "./cashflow/test-cash-flow";
 import { THEME_KEY } from "./lib/theme";
 import { META, mockApi, startSignedIn, user, type Call } from "./test-utils";
@@ -555,20 +557,19 @@ describe("the app, signed in", () => {
     expect(await screen.findByLabelText("Company name")).toBeTruthy();
   });
 
-  it.each([
-    ["/accounting/profit-and-loss", "Profit and loss", "What the business earned"],
-    ["/accounting/balance-sheet", "Balance sheet", "What the business owns and owes"],
-    ["/accounting/aged-balances", "Aged balances", "What customers owe"],
-  ])("opens %s inside the top bar, with no section marked", async (address, title, words) => {
-    mockApi({ "GET /meta": META, "GET /me": ALEX });
-    render(<App />);
-    visit(address);
-    expect((await heading()).textContent).toBe(title);
-    expect(screen.getByText("This report is coming soon.")).toBeTruthy();
-    expect(screen.getByText(new RegExp(words))).toBeTruthy();
-    expect(topBar().getAllByRole("link")).toHaveLength(9);
-    expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
-  });
+  it.each([["/accounting/balance-sheet", "Balance sheet", "What the business owns and owes"]])(
+    "opens %s inside the top bar, with no section marked",
+    async (address, title, words) => {
+      mockApi({ "GET /meta": META, "GET /me": ALEX });
+      render(<App />);
+      visit(address);
+      expect((await heading()).textContent).toBe(title);
+      expect(screen.getByText("This report is coming soon.")).toBeTruthy();
+      expect(screen.getByText(new RegExp(words))).toBeTruthy();
+      expect(topBar().getAllByRole("link")).toHaveLength(9);
+      expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+    },
+  );
 
   it("opens the Journal inside the top bar, with no section marked, as a real page", async () => {
     mockApi({
@@ -581,6 +582,18 @@ describe("the app, signed in", () => {
     visit("/accounting/journal");
     expect((await heading()).textContent).toBe("Journal");
     expect(await screen.findByText(/No entries yet/)).toBeTruthy();
+    expect(screen.queryByText("This report is coming soon.")).toBeNull();
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
+    expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+  });
+
+  it("opens Aged balances inside the top bar on Customers, with its report and no section marked", async () => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX, "GET /aged-balances/customers": customersReply() });
+    render(<App />);
+    visit("/accounting/aged-balances");
+    expect((await heading()).textContent).toBe("Aged balances");
+    expect(screen.getByRole("radio", { name: "Customers" }).getAttribute("aria-checked")).toBe("true");
+    expect(await screen.findByRole("link", { name: "Bluebird Bakery" })).toBeTruthy();
     expect(screen.queryByText("This report is coming soon.")).toBeNull();
     expect(topBar().getAllByRole("link")).toHaveLength(9);
     expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
@@ -625,11 +638,27 @@ describe("the app, signed in", () => {
   });
 
   it("opens Profit and loss at /accounting, replacing that address", async () => {
-    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    mockApi({ "GET /meta": META, "GET /me": ALEX, "GET /books/profit-and-loss?period=month": pageReply() });
     render(<App />);
     visit("/accounting");
     expect((await heading()).textContent).toBe("Profit and loss");
     expect(window.location.pathname).toBe("/accounting/profit-and-loss");
+  });
+
+  it("opens the real Profit and loss page at its address, inside the top bar, with no section marked", async () => {
+    const calls = mockApi({
+      "GET /meta": META,
+      "GET /me": ALEX,
+      "GET /books/profit-and-loss?period=month": pageReply(),
+    });
+    render(<App />);
+    visit("/accounting/profit-and-loss");
+    expect((await heading()).textContent).toBe("Profit and loss");
+    expect(await screen.findByRole("region", { name: "Statement" })).toBeTruthy();
+    expect(screen.queryByText("This report is coming soon.")).toBeNull();
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
+    expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+    expect(calls.some((call) => call.path.startsWith("/books/profit-and-loss"))).toBe(true);
   });
 
   it("says an address under /accounting that isn't a page no longer exists, keeping the top bar", async () => {

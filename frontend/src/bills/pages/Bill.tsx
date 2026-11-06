@@ -68,14 +68,16 @@ function BillRecord({ id }: { id: number }) {
       <BillHeader record={record} onDialog={setDialog} />
       <LoadFailed onPage keeping error={bill.error} onRetry={() => bill.refetch()} />
       <RecordColumns side={<BillDetails record={record} />}>
-        <SidePanel title="Notes">
-          {record.notes ? (
-            <p className="whitespace-pre-wrap">{record.notes}</p>
-          ) : (
-            <p className="text-muted">No notes.</p>
-          )}
-        </SidePanel>
-        <AccountingPanel kind="bill" id={record.id} />
+        <div className="flex flex-col gap-3">
+          <SidePanel title="Notes">
+            {record.notes ? (
+              <p className="whitespace-pre-wrap">{record.notes}</p>
+            ) : (
+              <p className="text-muted">No notes.</p>
+            )}
+          </SidePanel>
+          <AccountingPanel kind="bill" id={record.id} />
+        </div>
       </RecordColumns>
       {dialog === "edit" && <BillForm record={record} onClose={close} />}
       {dialog === "pay" && <MarkPaidDialog bill={record} onClose={close} />}

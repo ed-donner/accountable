@@ -7,11 +7,11 @@ import { price, shortMoney } from "../../lib/money";
 import type { AccountMonth } from "../queries";
 
 const AXIS_TEXT = { ...CHART_AXIS_TEXT, fontWeight: 500 };
-// Text on the Sea Green fill is Midnight in both modes, because Sea Mist can't be read on it.
-const ON_FILL = "var(--color-midnight)";
+/** The band under the chart that holds the month names. */
+const MONTH_BAND = 24;
 const MARGIN = { top: 24, right: 0, bottom: 0, left: 0 };
-/** The fill runs half a month past the first and last, to the panel's edges. */
-const EDGE = 0.5;
+/** The fill runs half a month before the first, and a month and a half past the last, so the money axis on the right has room beside the end dot. */
+const EDGE = { left: 0.5, right: 1.5 };
 
 type Row = {
   x: number;
@@ -35,7 +35,52 @@ type DotProps = { cx?: number; cy?: number; payload?: Row };
 
 function EndDot({ cx, cy, payload }: DotProps) {
   if (!payload?.current || cx === undefined || cy === undefined) return null;
-  return <circle cx={cx} cy={cy} r={5} fill="var(--color-ink)" stroke="var(--color-panel)" strokeWidth={2} />;
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={5} fill="var(--color-ink)" stroke="var(--color-panel)" strokeWidth={2} />
+      <text x={cx} y={cy - 12} textAnchor="middle" style={INK}>
+        so far
+      </text>
+    </g>
+  );
+}
+
+type TickProps = { x?: number | string; y?: number | string; payload?: { value: number | string } };
+
+const INK = { ...AXIS_TEXT, fill: "var(--color-ink)" };
+// Text on the Sea Green fill is Midnight in both modes, because Sea Mist can't be read on it.
+const ON_FILL = { ...AXIS_TEXT, fill: "var(--color-midnight)" };
+/** A money label's baseline stands this far above its grid line, its figures stand this tall, and it keeps this far off the fill's edge. */
+const LABEL_BASELINE = 5;
+const LABEL_HEIGHT = 9;
+const LABEL_GAP = 3;
+
+/**
+ * A money label, in Midnight where its middle stands on the fill, which at the right-hand edge reaches from
+ * zero to the last balance, and in ink anywhere else. `where` gives how far down the chart a value sits.
+ */
+function moneyTick(where: (value: number) => number, last: number) {
+  const fillEnd = where(last);
+  const zero = where(0);
+  return function MoneyTick({ x = 0, y = 0, payload }: TickProps) {
+    const value = Number(payload?.value ?? 0);
+    const baseline = Number(y) - LABEL_BASELINE;
+    const middle = baseline - LABEL_HEIGHT / 2;
+    // A label that would cross the fill's top edge, where it can't be read, stands just above it instead.
+    const crosses = last > 0 && value > 0 && baseline - LABEL_HEIGHT < fillEnd && baseline > fillEnd;
+    const onFill =
+      last >= 0 ? value > 0 && middle >= fillEnd && !crosses : value < 0 && middle <= fillEnd && middle >= zero;
+    return (
+      <text
+        x={Number(x) + 6}
+        y={crosses ? fillEnd - LABEL_GAP : baseline}
+        textAnchor="end"
+        style={onFill ? ON_FILL : INK}
+      >
+        {shortMoney(value)}
+      </text>
+    );
+  };
 }
 
 /** The axis runs from the lowest balance, or zero, up to a round figure above the highest, or zero. */
@@ -59,10 +104,13 @@ export function BalanceChart({ months, name }: { months: AccountMonth[]; name: s
   const { top, bottom } = balanceRange(dollars);
   const last = months.length - 1;
   const shown = size.width > 0 && size.height > MARGIN.top;
+  // How far down the plot a value sits, between the margin above and the band of month names below.
+  const where = (value: number) =>
+    MARGIN.top + ((top - value) / (top - bottom)) * (size.height - MARGIN.top - MONTH_BAND);
   const ticks = bottom < 0 ? [bottom, 0, top] : [0.25, 0.5, 0.75, 1].map((share) => top * share);
 
   const rows: Row[] = [
-    { x: -EDGE, fill: dollars[0] },
+    { x: -EDGE.left, fill: dollars[0] },
     ...months.map((month, index) => ({
       x: index,
       fill: dollars[index],
@@ -73,7 +121,7 @@ export function BalanceChart({ months, name }: { months: AccountMonth[]; name: s
       balance: month.balance,
       current: index === last,
     })),
-    { x: last + EDGE, fill: dollars[last] },
+    { x: last + EDGE.right, fill: dollars[last] },
   ];
 
   return (
@@ -94,13 +142,14 @@ export function BalanceChart({ months, name }: { months: AccountMonth[]; name: s
             <XAxis
               type="number"
               dataKey="x"
-              domain={[-EDGE, last + EDGE]}
+              domain={[-EDGE.left, last + EDGE.right]}
               ticks={months.map((_month, index) => index)}
-              tickFormatter={(index: number) => months[index]?.label ?? ""}
-              mirror
               axisLine={false}
               tickLine={false}
-              tick={{ ...AXIS_TEXT, fill: bottom < 0 ? "var(--color-ink)" : ON_FILL }}
+              // The month names stand in a band under the fill, where the line can't cross them.
+              height={MONTH_BAND}
+              tickFormatter={(index: number) => months[index]?.label ?? ""}
+              tick={{ ...AXIS_TEXT, fill: "var(--color-ink)" }}
               interval={0}
             />
             <YAxis
@@ -110,8 +159,7 @@ export function BalanceChart({ months, name }: { months: AccountMonth[]; name: s
               mirror
               axisLine={false}
               tickLine={false}
-              tick={{ ...AXIS_TEXT, fill: "var(--color-ink)" }}
-              tickFormatter={(value: number) => shortMoney(value)}
+              tick={moneyTick(where, dollars[last])}
               tickMargin={12}
               allowDataOverflow
             />

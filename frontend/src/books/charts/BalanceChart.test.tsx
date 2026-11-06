@@ -60,6 +60,21 @@ describe("the balance chart", () => {
     expect(dots[0].getAttribute("fill")).toBe("var(--color-ink)");
   });
 
+  it('labels this month\'s end dot "so far", with the month names in ink under the fill', () => {
+    render(<BalanceChart name="Cash" months={months([0, 0, 500000])} />);
+    const chart = within(screen.getByRole("img"));
+    expect(chart.getAllByText("so far")).toHaveLength(1);
+    expect(chart.getByText("Jan").closest("text")?.getAttribute("fill")).toBe("var(--color-ink)");
+  });
+
+  it("sets a money label in Midnight where it stands on the fill and in ink above it", () => {
+    render(<BalanceChart name="Cash" months={months(RISING)} />);
+    const chart = within(screen.getByRole("img"));
+    const colour = (label: string) => chart.getByText(label).closest("text")?.getAttribute("style");
+    expect(colour("$5k")).toContain("var(--color-midnight)");
+    expect(colour("$20k")).toContain("var(--color-ink)");
+  });
+
   it("draws in the tokens only, never a colour of its own", () => {
     const { container } = render(<BalanceChart name="Cash" months={months(RISING)} />);
     expect(container.innerHTML).not.toMatch(/#[0-9a-f]{3,6}\b|rgb\(/i);

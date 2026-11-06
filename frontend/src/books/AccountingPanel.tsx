@@ -38,7 +38,7 @@ export function AccountingPanel({ kind, id, heading = true, enabled = true }: Pr
   const body = <Entries kind={kind} id={id} enabled={enabled} />;
   if (heading) return <SidePanel title="Accounting">{body}</SidePanel>;
   return (
-    <section aria-label="Accounting" className="mt-1 mb-1.5">
+    <section aria-label="Accounting" className="mt-2.5 mb-1.5">
       {body}
     </section>
   );

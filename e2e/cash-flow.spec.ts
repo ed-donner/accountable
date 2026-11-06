@@ -138,11 +138,18 @@ test("turning on likely deals adds the band and its figure, and leaves the forec
   expect(await monthEnds(page)).toEqual(before.ends);
 });
 
+/**
+ * Opens a month's list and waits until it's drawn, as its groups or the line saying nothing is expected.
+ * The reply arrives before the list is drawn, and the dialog is empty until it is.
+ */
 async function waitForList(page: Page, open: () => Promise<void>) {
   const listed = page.waitForResponse((response) => new URL(response.url()).pathname === `${API}/cash-flow/expected`);
   await open();
   expect((await listed).ok()).toBe(true);
-  return page.getByRole("dialog");
+  const dialog = page.getByRole("dialog");
+  const drawn = dialog.getByRole("region").or(dialog.getByText(/^Nothing expected in /));
+  await expect(drawn.first()).toBeVisible();
+  return dialog;
 }
 
 test("a forecast month's list opens from its column and from its label, and closes back to the label", async ({

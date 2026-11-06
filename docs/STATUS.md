@@ -865,7 +865,23 @@ ui-check's polish items are left as they are: an error under a settings box rath
 
 `npm run check` passes again: 6,435 tests in 6m 46s. The new and rewritten tests each failed on a broken copy of the code: the axis kept steady, no room under the plot, and 16px between figures.
 
-Still to come: the review and `docs/IMPROVE.md`.
+### Review
+
+The reviewer's first pass read only part of the change, so it ran again in three parts, the backend, the frontend with the end-to-end tests, and the docs, each reading every line of its part. Style was left out, as the owner asked. It found one Important problem, now fixed:
+
+- **A month's list was counted before it was drawn.** In `e2e/cash-flow.spec.ts`, `waitForList` returned once the reply to `/cash-flow/expected` arrived, and "an invoice in a month's list opens its own page" then counted the dialog's Coming in groups at once, while the dialog was still empty. On a copy of the spec with the browser's CPU slowed 20 times, it counted none in all four months and failed on `invoice!` in one run of three. `waitForList` now waits for the list itself, its groups or the line saying nothing is expected, and the same copy passed six runs of six. The copy was deleted after.
+
+The review's nits are still open:
+
+- No test has two customers whose average days late differ, so one taking every customer's average would pass (Y5, Y6). Migration `0011`'s downgrade is never run. The sliver test checks a height of 4px when `CHART.least` is 6, and "is off each time" never remounts the row.
+- The Likely deals switch stays on when the opening balance is removed, and comes back on when one is added. A month's list reopened after a save shows the cached list until the new one arrives. The form compares the opening date as text, so a five-digit year passes it, though the backend refuses it. January's this-month label is taller than its row. A dialog left open past a month's end shows the old month, then a 404 on its next read.
+- `settings.md`'s B13 leaves out the opening balance when the settings are cleared. `backend.md`'s month list row names fields the reply doesn't use, and points at an "(API, above)" rule that isn't written there. `visual-design.md`'s "All charts" bullet says only the current month is labelled. `testing.md` leaves out the end-to-end test of a balance below zero. `plan.md` says 12 presses of Tab, where the test takes 15.
+
+`docs/changes/cash-flow/independent-review.md` arrived during the review, with three Important findings of its own, and isn't addressed here.
+
+`npm run check` passes after the fix: 6,435 tests in 7m 11s. Four unit tests took a second or more while another run was busy, none from this branch: `test_logo.py`'s WEBP case at 4.5s, `DataTable.test.tsx`'s paging at 1.4s, and the limits' setup and `QuoteForm.test.tsx`'s 101st line at 1.1s each.
+
+Still to come: `docs/IMPROVE.md`.
 
 ## Running Accountable
 

@@ -109,7 +109,8 @@ backend/accountable/
   migrations/                     Alembic, with batch mode on. 0006 adds number_counters, 0007 bills, 0008 quotes
                                   and quote_lines, 0009 the invoices tables, company_logo, and the design and accent
                                   color settings, 0010 each invoice's issue_order, and 0011 the opening balance's two
-                                  columns, blank, and 0012 the books' two tables, with the entries for the records already there
+                                  columns, blank, and 0012 the books' two tables, with the entries for the records already there, and 0013
+                                  invoices.quote_id, blank on the invoices already there, with its unique index
   crm/
     tables.py                     SQLAlchemy Core tables, and RECORDS, the ones seed and empty count
     schemas.py                    the CRM's Pydantic request and reply models, and the messages for its fields

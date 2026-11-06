@@ -36,4 +36,4 @@ An accepted quote has a Create invoice button. It makes a draft invoice on the q
 - Bill to is copied from the quote's Prepared for, which is fixed once the quote is sent, not from the deal's current organization and contact.
 - The "rate has changed" note compares the tax rate the quote kept when it was sent with the rate in Settings now, and shows on the draft only.
 - A voided invoice still counts as the quote's invoice, so the button keeps opening it; deleting a draft invoice removes the link and lets the quote make a new one.
-- Now that a quote has an invoice, "Turning a quote into an invoice" comes off the spec's Not in Accountable yet list.
+- Create invoice needs the deal to be won, as any new invoice does, and the draft copies the quote exactly even where a description is over 1,000 characters or has a character the invoice fonts lack; the draft then shows those messages and can't be saved or issued until they're fixed.

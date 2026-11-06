@@ -76,6 +76,7 @@ def test_the_data_really_is_at_the_limits(full):
 CASH_FLOW_MONTH = "/api/cash-flow/expected?month=2026-11"
 
 
+AGED_BALANCES = ["/api/aged-balances/customers", "/api/aged-balances/suppliers"]
 BOOKS = [
     "/api/books/balances",
     "/api/books/months",
@@ -86,7 +87,16 @@ BOOKS = [
 
 
 @pytest.mark.parametrize(
-    "path", ["/api/dashboard", "/api/invoices/money", "/api/bills/dashboard", "/api/cash-flow", CASH_FLOW_MONTH, *BOOKS]
+    "path",
+    [
+        "/api/dashboard",
+        "/api/invoices/money",
+        "/api/bills/dashboard",
+        "/api/cash-flow",
+        CASH_FLOW_MONTH,
+        *BOOKS,
+        *AGED_BALANCES,
+    ],
 )
 def test_the_dashboard_and_its_money_section_are_quick(full, path):
     elapsed = median_ms(full, path)
@@ -172,6 +182,9 @@ QUERIES = {
     "/api/books/profit-and-loss": 4,
     # The page with its count, the figure's total, the lines, and a name for each of invoices and bills.
     "/api/books/profit-and-loss/entries?figure=profit&from=2026-01-01&to=2026-12-31": 5,
+    # Each view is one grouped read of the invoices and payments, or of the bills (X20).
+    "/api/aged-balances/customers": 1,
+    "/api/aged-balances/suppliers": 1,
 }
 
 

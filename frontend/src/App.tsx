@@ -6,7 +6,7 @@ import { RouterProvider } from "react-router/dom";
 import { BillsPanel } from "./bills/BillsPanel";
 import { BillsMoney } from "./bills/charts/MoneySection";
 import { ACCOUNTING_LINKS } from "./books/links";
-import { AgedBalances } from "./books/pages/AgedBalances";
+import { AgedBalances } from "./aging/AgedBalances";
 import { BalanceSheet } from "./books/pages/BalanceSheet";
 import { Journal } from "./books/pages/Journal";
 import { ProfitAndLoss } from "./books/pages/ProfitAndLoss";

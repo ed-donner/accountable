@@ -71,7 +71,7 @@ function appCode() {
 
 describe("the layout rules", () => {
   it("find every area", () => {
-    expect(AREAS).toEqual(["bills", "books", "cashflow", "crm", "invoices", "products", "quotes"]);
+    expect(AREAS).toEqual(["aging", "bills", "books", "cashflow", "crm", "invoices", "products", "quotes"]);
   });
 
   it("read where each import leads", () => {
@@ -159,6 +159,24 @@ describe("the cash flow", () => {
       .flatMap((file) => imported(file).map((target) => ({ file, target })));
     expect(importing.some(({ target }) => target.startsWith("cashflow/"))).toBe(true); // Looking in the right place.
     expect(importing.filter(({ target }) => ![undefined, "cashflow"].includes(areaOf(target)))).toEqual([]);
+  });
+});
+
+describe("the aged balances", () => {
+  it("import no other area, and only App.tsx names them", () => {
+    const own = appCode().filter((file) => areaOf(file) === "aging");
+    expect(own).toContain("aging/AgedTable.tsx"); // The check is looking in the right place.
+    const importing = own.flatMap((file) => imported(file));
+    expect(importing.filter((target) => ![undefined, "aging"].includes(areaOf(target)))).toEqual([]);
+    const naming = appCode()
+      .filter((file) => areaOf(file) !== "aging")
+      .filter((file) => imported(file).some((target) => areaOf(target) === "aging"));
+    expect(naming).toEqual(["App.tsx"]);
+  });
+
+  it("share the lateness colors with the dashboard through components/charts/lateness.ts", () => {
+    expect(imported("aging/AgedBar.tsx")).toContain("components/charts/lateness.ts");
+    expect(imported("invoices/charts/HowLate.tsx")).toContain("components/charts/lateness.ts");
   });
 });
 

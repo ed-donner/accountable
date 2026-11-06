@@ -212,7 +212,9 @@ frontend/src/
                                   MoneyColumn, OwingPanel, MoneyFigure and MonthsPanel
     charts/                       what any area's chart can use: ChartTooltip, useSize, and the axes' text and the top
                                   of a money axis, and monthColumns.tsx, the layout the Money section's two month
-                                  charts share
+                                  charts share, and StackSegment, which draws a segment of a stacked column with the
+                                  2px gaps and rounded tops and keeps a small one tall enough to see, for Bills'
+                                  charts and the balance sheet's bars
   crm/
     queries.ts, deals.ts, Timeline.tsx, searchGroups.tsx and others
     forms/                        organization, contact, deal and activity forms
@@ -257,14 +259,20 @@ frontend/src/
     status.tsx                    unpaid, overdue and paid from today, their chip, and the paid date's checks
     BillForm.tsx, MarkPaidDialog.tsx, DeleteBill.tsx, and BillsPanel.tsx, an organization's bills
     charts/                       MoneySection, with BillsMoney, bills' side of the Money section, DueTimeline and
-                                  SpendingChart, and StackSegment, which draws a segment of a stacked column for
-                                  both and keeps a small one tall enough to see
+                                  SpendingChart, which draw their segments with components/charts/StackSegment
     pages/                        Bills and Bill
-  books/                          the Accounting pages (J15, J16), which import no other area and read nothing yet
-    AccountingPage.tsx            the placeholder every Accounting page is: its title, "This report is coming soon." and
-                                  what the report will show
-    pages/                        ProfitAndLoss, BalanceSheet, Journal and AgedBalances, each a title and a sentence
-                                  handed to AccountingPage
+  books/                          the Accounting pages (J15, J16, X1 to X18), which import no other area
+    AccountingPage.tsx            the placeholder Profit and loss, Journal and Aged balances are: a title,
+                                  "This report is coming soon." and what the report will show
+    pages/                        ProfitAndLoss, Journal and AgedBalances, each a title and a sentence handed to
+                                  AccountingPage, and BalanceSheet, the page that composes the pieces below
+    balance.ts                    the balance sheet's own sums, in BigInt: the 12 stops, the columns' figures, Profit
+                                  to date, the totals and the difference, with no React in it
+    queries.ts                    its types, and reading the balances on a day and a page of entries, keyed by the day
+    DateSlider.tsx                the range input with the stops' month names under it
+    BalanceBars.tsx               the two stacked bars, drawn with Recharts and StackSegment, and the table behind them
+    BalanceColumns.tsx            the two columns of accounts and their totals, and the mark that the sides are equal
+    EntriesDialog.tsx             the entries behind a figure, with Show more
     links.ts                      the four pages' addresses and labels, which App.tsx gives the menu and its routes
   cashflow/                       the cash flow, a later area that imports no other area
     queries.ts                    its types, and reading the months and a month's list, keyed by the day

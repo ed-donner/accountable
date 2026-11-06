@@ -3,7 +3,7 @@
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import MISSING, AfterValidator, BaseModel, PlainSerializer
+from pydantic import MISSING, AfterValidator, BaseModel
 
 from accountable import api
 from accountable.who import Authorship
@@ -98,15 +98,12 @@ class BillDetail(BillRow, Authorship):
     pass
 
 
-# The Money section (E20 to E23)
-
-# A sum of bills in whole cents, sent as digits. Each bill is at most $2 trillion, which a
-# JavaScript number holds exactly, but 46 of them can pass 2**53 cents, where it can't.
-CentsSum = Annotated[int, PlainSerializer(str, return_type=str, when_used="json")]
+# The Money section (E20 to E23). Each bill is at most $2 trillion, which a JavaScript number
+# holds exactly, but 46 of them can pass 2**53 cents, so every sum here is sent as digits.
 
 
 class Figure(BaseModel):
-    total_cents: CentsSum
+    total_cents: api.CentsSum
     count: int
 
 
@@ -129,8 +126,8 @@ class SpendingMonth(BaseModel):
     """Such as "2026-10"."""
     label: str
     """Such as "Oct"."""
-    total_cents: CentsSum
-    categories: dict[Category, CentsSum]
+    total_cents: api.CentsSum
+    categories: dict[Category, api.CentsSum]
     """A total in cents for each of the six."""
 
 

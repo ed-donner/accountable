@@ -3,12 +3,13 @@ settings as saved, the company's details as a document shows them, and each docu
 (B15). The layout rules let any area import company/, so these are for them.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
+from fastapi import Depends, Request
 from pydantic import BaseModel
-from sqlalchemy import Connection, Row, insert, select, update
+from sqlalchemy import Column, Connection, Row, func, insert, select, update
 
 from accountable.company.tables import company_logo, company_settings, number_counters
 
@@ -102,3 +103,38 @@ def take(conn: Connection, kind: DocumentKind) -> Taken:
 def take_number(conn: Connection, kind: DocumentKind) -> str:
     """The next number alone, as take() gives it."""
     return take(conn, kind).number
+
+
+@dataclass(frozen=True)
+class Numbered:
+    """Where one kind of document keeps the numbers it has taken, such as the quotes' number column.
+
+    Each area that numbers its documents says where, and main.py puts every area's on the app,
+    so the settings can check a new prefix against them without naming the areas (B6).
+    """
+
+    kind: DocumentKind
+    number: Column
+
+
+def app_numbered(request: Request) -> Sequence[Numbered]:
+    """Every area's numbered documents, which main.py puts on the app. Tests can stand in for them."""
+    return request.app.state.numbered
+
+
+AppNumbered = Annotated[Sequence[Numbered], Depends(app_numbered)]
+
+
+def number_starting_with(conn: Connection, numbered: Sequence[Numbered], kind: DocumentKind, prefix: str) -> str | None:
+    """The first number of this kind that starts with the prefix, ignoring capitals, or None (B6)."""
+    for documents in (each for each in numbered if each.kind == kind):
+        number = documents.number
+        found = conn.scalar(
+            select(number)
+            .where(func.lower(number).startswith(prefix.lower(), autoescape=True))
+            .order_by(number)
+            .limit(1)
+        )
+        if found is not None:
+            return found
+    return None

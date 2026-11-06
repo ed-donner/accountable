@@ -112,12 +112,12 @@ function heightOf(segment: SVGPathElement) {
   return Number(/v\s*([\d.]+)/.exec(segment.getAttribute("d") ?? "")?.[1]);
 }
 
-describe("bills' row of the Money section", () => {
-  it("has the bills to pay and the spending side by side", async () => {
+describe("bills' side of the Money section", () => {
+  it("has what we owe, then the spending under it", async () => {
     show(FIGURES);
-    await screen.findByRole("region", { name: "Bills to pay" });
-    expect(panel("Bills to pay").getByRole("heading", { name: "Bills to pay" })).toBeTruthy();
-    expect(panel("Spending by category").getByRole("heading", { name: "Spending by category" })).toBeTruthy();
+    await screen.findByRole("region", { name: "What we owe" });
+    expect(panel("What we owe").getByRole("heading", { name: "Due in the next 30 days" })).toBeTruthy();
+    expect(panel("Spending by category").getByRole("heading", { name: "Spending in October" })).toBeTruthy();
   });
 
   it("shows what we owe and what's overdue with their cents and counts, each opening Bills under its filter", async () => {
@@ -144,6 +144,7 @@ describe("bills' row of the Money section", () => {
     expect(owed.textContent).toBe("What we owe$92,000,000,000,000.0147 unpaid bills");
     expect(screen.getByRole("link", { name: /^Overdue/ }).textContent).toBe("Overdue$92,000,000,000,000.0147 bills");
     expect(screen.getByTestId("due-total").textContent).toBe("$92,000,000,000,000.01");
+    expect(screen.getByTestId("spent-this-month").textContent).toBe("$92,000,000,000,000.01");
     const table = within(screen.getByRole("table", { name: "Spending by category for the last 12 months" }));
     expect(table.getAllByRole("row")[12].textContent).toBe(
       "Oct so far$92,000,000,000,000.01$0.00$0.00$0.00$0.00$0.00$92,000,000,000,000.01",
@@ -188,13 +189,13 @@ describe("bills' row of the Money section", () => {
 
 describe("due in the next 30 days", () => {
   function timeline() {
-    return panel("Bills to pay").getByRole("img", { name: /due from today/ });
+    return panel("What we owe").getByRole("img", { name: /due from today/ });
   }
 
   it("gives the total due and how many, over a timeline from today", async () => {
     show(FIGURES);
     expect((await screen.findByTestId("due-total")).textContent).toBe("$15,410.15");
-    expect(panel("Bills to pay").getByText("4 bills")).toBeTruthy();
+    expect(panel("What we owe").getByText("4 bills")).toBeTruthy();
     expect(timeline().getAttribute("aria-label")).toBe("4 bills due from today to Nov 30, 2026, each at its due date");
     const axis = within(timeline());
     for (const label of ["Today", "Nov 7", "Nov 14", "Nov 21", "Nov 28"])
@@ -266,16 +267,18 @@ describe("spending by category", () => {
     return panel("Spending by category").getByRole("img", { name: /^Spending by category/ });
   }
 
-  it("has a column for each of the last 12 months, with this month's total so far above it", async () => {
+  it("gives this month's spending beside last month's, over a column for each of the last 12 months", async () => {
     show(FIGURES);
     await screen.findByRole("link", { name: /^What we owe/ });
+    const spending = panel("Spending by category");
+    expect(spending.getByTestId("spent-this-month").textContent).toBe("$15,334.50");
+    expect(spending.getByTestId("spent-last-month").textContent).toBe("September $0.00");
     expect(chart().getAttribute("aria-label")).toBe(
       "Spending by category for the last 12 months, with $15,334.50 so far this month",
     );
     const drawn = within(chart());
     for (const label of LABELS) expect(await drawn.findByText(label)).toBeTruthy();
     expect(await drawn.findByText("so far")).toBeTruthy();
-    expect(await drawn.findByText("$15,334.50")).toBeTruthy();
   });
 
   it("stacks each month's categories in their order, from Software at the bottom", async () => {

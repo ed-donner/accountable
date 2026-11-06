@@ -9,6 +9,7 @@ import { SidePanel } from "../components/RecordLayout";
 import { useDeals, type DealDetail, type OrganizationDetail } from "../crm/queries";
 import { price } from "../lib/money";
 import { useNotify } from "../lib/notify";
+import { useCloseIfUnreadable } from "../lib/useCloseIfUnreadable";
 import { InvoiceChip } from "./InvoiceChip";
 import { useInvoices, useStartInvoice, type InvoiceFilter, type InvoiceRow } from "./queries";
 
@@ -35,9 +36,13 @@ function useStart() {
   return { startOn, pending: start.isPending };
 }
 
-/** Asks which deal, from won deals only, then opens the new draft (V4). */
+/**
+ * Asks which deal, from won deals only, then opens the new draft (V4). If the deals can't be
+ * read it closes and says so, rather than offering none (F11).
+ */
 export function NewInvoiceDialog({ onClose }: { onClose: () => void }) {
   const deals = useDeals();
+  useCloseIfUnreadable([deals], onClose);
   const { startOn, pending } = useStart();
   const [chosen, setChosen] = useState<number | null>(null);
   const [error, setError] = useState<string>();

@@ -13,12 +13,15 @@ const NAMES: Record<Money["groups"][number]["key"], string> = {
 /**
  * What's owed in five groups by days late (V29): bars sized against the largest, Not yet due in
  * Cerulean as information and the late ones in Raspberry as alerts, each named beside its bar.
+ * The rows spread over the panel's height, as the timeline beside it does.
  */
 export function HowLate({ groups }: { groups: Money["groups"] }) {
-  const largest = Math.max(...groups.map((group) => group.cents), 1);
+  // Near enough for a bar's width, however large. The figures beside them are exact.
+  const drawn = groups.map((group) => Number(group.cents));
+  const largest = Math.max(...drawn, 1);
   return (
-    <ul aria-label="How late" className="flex flex-col gap-2">
-      {groups.map((group) => (
+    <ul aria-label="How late" className="flex flex-1 flex-col justify-between pt-2 pb-1">
+      {groups.map((group, index) => (
         <li
           key={group.key}
           className="grid grid-cols-[96px_minmax(0,1fr)_120px_24px] items-center gap-3"
@@ -26,14 +29,14 @@ export function HowLate({ groups }: { groups: Money["groups"] }) {
         >
           <span className="text-[13px] leading-[18px] font-semibold whitespace-nowrap">{NAMES[group.key]}</span>
           <span className="h-2.5 min-w-0">
-            {group.cents > 0 && (
+            {drawn[index] > 0 && (
               <span
                 className={`block h-full rounded ${group.key === "not_due" ? "bg-cerulean" : "bg-raspberry"}`}
-                style={{ width: `${Math.max((group.cents / largest) * 100, 2)}%` }}
+                style={{ width: `${Math.max((drawn[index] / largest) * 100, 2)}%` }}
               />
             )}
           </span>
-          <span className="num text-right text-[13px]">{price(group.cents)}</span>
+          <span className="num text-right text-[13px]">{price(BigInt(group.cents))}</span>
           <span className="num text-right text-[13px] text-muted" aria-label={plural(group.count, "invoice")}>
             {group.count}
           </span>

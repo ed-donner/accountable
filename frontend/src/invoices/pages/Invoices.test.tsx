@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it } from "vitest";
+import { toast } from "sonner";
+import { describe, expect, it, vi } from "vitest";
 
 import { queryDefaults } from "../../lib/queryDefaults";
 import { mockApi, user } from "../../test-utils";
@@ -183,5 +184,14 @@ describe("the Invoices table", () => {
     expect(calls.filter((call) => call.method === "POST")).toEqual([
       { method: "POST", path: "/invoices", body: { deal_id: 7 } },
     ]);
+  });
+
+  it("closes and says so when the deals can't be read, rather than offering none (F11)", async () => {
+    const failure = vi.spyOn(toast, "error");
+    open("/invoices", { "GET /deals": () => ({ status: 500, body: { detail: "Something went wrong." } }) });
+    await screen.findByRole("table");
+    await user().click(screen.getByRole("button", { name: "New invoice" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "New invoice" })).toBeNull());
+    expect(failure).toHaveBeenCalledWith("Couldn't open the form. Try again.", expect.anything());
   });
 });

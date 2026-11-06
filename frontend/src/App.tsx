@@ -10,6 +10,7 @@ import { Bills } from "./bills/pages/Bills";
 import { SettingsPage } from "./company/SettingsPage";
 import { Icon } from "./components/Icon";
 import { MissingRecord } from "./components/MissingRecord";
+import { MoneySection } from "./components/MoneySection";
 import type { RecordPanel } from "./components/RecordLayout";
 import { Search } from "./components/Search";
 import { Shell, type Section } from "./components/Shell";
@@ -80,21 +81,17 @@ const ORGANIZATION_PANELS: RecordPanel<OrganizationDetail>[] = [
   { name: "bills", Panel: BillsPanel },
 ];
 
-/** One Money section, below the dashboard's own part: what customers owe us, from invoices, then what we owe, from bills. */
-function MoneySection() {
+/** One Money section, below the dashboard's own part: what customers owe us, from invoices, beside what we owe, from bills. */
+function Money() {
   return (
-    // The dashboard's own part ends 16px above, so this keeps the 12px between its panels.
-    <section aria-labelledby="money-heading" className="-mt-1 flex flex-col gap-3 px-5 pb-4">
-      <h2 id="money-heading" className="text-[20px] leading-7 font-semibold">
-        Money
-      </h2>
+    <MoneySection>
       <InvoicesMoney />
       <BillsMoney />
-    </section>
+    </MoneySection>
   );
 }
 
-const DASHBOARD_SECTIONS: DashboardSection[] = [{ name: "money", Section: MoneySection }];
+const DASHBOARD_SECTIONS: DashboardSection[] = [{ name: "money", Section: Money }];
 
 function AppShell() {
   useMeta(); // Fetched early, because it never changes and forms need it straight away.

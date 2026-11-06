@@ -8,28 +8,28 @@ import type { Money } from "./queries";
 const LABELS = ["Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov"];
 
 const MONEY: Money = {
-  owed: { cents: 4825000, count: 14 },
-  overdue: { cents: 912000, count: 5 },
+  owed: { cents: "4825000", count: 14 },
+  overdue: { cents: "912000", count: 5 },
   groups: [
-    { key: "not_due", cents: 3913000, count: 9 },
-    { key: "1_30", cents: 480000, count: 2 },
-    { key: "31_60", cents: 232000, count: 1 },
-    { key: "61_90", cents: 100000, count: 1 },
-    { key: "over_90", cents: 100000, count: 1 },
+    { key: "not_due", cents: "3913000", count: 9 },
+    { key: "1_30", cents: "480000", count: 2 },
+    { key: "31_60", cents: "232000", count: 1 },
+    { key: "61_90", cents: "100000", count: 1 },
+    { key: "over_90", cents: "100000", count: 1 },
   ],
   payments: LABELS.map((label, index) => ({
     month: `${index === 0 ? 2025 : 2026}-${String(index === 0 ? 12 : index).padStart(2, "0")}`,
     label,
-    cents: (index + 1) * 100000,
+    cents: String((index + 1) * 100000),
     count: index + 1,
   })),
 };
 
 const EMPTY: Money = {
-  owed: { cents: 0, count: 0 },
-  overdue: { cents: 0, count: 0 },
-  groups: MONEY.groups.map((group) => ({ ...group, cents: 0, count: 0 })),
-  payments: MONEY.payments.map((month) => ({ ...month, cents: 0, count: 0 })),
+  owed: { cents: "0", count: 0 },
+  overdue: { cents: "0", count: 0 },
+  groups: MONEY.groups.map((group) => ({ ...group, cents: "0", count: 0 })),
+  payments: MONEY.payments.map((month) => ({ ...month, cents: "0", count: 0 })),
 };
 
 afterEach(() => vi.useRealTimers());
@@ -41,7 +41,7 @@ async function open(money: Money | (() => { body: Money })) {
   return calls;
 }
 
-describe("invoices' row of the Money section", () => {
+describe("invoices' side of the Money section", () => {
   it("shows what's owed and what's overdue, each with how many invoices, Overdue linking to Invoices showing it", async () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 5, 12, 0) });
     await open(MONEY);
@@ -81,9 +81,33 @@ describe("invoices' row of the Money section", () => {
     );
   });
 
-  it("says Nothing owed and No payments, with nothing divided by zero", async () => {
+  it("shows sums past 2^53 cents to the cent, as the backend sends them in digits", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 5, 12, 0) });
+    const past = "9200000000000001";
+    await open({
+      ...MONEY,
+      owed: { cents: past, count: 47 },
+      overdue: { cents: past, count: 47 },
+      groups: MONEY.groups.map((group) => (group.key === "1_30" ? { ...group, cents: past, count: 47 } : group)),
+      payments: MONEY.payments.map((month, index) => (index === 11 ? { ...month, cents: past } : month)),
+    });
+    const owed = within(await screen.findByRole("region", { name: "Owed to us" }));
+    // Owed to us, Overdue, and How late's 1 to 30 days.
+    expect(owed.getAllByText("$92,000,000,000,000.01")).toHaveLength(3);
+    expect(owed.getByRole("link", { name: /Overdue/ }).textContent).toBe("Overdue$92,000,000,000,000.0147 invoices");
+    const late = within(screen.getByRole("list", { name: "How late" })).getAllByRole("listitem")[1];
+    expect(late.textContent).toBe("1 to 30 days$92,000,000,000,000.0147");
+    expect(screen.getByTestId("paid-this-month").textContent).toBe("$92,000,000,000,000.01");
+  });
+
+  it("shows $0.00 owed with Nothing owed in place of How late, and No payments, with nothing divided by zero", async () => {
     await open(EMPTY);
     expect(await screen.findByText("Nothing owed.")).toBeTruthy();
+    const owed = within(screen.getByRole("region", { name: "Owed to us" }));
+    expect(owed.getAllByText("$0.00")).toHaveLength(2);
+    expect(owed.getAllByText("0 invoices")).toHaveLength(2);
+    expect(owed.getByRole("heading", { name: "How late" })).toBeTruthy();
+    expect(owed.queryByRole("list", { name: "How late" })).toBeNull();
     expect(screen.getByText("No payments in the last 12 months.")).toBeTruthy();
     expect(screen.queryByText(/NaN|Infinity/)).toBeNull();
   });

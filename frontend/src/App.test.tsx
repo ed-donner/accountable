@@ -139,15 +139,20 @@ const NO_MONEY = {
   owed: { total_cents: "0", count: 0 },
   overdue: { total_cents: "0", count: 0 },
   due: { total_cents: "0", count: 0, bills: [] },
-  months: [],
+  months: ["2026-09", "2026-10"].map((month) => ({
+    month,
+    label: month === "2026-09" ? "Sep" : "Oct",
+    total_cents: "0",
+    categories: { software: "0", contractors: "0", travel: "0", office: "0", marketing: "0", other: "0" },
+  })),
 };
 const NO_INVOICE_MONEY = {
-  owed: { cents: 0, count: 0 },
-  overdue: { cents: 0, count: 0 },
+  owed: { cents: "0", count: 0 },
+  overdue: { cents: "0", count: 0 },
   groups: [],
   payments: [
-    { month: "2026-09", label: "Sep", cents: 0, count: 0 },
-    { month: "2026-10", label: "Oct", cents: 0, count: 0 },
+    { month: "2026-09", label: "Sep", cents: "0", count: 0 },
+    { month: "2026-10", label: "Oct", cents: "0", count: 0 },
   ],
 };
 // A won deal and its organization, for the Invoices panels.
@@ -409,15 +414,31 @@ describe("the app, signed in", () => {
       "What we owe$0.000 unpaid bills",
     );
     expect(await money.findByText("Nothing owed.")).toBeTruthy();
-    // One section for both: what customers owe us, from invoices, then what we owe, from bills.
+    // One section for both: what customers owe us, from invoices, beside what we owe, from bills.
     expect(money.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual([
       "Owed to us",
       "Payments received",
-      "Bills to pay",
+      "What we owe",
       "Spending by category",
     ]);
     expect(screen.getAllByRole("heading", { level: 2, name: "Money" })).toHaveLength(1);
     expect(screen.getAllByRole("heading", { level: 2 }).at(-1)?.textContent).toBe("Money");
+  });
+
+  it("keeps one side of the Money section showing when the other can't load", async () => {
+    mockApi({
+      "GET /me": ALEX,
+      "GET /meta": META,
+      "GET /invoices/money": () => ({ status: 500, body: { detail: "Something went wrong." } }),
+      "GET /bills/dashboard": NO_MONEY,
+    });
+    visit("/");
+    render(<App />);
+    const money = within(await screen.findByRole("region", { name: "Money" }));
+    expect(await money.findByText("Couldn't load this.")).toBeTruthy();
+    expect(money.queryByRole("region", { name: "Owed to us" })).toBeNull();
+    expect(await money.findByRole("link", { name: /^What we owe/ })).toBeTruthy();
+    expect(money.getByRole("region", { name: "Spending by category" })).toBeTruthy();
   });
 
   it("opens a bill's page at its address", async () => {

@@ -1,9 +1,13 @@
-"""The dashboard's Money section, GET /api/invoices/money, against a small dataset with known answers (V29 to V31)."""
+"""The dashboard's Money section, GET /api/invoices/money, against a small dataset with known answers (V29 to V31).
+
+Every sum comes as digits, because it can pass what a JavaScript number holds exactly.
+"""
 
 from datetime import date, timedelta
 
 import pytest
 from accountable import db
+from accountable.company import tax
 from conftest import TODAY
 
 MONEY = "/api/invoices/money"
@@ -33,7 +37,7 @@ def deal(make) -> int:
     return make.deal(stage="won", close_date=TODAY)
 
 
-def groups(reply: dict) -> dict[str, tuple[int, int]]:
+def groups(reply: dict) -> dict[str, tuple[str, int]]:
     return {group["key"]: (group["cents"], group["count"]) for group in reply["groups"]}
 
 
@@ -41,10 +45,10 @@ def test_an_empty_database_has_zeros_everywhere(api):
     reply = api.get(MONEY)
     assert reply.status_code == 200
     money = reply.json()
-    assert money["owed"] == money["overdue"] == {"cents": 0, "count": 0}
-    assert groups(money) == {key: (0, 0) for key in ("not_due", "1_30", "31_60", "61_90", "over_90")}
+    assert money["owed"] == money["overdue"] == {"cents": "0", "count": 0}
+    assert groups(money) == {key: ("0", 0) for key in ("not_due", "1_30", "31_60", "61_90", "over_90")}
     assert [month["label"] for month in money["payments"]] == MONTHS
-    assert {(month["cents"], month["count"]) for month in money["payments"]} == {(0, 0)}
+    assert {(month["cents"], month["count"]) for month in money["payments"]} == {("0", 0)}
 
 
 def test_drafts_and_void_invoices_are_left_out(api, make, deal):
@@ -52,8 +56,8 @@ def test_drafts_and_void_invoices_are_left_out(api, make, deal):
     issued(make, deal, 50000, late(40), status="void")
     issued(make, deal, 10000, late(-5))
     money = api.get(MONEY).json()
-    assert money["owed"] == {"cents": 10000, "count": 1}
-    assert money["overdue"] == {"cents": 0, "count": 0}
+    assert money["owed"] == {"cents": "10000", "count": 1}
+    assert money["overdue"] == {"cents": "0", "count": 0}
 
 
 def test_part_paid_counts_by_what_is_owed_and_paid_ones_not_at_all(api, make, deal):
@@ -62,8 +66,8 @@ def test_part_paid_counts_by_what_is_owed_and_paid_ones_not_at_all(api, make, de
     paid = issued(make, deal, 40000, late(10))
     make.payment(paid, 40000, paid_on=late(15))
     money = api.get(MONEY).json()
-    assert money["owed"] == money["overdue"] == {"cents": 70000, "count": 1}
-    assert groups(money)["1_30"] == (70000, 1)
+    assert money["owed"] == money["overdue"] == {"cents": "70000", "count": 1}
+    assert groups(money)["1_30"] == ("70000", 1)
 
 
 def test_each_groups_edges(api, make, deal):
@@ -71,14 +75,14 @@ def test_each_groups_edges(api, make, deal):
         issued(make, deal, cents, late(days))
     money = api.get(MONEY).json()
     assert groups(money) == {
-        "not_due": (3, 2),
-        "1_30": (12, 2),
-        "31_60": (48, 2),
-        "61_90": (192, 2),
-        "over_90": (256, 1),
+        "not_due": ("3", 2),
+        "1_30": ("12", 2),
+        "31_60": ("48", 2),
+        "61_90": ("192", 2),
+        "over_90": ("256", 1),
     }
-    assert money["owed"] == {"cents": 511, "count": 9}
-    assert money["overdue"] == {"cents": 508, "count": 7}
+    assert money["owed"] == {"cents": "511", "count": 9}
+    assert money["overdue"] == {"cents": "508", "count": 7}
     assert [group["key"] for group in money["groups"]] == ["not_due", "1_30", "31_60", "61_90", "over_90"]
 
 
@@ -97,19 +101,34 @@ def test_payments_by_month_across_the_turn_of_a_year_with_zeros_for_empty_months
     assert [month["month"] for month in money][:3] == ["2025-11", "2025-12", "2026-01"]
     by_label = {month["label"]: (month["cents"], month["count"]) for month in money}
     assert by_label == {
-        **{label: (0, 0) for label in MONTHS},
-        "Nov": (10, 1),
-        "Dec": (20, 1),
-        "Jan": (120, 2),
-        "Oct": (160, 1),
+        **{label: ("0", 0) for label in MONTHS},
+        "Nov": ("10", 1),
+        "Dec": ("20", 1),
+        "Jan": ("120", 2),
+        "Oct": ("160", 1),
     }
 
 
 def test_the_figures_follow_today(api, make, deal, local_app):
     issued(make, deal, 500, TODAY)
-    assert groups(api.get(MONEY).json())["not_due"] == (500, 1)
+    assert groups(api.get(MONEY).json())["not_due"] == ("500", 1)
     local_app.dependency_overrides[db.local_today] = lambda: TODAY + timedelta(days=1)
-    assert groups(api.get(MONEY).json())["1_30"] == (500, 1)
+    assert groups(api.get(MONEY).json())["1_30"] == ("500", 1)
+
+
+def test_sums_past_what_a_browser_number_holds_come_exact_to_the_cent(api, make, deal):
+    """46 invoices at the most a total can be, and one for a cent, pass 2**53 cents."""
+    for _ in range(46):
+        invoice = issued(make, deal, tax.MAX_TOTAL_CENTS, late(10))
+        make.payment(invoice, 1, paid_on=TODAY)
+    issued(make, deal, 47, late(10))
+
+    money = api.get(MONEY).json()
+    exact = "9200000000000001"
+    assert int(exact) > 2**53
+    assert money["owed"] == money["overdue"] == {"cents": exact, "count": 47}
+    assert groups(money)["1_30"] == (exact, 47)
+    assert (money["payments"][-1]["cents"], money["payments"][-1]["count"]) == ("46", 46)
 
 
 def test_money_is_reached_as_itself_and_not_as_an_invoices_id(api, local_app):

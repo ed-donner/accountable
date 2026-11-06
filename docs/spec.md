@@ -30,7 +30,7 @@ Accountable is a business management system: a sales CRM that will grow into a f
 | Invoices | What customers have been billed for won deals, what they've paid and what they still owe |
 | Bills | The bills the business receives from suppliers: what's unpaid, what's overdue and what's been paid |
 
-Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out. Below the dashboard's own part, a Money section shows what customers owe, how late it is, and the payments received each month, then what the business owes its suppliers, what's overdue, the bills due in the next 30 days, and spending by category.
+Around them, a search box in the top bar finds any organization, contact, deal or active product, and a menu under your initials holds the theme, Company settings and Sign out. Below the dashboard's own part, a Money section puts what customers owe us beside what the business owes its suppliers. One side shows what customers owe, how late it is, and the payments received each month. The other shows what the business owes, what's overdue, the bills due in the next 30 days, and spending by category.
 
 **Nine kinds of record:**
 
@@ -174,8 +174,8 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 | [activities.md](specs/activities.md) | Activities, follow-ups and timelines | A1 to A7 |
 | [products.md](specs/products.md) | The price list: unit prices in dollars and cents, unique names, archiving and restoring, the product page, and their screens | G1 to G12 |
 | [quotes.md](specs/quotes.md) | Quotes: statuses, lines, amounts and tax, Prepared for, sending, accepting and declining, copying, the PDF, the Quotes section, the panels on deals and organizations, and their screens, with a quote's own words in the invoice designs | Q5 to Q37 |
-| [invoices.md](specs/invoices.md) | Invoices and payments: drafts, issuing, voiding, payments, the invoice page, the panels on deals and organizations, the Invoices table, the PDF, the three designs quotes share, invoices' row of the dashboard's Money section, and their screens | V1 to V31 |
-| [bills.md](specs/bills.md) | Bills from suppliers: amounts in cents, unique bill numbers, due dates, categories, paid, unpaid and overdue, the table, the form, the bill page, an organization's bills, bills' row of the dashboard's Money section, and their screens | E1 to E24 |
+| [invoices.md](specs/invoices.md) | Invoices and payments: drafts, issuing, voiding, payments, the invoice page, the panels on deals and organizations, the Invoices table, the PDF, the three designs quotes share, invoices' side of the dashboard's Money section, and their screens | V1 to V31 |
+| [bills.md](specs/bills.md) | Bills from suppliers: amounts in cents, unique bill numbers, due dates, categories, paid, unpaid and overdue, the table, the form, the bill page, an organization's bills, bills' side of the dashboard's Money section, and their screens | E1 to E24 |
 | [dashboard.md](specs/dashboard.md) | The dashboard's figures, charts and lists, the sections other areas add below them, and its screen | H1 to H10 |
 | [running.md](specs/running.md) | The local copy and the shared app, sample data, keeping data, and the commands and first run | M1 to M7, C1 to C11 |
 | [settings.md](specs/settings.md) | The company settings: the page, each field's rules, how quotes and invoices look, saving, who last changed them, the sample company and the defaults, the numbers and sums quotes and invoices share, and the page's screen | B1 to B22 |

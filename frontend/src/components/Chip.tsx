@@ -7,7 +7,8 @@ const TONES = {
   info: "bg-chip-info text-white",
   won: "bg-ink text-on-won",
   alert: "bg-chip-alert text-white",
-  quiet: "bg-page text-muted",
+  // A hovered table row takes the page color, so there the chip takes the panel's, keeping its shape.
+  quiet: "bg-page text-muted in-[tr:hover]:bg-panel",
   // The quiet chip where it sits on the page rather than a panel, such as beside a quote's number.
   quietOnPage: "bg-panel text-muted",
   archived: "bg-archived text-ink",

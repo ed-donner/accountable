@@ -154,21 +154,23 @@ test("out-of-range values are refused on the page, without sending anything", as
 
 test("the API refuses them too", async ({ request }) => {
   const before = await (await request.get("/api/settings")).json();
-  const refused: [object, string, string][] = [
-    [{ tax_rate: 150 }, "tax_rate", "Enter a rate from 0 to 100%"],
-    [{ tax_rate: "8.8751" }, "tax_rate", "Use at most three decimal places"],
-    [{ payment_terms_days: 400 }, "payment_terms_days", "Enter a whole number of days from 0 to 365"],
-    [{ quote_prefix: "INV-", invoice_prefix: "inv-" }, "invoice_prefix", CLASH],
-    [{ quote_prefix: "inv-" }, "invoice_prefix", CLASH],
-    [{ company_name: " " }, "company_name", "Enter the company name"],
+  // The sample invoices start at INV-0001, so a quote prefix of INV- is also the start of their numbers (B6).
+  const startOfAnInvoice = "Clashes with invoice INV-0001, which starts with it, ignoring capitals";
+  const refused: [object, Record<string, string>][] = [
+    [{ tax_rate: 150 }, { tax_rate: "Enter a rate from 0 to 100%" }],
+    [{ tax_rate: "8.8751" }, { tax_rate: "Use at most three decimal places" }],
+    [{ payment_terms_days: 400 }, { payment_terms_days: "Enter a whole number of days from 0 to 365" }],
+    [
+      { quote_prefix: "INV-", invoice_prefix: "inv-" },
+      { invoice_prefix: CLASH, quote_prefix: startOfAnInvoice },
+    ],
+    [{ quote_prefix: "inv-" }, { invoice_prefix: CLASH, quote_prefix: startOfAnInvoice }],
+    [{ company_name: " " }, { company_name: "Enter the company name" }],
   ];
-  for (const [body, field, message] of refused) {
+  for (const [body, fields] of refused) {
     const reply = await request.patch("/api/settings", { data: body });
     expect(reply.status(), JSON.stringify(body)).toBe(422);
-    expect(await reply.json(), JSON.stringify(body)).toEqual({
-      detail: "Check the form.",
-      fields: { [field]: message },
-    });
+    expect(await reply.json(), JSON.stringify(body)).toEqual({ detail: "Check the form.", fields });
   }
   expect(await (await request.get("/api/settings")).json()).toEqual(before);
 });
@@ -255,6 +257,9 @@ test("a file that isn't a PNG or JPEG is refused by the backend, though it's nam
   await openSettings(page);
   const before = await page.getByAltText("Logo").getAttribute("src");
   await page.getByLabel("Logo file").setInputFiles(NOT_A_PICTURE);
+  // The page reads the file before it puts it in the form, so a save sent sooner would carry no logo.
+  const chosen = readFileSync(NOT_A_PICTURE).toString("base64");
+  await expect(page.getByAltText("Logo")).toHaveAttribute("src", `data:image/png;base64,${chosen}`);
   const refused = page.waitForResponse(isSettingsSave);
   await saveButton(page).click();
   expect((await refused).status()).toBe(422);

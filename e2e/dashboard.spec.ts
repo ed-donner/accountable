@@ -318,11 +318,33 @@ test.describe("with the sample data", () => {
     expect((await money.boundingBox())!.y).toBeGreaterThanOrEqual(sizes.windowHeight - 40);
     expect((await money.boundingBox())!.height).toBeLessThanOrEqual(sizes.windowHeight);
 
-    // The whole section, invoices' row and bills' below it, shows once the page is scrolled to it.
+    // The whole section, invoices' side and bills' beside it, shows once the page is scrolled to it.
     await page.getByRole("region", { name: "Spending by category" }).scrollIntoViewIfNeeded();
-    for (const name of ["Owed to us", "Payments received", "Bills to pay", "Spending by category"]) {
+    for (const name of ["Owed to us", "Payments received", "What we owe", "Spending by category"]) {
       await expect(page.getByRole("region", { name }), name).toBeInViewport({ ratio: 1 });
     }
+  });
+
+  test("the Money section has what customers owe us and what we owe suppliers side by side, row for row", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const panel = async (name: string) => {
+      const region = page.getByRole("region", { name });
+      await expect(region).toBeVisible();
+      return (await region.boundingBox())!;
+    };
+    for (const [ours, theirs] of [
+      ["Owed to us", "What we owe"],
+      ["Payments received", "Spending by category"],
+    ]) {
+      const [left, right] = [await panel(ours), await panel(theirs)];
+      expect(right.x, theirs).toBeGreaterThan(left.x + left.width);
+      expect(right.y, theirs).toBe(left.y);
+      expect(right.width, theirs).toBe(left.width);
+      expect(right.height, theirs).toBe(left.height);
+    }
+    expect((await panel("Payments received")).y).toBeGreaterThan((await panel("Owed to us")).y);
   });
 
   test("the Money section owes what the invoices owe, with How late, and 12 months of payments marked so far", async ({
@@ -351,7 +373,9 @@ test.describe("with the sample data", () => {
       /^Over 90 days/,
     ]);
 
+    // Under Owed to us, so it may run past the bottom of the window until scrolled to.
     const received = page.getByRole("region", { name: "Payments received" });
+    await received.scrollIntoViewIfNeeded();
     await expect(received.locator(".recharts-bar-rectangle")).toHaveCount(12);
     await expect(received.getByText("so far")).toBeVisible();
     const bars = (await received.locator(".recharts-surface").boundingBox())!;

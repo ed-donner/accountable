@@ -1,10 +1,12 @@
-// Starts one backend and one Vite server for each Playwright worker, all at once.
+// Starts one backend and one Vite server for each Playwright worker, all at once, and one
+// stand-in model for the whole run, which every backend asks in place of OpenRouter.
 // Playwright's own webServer list starts them one after another, at about 1.4s each.
 
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
 import { ROOT, isReady, localEnv, runSync, start } from "./setup.mjs";
+import { STAND_IN_KEY, startStandIn } from "./stand-in-model.mjs";
 import { READY, stackFor } from "./test-plan.mjs";
 
 const WAIT_MS = 60_000;
@@ -24,6 +26,10 @@ function stopEverything(message) {
 if (runSync(process.execPath, [vite, "optimize", "frontend", "--logLevel", "warn"]).status !== 0) {
   stopEverything("Couldn't prepare the frontend for the tests.");
 }
+
+// In this process, so it stops with the rest. Only the backends get its address and a made-up key.
+const standIn = await startStandIn().catch((error) => stopEverything(`Couldn't start the stand-in model: ${error}`));
+const model = { ACCOUNTABLE_MODEL_URL: standIn.url, OPENROUTER_API_KEY: STAND_IN_KEY };
 
 for (let index = 0; index < workers; index += 1) {
   const stack = stackFor({ slot, worker: index, database: process.env.ACCOUNTABLE_DB });
@@ -48,7 +54,7 @@ for (let index = 0; index < workers; index += 1) {
     "warning",
   ];
   servers.push(
-    { url: `http://127.0.0.1:${apiPort}/api/meta`, child: start("uv", backend, { env }) },
+    { url: `http://127.0.0.1:${apiPort}/api/meta`, child: start("uv", backend, { env: { ...env, ...model } }) },
     {
       url: `http://127.0.0.1:${stack.webPort}/`,
       child: start(process.execPath, [vite, "frontend", "--logLevel", "warn"], { env }),

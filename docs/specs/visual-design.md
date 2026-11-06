@@ -152,7 +152,7 @@ The fonts are bundled through Fontsource, so nothing loads from outside the app'
 | Probability and date on cards | JetBrains Mono | 12/18 | 400 |
 | Chart axis | JetBrains Mono | 12/16 | 400 |
 
-Numbers are always in JetBrains Mono, so columns of figures line up. The one exception is the Copilot's answers, which are the model's own text, so their figures can't be picked out reliably and stay in the body font. Its change cards, whose words the backend writes, have their money, dates and percentages in JetBrains Mono. Quotes and invoices set their own sizes, in points, in their designs ([V28](invoices.md#designs)). Instrument Serif appears in one place only: the dashboard's summary line.
+Numbers are always in JetBrains Mono, so columns of figures line up. The one exception is the Copilot's answers, which are the model's own text, so their figures can't be picked out reliably and stay in the body font. Its change cards, whose words the backend writes, have their money, dates and percentages in JetBrains Mono, and so does the model's name in the panel's words before the first message, as an identifier. Quotes and invoices set their own sizes, in points, in their designs ([V28](invoices.md#designs)). Instrument Serif appears in one place only: the dashboard's summary line.
 
 ### Shapes
 
@@ -222,8 +222,9 @@ Plain business English, short labels, no exclamation marks.
 | More search results | See all 12 contacts |
 | Copilot | Copilot. New conversation. Close. Ask a question or for a change. Send. Stop. Try again. Cancel. |
 | Copilot, before the first message | The Copilot can look up anything in Accountable, and add or change organizations, contacts, deals and activities. It asks before changing anything. Which deals close this month? What do customers owe us? Move a deal to Negotiation. Questions, and the records the Copilot reads to answer them, go to openrouter/free through OpenRouter. It can get things wrong, so check anything important on its page. |
-| Copilot steps | Searching for "acme". Listing deals closing Nov 1 to Nov 30, 2026. Reading the dashboard. Read Harbor & Pine renewal. Couldn't read this. This deal no longer exists. |
-| Copilot change card | Move Harbor & Pine renewal to Negotiation? Stage: from Proposal to Negotiation. The close date becomes today, and Sam Carter becomes a customer. Moved Harbor & Pine renewal to Negotiation. Cancelled. Nothing was changed. |
+| Copilot steps | Searching for "acme". Searched for "acme". Listing deals closing Nov 1 to Nov 30, 2026. Found 3 deals closing Nov 1 to Nov 30, 2026. Reading the dashboard. Reading deal 12. Read Harbor & Pine renewal. Deal not found. Something went wrong. |
+| Copilot step icons, for screen readers | Running. Done. Failed. |
+| Copilot change card | Move Harbor & Pine renewal to Negotiation? Add the organization Harbor & Pine? Save changes to Harbor & Pine? Add a call on Harbor & Pine renewal? Mark "Send the revised proposal" done? Stage: from Proposal to Negotiation. The close date becomes today, and Sam Carter becomes a customer. Moved Harbor & Pine renewal to Negotiation. Added Harbor & Pine. Saved changes to Harbor & Pine. Added a call on Harbor & Pine renewal. Marked "Send the revised proposal" done. Cancelled. Nothing was changed. |
 | Copilot change buttons | Add organization. Save organization. Add contact. Save contact. Add deal. Save deal. Move deal. Add activity. Mark done. |
 | Copilot problems | The words in [Z21](copilot.md#the-model). The Copilot stopped after 8 steps without an answer. Try asking something narrower. |
 | Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. Quote saved. Quote sent. Quote declined. Copied to QT-0012. Draft saved. Draft deleted. Invoice issued. Invoice voided. Payment recorded. Payment deleted. Bill saved. Bill deleted. Bill marked paid. Bill marked unpaid. |

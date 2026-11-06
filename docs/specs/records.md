@@ -46,7 +46,7 @@ So a contact can't be added before their organization exists, and a deal can't b
 - **F11.** A form that can't read the lists it needs closes and says so, rather than opening with an empty picker.
 - **F12.** The activity form's When box holds minutes. Leaving it untouched keeps the activity's exact time.
 
-The Copilot adds and edits organizations, contacts, deals and activities through the same routes as these forms, so every rule here holds for it too, and a refusal reaches it in the same words ([Z11](copilot.md#what-it-can-change)).
+The Copilot adds and edits organizations, contacts, deals and activities through the same routes as these forms, so every rule here holds for it too, and a refusal reaches it in the same words ([Z11](copilot.md#what-it-can-change)). Its arguments use the API's own field types, so a value F2 or F6 refuses on its own is refused before any change card, and the rules that need the records, such as F5's and F7's, come back from the route when the change runs.
 
 ## Deleting
 

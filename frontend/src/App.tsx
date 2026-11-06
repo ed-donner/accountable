@@ -12,6 +12,7 @@ import { Journal } from "./books/pages/Journal";
 import { LedgerPage } from "./books/pages/Ledger";
 import { ProfitAndLoss } from "./books/pages/ProfitAndLoss";
 import { CashFlowRow } from "./cashflow/CashFlowRow";
+import { Copilot } from "./copilot/Copilot";
 import { Bill } from "./bills/pages/Bill";
 import { Bills } from "./bills/pages/Bills";
 import { SettingsPage } from "./company/SettingsPage";
@@ -107,9 +108,18 @@ const DASHBOARD_SECTIONS: DashboardSection[] = [{ name: "money", Section: Money 
 // Each group of links in the user's menu, after the themes.
 const MENU_LINKS = [ACCOUNTING_LINKS];
 
+// Made again for each session, since SignedIn gives each its own RouterProvider, so sign-out drops the
+// Copilot's conversation with everything else the session read (U5).
 function AppShell() {
   useMeta(); // Fetched early, because it never changes and forms need it straight away.
-  return <Shell sections={SECTIONS} search={<Search groups={SEARCH_GROUPS} />} menuLinks={MENU_LINKS} />;
+  return (
+    <Shell
+      sections={SECTIONS}
+      search={<Search groups={SEARCH_GROUPS} />}
+      copilot={<Copilot />}
+      menuLinks={MENU_LINKS}
+    />
+  );
 }
 
 const router = createBrowserRouter([

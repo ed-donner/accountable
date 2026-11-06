@@ -43,7 +43,18 @@ def names(path: Path, area: str) -> bool:
 
 
 def test_the_areas_are_found():
-    assert AREAS == ["aging", "bills", "books", "cashflow", "company", "crm", "invoices", "products", "quotes"]
+    assert AREAS == [
+        "aging",
+        "bills",
+        "books",
+        "cashflow",
+        "company",
+        "copilot",
+        "crm",
+        "invoices",
+        "products",
+        "quotes",
+    ]
 
 
 def imported_areas(source: str) -> set[tuple[str, str]]:
@@ -217,6 +228,16 @@ def test_the_cash_flow_imports_no_area_but_company():
         if area_of(path) == "cashflow":
             found |= {area for area, _ in imported_areas(path.read_text())} - {"cashflow"}
     assert found == {"company"}
+
+
+def test_the_copilot_imports_no_other_area_and_not_the_database():
+    """It reaches every other area through the app's own routes, as the person who asked (Security: The Copilot)."""
+    own = [path for path in sources() if area_of(path) == "copilot"]
+    assert PACKAGE / "copilot" / "calls.py" in own  # The check is looking in the right place.
+    for path in own:
+        source = path.read_text()
+        assert {area for area, _ in imported_areas(source)} <= {"copilot"}, path
+        assert not re.search(r"\bimport db\b|accountable\.db\b|from accountable import [^\n]*\bdb\b", source), path
 
 
 def test_quotes_routes_start_with_quotes_alone():

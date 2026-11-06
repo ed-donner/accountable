@@ -1,4 +1,4 @@
-import type { APIRequestContext, Locator, Page } from "@playwright/test";
+import type { APIRequestContext, Browser, Locator, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
 import {
@@ -230,14 +230,15 @@ async function tabThrough(page: Page, presses: number) {
 test("every control can be reached by Tab and shows a focus ring", async ({ page }) => {
   await page.goto("/organizations");
   await expect(page.locator("tbody tr").first()).toBeVisible();
-  // Past the nine sections, the search box, the menu, Add, the table's search and its headings.
-  const table = await tabThrough(page, 24);
+  // Past the nine sections, the search box, the Copilot, the menu, Add, the table's search and its headings.
+  const table = await tabThrough(page, 25);
   for (const name of [
     "A Dashboard",
     "A Deals",
     "A Products",
     "A Bills",
     "INPUT Search organizations, contacts, deals and products",
+    "BUTTON Copilot",
     `BUTTON Menu for ${SIGNED_IN.name}`,
     "BUTTON Add organization",
     "INPUT Search organizations",
@@ -346,31 +347,63 @@ function linesOf(elements: Locator) {
   );
 }
 
-test("the top bar stays on one line at 1280 by 720, even with the widest date", async ({ page }) => {
-  await page.clock.install({ time: new Date(2026, 10, 30, 12, 0) });
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto("/products");
-  const bar = page.getByRole("banner");
-  await expect(bar).toContainText("Nov 30, 2026");
-  await expect(bar.getByRole("button", { name: `Menu for ${SIGNED_IN.name}` })).toBeVisible();
+/**
+ * Gives the page a classic 15px scrollbar, as Chrome draws one where the system always shows them.
+ * It takes its width from the page, as a real one does, unlike macOS's, which float over it.
+ */
+async function showScrollbar(page: Page) {
+  await page.addStyleTag({ content: "html { overflow-y: scroll } ::-webkit-scrollbar { width: 15px }" });
+  expect(await page.evaluate(() => window.innerWidth - document.documentElement.clientWidth)).toBe(15);
+}
 
-  expect((await bar.boundingBox())!.height).toBe(56);
-  expect(await linesOf(bar.getByRole("navigation", { name: "Sections" }).getByRole("link"))).toEqual([
-    1, 1, 1, 1, 1, 1, 1, 1, 1,
-  ]);
-  const date = bar.getByText("Nov 30, 2026");
-  expect(await linesOf(date)).toEqual([1]);
-  for (const part of [
-    bar.getByRole("navigation", { name: "Sections" }),
-    bar.getByRole("combobox"),
-    date,
-    bar.getByRole("button", { name: `Menu for ${SIGNED_IN.name}` }),
-  ]) {
-    const box = (await part.boundingBox())!;
-    const barBox = (await bar.boundingBox())!;
-    expect(box.y).toBeGreaterThanOrEqual(barBox.y);
-    expect(box.y + box.height).toBeLessThanOrEqual(barBox.y + barBox.height);
-    expect(box.x + box.width).toBeLessThanOrEqual(barBox.x + barBox.width);
+test.describe("the top bar with a scrollbar", () => {
+  // Playwright's Chrome hides every scrollbar, and only a Chrome of its own can be started without
+  // that, so these tests open one, signed in as the test's page would be.
+  let chrome: Browser;
+  test.beforeAll(async ({ playwright }) => {
+    chrome = await playwright.chromium.launch({
+      channel: "chrome",
+      args: ["--disable-gpu"],
+      ignoreDefaultArgs: ["--hide-scrollbars"],
+    });
+  });
+  test.afterAll(() => chrome.close());
+
+  for (const width of [1280, 1536]) {
+    test(`stays on one line at ${width} wide, even with the widest date`, async ({ baseURL, storageState }) => {
+      const context = await chrome.newContext({ baseURL, storageState, viewport: { width, height: 720 } });
+      const page = await context.newPage();
+      try {
+        await page.clock.install({ time: new Date(2026, 10, 30, 12, 0) });
+        await page.goto("/products");
+        const bar = page.getByRole("banner");
+        await expect(bar).toContainText("Nov 30, 2026");
+        await expect(bar.getByRole("button", { name: `Menu for ${SIGNED_IN.name}` })).toBeVisible();
+        await showScrollbar(page);
+
+        expect((await bar.boundingBox())!.height).toBe(56);
+        expect(await linesOf(bar.getByRole("navigation", { name: "Sections" }).getByRole("link"))).toEqual([
+          1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ]);
+        const date = bar.getByText("Nov 30, 2026");
+        expect(await linesOf(date)).toEqual([1]);
+        for (const part of [
+          bar.getByRole("navigation", { name: "Sections" }),
+          bar.getByRole("combobox"),
+          date,
+          bar.getByRole("button", { name: "Copilot", exact: true }),
+          bar.getByRole("button", { name: `Menu for ${SIGNED_IN.name}` }),
+        ]) {
+          const box = (await part.boundingBox())!;
+          const barBox = (await bar.boundingBox())!;
+          expect(box.y).toBeGreaterThanOrEqual(barBox.y);
+          expect(box.y + box.height).toBeLessThanOrEqual(barBox.y + barBox.height);
+          expect(box.x + box.width).toBeLessThanOrEqual(barBox.x + barBox.width);
+        }
+      } finally {
+        await context.close();
+      }
+    });
   }
 });
 

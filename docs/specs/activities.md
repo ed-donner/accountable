@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Activities and timelines
 
-- **A1.** Every contact page and deal page has a Log activity button. The Copilot can log one too, once the person confirms it ([Z11](copilot.md#what-it-can-change)). An activity relates to one contact or one deal, never both. Once logged, it can't move to another contact or deal, so the activity form has no picker for it.
+- **A1.** Every contact page and deal page has a Log activity button. The Copilot can log one too, once the person confirms it ([Z11](copilot.md#what-it-can-change)). It takes no When, so the activity is logged at the time it's added, as the form's default is now. An activity relates to one contact or one deal, never both. Once logged, it can't move to another contact or deal, so the activity form has no picker for it.
 - **A2.** Activities can be edited and deleted from any timeline they appear on. Stage-change entries can't be edited or deleted, and go only when their deal is deleted.
 - **A3.** A follow-up can be ticked done on a timeline, on the dashboard or through the Copilot (Z11), and unticked on a timeline. Once done, it leaves the dashboard but stays on its timeline, marked done.
 - **A4.** Timelines show the newest first. Each entry shows its type, when it happened, its description, any follow-up, and a link to the contact or deal it belongs to.

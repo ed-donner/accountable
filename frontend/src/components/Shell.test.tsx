@@ -34,7 +34,12 @@ function openAt(path: string) {
         <Routes>
           <Route
             element={
-              <Shell sections={SECTIONS} search={<input aria-label="The search box" />} menuLinks={MENU_LINKS} />
+              <Shell
+                sections={SECTIONS}
+                search={<input aria-label="The search box" />}
+                copilot={<button type="button">The Copilot</button>}
+                menuLinks={MENU_LINKS}
+              />
             }
           >
             <Route path="/" element={<p>The dashboard page</p>} />
@@ -107,7 +112,7 @@ describe("the top bar", () => {
   });
 
   it.each(["/", "/organizations", "/contacts", "/deals", "/pipeline", "/products", "/deals/7", "/settings"])(
-    "has the search box after the sections, then the date and the menu button, at %s",
+    "has the search box after the sections, then the date, the Copilot and the menu button, at %s",
     async (path) => {
       openAt(path);
       const bar = within(screen.getByRole("banner"));
@@ -116,11 +121,12 @@ describe("the top bar", () => {
         sections: bar.getByRole("navigation", { name: "Sections" }),
         search: bar.getByRole("textbox", { name: "The search box" }),
         date: bar.getByText("Oct 31, 2026"),
+        copilot: bar.getByRole("button", { name: "The Copilot" }),
         menu: menuButton,
       };
-      expect(inPageOrder(parts)).toEqual(["sections", "search", "date", "menu"]);
+      expect(inPageOrder(parts)).toEqual(["sections", "search", "date", "copilot", "menu"]);
       expect(menuButton.nextElementSibling).toBeNull();
-      expect(bar.getAllByRole("button")).toEqual([menuButton]);
+      expect(bar.getAllByRole("button")).toEqual([parts.copilot, menuButton]);
     },
   );
 

@@ -227,7 +227,7 @@ export function Search({ groups }: { groups: SearchGroup[] }) {
     <Command shouldFilter={false} label={`Search ${kindsOf(groups, "and")}`}>
       <Popover.Root open={showing} onOpenChange={setOpen}>
         <Popover.Anchor asChild>
-          <div ref={box} className="relative w-[180px]">
+          <div ref={box} className="relative w-[136px]">
             <Magnifier size={16} aria-hidden="true" className="absolute top-[10px] left-3 text-muted" />
             <Command.Input
               ref={input}

@@ -139,6 +139,60 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
 }
 
 /**
+ * A reply sent as JSON lines, such as the Copilot's, handed over a line at a time as each arrives,
+ * however its bytes are split. A line that isn't JSON is dropped. Its errors are api()'s, and a
+ * connection lost part way through is lost as one that never answered. Aborting it throws the
+ * AbortError, as fetch does, and changes nothing else.
+ */
+export async function* stream(path: string, options: Options = {}): AsyncGenerator<unknown> {
+  const reply = await receive(path, options);
+  if (reply.body === null) return;
+  const reader = reply.body.getReader();
+  const decoder = new TextDecoder();
+  let unfinished = "";
+  try {
+    for (;;) {
+      const { done, value } = await readMore(reader, options.signal);
+      if (done) break;
+      const lines = (unfinished + decoder.decode(value, { stream: true })).split("\n");
+      unfinished = lines.pop() ?? "";
+      yield* jsonLines(lines);
+    }
+    yield* jsonLines([unfinished + decoder.decode()]);
+  } finally {
+    // Lets go of the reply when the reader stops early. An errored one refuses, which is fine.
+    await reader.cancel().catch(() => undefined);
+  }
+}
+
+async function readMore(reader: ReadableStreamDefaultReader<Uint8Array>, signal: AbortSignal | undefined) {
+  try {
+    return await reader.read();
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    loseConnection();
+  }
+}
+
+function* jsonLines(lines: string[]): Generator<unknown> {
+  for (const line of lines) {
+    if (line.trim() === "") continue;
+    const value = parsed(line);
+    if (value !== NOT_JSON) yield value;
+  }
+}
+
+const NOT_JSON = Symbol("not JSON");
+
+function parsed(line: string): unknown {
+  try {
+    return JSON.parse(line);
+  } catch {
+    return NOT_JSON;
+  }
+}
+
+/**
  * A file the backend sends, such as the logo or a PDF. A plain link or an image's address
  * can't fetch it, because the token goes in a header, never a cookie. Its errors are api()'s.
  */

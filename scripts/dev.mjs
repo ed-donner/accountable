@@ -2,7 +2,7 @@
 
 import path from "node:path";
 
-import { ROOT, localEnv, setup, start, stopIfTaken, waitUntilReady } from "./setup.mjs";
+import { ROOT, devCopilotSettings, localEnv, setup, start, stopIfTaken, waitUntilReady } from "./setup.mjs";
 
 const webPort = Number(process.env.ACCOUNTABLE_WEB_PORT ?? 5173);
 const apiPort = Number(process.env.ACCOUNTABLE_API_PORT ?? 8765);
@@ -31,7 +31,15 @@ const servers = start(
     `${exec}uv run --no-sync uvicorn accountable.main:app --host 127.0.0.1 --port ${apiPort} --log-level warning`,
     `${exec}${node} ${vite} ${frontend} --logLevel warn`,
   ],
-  { env: { ...localEnv(), ACCOUNTABLE_WEB_PORT: String(webPort), ACCOUNTABLE_API_PORT: String(apiPort) } },
+  {
+    env: {
+      // Without the Supabase settings, but with the Copilot's two from the shell or .env (C9).
+      ...localEnv(),
+      ...devCopilotSettings(),
+      ACCOUNTABLE_WEB_PORT: String(webPort),
+      ACCOUNTABLE_API_PORT: String(apiPort),
+    },
+  },
 );
 
 let running = true;

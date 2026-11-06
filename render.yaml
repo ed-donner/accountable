@@ -1,6 +1,8 @@
 # The shared app on Render's free plan: one web service, where FastAPI serves the built frontend and the API.
-# Render asks for the three Supabase settings at the bottom when the Blueprint is first made, and keeps them.
-# Their values never go in this file.
+# Five settings at the bottom have no value here: the three Supabase settings, DATABASE_URL, SUPABASE_URL and
+# SUPABASE_PUBLISHABLE_KEY, and the Copilot's two, OPENROUTER_API_KEY and OPENROUTER_MODEL. Render asks for them
+# when the Blueprint is first made and keeps them, and they're changed in the service's environment in Render's
+# dashboard. Their values never go in this file.
 services:
   - type: web
     name: accountable
@@ -39,4 +41,10 @@ services:
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      # The Copilot's key and model (Z19). Left empty, the app runs without the Copilot's key, which the
+      # panel says, and asks openrouter/free.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
         sync: false

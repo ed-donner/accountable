@@ -137,6 +137,8 @@ test("the menu button can be reached by Tab, shows a focus ring, and its menu wo
   await page.keyboard.press("Tab");
   await expect(page.getByRole("banner").getByLabel(SEARCH_BOX)).toBeFocused();
   await page.keyboard.press("Tab");
+  await expect(page.getByRole("banner").getByRole("button", { name: "Copilot" })).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(menuButton(page)).toBeFocused();
   await expect(menuButton(page)).toHaveCSS("outline-color", FOCUS.light);
   await expect(menuButton(page)).toHaveCSS("outline-style", "solid");

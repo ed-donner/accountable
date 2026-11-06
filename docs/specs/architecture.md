@@ -53,24 +53,34 @@ lefthook.yml                      the git pre-commit hook
 .mcp.json                         the Playwright MCP server, which ui-check uses, with a browser that keeps nothing
                                   from one start to the next
 shared/                           expected-revenue-cases.json, website-cases.json, settings-cases.json,
-                                  totals-cases.json, accent-cases.json and document-layout-cases.json, read by both
-                                  unit test suites, and document-designs.json and document-fonts.json, which both
+                                  totals-cases.json, accent-cases.json, document-layout-cases.json and
+                                  copilot-cases.json, the Copilot's request rules and an example of each event,
+                                  read by both unit test suites, and document-designs.json and document-fonts.json, which both
                                   sides draw quotes and invoices from: the designs' sizes, places, fonts and colors,
                                   each kind's own words, and the fonts' character widths
 scripts/
   setup.mjs                       shared setup, used by the scripts below that start things, Node built-ins only. It also
-                                  gives the local commands an environment without the Supabase settings, and the tests
-                                  one without the Copilot's settings too (C9)
-  dev.mjs                         npm run dev, which reads the Copilot's two settings from .env and nothing else (C9)
+                                  gives every command but npm start an environment without the Supabase settings or the
+                                  Copilot's, and npm run dev the Copilot's two from the shell or .env, never .env in a
+                                  test run (C9)
+  dev.mjs                         npm run dev, which reads the Copilot's two settings from the shell or .env and nothing
+                                  else, and in a test run from its own environment only (C9)
   start.mjs                       npm start: reads .env, builds the frontend, runs the shared app on this computer
   test.mjs                        npm test
   check.mjs                       npm run check and npm run check:quick
   e2e.mjs                         npm run e2e: chosen end-to-end tests only
-  checks.mjs                      runs the layers behind all three, side by side where it can, and prints one summary
+  checks.mjs                      runs the layers behind all three, side by side where it can, and prints one summary.
+                                  It points ACCOUNTABLE_MODEL_URL at http://127.0.0.1:9, where nothing listens, for every
+                                  layer, so no backend a test run starts can reach OpenRouter
   data.mjs                        npm run seed and npm run empty
   test-plan.mjs                   how npm test shares out the machine, and which ports each run's slot, its workers and the turns use
   test-runs.mjs                   lets the test runs on one computer share it: slots, the two turns to go and their queue, who's busy, and the speed tests' turn
-  test-servers.mjs                starts one backend and one Vite server for each Playwright worker
+  test-servers.mjs                starts one backend and one Vite server for each Playwright worker, and one stand-in
+                                  model for the run, inside its own process, so it stops with it. Only the backends get
+                                  its address, as ACCOUNTABLE_MODEL_URL, and a made-up OPENROUTER_API_KEY
+  stand-in-model.mjs              answers as OpenRouter's chat completions do, from replies scripted for each question
+                                  e2e/copilot.spec.ts asks, with Node's built-ins only, so no test calls a real model.
+                                  Run alone, it prints its address, for npm run dev to use by hand with a made-up key
   test-report.mjs                 turns what each test runner wrote into the summary that ends npm test
   agent-check-on-stop.mjs         the coding agent's hook that runs npm run check:quick when it finishes a turn
   agent-guard-env.mjs             the coding agent's hook that stops any edit to .env
@@ -79,7 +89,7 @@ scripts/
   agent-guard-playwright-folder.mjs   ui-check's hook that keeps the files it saves in .playwright-mcp/
   agent-hooks.mjs                 what those five hooks decide
   setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-runs.test.mjs, test-report.test.mjs, agent-hooks.test.mjs,
-  vite-watch.test.mjs
+  vite-watch.test.mjs, stand-in-model.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, the list of areas
                                   with each one's routes, messages, search kinds, holds and cash, and the built
@@ -213,13 +223,18 @@ backend/accountable/
                                   sends a change card, runs a confirmed change, and streams the events
     model.py                      the two settings, and asking OpenRouter's chat completions, with the 60 seconds and
                                   Z21's errors read from its replies
-    tools.py                      each tool: what the model is told of it, its schema, its routes, its step's words, and
-                                  for a change, its card's words (Z8 to Z15)
+    tools.py                      what a tool is: what the model is told of it, its arguments' schema, a look-up or a
+                                  change, its routes, its step's words, its run, and for a change, its button and card;
+                                  the list the model is offered, checking a call before anything runs, and rows() and
+                                  cut() for Z9's limits (Z8 to Z15)
+    lookups.py                    each look-up, through the routes Z8 names, all GETs (Z8, Z9)
+    changes.py                    each change, through the route Z11 names, with its card and S1's note (Z11, Z13, Z15)
     calls.py                      calling the app's own routes in process, with the header, host and client address of
-                                  the request that asked
-    instructions.py               what the model is told: who's asking, today, the terms it needs, and that what the
-                                  tools read is data (Z10, Z17)
-    schemas.py                    the request and the events, and the messages for their fields
+                                  the request that asked, limited to the routes of the tool that calls them
+    instructions.py               what the model is told: who's asking, the company, today, the terms it needs, what it
+                                  can and can't change, and that what the tools read is data (Z10, Z12, Z17)
+    schemas.py                    the request and the events, GET /copilot's reply, Z21's and Z20's words, and the
+                                  messages for the request's fields
 backend/tests/
   characterization/               what each quote's and invoice's PDF says, page by page, as the characterization
                                   tests in test_quote_invoice_pdfs.py read it back
@@ -345,16 +360,20 @@ frontend/src/
     MonthDialog.tsx               what's expected in a month, with links to each invoice, bill and deal
     test-cash-flow.ts             the cash flow's tests' replies, for a today of Nov 5, 2026, and the chart's size
   copilot/                        the Copilot (Z1 to Z23), a later area that imports no other area
-    CopilotButton.tsx             the top bar's button, which App.tsx hands the shell, as it hands the search box
+    Copilot.tsx                   joins the two halves: whether the panel is open, useConversation(), the button and
+                                  the panel, which App.tsx hands the shell, as it hands the search box
+    CopilotButton.tsx             the top bar's button
     CopilotPanel.tsx              the panel: its heading, the conversation, the message box, Send and Stop
     conversation.ts               the conversation, kept for the session: sending a message, reading the events as they
                                   arrive, answering a change card, and reading everything again after a change
     Step.tsx, ChangeCard.tsx      a step's line, and the change card with its buttons
     AnswerText.tsx                an answer as React text: paragraphs, lists and bold, and nothing else (Z6)
-    queries.ts                    GET /copilot, and the request's and the events' types
+    queries.ts                    GET /copilot, the request's and the events' types, reading a line of the stream into
+                                  an event, and Entry and Conversation, which conversation.ts makes and the panel draws
+    test-copilot.ts               the tests' events, stood-in streams, entries and Conversations, from
+                                  shared/copilot-cases.json
 frontend/dist/                    the built frontend, from npm start and Render, git-ignored
-e2e/                              the end-to-end tests, and stand-in-model.mjs, which answers the tests' backends as
-                                  OpenRouter would, from replies scripted for each question, so no test calls a real model
+e2e/                              the end-to-end tests
 data/                             the local copy's database and what it needs to sign its own tokens, created on first
                                   run and git-ignored
 ```
@@ -365,7 +384,7 @@ Accountable will grow from a sales CRM into a Business OS, including ERP, so the
 
 - **Each business area has a folder of its own, on both sides.** `crm/` holds everything specific to the sales CRM, and `products/` the price list. A later area gets a folder beside them with its own tables, routes and pages: quotes, invoices and bills have theirs, in `quotes/`, `invoices/` and `bills/` on both sides, and the cash flow has `cashflow/`, which keeps no tables of its own, and the books have `books/`, which sits beside `company/` at the bottom because every area posts to it. What areas share comes from the top level.
 - **Aged balances read the records of three areas and write nothing.** `aging/` is a later area on both sides that keeps no tables of its own. On the backend it imports only the tables of `crm/`, `invoices/` and `bills/`, to read organizations, issued invoices with their payments, and bills, and never their routes, rules or the books. It works its figures out from the records on purpose, so the books stay a separate check on them (X4). On the frontend it imports no other area: its page reads only `/api/aged-balances/...`, and the links to organizations, invoices and bills are plain addresses. `App.tsx` gives the router the page, in place of the placeholder AgedBalances had, at the same address (J15).
-- **The Copilot reaches the other areas only through the API.** `copilot/` is a later area on both sides that keeps no tables. On the backend it imports only the top level, and never another area or `db.py`: its tools call the app's own routes in process, as the person who asked ([The Copilot](security.md#the-copilot)), so every rule, check and lock applies as it does in the app, and the Copilot knows each area only by its routes. On the frontend it imports no other area. `App.tsx` hands the shell its button and panel, as it hands it the search box, and the links in its steps are addresses, such as `/deals/12`. After a change it reads everything again, as any write does, so the area that shows the record needs to know nothing about the Copilot.
+- **The Copilot reaches the other areas only through the API.** `copilot/` is a later area on both sides that keeps no tables. On the backend it imports only the top level, and never another area or `db.py`: its tools call the app's own routes in process, as the person who asked ([The Copilot](security.md#the-copilot)), so every rule, check and lock applies as it does in the app, and the Copilot knows each area only by its routes. On the frontend it imports no other area. `App.tsx` hands the shell `copilot/Copilot.tsx`, with its button and panel, as it hands it the search box, and the links in its steps are addresses, such as `/deals/12`. After a change it reads everything again, as any write does, so the area that shows the record needs to know nothing about the Copilot.
 - **Imports between areas go one way.** `crm/`, `products/`, `company/` and `books/` are the first areas, and import no other area but `company/` and `books/`, so `crm/` never imports `products/`, and none of them ever imports a later area. `books/` imports only the top level, and so never `company/`, which is why `company/` can post the opening balance to it (J7): `company/` imports `books/` for that and for nothing else. A later area may import `books/post.py` too, and nothing else of `books/`, to post its entries inside its own transaction, passing plain values and never a table of its own. A later area builds on them, and may import only these of theirs: on the backend, `crm/tables.py` and `products/tables.py`, for foreign keys and reads, and `crm/rules.py`, so a deal changes stage the one way however it's asked for, such as when a quote is accepted; on the frontend, `crm/queries.ts` and `products/queries.ts`, for their types and reads, and `crm/deals.ts`, such as which stages are open. Any area may import `company/` and `books/post.py`. Later areas never import each other, with one exception, in one direction: `invoices/` may import `quotes/tables.py` (and nothing else of quotes'), for `invoices.quote_id` and to read an accepted quote, its lines and its fixed Prepared for when making an invoice from it (V33). `quotes/` imports nothing of `invoices/`, so the route is `POST /api/invoices/from-quote/{quote_id}`, and the quote's page learns of its invoice from `/api/invoices?quote_id=7` and is handed its Create invoice button and invoice line by `App.tsx` (Q38). The cash flow reads every area's money without importing any of them: each area that moves money gives `main.py` its cash, in the terms of the top-level `cash.py`, as it gives its holds, and `main.py` puts them on the app, where the cash flow's routes read them. So `cashflow/` imports only `company/` and the top level on the backend, and nothing from another area on the frontend, where its links to invoices, bills and deals are addresses, such as `/invoices/7`.
 - **A later area shows its records on the CRM's pages through `App.tsx`,** never by changing the CRM's queries or replies. A deal's quotes come from the quotes area's own route, such as `/api/quotes?deal_id=7`, in a panel the quotes area gives `App.tsx`, which hands it to the deal's page (R7). The dashboard takes sections the same way (H10). So an organization's bills come from `/api/bills?organization_id=7`, in the Bills panel, a deal's invoices from `/api/invoices?deal_id=7`, in the Invoices panel, and the Money section's cash flow row and its two sides from `/api/cash-flow`, `/api/invoices/money` and `/api/bills/dashboard`, never from `/api/dashboard`. Every area's routes start with words of their own after `/api`, which `backend/tests/test_layout.py` checks, so `main.py` can give a field error the right area's messages.
 - **A later area's record can hold a deal or an organization** (D4). The area says which of its columns hold one, as a `Hold`, and `main.py` hands every area's holds to the CRM's delete routes through the app, so the CRM never names the area. Quotes give one, on `quotes.deal_id`, with the word `quote`, invoices two, on `invoices.deal_id` and `invoices.organization_id`, with the word `invoice`, and bills one, on `bills.organization_id`, with the word `bill`.

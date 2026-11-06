@@ -7,6 +7,14 @@ import { stops } from "./books/balance";
 import { balancesReply } from "./books/test-balance";
 import { pageReply } from "./books/profit/test-profit";
 import { cashFlowReply, quietMonths } from "./cashflow/test-cash-flow";
+import {
+  STATUS as COPILOT_STATUS,
+  answer,
+  answered,
+  heldStream,
+  mockCopilot,
+  type HeldStream,
+} from "./copilot/test-copilot";
 import { todayIso } from "./lib/dates";
 import { THEME_KEY } from "./lib/theme";
 import { META, mockApi, startSignedIn, user, type Call } from "./test-utils";
@@ -192,20 +200,23 @@ const ORGANIZATION = {
   ...WHO,
 };
 
+// What every test reads. Every other read fails, which each page handles in its own way.
+const ROUTES = {
+  "GET /meta": META,
+  "GET /me": ALEX,
+  "GET /local/teammates": [ALEX],
+  "POST /local/sign-in": { token: "alex-token" },
+  "GET /cash-flow": NO_CASH_FLOW,
+  "GET /invoices/money": NO_INVOICE_MONEY,
+  "GET /bills/dashboard": NO_MONEY,
+  "GET /copilot": COPILOT_STATUS,
+};
+
 let calls: Call[];
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 9, 31, 12, 0) });
-  // Every other read fails, which each page handles in its own way.
-  calls = mockApi({
-    "GET /meta": META,
-    "GET /me": ALEX,
-    "GET /local/teammates": [ALEX],
-    "POST /local/sign-in": { token: "alex-token" },
-    "GET /cash-flow": NO_CASH_FLOW,
-    "GET /invoices/money": NO_INVOICE_MONEY,
-    "GET /bills/dashboard": NO_MONEY,
-  });
+  calls = mockApi(ROUTES);
 });
 
 afterEach(() => {
@@ -300,6 +311,7 @@ describe("the app, signed in", () => {
     expect(topBar().getAllByRole("link")).toHaveLength(9);
     const bar = within(screen.getByRole("banner"));
     expect(bar.getByLabelText(SEARCH_BOX)).toBeTruthy();
+    expect(bar.getByRole("button", { name: "Copilot" })).toBeTruthy();
     expect(await bar.findByRole("button", { name: "Menu for Alex Rivera" })).toBeTruthy();
   });
 
@@ -340,11 +352,13 @@ describe("the app, signed in", () => {
     ["/quotes", "Quotes"],
     ["/invoices", "Invoices"],
     ["/bills", "Bills"],
-  ])("gives %s its own address", async (path, title) => {
+  ])("gives %s its own address, with the Copilot button in the top bar", async (path, title) => {
     render(<App />);
     visit(path);
     expect((await heading()).textContent).toBe(title);
     expect(window.location.pathname).toBe(path);
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "Copilot" })).toBeTruthy();
   });
 
   it.each([
@@ -683,5 +697,82 @@ describe("the app, signed in", () => {
 
     expect((await heading()).textContent).toBe("Contacts");
     expect(window.location.pathname).toBe("/contacts");
+  });
+});
+
+describe("the Copilot in the top bar", () => {
+  const QUESTION = "What's new on Harbor & Pine renewal?";
+  const ANSWER = "A call was logged yesterday.";
+  const EXAMPLE = "Which deals close this month?";
+
+  beforeEach(() => startSignedIn());
+
+  function copilotButton() {
+    return within(screen.getByRole("banner")).getByRole("button", { name: "Copilot" });
+  }
+
+  async function ask(question: string) {
+    const clicks = user();
+    await clicks.click(copilotButton());
+    await clicks.type(screen.getByRole("textbox", { name: "Ask a question or for a change" }), `${question}{Enter}`);
+  }
+
+  async function signOutAndIn() {
+    const clicks = user();
+    await clicks.click(await screen.findByRole("button", { name: "Menu for Alex Rivera" }));
+    await clicks.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Sign out" }));
+    await clicks.click(await signInScreen());
+    expect((await heading()).textContent).toBe("Dashboard");
+  }
+
+  it("keeps the conversation while moving between pages, and drops it at sign-out", async () => {
+    mockCopilot({ routes: ROUTES, chats: [answered(ANSWER)] });
+    visit("/");
+    render(<App />);
+    await heading();
+    await ask(QUESTION);
+    expect(await screen.findByText(ANSWER)).toBeTruthy();
+
+    await user().click(topBar().getByRole("link", { name: "Contacts" }));
+    expect((await heading()).textContent).toBe("Contacts");
+    expect(within(screen.getByRole("log")).getByText(ANSWER)).toBeTruthy();
+
+    await signOutAndIn();
+    expect(screen.queryByRole("region", { name: "Copilot" })).toBeNull();
+    await user().click(copilotButton());
+    const log = within(screen.getByRole("log"));
+    expect(log.queryByText(QUESTION)).toBeNull();
+    expect(log.queryByText(ANSWER)).toBeNull();
+    expect(log.getByRole("button", { name: EXAMPLE })).toBeTruthy();
+  });
+
+  it("stops a reply still coming at sign-out, so the next session sees none of it", async () => {
+    let held: HeldStream | undefined;
+    let signal: AbortSignal | null = null;
+    mockCopilot({
+      routes: ROUTES,
+      chats: [
+        (_request, given) => {
+          signal = given;
+          held = heldStream(given);
+          return held.reply;
+        },
+      ],
+    });
+    const logged = vi.spyOn(console, "error");
+    visit("/");
+    render(<App />);
+    await heading();
+    await ask(QUESTION);
+    expect(await screen.findByRole("button", { name: "Stop" })).toBeTruthy();
+
+    await signOutAndIn();
+    expect(signal!.aborted).toBe(true);
+    held!.send(answer(ANSWER));
+    await user().click(copilotButton());
+
+    expect(screen.queryByText(ANSWER)).toBeNull();
+    expect(within(screen.getByRole("log")).getByRole("button", { name: EXAMPLE })).toBeTruthy();
+    expect(logged).not.toHaveBeenCalled();
   });
 });

@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { startSignedIn } from "../test-utils";
-import { ApiError, CONNECTION_MESSAGE, api, download, fetchFile, isConnectionLost, onReconnect } from "./api";
+import { ApiError, CONNECTION_MESSAGE, api, download, fetchFile, isConnectionLost, onReconnect, stream } from "./api";
 import { queryDefaults } from "./queryDefaults";
 import { SESSION_KEY, signInWithToken, signOut, useSession } from "./session";
 
@@ -186,6 +186,201 @@ describe("signing in", () => {
     expect((await late).kind).toBe("signed-out");
     expect(result.current.status).toBe("signed-in");
     expect(localStorage.getItem(SESSION_KEY)).toBe("new-token");
+  });
+});
+
+describe("stream", () => {
+  const encoder = new TextEncoder();
+
+  /** A 200 whose body arrives in these pieces, as text or as bytes. */
+  function replyIn(pieces: (string | Uint8Array)[]) {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        pieces.forEach((piece) => controller.enqueue(typeof piece === "string" ? encoder.encode(piece) : piece));
+        controller.close();
+      },
+    });
+    return new Response(body, { status: 200, headers: { "content-type": "application/x-ndjson" } });
+  }
+
+  /** A body the test sends a piece at a time. Aborting the request breaks it off, as the browser's fetch does. */
+  function heldReply(signal?: AbortSignal | null) {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const cancelled = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      start: (given) => {
+        controller = given;
+      },
+      cancel: cancelled,
+    });
+    signal?.addEventListener("abort", () => controller.error(signal.reason));
+    return {
+      reply: new Response(body, { status: 200 }),
+      send: (text: string) => controller.enqueue(encoder.encode(text)),
+      cut: () => controller.error(new TypeError("network error")),
+      cancelled,
+    };
+  }
+
+  /** Answers with a held body, given once fetch is called, so it follows the request's signal. */
+  function holdReply(): Promise<ReturnType<typeof heldReply>> {
+    return new Promise((fetched) => {
+      vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+        const held = heldReply(init.signal);
+        fetched(held);
+        return held.reply;
+      });
+    });
+  }
+
+  async function everyLine(lines: AsyncIterable<unknown>) {
+    const values: unknown[] = [];
+    for await (const value of lines) values.push(value);
+    return values;
+  }
+
+  function spyOnTheConsole() {
+    return [vi.spyOn(console, "error"), vi.spyOn(console, "warn"), vi.spyOn(console, "log")];
+  }
+
+  it("hands over each JSON line, whether it's split across pieces or shares one with others", async () => {
+    vi.stubGlobal("fetch", async () => replyIn(['{"a":', '1}\n{"b":2}\n{"c"', ':3}\n{"d":4}']));
+    expect(await everyLine(stream("/copilot/chat"))).toEqual([{ a: 1 }, { b: 2 }, { c: 3 }, { d: 4 }]);
+  });
+
+  it("reads a character whose bytes are split between two pieces", async () => {
+    const bytes = encoder.encode('{"name":"Café"}\n');
+    const insideTheE = bytes.indexOf(0xc3) + 1;
+    vi.stubGlobal("fetch", async () => replyIn([bytes.slice(0, insideTheE), bytes.slice(insideTheE)]));
+    expect(await everyLine(stream("/copilot/chat"))).toEqual([{ name: "Café" }]);
+  });
+
+  it("drops blank lines and lines that aren't JSON", async () => {
+    vi.stubGlobal("fetch", async () => replyIn(['{"a":1}\n\n', "not JSON\n", '{"b":2}\n']));
+    expect(await everyLine(stream("/copilot/chat"))).toEqual([{ a: 1 }, { b: 2 }]);
+  });
+
+  it("hands over each line as it arrives, before the rest has come", async () => {
+    const held = holdReply();
+    const lines = stream("/copilot/chat")[Symbol.asyncIterator]();
+    const first = lines.next();
+    (await held).send('{"a":1}\n');
+    expect(await first).toEqual({ done: false, value: { a: 1 } });
+    const second = lines.next();
+    (await held).send('{"b":2}\n');
+    expect(await second).toEqual({ done: false, value: { b: 2 } });
+  });
+
+  it("lets go of the reply when the reader stops early", async () => {
+    const held = holdReply();
+    const lines = stream("/copilot/chat")[Symbol.asyncIterator]();
+    const first = lines.next();
+    (await held).send('{"a":1}\n{"b":2}\n');
+    await first;
+    await lines.return(undefined);
+    expect((await held).cancelled).toHaveBeenCalledOnce();
+  });
+
+  it("sends the body as JSON with the token, as api() does", async () => {
+    startSignedIn("abc");
+    const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () => replyIn([]));
+    vi.stubGlobal("fetch", fetchMock);
+    await everyLine(stream("/copilot/chat", { method: "POST", body: { messages: [] } }));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/copilot/chat");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toEqual({ Authorization: "Bearer abc", "Content-Type": "application/json" });
+    expect(init.body).toBe('{"messages":[]}');
+  });
+
+  it("ends the session when the backend refuses the token, as api() does", async () => {
+    startSignedIn("expired");
+    const { result } = renderHook(useSession);
+    stubFetch(401, { detail: "Sign in to use Accountable." });
+
+    const refused = act(() => everyLine(stream("/copilot/chat", { method: "POST", body: {} })));
+
+    await expect(refused).rejects.toMatchObject({ kind: "signed-out" });
+    expect(result.current).toEqual({ status: "signed-out", message: "Your session has ended. Sign in again." });
+  });
+
+  it("gives api()'s error for a request refused before the stream starts", async () => {
+    stubFetch(422, { detail: "Check the form.", fields: { "messages.0.text": "Use plain text here" } });
+    await expect(everyLine(stream("/copilot/chat", { method: "POST", body: {} }))).rejects.toMatchObject({
+      kind: "fields",
+      fields: { "messages.0.text": "Use plain text here" },
+    });
+  });
+
+  it("shows the connection lost when no reply comes", async () => {
+    vi.stubGlobal("fetch", async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await expect(everyLine(stream("/copilot/chat"))).rejects.toMatchObject({
+      kind: "connection",
+      message: CONNECTION_MESSAGE,
+    });
+    expect(isConnectionLost()).toBe(true);
+  });
+
+  it("shows the connection lost when the reply breaks off part way, after handing over what came", async () => {
+    const held = holdReply();
+    const lines = stream("/copilot/chat")[Symbol.asyncIterator]();
+    const first = lines.next();
+    (await held).send('{"a":1}\n');
+    expect(await first).toEqual({ done: false, value: { a: 1 } });
+    const next = lines.next();
+    (await held).cut();
+
+    await expect(next).rejects.toMatchObject({ kind: "connection", message: CONNECTION_MESSAGE });
+    expect(isConnectionLost()).toBe(true);
+  });
+
+  it("throws the AbortError when aborted part way through, and logs and changes nothing else", async () => {
+    startSignedIn("abc");
+    const { result } = renderHook(useSession);
+    const logs = spyOnTheConsole();
+    const held = holdReply();
+    const aborting = new AbortController();
+    const lines = stream("/copilot/chat", { method: "POST", body: {}, signal: aborting.signal })[
+      Symbol.asyncIterator
+    ]();
+    const first = lines.next();
+    (await held).send('{"a":1}\n');
+    await first;
+    const next = lines.next();
+
+    aborting.abort();
+
+    await expect(next).rejects.toMatchObject({ name: "AbortError" });
+    expect(isConnectionLost()).toBe(false);
+    expect(result.current.status).toBe("signed-in");
+    logs.forEach((spy) => expect(spy).not.toHaveBeenCalled());
+  });
+
+  it("throws the AbortError when aborted before the reply comes, and logs and changes nothing else", async () => {
+    startSignedIn("abc");
+    const { result } = renderHook(useSession);
+    const logs = spyOnTheConsole();
+    const aborting = new AbortController();
+    const asked = new Promise<void>((fetched) => {
+      vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+        fetched();
+        // fetch rejects with the signal's reason, the AbortError, once it's aborted.
+        return new Promise<Response>((_answer, refuse) =>
+          init.signal!.addEventListener("abort", () => refuse(init.signal!.reason)),
+        );
+      });
+    });
+    const reading = everyLine(stream("/copilot/chat", { method: "POST", body: {}, signal: aborting.signal }));
+    await asked;
+
+    aborting.abort();
+
+    await expect(reading).rejects.toMatchObject({ name: "AbortError" });
+    expect(isConnectionLost()).toBe(false);
+    expect(result.current.status).toBe("signed-in");
+    logs.forEach((spy) => expect(spy).not.toHaveBeenCalled());
   });
 });
 

@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## The books
 
-Accountable keeps double-entry books in the background. Every event that moves money posts a journal entry, so the books say what the business earned, what it owns and what it owes, and can be checked the way an accountant would check them. Nobody types an entry: the invoices, payments, bills and the opening balance post their own, in the save that changes them. The first two reports are [Profit and loss](profit-and-loss.md#profit-and-loss) and the [Balance sheet](balance-sheet.md#balance-sheet). The other Accounting pages still say their report is coming, and the backend already answers what reports ask: an account's balance on a date, each account's totals by month, and the entries behind any figure.
+Accountable keeps double-entry books in the background. Every event that moves money posts a journal entry, so the books say what the business earned, what it owns and what it owes, and can be checked the way an accountant would check them. Nobody types an entry: the invoices, payments, bills and the opening balance post their own, in the save that changes them. The first reports are [Profit and loss](profit-and-loss.md#profit-and-loss), the [Balance sheet](balance-sheet.md#balance-sheet) and Aged balances ([aged-balances.md](aged-balances.md#aged-balances)), which works out its figures from the invoices and bills and checks them against the books. The other Accounting page still says its report is coming, and the backend already answers what reports ask: an account's balance on a date, each account's totals by month, and the entries behind any figure.
 
 ### Accounts
 
@@ -84,22 +84,22 @@ A save that changes nothing money-related, such as a bill's notes, due date or n
 ### The Accounting pages
 
 - **J15.** The menu under the person's initials has an Accounting group of four links, Profit and loss, Balance sheet, Journal and Aged balances, between the themes and Company settings ([N7](shell.md#app-shell)). They open `/accounting/profit-and-loss`, `/accounting/balance-sheet`, `/accounting/journal` and `/accounting/aged-balances`, each with its own address (N2). `/accounting` alone opens Profit and loss. Like Company settings, an Accounting page keeps the top bar, isn't one of its nine sections, and so leaves no section marked as current. Any other address under `/accounting` shows "This page no longer exists" (N4).
-- **J16.** Profit and loss ([X1 to X19](profit-and-loss.md#profit-and-loss)) and Balance sheet ([X1](balance-sheet.md#the-day)) are reports of their own. For now the other two Accounting pages are placeholders that say the report is coming and what it will show, in plain words. Each has its title, "This report is coming soon." and what it will hold:
+- **J16.** Profit and loss ([X1 to X19](profit-and-loss.md#profit-and-loss)) , Balance sheet ([X1](balance-sheet.md#the-day)) and Aged balances ([X1 to X20](aged-balances.md#aged-balances)) are reports of their own. For now the other Accounting page is a placeholder that says the report is coming and what it will show, in plain words. It has its title, "This report is coming soon." and what it will hold:
 
 | Page | What it says it will show |
 |---|---|
 | Journal | Every entry in the books, newest first, each linking to the invoice, payment or bill it came from. |
-| Aged balances | What customers owe and what the business owes, grouped by how late each amount is. |
+| Aged balances | (Has its report: [aged-balances.md](aged-balances.md#aged-balances).) |
 
-  The two placeholders read nothing from the backend, so they never show a failed read, and they work with the network off apart from the app itself.
+  The placeholder reads nothing from the backend, so they never show a failed read, and they work with the network off apart from the app itself.
 
 ## Screens
 
 ### Placeholder pages
 
-Profit and loss and Balance sheet have screens of their own ([Profit and loss](profit-and-loss.md#screens), [Balance sheet](balance-sheet.md#screens)), under the same title. Each placeholder page is the page title at the top left, in Instrument Sans at the size the Company settings title has, semibold, in ink, and under it one panel on the page background, rounded with no outline, as the other panels are, in light and dark mode. The panel is about 560px wide and left-aligned under the title. In it, the lucide-react Info icon in Cerulean comes before "This report is coming soon." in semibold ink, then, under it in muted ink, the sentence for that page from J16. No button, no figure, no table and no gradient. It sits as it does on every page, under the top bar's floating bar with space around it, and there's no line across the top.
+Profit and loss and Balance sheet have screens of their own ([Profit and loss](profit-and-loss.md#screens), [Balance sheet](balance-sheet.md#screens)), under the same title, and so has Aged balances ([Aged balances page](aged-balances.md#aged-balances-page)). Each placeholder page is the page title at the top left, in Instrument Sans at the size the Company settings title has, semibold, in ink, and under it one panel on the page background, rounded with no outline, as the other panels are, in light and dark mode. The panel is about 560px wide and left-aligned under the title. In it, the lucide-react Info icon in Cerulean comes before "This report is coming soon." in semibold ink, then, under it in muted ink, the sentence for that page from J16. No button, no figure, no table and no gradient. It sits as it does on every page, under the top bar's floating bar with space around it, and there's no line across the top.
 
-The two placeholders share one component, which takes the title and the sentence, so the wording is in one place. Their words are the ones in J16, with no exclamation marks.
+The placeholder is one component, which takes the title and the sentence, so the wording is in one place. Their words are the ones in J16, with no exclamation marks.
 
 ### Accounting links in the menu
 

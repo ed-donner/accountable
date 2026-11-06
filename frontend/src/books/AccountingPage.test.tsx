@@ -3,7 +3,6 @@ import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { AgedBalances } from "./pages/AgedBalances";
 import { Journal } from "./pages/Journal";
 import { Shell, type Section } from "../components/Shell";
 import { queryDefaults } from "../lib/queryDefaults";
@@ -22,12 +21,6 @@ const PAGES = [
     Journal,
     "Journal",
     "Every entry in the books, newest first, each linking to the invoice, payment or bill it came from.",
-  ],
-  [
-    "/accounting/aged-balances",
-    AgedBalances,
-    "Aged balances",
-    "What customers owe and what the business owes, grouped by how late each amount is.",
   ],
 ] as const;
 

@@ -2,6 +2,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { customersReply } from "./aging/test-aged";
 import { stops } from "./books/balance";
 import { balancesReply } from "./books/test-balance";
 import { pageReply } from "./books/profit/test-profit";
@@ -559,16 +560,28 @@ describe("the app, signed in", () => {
     expect(await screen.findByLabelText("Company name")).toBeTruthy();
   });
 
-  it.each([
-    ["/accounting/journal", "Journal", "Every entry in the books"],
-    ["/accounting/aged-balances", "Aged balances", "What customers owe"],
-  ])("opens %s inside the top bar, with no section marked", async (address, title, words) => {
-    mockApi({ "GET /meta": META, "GET /me": ALEX });
+  it.each([["/accounting/journal", "Journal", "Every entry in the books"]])(
+    "opens %s inside the top bar, with no section marked",
+    async (address, title, words) => {
+      mockApi({ "GET /meta": META, "GET /me": ALEX });
+      render(<App />);
+      visit(address);
+      expect((await heading()).textContent).toBe(title);
+      expect(screen.getByText("This report is coming soon.")).toBeTruthy();
+      expect(screen.getByText(new RegExp(words))).toBeTruthy();
+      expect(topBar().getAllByRole("link")).toHaveLength(9);
+      expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+    },
+  );
+
+  it("opens Aged balances inside the top bar on Customers, with its report and no section marked", async () => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX, "GET /aged-balances/customers": customersReply() });
     render(<App />);
-    visit(address);
-    expect((await heading()).textContent).toBe(title);
-    expect(screen.getByText("This report is coming soon.")).toBeTruthy();
-    expect(screen.getByText(new RegExp(words))).toBeTruthy();
+    visit("/accounting/aged-balances");
+    expect((await heading()).textContent).toBe("Aged balances");
+    expect(screen.getByRole("radio", { name: "Customers" }).getAttribute("aria-checked")).toBe("true");
+    expect(await screen.findByRole("link", { name: "Bluebird Bakery" })).toBeTruthy();
+    expect(screen.queryByText("This report is coming soon.")).toBeNull();
     expect(topBar().getAllByRole("link")).toHaveLength(9);
     expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
   });

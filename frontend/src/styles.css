@@ -19,6 +19,7 @@
   --color-coral: #f78c6b;
   --color-cerulean: #118ab2;
   --color-raspberry: #ef476f;
+  --color-deep-raspberry: #a31d45;
   --color-chip-info: #107fa4;
   --color-chip-alert: #d23e62;
   --color-late-tint: #fdecf1;
@@ -88,6 +89,7 @@
   --color-sea-green-text: #51e2bc;
   --color-marigold-text: #ffd47d;
   --color-raspberry-text: #f591a9;
+  --color-deep-raspberry: #c23560;
   --color-late-tint: #4b2436;
   --color-grid: #1e4350;
   --color-bar-soft: #6c858e;

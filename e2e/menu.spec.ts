@@ -638,3 +638,13 @@ for (const mode of ["light", "dark"] as const) {
     expect(low).toEqual({});
   });
 }
+
+test("choosing Profit and loss in the menu opens its page", async ({ page }) => {
+  await page.goto("/");
+  await menuButton(page).click();
+  await menu(page).getByRole("menuitem", { name: "Profit and loss" }).click();
+
+  await expect(page).toHaveURL(/\/accounting\/profit-and-loss$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Profit and loss");
+  await expect(page.getByRole("region", { name: "Statement" })).toBeVisible();
+});

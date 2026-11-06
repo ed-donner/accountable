@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { stops } from "./books/balance";
 import { balancesReply } from "./books/test-balance";
+import { pageReply } from "./books/profit/test-profit";
 import { cashFlowReply, quietMonths } from "./cashflow/test-cash-flow";
 import { todayIso } from "./lib/dates";
 import { THEME_KEY } from "./lib/theme";
@@ -559,7 +560,6 @@ describe("the app, signed in", () => {
   });
 
   it.each([
-    ["/accounting/profit-and-loss", "Profit and loss", "What the business earned"],
     ["/accounting/journal", "Journal", "Every entry in the books"],
     ["/accounting/aged-balances", "Aged balances", "What customers owe"],
   ])("opens %s inside the top bar, with no section marked", async (address, title, words) => {
@@ -574,11 +574,27 @@ describe("the app, signed in", () => {
   });
 
   it("opens Profit and loss at /accounting, replacing that address", async () => {
-    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    mockApi({ "GET /meta": META, "GET /me": ALEX, "GET /books/profit-and-loss?period=month": pageReply() });
     render(<App />);
     visit("/accounting");
     expect((await heading()).textContent).toBe("Profit and loss");
     expect(window.location.pathname).toBe("/accounting/profit-and-loss");
+  });
+
+  it("opens the real Profit and loss page at its address, inside the top bar, with no section marked", async () => {
+    const calls = mockApi({
+      "GET /meta": META,
+      "GET /me": ALEX,
+      "GET /books/profit-and-loss?period=month": pageReply(),
+    });
+    render(<App />);
+    visit("/accounting/profit-and-loss");
+    expect((await heading()).textContent).toBe("Profit and loss");
+    expect(await screen.findByRole("region", { name: "Statement" })).toBeTruthy();
+    expect(screen.queryByText("This report is coming soon.")).toBeNull();
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
+    expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+    expect(calls.some((call) => call.path.startsWith("/books/profit-and-loss"))).toBe(true);
   });
 
   it("says an address under /accounting that isn't a page no longer exists, keeping the top bar", async () => {

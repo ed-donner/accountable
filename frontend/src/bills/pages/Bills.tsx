@@ -16,7 +16,7 @@ import type { AddressChange } from "../../lib/useAddress";
 import { useToday } from "../../lib/useToday";
 import { plural } from "../../lib/words";
 import { BillForm } from "../BillForm";
-import { CategoryLabel, categoryPlace, categoryStyle } from "../categories";
+import { CategoryLabel, categoryPlace, categoryStyle } from "../../components/charts/categories";
 import { DeleteBill } from "../DeleteBill";
 import { MarkPaidDialog } from "../MarkPaidDialog";
 import { useBills, usePaid, type BillRow } from "../queries";

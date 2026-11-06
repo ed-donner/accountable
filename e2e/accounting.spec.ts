@@ -8,13 +8,9 @@ import { addBill, addIssuedInvoice, isoDay, resetToSampleData } from "./helpers"
 test.describe.configure({ mode: "serial" });
 test.beforeAll(resetToSampleData);
 
-// The words of each page that is still a placeholder. Balance sheet has its own file, balance-sheet.spec.ts.
+// The words of each page that is still a placeholder. Profit and loss and Balance sheet have files of their own.
 const PAGES: { label: string; path: string; words: string | null }[] = [
-  {
-    label: "Profit and loss",
-    path: "/accounting/profit-and-loss",
-    words: "What the business earned and what it spent each month, and the profit or loss that leaves.",
-  },
+  { label: "Profit and loss", path: "/accounting/profit-and-loss", words: null },
   { label: "Balance sheet", path: "/accounting/balance-sheet", words: null },
   {
     label: "Journal",
@@ -83,6 +79,19 @@ for (const mode of ["light", "dark"] as const) {
     });
   }
 }
+
+test("Profit and loss opens from the menu as its real page, not a placeholder", async ({ page }) => {
+  await page.goto("/");
+  await menuButton(page).click();
+  await menu(page).getByRole("menuitem", { name: "Profit and loss" }).click();
+
+  await expect(page).toHaveURL(/\/accounting\/profit-and-loss$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Profit and loss");
+  await expect(page.getByRole("region", { name: "Statement" })).toBeVisible();
+  await expect(page.getByText("This report is coming soon.")).toHaveCount(0);
+  await expect(topBarLinks(page)).toHaveCount(9);
+  await expect(page.locator('nav[aria-label="Sections"] a[aria-current="page"]')).toHaveCount(0);
+});
 
 test("an Accounting page is reached by keyboard, with the focus ring on the menu button", async ({ page }) => {
   await page.goto("/organizations");

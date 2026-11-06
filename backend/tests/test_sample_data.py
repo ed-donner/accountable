@@ -935,6 +935,23 @@ def test_every_balance_sheet_stop_has_every_account_above_zero_and_the_sides_equ
         ), stop
 
 
+def test_each_of_the_last_12_months_has_revenue_and_expenses_so_the_profit_and_loss_chart_is_full(seeded):
+    """X19: on every seeding day, the 1st included."""
+    dated = {entry.id: entry.entry_date for entry in seeded["entries"]}
+    revenue: dict[str, int] = {}
+    expenses: dict[str, int] = {}
+    for line in seeded["journal_lines"]:
+        month = month_of(dated[line.entry_id])
+        if line.account == "revenue":
+            revenue[month] = revenue.get(month, 0) + line.credit_cents - line.debit_cents
+        elif line.account.startswith("expense_"):
+            expenses[month] = expenses.get(month, 0) + line.debit_cents - line.credit_cents
+    for year, month in months_back(seeded["today"], 12):
+        key = f"{year}-{month:02d}"
+        assert revenue.get(key, 0) > 0, f"No revenue in {key}"
+        assert expenses.get(key, 0) > 0, f"No expenses in {key}"
+
+
 def test_each_accepted_quote_is_linked_to_the_first_invoice_on_its_deal_and_no_other_invoice_is_linked(seeded):
     """The invoice made from the quote (V36). A deal invoiced twice has the quote on the first, which was voided."""
     accepted = {quote.id: quote for quote in seeded["quotes"] if quote.status == "accepted"}

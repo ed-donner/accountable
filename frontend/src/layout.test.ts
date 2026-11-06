@@ -18,7 +18,7 @@ function code(folder: string) {
 }
 
 // Each business area's folder, found by its queries, so a later area is held to the rules too.
-// The books have no queries yet, because their pages read nothing, so they're listed by name.
+// The books read from books/profit/, with no queries.ts at their top, so they are listed by name.
 const AREAS = readdirSync(SOURCE).filter(
   (name) => name === "books" || existsSync(path.join(SOURCE, name, "queries.ts")),
 );

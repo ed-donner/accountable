@@ -182,12 +182,26 @@ test("the slider is named Date with the day as its value, moves by keyboard and 
   await page.keyboard.press("End");
   await expect(slider(page)).toHaveValue("11");
 
+  // Chrome doesn't give a slider thumb's computed style, so this checks the slider shows keyboard focus,
+  // the thumb's ring rule is in the page's styles, and its color is the app's focus color.
   const ring = await slider(page).evaluate((input) => {
-    const style = getComputedStyle(input, "::-webkit-slider-thumb");
-    return { style: style.outlineStyle, width: style.outlineWidth, color: style.outlineColor };
+    const flat = (rules: CSSRuleList): CSSRule[] =>
+      [...rules].flatMap((rule) => (rule instanceof CSSGroupingRule ? flat(rule.cssRules) : [rule]));
+    const rule = [...document.styleSheets]
+      .flatMap((sheet) => flat(sheet.cssRules))
+      .find(
+        (each): each is CSSStyleRule =>
+          each instanceof CSSStyleRule && each.selectorText === ".date-slider:focus-visible::-webkit-slider-thumb",
+      );
+    const probe = document.createElement("span");
+    probe.style.color = "var(--color-focus)";
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return { focused: input.matches(":focus-visible"), outline: rule?.style.outline, color };
   });
-  expect(ring).toEqual({ style: "solid", width: "2px", color: FOCUS });
-  const chosen = panel(page).locator("ol > li").last().locator("span").first();
+  expect(ring).toEqual({ focused: true, outline: "2px solid var(--color-focus)", color: FOCUS });
+  const chosen = panel(page).locator("ol > li").last().getByText("Today", { exact: true });
   await expect(chosen).toHaveCSS("font-weight", "600");
 });
 
@@ -221,7 +235,7 @@ test("clicking Cash lists its entries up to the day, adding up to the figure, an
   expect(cells).toHaveLength(all);
   let sum = 0n;
   for (const cell of cells) {
-    expect(isoOf(cell[0])).toBeLessThanOrEqual(day);
+    expect(isoOf(cell[0]) <= day, `${cell[0]} is after the day`).toBe(true);
     sum += cents(cell[cell.length - 1]);
   }
   expect(sum).toBe(cash);

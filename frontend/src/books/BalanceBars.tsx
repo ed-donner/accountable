@@ -2,7 +2,7 @@ import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis, type BarShapeProps
 
 import { ChartTooltip } from "../components/charts/ChartTooltip";
 import { MONTH_CHART, MUTED_AXIS_TEXT, centsAxis } from "../components/charts/monthColumns";
-import { StackSegment, stackScale } from "../components/charts/StackSegment";
+import { LEAST_HEIGHT, StackSegment } from "../components/charts/StackSegment";
 import { useSize } from "../components/charts/useSize";
 import { formatDate } from "../lib/dates";
 import { price } from "../lib/money";
@@ -102,10 +102,11 @@ export function BalanceBars({ figures, day }: { figures: Figure[]; day: string }
   const columns = columnsOf(figures);
   const plotHeight = size.height - ROOM_ABOVE - NAMES_HEIGHT;
   const empty = columns.every((column) => figures.every((figure) => column[figure.id] === 0));
-  const { top, drawn } = stackScale(
-    columns.map((column) => figures.map((figure) => Number(column[figure.id]))),
-    plotHeight,
-  );
+  // The scale runs from $0 to the larger side's total, not a round step above it, so balanced bars fill the chart (X7).
+  const sums = columns.map((column) => figures.reduce((sum, figure) => sum + Number(column[figure.id]), 0));
+  const top = Math.max(1, ...sums);
+  const leastValue = (LEAST_HEIGHT * top) / Math.max(plotHeight, 1);
+  const drawn = (value: number) => (value > 0 ? Math.max(value, leastValue) : 0);
 
   const heights = Object.fromEntries(columns.map((column) => [column.side, heightsOf(column, figures, drawn)]));
 

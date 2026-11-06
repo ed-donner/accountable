@@ -73,6 +73,13 @@ describe("BalanceBars", () => {
     expect(left.top).toBeCloseTo(right.top, 3);
   });
 
+  it("runs the scale to the larger side's total, so balanced bars fill the chart", async () => {
+    await show();
+    const [left] = bars();
+    expect(left.top).toBeCloseTo(8, 3);
+    expect(chart().textContent).toContain("$89.4k");
+  });
+
   it("makes them differ when the sides do", async () => {
     await show(figures({ cash: "3230000" }));
     const [left, right] = bars();

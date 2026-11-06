@@ -23,6 +23,8 @@ const EXAMPLES = ["Which deals close this month?", "What do customers owe us?", 
 const ASK = "Ask a question or for a change";
 /** How near the end still counts as reading the newest, so a fraction of a pixel never unpins it. */
 const NEAR_END = 24;
+/** The closing slide's keyframes in styles.css. */
+const SLIDE_OUT = "slide-out";
 
 /**
  * Keeps the newest in view as entries arrive, unless the person has scrolled up to read (Copilot
@@ -59,6 +61,27 @@ function useCloseOnEscape(panel: RefObject<HTMLElement | null>, onClose: () => v
     element.addEventListener("keydown", closeOnEscape);
     return () => element.removeEventListener("keydown", closeOnEscape);
   }, [panel, onClose]);
+}
+
+/**
+ * Calls onGone once the closing panel has slid out, so it can be taken out of the page. With no slide to
+ * wait for, as under reduced motion, it calls it at once.
+ */
+function useGoneOnceOut(panel: RefObject<HTMLElement | null>, leaving: boolean, onGone: () => void) {
+  useLayoutEffect(() => {
+    if (!leaving) return;
+    const element = panel.current!;
+    if (getComputedStyle(element).animationName !== SLIDE_OUT) {
+      onGone();
+      return;
+    }
+    // Only the panel's own slide out, not an animation inside it whose end bubbles up.
+    const slidOut = (event: AnimationEvent) => {
+      if (event.target === element && event.animationName === SLIDE_OUT) onGone();
+    };
+    element.addEventListener("animationend", slidOut);
+    return () => element.removeEventListener("animationend", slidOut);
+  }, [panel, leaving, onGone]);
 }
 
 /** Z21's or Z20's words, which only the backend holds, and Try again where it can help. */
@@ -140,13 +163,20 @@ function EntryView({ entry, isLast, conversation, andThen }: EntryProps) {
   }
 }
 
-type Props = { conversation: Conversation; onClose: () => void };
+type Props = {
+  conversation: Conversation;
+  /** Closed, and sliding out. */
+  leaving: boolean;
+  onClose: () => void;
+  /** Called once a closed panel has slid out. */
+  onGone: () => void;
+};
 
 /**
- * The Copilot's panel beside the page (Z1 to Z6, Z21), drawing a Conversation it's given. It's shown
- * only while open: opening puts focus in the message box, and it never blocks the page.
+ * The Copilot's panel beside the page (Z1 to Z6, Z21), drawing a Conversation it's given. It slides in as
+ * it opens, with focus in the message box, and out as it closes, inert while it goes. It never blocks the page.
  */
-export function CopilotPanel({ conversation, onClose }: Props) {
+export function CopilotPanel({ conversation, leaving, onClose, onGone }: Props) {
   const { entries, working, status } = conversation;
   const headingId = useId();
   const panel = useRef<HTMLElement>(null);
@@ -154,6 +184,7 @@ export function CopilotPanel({ conversation, onClose }: Props) {
   const [text, setText] = useState("");
   const { scroller, onScroll, pin } = useNewestInView(entries);
   useCloseOnEscape(panel, onClose);
+  useGoneOnceOut(panel, leaving, onGone);
 
   useEffect(() => {
     box.current!.focus();
@@ -200,8 +231,11 @@ export function CopilotPanel({ conversation, onClose }: Props) {
       id={PANEL_ID}
       ref={panel}
       aria-labelledby={headingId}
+      inert={leaving}
       // 12px below the top bar, which is 56px tall and 12px from the top, and in line with its end.
-      className="fixed top-20 right-5 bottom-3 z-30 flex w-[400px] animate-fade-in flex-col rounded-panel bg-raised shadow-(--shadow-dialog)"
+      className={`fixed top-20 right-5 bottom-3 z-30 flex w-[400px] flex-col rounded-panel bg-raised shadow-(--shadow-dialog) ${
+        leaving ? "animate-slide-out" : "animate-slide-in"
+      }`}
     >
       <div className="flex flex-none items-center gap-1 pt-4 pr-4 pb-2 pl-5">
         <h2 id={headingId} className="mr-auto">

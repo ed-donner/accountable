@@ -25,11 +25,11 @@ const WHERE_IT_GOES =
   "Questions, and the records the Copilot reads to answer them, go to openrouter/free through OpenRouter. It can get things wrong, so check anything important on its page.";
 const EXAMPLES = ["Which deals close this month?", "What do customers owe us?", "Move a deal to Negotiation"];
 
-function inPanel(given: Conversation, onClose: () => void) {
+function inPanel(given: Conversation, onClose: () => void, leaving = false, onGone = () => {}) {
   return (
     <MemoryRouter>
       <button type="button">On the page</button>
-      <CopilotPanel conversation={given} onClose={onClose} />
+      <CopilotPanel conversation={given} leaving={leaving} onClose={onClose} onGone={onGone} />
     </MemoryRouter>
   );
 }
@@ -69,6 +69,18 @@ describe("the panel", () => {
   it("puts focus in the message box as it opens", () => {
     openPanel();
     expect(document.activeElement).toBe(messageBox());
+  });
+
+  it("slides out inert once closed, and with no slide to wait for, as under reduced motion, says it's gone at once", () => {
+    const onGone = vi.fn();
+    const view = render(inPanel(conversation(), vi.fn()));
+    expect(onGone).not.toHaveBeenCalled();
+
+    view.rerender(inPanel(conversation(), vi.fn(), true, onGone));
+    const panel = document.getElementById(PANEL_ID)!;
+    expect(panel.hasAttribute("inert")).toBe(true);
+    expect(panel.className).toContain("animate-slide-out");
+    expect(onGone).toHaveBeenCalledOnce();
   });
 
   it("closes with Close", async () => {

@@ -116,7 +116,7 @@ function AppShell() {
     <Shell
       sections={SECTIONS}
       search={<Search groups={SEARCH_GROUPS} />}
-      copilot={<Copilot />}
+      copilot={(panel) => <Copilot {...panel} />}
       menuLinks={MENU_LINKS}
     />
   );

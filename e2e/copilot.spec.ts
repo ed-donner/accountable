@@ -7,6 +7,8 @@ import {
   SIGNED_IN,
   addActivity,
   addLinkedDeal,
+  addProduct,
+  addQuote,
   card,
   cardOrder,
   chooseTeammate,
@@ -89,6 +91,36 @@ function changeCard(page: Page, title: string) {
 async function openCopilot(page: Page) {
   await copilotButton(page).click();
   await expect(messageBox(page)).toBeFocused();
+}
+
+/** Waits for the panel's slide, and the page making room for it, to end, so their places can be measured. */
+async function settled(page: Page) {
+  await page.evaluate(() => {
+    const moving = [document.getElementById("copilot-panel"), document.querySelector("main")!.parentElement];
+    return Promise.all(moving.flatMap((element) => element?.getAnimations() ?? []).map((motion) => motion.finished));
+  });
+}
+
+/**
+ * Presses the Copilot button from inside the page and reads what moves straight after, once React has drawn
+ * it. A click from the test and a read after it could miss the 200ms slide under the load of a full run.
+ */
+async function toggleAndRead(page: Page) {
+  return page.evaluate(async () => {
+    document.querySelector<HTMLButtonElement>("header button[aria-label='Copilot']")!.click();
+    await Promise.resolve();
+    const panel = document.getElementById("copilot-panel");
+    const area = document.querySelector("main")!.parentElement!;
+    return {
+      panel: panel && {
+        inert: panel.inert,
+        x: panel.getBoundingClientRect().x,
+        slides: panel.getAnimations().map((motion) => (motion as CSSAnimation).animationName),
+      },
+      page: area.getAnimations().map((motion) => (motion as CSSTransition).transitionProperty),
+      room: getComputedStyle(area).marginRight,
+    };
+  });
 }
 
 /** Sends a question from the box, as Enter does, and waits for it to show as the person's message. */
@@ -355,6 +387,8 @@ for (const mode of ["light", "dark"] as const) {
     await page.goto("/pipeline");
     await expect(page.locator("html")).toHaveAttribute("data-mode", mode);
 
+    await expect(column(page, "new")).toBeVisible();
+    const bar = (await page.getByRole("banner").boundingBox())!;
     await page.getByRole("banner").getByRole("combobox", { name: SEARCH_BOX }).focus();
     await keyTo(page, copilotButton(page), "Tab", mode);
     await expect(copilotButton(page)).toHaveAttribute("aria-expanded", "false");
@@ -367,11 +401,25 @@ for (const mode of ["light", "dark"] as const) {
     await expect(copilotButton(page)).toHaveCSS("background-color", SEA_GREEN);
     await expect(copilotButton(page)).toHaveCSS("color", MIDNIGHT);
 
-    const bar = (await page.getByRole("banner").boundingBox())!;
+    await settled(page);
+    expect(await page.getByRole("banner").boundingBox()).toEqual(bar);
     const box = (await panel(page).boundingBox())!;
     expect(box.width).toBe(400);
     expect(box.x + box.width).toBe(bar.x + bar.width);
     expect(box.y).toBe(bar.y + bar.height + 12);
+    // The page ends where the panel begins. The board's columns keep their least width and scroll sideways
+    // under the page header, and the window never does.
+    const room = (await page.getByRole("main").boundingBox())!;
+    expect(room.x + room.width).toBe(box.x);
+    const board = await column(page, "new")
+      .locator("..")
+      .evaluate((element) => ({
+        right: element.getBoundingClientRect().right,
+        scrolls: element.scrollWidth > element.clientWidth,
+        column: element.firstElementChild!.getBoundingClientRect().width,
+        window: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      }));
+    expect(board).toEqual({ right: box.x - 20, scrolls: true, column: 180, window: 0 });
     await expect(panel(page)).toHaveCSS("background-color", colors.raised);
     await expect(panel(page)).toHaveCSS("border-top-width", "0px");
     await expect(panel(page)).not.toHaveCSS("box-shadow", "none");
@@ -419,6 +467,76 @@ for (const mode of ["light", "dark"] as const) {
     await expect(copilotButton(page)).toHaveCSS("outline-color", colors.focus);
   });
 }
+
+test("slides in as the page narrows beside it, and out as the page widens, the top bar staying, and at once under reduced motion", async ({
+  page,
+}) => {
+  // From 1440px the Dashboard narrows by 160px to its least width, so a chart that kept its wider width,
+  // and held its panel open, would make the page wider than 1265px.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "What we owe" }).locator("svg").first()).toBeVisible();
+  const main = page.getByRole("main");
+  const bar = await page.getByRole("banner").boundingBox();
+  const wide = (await main.boundingBox())!;
+
+  expect(await toggleAndRead(page)).toMatchObject({
+    panel: { inert: false, slides: ["slide-in"] },
+    page: ["margin-right"],
+  });
+  await settled(page);
+  const box = (await panel(page).boundingBox())!;
+  const room = (await main.boundingBox())!;
+  expect(room.x + room.width).toBe(box.x);
+  expect(await page.getByRole("banner").boundingBox()).toEqual(bar);
+  // The Dashboard keeps its width at 1280px and scrolls sideways in the page area, never the window.
+  expect(
+    await main.evaluate((element) => ({
+      page: element.scrollWidth,
+      room: element.clientWidth,
+      window: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    })),
+  ).toEqual({ page: 1265, room: box.x, window: 0 });
+
+  expect(await toggleAndRead(page)).toMatchObject({
+    panel: { inert: true, slides: ["slide-out"] },
+    page: ["margin-right"],
+  });
+  await expect(page.locator("#copilot-panel")).toHaveCount(0);
+  await settled(page);
+  expect(await main.boundingBox()).toEqual(wide);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(await toggleAndRead(page)).toEqual({
+    panel: { inert: false, x: box.x, slides: [] },
+    page: [],
+    room: "420px",
+  });
+  expect(await toggleAndRead(page)).toEqual({ panel: null, page: [], room: "0px" });
+});
+
+test("beside the panel, a quote's page narrows rather than scrolling sideways, so its preview still stays in view", async ({
+  page,
+  request,
+}) => {
+  const { deal } = await addLinkedDeal(request, uniqueName("Copilot quote"), { stage: "proposal" });
+  const product = await addProduct(request, uniqueName("Copilot kit"));
+  const lines = [1, 2, 3, 4].map((quantity) => ({ product_id: product.id, quantity, unit_price_cents: 10000 }));
+  const quote = await addQuote(request, deal.id, lines);
+  await page.goto(`/quotes/${quote.id}`);
+  const preview = page.getByTestId("preview-scroll");
+  await expect(preview).toBeVisible();
+
+  await openCopilot(page);
+  await settled(page);
+  const main = page.getByRole("main");
+  await expect(main).toHaveCSS("overflow-x", "visible");
+  expect(await main.evaluate((element) => element.scrollWidth - element.clientWidth)).toBe(0);
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(300);
+  expect(await preview.evaluate((element) => element.getBoundingClientRect().top)).toBe(12);
+});
 
 test.describe("a copy with no OpenRouter key", () => {
   // startCopy waits up to 60s for a copy to start on a busy machine.

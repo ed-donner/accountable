@@ -217,7 +217,7 @@ Each area of the product has a file in `docs/specs/` with its requirements and, 
 
 | File | What it covers | Requirements |
 |---|---|---|
-| [shell.md](specs/shell.md) | The top bar, addresses, missing pages, the connection message, failed reads, the menu, the theme, and the shell's screen | N1 to N7, L1 to L5 |
+| [shell.md](specs/shell.md) | The top bar, addresses, missing pages, the connection message, failed reads, the menu, the page's area beside the Copilot's panel, the theme, and the shell's screen | N1 to N8, L1 to L5 |
 | [copilot.md](specs/copilot.md) | The Copilot: its button and panel, the conversation and its steps, what it can look up and change, the change card, text from the records as data, the model and its two settings, OpenRouter's limits and the panel's messages, what's sent and kept, and its screen | Z1 to Z23 |
 | [sign-in.md](specs/sign-in.md) | Signing in and out, names and initials, who added and changed each record, the local copy's made-up teammates, and the sign-in screen | U1 to U16 |
 | [search.md](specs/search.md) | The top bar's search, and its screen | K1 to K8 |

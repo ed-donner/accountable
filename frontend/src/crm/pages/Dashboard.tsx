@@ -215,13 +215,14 @@ function RecentActivity({ data }: { data: Figures }) {
 export type DashboardSection = { name: string; Section: ComponentType };
 
 export function Dashboard({ sections = [] }: { sections?: DashboardSection[] }) {
+  // Never narrower than at 1280px, where the strip's stage band and the funnel's labels still fit.
   return (
-    <>
+    <div className="flex min-w-page flex-col">
       <SalesAndFollowUps />
       {sections.map(({ name, Section }) => (
         <Section key={name} />
       ))}
-    </>
+    </div>
   );
 }
 

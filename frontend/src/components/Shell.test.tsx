@@ -37,7 +37,11 @@ function openAt(path: string) {
               <Shell
                 sections={SECTIONS}
                 search={<input aria-label="The search box" />}
-                copilot={<button type="button">The Copilot</button>}
+                copilot={({ open, onOpenChange }) => (
+                  <button type="button" aria-expanded={open} onClick={() => onOpenChange(!open)}>
+                    The Copilot
+                  </button>
+                )}
                 menuLinks={MENU_LINKS}
               />
             }
@@ -157,5 +161,34 @@ describe("the top bar", () => {
 
     expect(screen.getByRole("main").textContent).toBe("The products page");
     expect(currentSections()).toEqual(["Products"]);
+  });
+});
+
+describe("the room for the Copilot's panel", () => {
+  /** The page area's and the page's classes, which jsdom can't lay out, so the end-to-end tests measure them. */
+  function pageArea() {
+    const main = screen.getByRole("main");
+    return { area: main.parentElement!.className.split(/\s+/), main: main.className.split(/\s+/) };
+  }
+
+  it("gives the Copilot its panel closed, and narrows the page beside it while it's open, the top bar staying", async () => {
+    openAt("/pipeline");
+    const copilot = within(screen.getByRole("banner")).getByRole("button", { name: "The Copilot" });
+    expect(copilot.getAttribute("aria-expanded")).toBe("false");
+    expect(pageArea().area).not.toContain("mr-[420px]");
+    expect(pageArea().main).not.toContain("[&:not(:has(.sticky))]:overflow-x-auto");
+
+    await user().click(copilot);
+    expect(copilot.getAttribute("aria-expanded")).toBe("true");
+    expect(pageArea().area).toEqual(
+      expect.arrayContaining(["mr-[420px]", "transition-[margin-right]", "duration-200"]),
+    );
+    expect(pageArea().main).toContain("[&:not(:has(.sticky))]:overflow-x-auto");
+    expect(screen.getByRole("banner").parentElement).toBe(screen.getByRole("main").parentElement!.parentElement);
+
+    await user().click(copilot);
+    expect(copilot.getAttribute("aria-expanded")).toBe("false");
+    expect(pageArea().area).not.toContain("mr-[420px]");
+    expect(pageArea().area).toEqual(expect.arrayContaining(["transition-[margin-right]", "duration-200"]));
   });
 });

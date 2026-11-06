@@ -190,7 +190,7 @@ Numbers are always in JetBrains Mono, so columns of figures line up. The one exc
 
 ### Motion
 
-The revenue line and its fill draw in once on load. Cards slide apart while one is dragged, and settle into place when dropped. Dialogs fade in quickly. So does the Copilot's panel, and a Copilot step's loader turns while the step runs. Nothing else moves, and all of it stops under reduced motion. Switching between light and dark mode is instant, with no fade.
+The revenue line and its fill draw in once on load. Cards slide apart while one is dragged, and settle into place when dropped. Dialogs fade in quickly. The Copilot's panel slides in from the right in 200ms, easing out, while the page narrows beside it in step, and slides out in 200ms, easing in, while the page widens again ([Z1](copilot.md#the-panel)). A Copilot step's loader turns while the step runs. Nothing else moves, and all of it stops under reduced motion, where the panel shows and goes, and the page narrows and widens, at once. Switching between light and dark mode is instant, with no fade.
 
 ### Words
 

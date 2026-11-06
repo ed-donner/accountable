@@ -77,7 +77,7 @@ The Copilot adds and edits organizations, contacts, deals and activities through
 
 ### Tables
 
-A page title with the Add button beside it, then the search box, then the table on a panel. Rows are separated by space and a hover tint, not lines. Row height is 44px. Edit and Delete are icon buttons at the end of each row, always visible, with labels for screen readers.
+A page title with the Add button beside it, then the search box, then the table on a panel. Rows are separated by space and a hover tint, not lines. Row height is 44px. Edit and Delete are icon buttons at the end of each row, always visible, with labels for screen readers. A table, with its search box and filters, is never laid out narrower than at 1280px wide, since its fixed-width columns would squeeze the others to nothing. So beside the Copilot's panel, on a window narrower than about 1685px, it scrolls sideways in the page's area ([N8](shell.md#app-shell)). This holds for every table built on `DataTable`: organizations, contacts, deals, products, quotes, invoices and bills.
 
 ### Record pages
 

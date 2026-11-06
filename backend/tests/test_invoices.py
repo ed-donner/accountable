@@ -551,6 +551,7 @@ def test_the_list_has_each_invoices_figures_newest_first(billing):
         "due_date": "2026-11-30",
         "total_cents": 391950,
         "owed_cents": 291950,
+        "quote_id": None,
     }
     assert (listed[0]["shows_as"], listed[0]["number"], listed[0]["owed_cents"]) == ("draft", None, 0)
 

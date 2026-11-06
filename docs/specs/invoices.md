@@ -67,7 +67,7 @@ An invoice due today isn't overdue, as a deal due today isn't late. Days late is
 | The quote has an invoice already | QT-0004 already has an invoice, INV-0042. (or "a draft invoice" while it has no number) |
 | The deal isn't won | V33's words |
 
-  A quote that doesn't exist gets a 404. When the page's click is refused because the quote already has an invoice, the page reads the quote again and shows Open invoice, with the message.
+  A quote that doesn't exist gets a 404. When the page's click is refused because the quote already has an invoice, the page reads the quote's invoice again and shows Open invoice, with the message.
 - **V38.** The draft copies the quote even where that breaks a rule a typed draft has to keep (V8, V9). A quote's description has no limit, and it can hold a character the invoice's fonts can't draw, and an accepted quote can't be changed. So Create invoice still makes the draft, with each field exactly as the quote has it, and the draft's page shows each field's message beside it (V8) at once. Save draft and Issue invoice are refused until it's put right, as for any draft, so a quote is never left with no way to its invoice. The amounts, quantities and prices always match the quote's.
 
 ### Voiding

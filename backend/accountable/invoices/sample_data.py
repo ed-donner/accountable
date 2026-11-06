@@ -30,6 +30,7 @@ from accountable.crm.tables import contacts, deals, organizations, stage_changes
 from accountable.invoices import figures
 from accountable.invoices.tables import DRAFT, ISSUED, VOID, invoice_lines, invoices, payments
 from accountable.products.tables import products
+from accountable.quotes.tables import quotes
 from accountable.sample import Line, moment, sold_lines
 from accountable.users import add_missing_teammates, teammate
 
@@ -211,11 +212,22 @@ def fill(conn: Connection, today: date) -> None:
     planned = _Plan(wins, today, settings.payment_terms_days, totals).plans
     # Numbers go in the order the invoices were issued, so INV-0001 is the oldest (B15).
     in_order = sorted(planned, key=lambda plan: (plan.issue_date or date.max, plan.deal.id))
+    accepted = _accepted_quotes(conn)
     for number, plan in enumerate(in_order):
-        _write(conn, plan, lines[plan.deal.id], settings, number)
+        # A deal invoiced twice has its quote linked to the first only (V37).
+        quote_id = accepted.pop(plan.deal.id, None)
+        _write(conn, plan, lines[plan.deal.id], settings, number, quote_id)
 
 
-def _write(conn: Connection, plan: Planned, lines: list[Line], settings: Row, number: int) -> None:
+def _accepted_quotes(conn: Connection) -> dict[int, int]:
+    """Each deal's accepted quote, which its first sample invoice is made from (M3, V36)."""
+    rows = conn.execute(select(quotes.c.deal_id, quotes.c.id).where(quotes.c.status == "accepted"))
+    return {row.deal_id: row.id for row in rows}
+
+
+def _write(
+    conn: Connection, plan: Planned, lines: list[Line], settings: Row, number: int, quote_id: int | None
+) -> None:
     """Added by a made-up teammate on the day it was issued, or for a draft the day its deal was won (M7),
     and never before the deal was won and its quote accepted."""
     deal = plan.deal
@@ -223,6 +235,7 @@ def _write(conn: Connection, plan: Planned, lines: list[Line], settings: Row, nu
     values: dict[str, Any] = {
         "deal_id": deal.id,
         "status": DRAFT,
+        "quote_id": quote_id,
         "bill_to": figures.bill_to(deal.organization_name, deal.contact_name, deal.contact_email),
         **who.added(teammate(number), added_at),
     }

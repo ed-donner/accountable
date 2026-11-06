@@ -15,6 +15,8 @@ const SECTIONS: Section[] = PATHS.map((to, place) => ({
   icon: <svg aria-hidden="true" data-testid={`${LABELS[place]} icon`} />,
 }));
 
+const MENU_LINKS = [{ label: "Reports", links: [{ label: "A report", to: "/reports/a" }] }];
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 9, 31, 12, 0) });
   mockApi({ "GET /me": { id: "alex", name: "Alex Rivera", email: "alex@accountable.example", initials: "AR" } });
@@ -30,7 +32,11 @@ function openAt(path: string) {
     <QueryClientProvider client={new QueryClient({ defaultOptions: queryDefaults })}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route element={<Shell sections={SECTIONS} search={<input aria-label="The search box" />} />}>
+          <Route
+            element={
+              <Shell sections={SECTIONS} search={<input aria-label="The search box" />} menuLinks={MENU_LINKS} />
+            }
+          >
             <Route path="/" element={<p>The dashboard page</p>} />
             <Route path="/organizations" element={<p>The organizations page</p>} />
             <Route path="/contacts" element={<p>The contacts page</p>} />
@@ -117,6 +123,20 @@ describe("the top bar", () => {
       expect(bar.getAllByRole("button")).toEqual([menuButton]);
     },
   );
+
+  it("gives the menu the groups of links it's handed, and the nine-section bar gains no link for them", async () => {
+    openAt("/");
+    expect(
+      sections()
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(LABELS);
+    await user().click(await screen.findByRole("button", { name: "Menu for Alex Rivera" }));
+
+    const menu = within(screen.getByRole("menu"));
+    expect(menu.getByText("Reports")).toBeTruthy();
+    expect(menu.getByRole("menuitem", { name: "A report" })).toBeTruthy();
+  });
 
   it("opens a section from the top bar, and keeps the bar there", async () => {
     openAt("/");

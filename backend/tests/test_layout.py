@@ -14,14 +14,15 @@ AREAS = sorted(path.parent.name for path in PACKAGE.glob("*/__init__.py"))
 # Where the app is put together. Everything else, every area's folder included, gets
 # what it needs from the top level.
 MAY_NAME_AN_AREA = {"main.py", "cli.py", "migrations/env.py"}
-# The one area every other may import: later ones, such as quotes and invoices, read the company's details.
-OTHERS_MAY_IMPORT = {"company"}
-# The areas that import no other area but company/. company/ imports none at all.
-FIRST_AREAS = {"company", "crm", "products"}
+# The areas every other may import: later ones, such as quotes and invoices, read the company's details,
+# and every area may post to the books, through books/post alone.
+OTHERS_MAY_IMPORT = {"company", "books"}
+# The areas that import no other area but company/ and books/. books/ imports none at all, and company/ only books/post.
+FIRST_AREAS = {"books", "company", "crm", "products"}
 # What a later area, such as invoices, may import from the first ones: their tables, for
 # foreign keys and reads, and the CRM's rules, so a deal changes stage the one way however
 # it's asked for. Later areas never import each other, and the first ones never import them.
-BUILT_ON = {"crm": {"tables", "rules"}, "products": {"tables"}}
+BUILT_ON = {"crm": {"tables", "rules"}, "products": {"tables"}, "books": {"post"}}
 
 
 def sources() -> list[Path]:
@@ -38,7 +39,7 @@ def names(path: Path, area: str) -> bool:
 
 
 def test_the_areas_are_found():
-    assert AREAS == ["bills", "cashflow", "company", "crm", "invoices", "products", "quotes"]
+    assert AREAS == ["bills", "books", "cashflow", "company", "crm", "invoices", "products", "quotes"]
 
 
 def imported_areas(source: str) -> set[tuple[str, str]]:
@@ -69,7 +70,7 @@ def _from_import(parts: list[str], names: list[str]) -> set[tuple[str, str]]:
 
 
 def later_area_may_import(area: str, module: str) -> bool:
-    return area in OTHERS_MAY_IMPORT or module in BUILT_ON.get(area, set())
+    return area == "company" or module in BUILT_ON.get(area, set())
 
 
 @pytest.mark.parametrize(
@@ -99,20 +100,51 @@ def test_every_way_of_importing_an_area_is_seen(source, found):
         ("crm", "", False),
         ("products", "router", False),
         ("invoices", "tables", False),
+        ("books", "post", True),
+        ("books", "router", False),
+        ("books", "tables", False),
     ],
 )
 def test_a_later_area_may_import_only_what_it_builds_on(area, module, allowed):
     assert later_area_may_import(area, module) is allowed
 
 
-def test_the_first_areas_import_no_other_area_but_company():
+def test_the_first_areas_import_no_other_area_but_company_and_the_books():
     for path in sources():
         own = area_of(path)
         if own in FIRST_AREAS:
             others = {area for area, _ in imported_areas(path.read_text())} - {own}
-            assert others <= (set() if own == "company" else OTHERS_MAY_IMPORT), path
+            assert others <= (set() if own == "books" else OTHERS_MAY_IMPORT), path
     # The check is looking in the right place.
     assert ("crm", "rules") in imported_areas((PACKAGE / "crm" / "routers" / "deals.py").read_text())
+
+
+def test_books_import_no_area_at_all():
+    found = {area for path in sources() if area_of(path) == "books" for area, _ in imported_areas(path.read_text())}
+    assert found <= {"books"}
+
+
+def test_company_imports_only_books_post():
+    """So the opening balance can be posted from the settings' own save (B25)."""
+    found = {
+        (area, module)
+        for path in sources()
+        if area_of(path) == "company"
+        for area, module in imported_areas(path.read_text())
+        if area != "company"
+    }
+    assert found == {("books", "post")}
+
+
+def test_every_area_imports_the_books_through_post_alone():
+    found = {
+        module
+        for path in sources()
+        if area_of(path) not in (None, "books")
+        for area, module in imported_areas(path.read_text())
+        if area == "books"
+    }
+    assert found == {"post"}
 
 
 def test_a_later_area_imports_only_the_first_areas_tables_and_the_crms_rules():

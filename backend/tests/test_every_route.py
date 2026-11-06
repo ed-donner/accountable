@@ -173,7 +173,22 @@ def test_the_routes_were_found():
     assert ("GET", "/api/cash-flow") in READS
     assert ("GET", "/api/cash-flow/expected") in READS
     assert target("GET", "/api/cash-flow/expected") == "/api/cash-flow/expected?month=2026-11"
-    assert QUERY_TEXT == [("GET", "/api/cash-flow/expected", "month"), ("GET", "/api/search", "q")]
+    for route in [
+        ("GET", "/api/books/balances"),
+        ("GET", "/api/books/months"),
+        ("GET", "/api/books/entries"),
+    ]:
+        assert route in READS, route
+    assert QUERY_TEXT == [
+        ("GET", "/api/books/balances", "on"),
+        ("GET", "/api/books/entries", "account"),
+        ("GET", "/api/books/entries", "from"),
+        ("GET", "/api/books/entries", "to"),
+        ("GET", "/api/books/months", "from"),
+        ("GET", "/api/books/months", "to"),
+        ("GET", "/api/cash-flow/expected", "month"),
+        ("GET", "/api/search", "q"),
+    ]
     assert LOCAL_SIGN_IN_TEXT == [("POST", "/api/local/sign-in", "user_id")]
     assert len(RECORD_ROUTES) > 15
     assert LOCAL_SIGN_IN == [("GET", "/api/local/teammates"), ("POST", "/api/local/sign-in")]

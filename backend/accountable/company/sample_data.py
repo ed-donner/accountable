@@ -10,6 +10,7 @@ from pathlib import Path
 from sqlalchemy import Connection, delete, insert, update
 
 from accountable import months, who
+from accountable.books import post as books_post
 from accountable.company import logo
 from accountable.company.tables import company_logo, company_settings
 from accountable.users import TEAMMATES, add_missing_teammates
@@ -55,6 +56,9 @@ def fill(conn: Connection, today: date, now: datetime) -> None:
             opening_balance_on=opening_day(today),
             **who.changed(DANA_WHITFIELD, now),
         )
+    )
+    books_post.opening_balance(
+        conn, on=opening_day(today), cents=SAMPLE_OPENING_BALANCE_CENTS, user=DANA_WHITFIELD, now=now
     )
     image = SAMPLE_LOGO.read_bytes()
     checked = logo.check(image)

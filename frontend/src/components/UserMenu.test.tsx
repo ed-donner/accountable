@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
+import { ACCOUNTING_LINKS } from "../books/links";
 import { queryDefaults } from "../lib/queryDefaults";
 import { useSession } from "../lib/session";
 import { THEME_KEY } from "../lib/theme";
@@ -13,6 +14,7 @@ const ALEX = { id: "alex", name: "Alex Rivera", email: "alex@accountable.example
 const ROBIN = { id: "robin", name: "robin@accountable.example", email: "robin@accountable.example", initials: "R" };
 
 const root = document.documentElement;
+const ACCOUNTING = ["Profit and loss", "Balance sheet", "Journal", "Aged balances"];
 
 /** Where the app is and whether anyone is signed in, as the rest of the page would see them. */
 function Surroundings() {
@@ -34,7 +36,7 @@ function openMenuAt(path = "/") {
             path="*"
             element={
               <>
-                <UserMenu />
+                <UserMenu groups={[ACCOUNTING_LINKS]} />
                 <Surroundings />
               </>
             }
@@ -83,7 +85,7 @@ describe("the menu button", () => {
     openMenuAt();
     await user().click(screen.getByRole("button", { name: "Menu" }));
     expect(themes()).toEqual(["Light (checked)", "Dark", "System"]);
-    expect(items()).toEqual(["Company settings", "Sign out"]);
+    expect(items()).toEqual([...ACCOUNTING, "Company settings", "Sign out"]);
   });
 });
 
@@ -98,7 +100,7 @@ describe("the menu", () => {
     expect(menu().getByText("Theme")).toBeTruthy();
     expect(within(menu().getByRole("group", { name: "Theme" })).getAllByRole("menuitemradio")).toHaveLength(3);
     expect(themes()).toEqual(["Light (checked)", "Dark", "System"]);
-    expect(items()).toEqual(["Company settings", "Sign out"]);
+    expect(items()).toEqual([...ACCOUNTING, "Company settings", "Sign out"]);
   });
 
   it("shows the email once for someone with no display name", async () => {
@@ -188,6 +190,63 @@ describe("the menu", () => {
 
     expect(await screen.findByText("At /settings, signed-in")).toBeTruthy();
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("has Accounting as a label in muted ink between the themes and Company settings, over its four links", async () => {
+    mockApi({ "GET /me": ALEX });
+    openMenuAt();
+    await user().click(await menuButton());
+
+    const label = menu().getByText("Accounting");
+    expect(label.className).toContain("text-muted");
+    const group = menu().getByRole("group", { name: "Accounting" });
+    expect(
+      within(group)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(ACCOUNTING);
+    const order = [
+      menu().getByRole("group", { name: "Theme" }),
+      group,
+      menu().getByRole("menuitem", { name: "Company settings" }),
+    ];
+    expect(order[0].compareDocumentPosition(order[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(order[1].compareDocumentPosition(order[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(menu().queryAllByRole("img")).toEqual([]);
+  });
+
+  it.each([
+    ["with the person", { "GET /me": ALEX }, "Menu for Alex Rivera"],
+    ["without the person", {}, "Menu"],
+  ])("opens an Accounting page and closes the menu on choosing its link, %s", async (_case, routes, button) => {
+    startSignedIn();
+    mockApi(routes);
+    openMenuAt("/deals/7");
+    const clicks = user();
+    await clicks.click(await screen.findByRole("button", { name: button }));
+
+    await clicks.click(menu().getByRole("menuitem", { name: "Journal" }));
+
+    expect(await screen.findByText("At /accounting/journal, signed-in")).toBeTruthy();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("moves through the Accounting links with the arrow keys and closes with Escape, focus back on the button", async () => {
+    mockApi({ "GET /me": ALEX });
+    openMenuAt();
+    const button = await menuButton();
+    const keys = user();
+    await keys.tab();
+    await keys.keyboard("{Enter}");
+    await keys.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
+    expect(document.activeElement?.textContent).toBe("Profit and loss");
+    await keys.keyboard("{ArrowDown}");
+    expect(document.activeElement?.textContent).toBe("Balance sheet");
+
+    await keys.keyboard("{Escape}");
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(button);
   });
 
   it("signs out to the sign-in screen at the Dashboard's address", async () => {

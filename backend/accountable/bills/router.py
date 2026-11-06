@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 
 from accountable import api, db, who
 from accountable.auth import CurrentUser
-from accountable.bills import schemas
+from accountable.bills import books, schemas
 from accountable.bills.tables import CATEGORIES, bill_number_key, bills
 from accountable.crm.tables import organizations
 from accountable.months import last_months, month_key
@@ -147,6 +147,7 @@ def add_bill(body: schemas.BillCreate, user: CurrentUser, now: api.Now, today: a
         saving.update(bill)
         values = {**bill, "bill_number_key": bill_number_key(bill["bill_number"]), **who.added(user, now)}
         new_id = conn.execute(insert(bills).values(**values).returning(bills.c.id)).scalar_one()
+        books.added(conn, new_id, bill, user, now)
         return _detail(_get(conn, new_id))
 
 
@@ -233,12 +234,14 @@ def edit_bill(
             if "bill_number" in altered:
                 altered["bill_number_key"] = bill_number_key(altered["bill_number"])
             conn.execute(update(bills).where(bills.c.id == bill_id).values(**altered, **who.changed(user, now)))
+            books.changed(conn, bill_id, current._mapping, bill, user, now)
         return _detail(_get(conn, bill_id))
 
 
 @router.delete("/{bill_id}", status_code=204)
-def delete_bill(bill_id: api.PathId) -> None:
-    """Nothing is deleted with a bill, and nothing points at one (E17)."""
+def delete_bill(bill_id: api.PathId, user: CurrentUser, now: api.Now) -> None:
+    """Nothing is deleted with a bill, and nothing points at one (E17), but its entries are reversed (E25)."""
     with db.writing() as conn:
         _get(conn, bill_id)
+        books.deleted(conn, bill_id, user, now)
         conn.execute(delete(bills).where(bills.c.id == bill_id))

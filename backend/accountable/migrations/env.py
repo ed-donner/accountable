@@ -1,4 +1,5 @@
 from accountable.bills import tables as bills_tables
+from accountable.books import tables as books_tables
 from accountable.company import tables as company_tables
 from accountable.crm import tables as crm_tables
 from accountable.invoices import tables as invoices_tables
@@ -15,6 +16,7 @@ assert company_tables.metadata is metadata
 assert bills_tables.metadata is metadata
 assert quotes_tables.metadata is metadata
 assert invoices_tables.metadata is metadata
+assert books_tables.metadata is metadata
 
 if context.is_offline_mode():
     # Writes out the SQL for the database the URL names, which needs no database.

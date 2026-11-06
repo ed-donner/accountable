@@ -91,6 +91,20 @@ async function expectAllTeammatesToChooseFrom(browser: Browser) {
   }
 }
 
+/** Every account's balance in the copy's books, in cents. */
+async function booksOf(copyApi: APIRequestContext) {
+  const { accounts } = (await (await copyApi.get("/api/books/balances")).json()) as {
+    accounts: { key: string; type: string; balance_cents: string }[];
+  };
+  return accounts.map((account) => ({ ...account, cents: BigInt(account.balance_cents) }));
+}
+
+function expectBalanced(accounts: { type: string; cents: bigint }[]) {
+  const sum = (types: string[]) =>
+    accounts.filter(({ type }) => types.includes(type)).reduce((total, { cents }) => total + cents, 0n);
+  expect(sum(["asset", "expense"])).toBe(sum(["liability", "equity", "revenue"]));
+}
+
 test("changes survive a restart, including a card's place on the board and being signed in", async ({ page }) => {
   await openSignedIn(page, "/pipeline");
   const order = await (async () => {
@@ -177,6 +191,12 @@ test("npm run seed with the app running brings back the sample data and keeps th
   await expect(months).toHaveCount(12);
   for (const month of await months.all()) await expect(month.locator("td").last()).not.toHaveText("$0.00");
 
+  // The books are posted with the records, and balance (J10).
+  const accounts = await booksOf(api);
+  expectBalanced(accounts);
+  expect(accounts.find(({ key }) => key === "receivable")!.cents).toBeGreaterThan(0n);
+  expect(accounts.find(({ key }) => key === "payable")!.cents).toBeGreaterThan(0n);
+
   await expectAllTeammatesToChooseFrom(browser);
 });
 
@@ -219,6 +239,14 @@ test("npm run empty with the app running keeps the teammates and leaves every sc
     await goto(page, path);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   }
+
+  // Only the opening balance's entry is left, so Cash is the settings' opening balance and the books balance (J10).
+  const accounts = await booksOf(api);
+  expectBalanced(accounts);
+  const settings = (await (await api.get("/api/settings")).json()) as { opening_balance_cents: number };
+  expect(accounts.find(({ key }) => key === "cash")!.cents).toBe(BigInt(settings.opening_balance_cents));
+  const entries = (await (await api.get("/api/books/entries")).json()) as { total: number };
+  expect(entries.total).toBe(1);
 
   await expectAllTeammatesToChooseFrom(browser);
 });

@@ -24,6 +24,8 @@ from sqlalchemy import Connection, delete, func, select
 from accountable import db, users
 from accountable.bills import sample_data as bills_sample_data
 from accountable.bills import tables as bills_tables
+from accountable.books import post as books_post
+from accountable.books import tables as books_tables
 from accountable.company import sample_data as company_sample_data
 from accountable.company import tables as company_tables
 from accountable.crm import sample_data as crm_sample_data
@@ -42,6 +44,7 @@ RECORDS = (
     *quotes_tables.RECORDS,
     *invoices_tables.RECORDS,
     *bills_tables.RECORDS,
+    *books_tables.RECORDS,
 )
 
 # What they leave: the people, so there's still someone to sign in as, and the company
@@ -90,6 +93,19 @@ def _wipe(conn: Connection) -> None:
             conn.execute(delete(table))
 
 
+def _post_opening_balance_again(conn: Connection) -> None:
+    """The wipe took the books' entries and left the settings, so the opening balance is posted again from them (J10)."""
+    saved = conn.execute(select(company_tables.company_settings).where(company_tables.company_settings.c.id == 1)).one()
+    if saved.opening_balance_cents is not None:
+        books_post.opening_balance(
+            conn,
+            on=saved.opening_balance_on,
+            cents=saved.opening_balance_cents,
+            user=saved.updated_by,
+            now=db.utc_now(),
+        )
+
+
 def _confirmed() -> bool:
     try:
         return input("Type yes to go ahead: ").strip().lower() == "yes"
@@ -123,7 +139,7 @@ def main(arguments: list[str] | None = None) -> int:
         counts = _counts(conn)
 
     outcome = "replaced with the sample data" if seeding else "removed for good"
-    lost = ", ".join(_plural(count, name) for name, count in counts.items())
+    lost = ", ".join(_plural(count, name.replace("_", " ")) for name, count in counts.items())
     print(f"This will delete {lost}. They'll be {outcome}, and this can't be undone.")
     if seeding:
         print("The company settings will be replaced with the sample company's.")
@@ -136,6 +152,8 @@ def main(arguments: list[str] | None = None) -> int:
         _wipe(conn)
         if seeding:
             fill_sample(conn)
+        else:
+            _post_opening_balance_again(conn)
 
     print("Sample data restored." if seeding else "Database emptied.")
     return 0

@@ -3,6 +3,7 @@ from datetime import date
 
 import pytest
 from accountable import cli, db, users
+from accountable.books.tables import journal_entries, journal_lines
 from accountable.company import documents
 from accountable.company.sample_data import SAMPLE_COMPANY, SAMPLE_LOGO
 from accountable.company.tables import company_logo, company_settings
@@ -11,6 +12,7 @@ from accountable.invoices.tables import invoices
 from accountable.quotes.tables import quote_lines, quotes
 from conftest import TODAY, insert_row
 from sqlalchemy import func, insert, select, update
+from test_books_checks import hold
 
 # Every table seed and empty delete from: all but the people and the company settings.
 WIPED = [table for table in db.metadata.sorted_tables if table not in cli.KEPT]
@@ -67,6 +69,7 @@ def test_every_table_but_the_people_and_the_settings_is_wiped():
     # The check is looking in the right place.
     assert {"stage_changes", "products", "number_counters", "quotes", "quote_lines", "bills"} <= set(EMPTY)
     assert {"invoices", "invoice_lines", "payments"} <= set(EMPTY)
+    assert {"journal_entries", "journal_lines"} <= set(EMPTY)
     assert {"users", "company_settings", "company_logo"}.isdisjoint(EMPTY)
 
 
@@ -86,7 +89,8 @@ def test_shows_what_will_be_lost_and_needs_yes(with_records, monkeypatch, capsys
     assert cli.main([command]) == 0
     output = capsys.readouterr().out
     assert (
-        "1 organization, 1 contact, 1 deal, 1 activity, 1 product, 1 quote, 0 invoices, 0 payments, 1 bill." in output
+        "1 organization, 1 contact, 1 deal, 1 activity, 1 product, 1 quote, 0 invoices, 0 payments, 1 bill, 0 journal entries."
+        in output
     )
     assert "can't be undone" in output
 
@@ -98,8 +102,8 @@ def test_counts_read_naturally_when_there_are_several(make, monkeypatch, capsys)
     cli.main(["empty"])
     output = capsys.readouterr().out
     assert (
-        "2 organizations, 0 contacts, 0 deals, 0 activities, 0 products, 0 quotes, 0 invoices, 0 payments, 0 bills."
-        in output
+        "2 organizations, 0 contacts, 0 deals, 0 activities, 0 products, 0 quotes, 0 invoices, 0 payments, 0 bills, "
+        "0 journal entries." in output
     )
 
 
@@ -337,4 +341,44 @@ def test_seed_puts_the_sample_logo_design_and_accent_color_back(our_look):
 def test_seed_and_empty_count_invoices_and_payments_in_their_question(with_records, monkeypatch, capsys):
     answer(monkeypatch, "no\n")
     cli.main(["empty"])
-    assert "1 quote, 0 invoices, 0 payments, 1 bill." in capsys.readouterr().out
+    assert "1 quote, 0 invoices, 0 payments, 1 bill, 0 journal entries." in capsys.readouterr().out
+
+
+def books() -> dict:
+    """What the journal holds: its entries by event, its lines, and Cash's balance."""
+    with db.reading() as conn:
+        events = list(conn.scalars(select(journal_entries.c.event)))
+        lines = conn.execute(select(journal_lines.c.account, journal_lines.c.debit_cents, journal_lines.c.credit_cents))
+        cash = sum(line.debit_cents - line.credit_cents for line in lines if line.account == "cash")
+        orphans = conn.scalar(
+            select(func.count())
+            .select_from(journal_lines)
+            .where(journal_lines.c.entry_id.not_in(select(journal_entries.c.id)))
+        )
+    return {"events": events, "cash": cash, "orphans": orphans}
+
+
+def test_seed_leaves_books_that_balance_with_the_sample_opening_balance(with_records, monkeypatch):
+    answer(monkeypatch, "yes\n")
+    cli.main(["seed"])
+    hold()
+    assert "opening_balance_set" in books()["events"]
+    assert counts()["journal_entries"] > 100
+
+
+def test_empty_leaves_only_the_opening_balances_entry_and_the_books_balance(changed_settings):
+    assert cli.main(["empty", "--yes"]) == 0
+    assert books() == {"events": ["opening_balance_set"], "cash": -125_000, "orphans": 0}
+    hold()
+
+
+def test_empty_run_twice_leaves_cash_as_it_was(changed_settings):
+    cli.main(["empty", "--yes"])
+    once = books()
+    cli.main(["empty", "--yes"])
+    assert books() == once
+
+
+def test_empty_with_no_opening_balance_leaves_no_entry(with_records):
+    assert cli.main(["empty", "--yes"]) == 0
+    assert counts() == EMPTY

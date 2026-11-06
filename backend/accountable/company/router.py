@@ -7,6 +7,7 @@ from sqlalchemy import Connection, Row, delete, insert, select, update
 
 from accountable import api, db, who
 from accountable.auth import CurrentUser
+from accountable.books import post as books_post
 from accountable.company import documents, logo, schemas
 from accountable.company.tables import company_logo, company_settings
 from accountable.users import person, users
@@ -109,6 +110,28 @@ def _opening_balance_problems(after: dict[str, Any], saved_on: date | None, toda
     return {}
 
 
+def _post_opening_balance(conn: Connection, before: Row, after: Row, user: str, now: datetime) -> None:
+    """The opening balance's entry, reversed and posted again when its amount or its date changed (B25, J6)."""
+    if (before.opening_balance_cents, before.opening_balance_on) == (
+        after.opening_balance_cents,
+        after.opening_balance_on,
+    ):
+        return
+    had, has = before.opening_balance_cents is not None, after.opening_balance_cents is not None
+    if had:
+        event = "opening_balance_changed" if has else "opening_balance_cleared"
+        books_post.reverse(conn, source=books_post.OPENING_BALANCE_SOURCE, event=event, user=user, now=now)
+    if has:
+        books_post.opening_balance(
+            conn,
+            on=after.opening_balance_on,
+            cents=after.opening_balance_cents,
+            user=user,
+            now=now,
+            event="opening_balance_changed" if had else "opening_balance_set",
+        )
+
+
 @router.get("")
 def get_settings() -> schemas.CompanySettings:
     with db.reading() as conn:
@@ -134,6 +157,7 @@ def save_settings(
         altered = who.alterations(fields, saved)
         if _write_logo(conn, sent, checked, now) or altered:
             conn.execute(update(company_settings).where(_the_row).values(**altered, **who.changed(user, now)))
+        _post_opening_balance(conn, saved, _read(conn), user, now)
         return _reply(_read(conn))
 
 

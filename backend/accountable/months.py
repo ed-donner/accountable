@@ -53,3 +53,18 @@ def next_months(today: date, count: int = FORECAST) -> list[Month]:
     """The months after today's, oldest first, across the turn of a year."""
     now = _counted(today)
     return [_month(now + ahead) for ahead in range(1, count + 1)]
+
+
+def _counted_key(key: str) -> int:
+    year, month = key.split("-")
+    return int(year) * 12 + int(month) - 1
+
+
+def count_between(first: str, last: str) -> int:
+    """How many months from one key to another, both included. Below 1 when the first is after the last."""
+    return _counted_key(last) - _counted_key(first) + 1
+
+
+def between(first: str, last: str) -> list[Month]:
+    """Every month from one key to another, both included, oldest first."""
+    return [_month(counted) for counted in range(_counted_key(first), _counted_key(last) + 1)]

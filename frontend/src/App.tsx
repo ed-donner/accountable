@@ -1,10 +1,15 @@
 import { FileText, Package, Receipt, ReceiptText } from "lucide-react";
 import { useEffect } from "react";
-import { createBrowserRouter } from "react-router";
+import { Navigate, createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
 import { BillsPanel } from "./bills/BillsPanel";
 import { BillsMoney } from "./bills/charts/MoneySection";
+import { ACCOUNTING_LINKS } from "./books/links";
+import { AgedBalances } from "./books/pages/AgedBalances";
+import { BalanceSheet } from "./books/pages/BalanceSheet";
+import { Journal } from "./books/pages/Journal";
+import { ProfitAndLoss } from "./books/pages/ProfitAndLoss";
 import { CashFlowRow } from "./cashflow/CashFlowRow";
 import { Bill } from "./bills/pages/Bill";
 import { Bills } from "./bills/pages/Bills";
@@ -97,9 +102,12 @@ function Money() {
 
 const DASHBOARD_SECTIONS: DashboardSection[] = [{ name: "money", Section: Money }];
 
+// Each group of links in the user's menu, after the themes.
+const MENU_LINKS = [ACCOUNTING_LINKS];
+
 function AppShell() {
   useMeta(); // Fetched early, because it never changes and forms need it straight away.
-  return <Shell sections={SECTIONS} search={<Search groups={SEARCH_GROUPS} />} />;
+  return <Shell sections={SECTIONS} search={<Search groups={SEARCH_GROUPS} />} menuLinks={MENU_LINKS} />;
 }
 
 const router = createBrowserRouter([
@@ -123,6 +131,11 @@ const router = createBrowserRouter([
       { path: "/invoices/:id", element: <Invoice /> },
       { path: "/bills", element: <Bills /> },
       { path: "/bills/:id", element: <Bill /> },
+      { path: "/accounting", element: <Navigate to="/accounting/profit-and-loss" replace /> },
+      { path: "/accounting/profit-and-loss", element: <ProfitAndLoss /> },
+      { path: "/accounting/balance-sheet", element: <BalanceSheet /> },
+      { path: "/accounting/journal", element: <Journal /> },
+      { path: "/accounting/aged-balances", element: <AgedBalances /> },
       { path: "/settings", element: <SettingsPage preview={SampleInvoice} /> },
       { path: "*", element: <MissingRecord word="page" to="/" section="Dashboard" /> },
     ],

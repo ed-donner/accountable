@@ -14,8 +14,9 @@ from typing import Any
 
 from sqlalchemy import Connection, insert, select
 
-from accountable import who
+from accountable import months, who
 from accountable.bills.tables import bill_number_key, bills
+from accountable.books import post as books_post
 from accountable.crm.tables import organizations
 from accountable.sample import moment, put_down_to
 from accountable.users import add_missing_teammates, teammate
@@ -209,11 +210,15 @@ def sample_bills(today: date) -> list[SampleBill]:
 
 
 def paid_on(bill: SampleBill, number: int, today: date) -> date | None:
-    """A few days before its due date, once that's passed, and never before its bill date or after today."""
+    """A few days before its due date, once that's passed, and never before its bill date or after today.
+
+    Nor before the cash flow's first day, where the opening balance starts, so the sample data moves no
+    cash before it and the books' Cash agrees with the cash flow's (J13).
+    """
     due = bill.bill_date + DUE_AFTER
     if due >= today or bill.left_overdue:
         return None
-    return due - timedelta(days=2 + number % 5)
+    return max(due - timedelta(days=2 + number % 5), months.last_months(today)[0].first_day)
 
 
 def _put_down_to(number: int, bill_date: date, paid: date | None, today: date) -> dict[str, Any]:
@@ -278,4 +283,24 @@ def fill(conn: Connection, today: date) -> None:
                 **_put_down_to(number, bill.bill_date, paid, today),
             }
         )
-    conn.execute(insert(bills), rows)
+    ids = conn.scalars(insert(bills).returning(bills.c.id, sort_by_parameter_order=True), rows)
+    for bill_id, row in zip(ids, rows, strict=True):
+        _post(conn, bill_id, row)
+
+
+def _post(conn: Connection, bill_id: int, row: dict[str, Any]) -> None:
+    """The bill's entry, put down to who added it, and its paid entry, put down to who marked it paid."""
+    total = row["amount_cents"] + row["tax_cents"]
+    books_post.bill_added(
+        conn,
+        bill_id=bill_id,
+        on=row["bill_date"],
+        total_cents=total,
+        category=row["category"],
+        user=row["created_by"],
+        now=row["created_at"],
+    )
+    if row["paid_on"] is not None:
+        books_post.bill_paid(
+            conn, bill_id=bill_id, on=row["paid_on"], total_cents=total, user=row["updated_by"], now=row["updated_at"]
+        )

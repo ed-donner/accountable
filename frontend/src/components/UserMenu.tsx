@@ -23,8 +23,31 @@ function isTheme(value: string): value is Theme {
   return (THEMES as string[]).includes(value);
 }
 
-/** The initials button at the end of the top bar, and its menu: who's signed in, the theme, Company settings and Sign out (N7). */
-export function UserMenu() {
+/** A labeled group of links in the menu, such as Accounting's pages (J15). They come from App.tsx, so this names no area. */
+export type MenuGroup = { label: string; links: { label: string; to: string }[] };
+
+function LinkGroup({ group }: { group: MenuGroup }) {
+  const navigate = useNavigate();
+  const labelId = useId();
+  return (
+    <DropdownMenu.Group aria-labelledby={labelId}>
+      <DropdownMenu.Label
+        id={labelId}
+        className="mt-2.5 px-2.5 py-1 text-[13px] leading-[18px] font-semibold text-muted"
+      >
+        {group.label}
+      </DropdownMenu.Label>
+      {group.links.map(({ label, to }) => (
+        <DropdownMenu.Item key={to} onSelect={() => void navigate(to)} className={ITEM}>
+          {label}
+        </DropdownMenu.Item>
+      ))}
+    </DropdownMenu.Group>
+  );
+}
+
+/** The initials button at the end of the top bar, and its menu: who's signed in, the theme, the groups of links, Company settings and Sign out (N7). */
+export function UserMenu({ groups }: { groups: MenuGroup[] }) {
   const me = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me") });
   const [theme, setShownTheme] = useState(savedTheme);
   const navigate = useNavigate();
@@ -86,6 +109,9 @@ export function UserMenu() {
               );
             })}
           </DropdownMenu.RadioGroup>
+          {groups.map((group) => (
+            <LinkGroup key={group.label} group={group} />
+          ))}
           <DropdownMenu.Item onSelect={() => void navigate("/settings")} className={`mt-2.5 ${ITEM}`}>
             Company settings
           </DropdownMenu.Item>

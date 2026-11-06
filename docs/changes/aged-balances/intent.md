@@ -31,8 +31,13 @@ The Aged balances page under Accounting has two views: what customers owe us, an
 
 ## Decisions
 
-- As of a past date, an invoice or bill counts with what it owed on that day (payments, voids and paid dates after it are ignored, as the books see them), and the picker allows today or earlier, defaulting to today.
+- As of a past date, an invoice or bill counts with what it owed on that day (payments and paid dates after it are ignored, and a void invoice never counts on any day, because voiding reverses the issue entry with its own date, so that is how the books see it), and the picker allows today or earlier, defaulting to today.
 - Days past due are counted as in the dashboard: due today or later is Not yet due, 1 day late is the start of 1 to 30, and 30, 60 and 90 days late stay in the lower part.
 - The list is ordered by each organization's oldest days past due, highest first, then by amount owed, then by name; organizations owing nothing on the date are left out.
 - Clicking an organization expands its row in place to list its open invoices or bills (number, due date, days late, amount owed), each linking to its own page.
 - Amounts are whole cents throughout, and an organization that is both customer and supplier appears in each view on its own figures, never netted.
+- The parts must differ from each other in a bar, but the dashboard's How late used one color for all four late groups; both now use Cerulean, Marigold, Coral, Raspberry and a new Deep Raspberry, going from calm to alarming, so they still match. Deep Raspberry in dark mode is 2.6:1 against the panel, so every part is also an amount in the table and a name in the tooltip.
+- The page works its figures out from the invoices, payments and bills rather than from the journal, so the books stay an independent check, and its comparison tests are in a file of their own because `test_books_checks.py` may not be edited.
+- A day later than today is refused, because future payments are the cash flow's business; the chosen day and the view are kept in the address, and today is not.
+- Each bar is a Recharts chart, so a view shows 25 organizations at a time with a "Show 25 more" button, and the totals row always covers all of them.
+- The Customers and Suppliers switch is built with the toggle group in the `radix-ui` package already installed, so there is no new dependency; the sample data gets two organizations in each part in each view, using the existing 33 invoices and 85 bills.

@@ -23,6 +23,9 @@ FIRST_AREAS = {"books", "company", "crm", "products"}
 # foreign keys and reads, and the CRM's rules, so a deal changes stage the one way however
 # it's asked for. Later areas never import each other, and the first ones never import them.
 BUILT_ON = {"crm": {"tables", "rules"}, "products": {"tables"}, "books": {"post"}}
+# The one exception to later areas never importing each other, in one direction: invoices read the quotes' table,
+# for invoices.quote_id and to make an invoice from an accepted quote (V33). Quotes import nothing of invoices'.
+INVOICES_ALSO = {"quotes": {"tables"}}
 
 
 def sources() -> list[Path]:
@@ -69,8 +72,9 @@ def _from_import(parts: list[str], names: list[str]) -> set[tuple[str, str]]:
     return {(area, module)} if module else {(area, name) for name in names}
 
 
-def later_area_may_import(area: str, module: str) -> bool:
-    return area == "company" or module in BUILT_ON.get(area, set())
+def later_area_may_import(area: str, module: str, importer: str = "") -> bool:
+    extra = INVOICES_ALSO if importer == "invoices" else {}
+    return area == "company" or module in {**BUILT_ON, **extra}.get(area, set())
 
 
 @pytest.mark.parametrize(
@@ -103,10 +107,27 @@ def test_every_way_of_importing_an_area_is_seen(source, found):
         ("books", "post", True),
         ("books", "router", False),
         ("books", "tables", False),
+        ("quotes", "tables", False),
     ],
 )
 def test_a_later_area_may_import_only_what_it_builds_on(area, module, allowed):
     assert later_area_may_import(area, module) is allowed
+
+
+@pytest.mark.parametrize(
+    ("importer", "area", "module", "allowed"),
+    [
+        ("invoices", "quotes", "tables", True),
+        ("invoices", "quotes", "router", False),
+        ("invoices", "quotes", "document", False),
+        ("invoices", "bills", "tables", False),
+        ("bills", "quotes", "tables", False),
+        ("quotes", "invoices", "tables", False),
+        ("quotes", "crm", "tables", True),
+    ],
+)
+def test_only_invoices_may_import_the_quotes_tables(importer, area, module, allowed):
+    assert later_area_may_import(area, module, importer) is allowed
 
 
 def test_the_first_areas_import_no_other_area_but_company_and_the_books():
@@ -153,12 +174,13 @@ def test_a_later_area_imports_only_the_first_areas_tables_and_the_crms_rules():
         own = area_of(path)
         if own is not None and own not in FIRST_AREAS:
             for area, module in imported_areas(path.read_text()):
-                assert area == own or later_area_may_import(area, module), (path, area, module)
+                assert area == own or later_area_may_import(area, module, own), (path, area, module)
     # The check is looking in the right place.
     assert ("crm", "rules") in imported_areas((PACKAGE / "quotes" / "router.py").read_text())
     assert ("products", "tables") in imported_areas((PACKAGE / "quotes" / "tables.py").read_text())
     assert ("crm", "tables") in imported_areas((PACKAGE / "bills" / "router.py").read_text())
     assert ("crm", "tables") in imported_areas((PACKAGE / "invoices" / "tables.py").read_text())
+    assert ("quotes", "tables") in imported_areas((PACKAGE / "invoices" / "tables.py").read_text())
 
 
 def test_the_cash_flow_imports_no_area_but_company():
@@ -247,3 +269,25 @@ def test_the_books_name_no_record_so_their_labels_come_from_the_app():
     found = {area for path in sources() if area_of(path) == "books" for area, _ in imported_areas(path.read_text())}
     assert found <= {"books"}
     assert "labels" in (PACKAGE / "books" / "router.py").read_text()
+
+
+def test_quotes_import_nothing_of_invoices():
+    for path in sources():
+        if area_of(path) == "quotes":
+            assert "invoices" not in {area for area, _ in imported_areas(path.read_text())}, path
+
+
+def test_invoices_import_only_the_quotes_tables_of_quotes():
+    found = {
+        module
+        for path in sources()
+        if area_of(path) == "invoices"
+        for area, module in imported_areas(path.read_text())
+        if area == "quotes"
+    }
+    assert found == {"tables"}
+
+
+def test_the_invoice_from_a_quote_route_starts_with_invoices_alone():
+    [invoices] = [area for area in APP_AREAS if any("invoices" in router.prefix for router in area.routers)]
+    assert invoices.route_starts == {"invoices"}

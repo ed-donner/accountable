@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Quotes
 
-- **Q5.** A quote holds the prices offered to a customer on one deal: lines from the price list, each with a quantity and a price, added up, with the tax from the company settings. Quotes is the seventh section in the top bar, after Products ([N1](shell.md#app-shell)). Each quote has its own page, and the pages of deals and organizations list their quotes (Q36, Q37).
+- **Q5.** A quote holds the prices offered to a customer on one deal: lines from the price list, each with a quantity and a price, added up, with the tax from the company settings. Quotes is the seventh section in the top bar, after Products ([N1](shell.md#app-shell)). Each quote has its own page, and the pages of deals and organizations list their quotes (Q36, Q37). An accepted quote makes its invoice (Q38).
 - **Q6.** A quote is a draft, sent, accepted or declined. Statuses only move forward, so a mistake is fixed by copying the quote (Q25), and nothing moves a quote back.
 
 | Status | Can become | By |
@@ -12,6 +12,8 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 | Draft | Sent or declined | Mark as sent (Q20), Decline (Q24) |
 | Sent | Accepted or declined | Accept (Q22), Decline (Q24) |
 | Accepted, Declined | Nothing | |
+
+An accepted quote can make one invoice (Q38), which doesn't change its status.
 
 - **Q7.** A sent quote shows as Expired from the day after its valid-until date, everywhere a status shows: its page, the Quotes table, the figures above it and the panels. On the valid-until date itself it's still Sent, as a deal due today isn't late. Expired is how a sent quote shows, worked out from today, and is never saved, so an expired quote can still be accepted or declined: the team decides whether to honor a late yes.
 
@@ -108,6 +110,10 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 - **Q36.** A deal's page has a Quotes panel, below its own panels (R7). It lists the deal's quotes, newest first, each with its number in JetBrains Mono, its status chip and its value, and each opens its quote. On an open deal it has New quote, and on a closed one Q8's line. With none, it says "No quotes yet."
 - **Q37.** An organization's page has a Quotes panel too, listing the quotes on its deals, newest first, each with its number, status chip, value and the deal's name. A quote starts from a deal, so this panel has no New quote. With none, it says "No quotes yet." Both panels are short linked lists, as R5 says.
 
+### Invoicing a quote
+
+- **Q38.** An accepted quote has Create invoice on its page, which makes a draft invoice on its deal from the quote's lines and Prepared for ([V33 to V38](invoices.md#from-a-quote)) and opens it. It shows on an accepted quote only: a draft, sent, expired or declined quote has no such button. Once the quote has an invoice, the button reads Open invoice and opens it, and the details panel gets a line, "Invoice INV-0042", or "Draft invoice" before the invoice is issued, linking to it. The quote is never changed by this, and stays accepted, with its own figures. While the deal isn't won, Create invoice is off, with "Move the deal back to Won to invoice this quote." beside it, and while the invoice is being made the button is off and can't be pressed twice (F10). If the quote's invoice can't be read after the click, the page says so with Try again (N6).
+
 ## Screens
 
 ### Quotes table
@@ -136,13 +142,14 @@ The page title is the quote's number in JetBrains Mono at the page title size, w
 |---|---|---|
 | Draft | Save quote | Mark as sent, Decline, Copy to new draft, Download PDF |
 | Sent or expired | Accept | Decline, Copy to new draft, Download PDF |
-| Accepted or declined | | Copy to new draft, Download PDF |
+| Accepted | Create invoice, or Open invoice once it has one (Q38) | Copy to new draft, Download PDF |
+| Declined | | Copy to new draft, Download PDF |
 
-Copy to new draft shows only while the deal is open (Q25). A new draft has Save quote alone. A draft that stopped being one while something typed was unsaved (Q21) has no buttons, only its new status chip, with its notice under the title in a panel, the words at its start and Show the sent quote as a secondary button at its end, as the notice for a page that couldn't refresh has its Try again. The main button is Sea Green with Midnight text, and the others are secondary buttons in the page color.
+Copy to new draft shows only while the deal is open (Q25). Create invoice and Open invoice are the main button, in Sea Green with Midnight text. A new draft has Save quote alone. A draft that stopped being one while something typed was unsaved (Q21) has no buttons, only its new status chip, with its notice under the title in a panel, the words at its start and Show the sent quote as a secondary button at its end, as the notice for a page that couldn't refresh has its Try again. The main button is Sea Green with Midnight text, and the others are secondary buttons in the page color.
 
 Below, two columns of panels on the page background, as on the record pages:
 
-- **Left, 480px:** the details panel: Date, then Valid until on any quote but a draft, whose form has it, then Sent, Accepted or Declined, as each applies, with R6's lines at its foot in muted ink. On a draft, the form follows in its own panel: Valid until, as a date box, then "Lines" as a section heading, then each line in turn, then Add product. Each line shows its name in semibold, its description box, two lines tall and growing as lines are typed, then Quantity, a short box, Unit price, with `$` at its start and its figures in JetBrains Mono, and the line's amount in JetBrains Mono, with an icon button at the end to remove it, labeled for screen readers such as "Remove Pro license". Lines are separated by space, not lines. Add product opens a searchable list, built with `cmdk` and Radix Popover like the record pickers, with each product's price in JetBrains Mono in muted ink.
+- **Left, 480px:** the details panel: Date, then Valid until on any quote but a draft, whose form has it, then Sent, Accepted or Declined, as each applies, then Invoice on an invoiced quote, as a link in JetBrains Mono (Q38), with R6's lines at its foot in muted ink. On a draft, the form follows in its own panel: Valid until, as a date box, then "Lines" as a section heading, then each line in turn, then Add product. Each line shows its name in semibold, its description box, two lines tall and growing as lines are typed, then Quantity, a short box, Unit price, with `$` at its start and its figures in JetBrains Mono, and the line's amount in JetBrains Mono, with an icon button at the end to remove it, labeled for screen readers such as "Remove Pro license". Lines are separated by space, not lines. Add product opens a searchable list, built with `cmdk` and Radix Popover like the record pickers, with each product's price in JetBrains Mono in muted ink.
 - **Right, the rest of the width:** the preview, which is the [Quote document](#quote-document) at the column's width, its pages one under another with 24px between, as an invoice's preview has them. It stays in view while the form scrolls, and scrolls by itself if it's taller than the window, on paper with its scrollbar in paper muted ink, in dark mode too. The page reads the company settings with the quote, for the look, and if they can't be read it says so with Try again, as for the quote itself (N6).
 
 Enter in a one-line box saves, and in a description box it starts a new line. The dialogs for Mark as sent, Accept, Decline and the deal picker are the app's usual dialogs, and their main buttons read Mark as sent, Accept quote, Decline quote and Continue. Decline isn't a Delete, so its button isn't Raspberry. At 1280 by 720, the title, buttons and first line fit without scrolling.

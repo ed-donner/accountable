@@ -8,7 +8,7 @@ import { queryDefaults } from "../../lib/queryDefaults";
 import { holdSaves, mockApi, user, type Call } from "../../test-utils";
 import type { CompanySettings } from "../../company/settings";
 import type { QuoteDetail, QuoteRow } from "../queries";
-import { NewDraft, Quote } from "./Quote";
+import { NewDraft, Quote, type InvoiceControls } from "./Quote";
 
 const ALEX = { id: "alex", name: "Alex Rivera" };
 const ADDED = "2026-11-05T14:03:00Z";
@@ -99,14 +99,14 @@ function Address() {
   return <output data-testid="address">{useLocation().pathname}</output>;
 }
 
-function show(address: string) {
+function show(address: string, invoice?: InvoiceControls) {
   const client = new QueryClient({ defaultOptions: queryDefaults });
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[address]}>
         <Routes>
           <Route path="/quotes/new" element={<NewDraft />} />
-          <Route path="/quotes/:id" element={<Quote />} />
+          <Route path="/quotes/:id" element={<Quote invoice={invoice} />} />
         </Routes>
         <Address />
         <Toaster />
@@ -147,9 +147,9 @@ function backend(quote: QuoteDetail, routes: Record<string, unknown> = {}) {
   };
 }
 
-async function showQuote(quote: QuoteDetail, routes: Record<string, unknown> = {}) {
+async function showQuote(quote: QuoteDetail, routes: Record<string, unknown> = {}, invoice?: InvoiceControls) {
   const held = backend(quote, routes);
-  const client = show(`/quotes/${quote.id}`);
+  const client = show(`/quotes/${quote.id}`, invoice);
   await screen.findByRole("heading", { level: 1, name: quote.number });
   return { ...held, client };
 }
@@ -583,5 +583,38 @@ describe("a missing quote", () => {
     show(address);
     expect(await screen.findByRole("heading", { level: 1, name: "This quote no longer exists" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Back to Quotes" }).getAttribute("href")).toBe("/quotes");
+  });
+});
+
+describe("the invoice controls App.tsx hands in (Q38)", () => {
+  const ACCEPTED: QuoteDetail = { ...SENT, status: "accepted", decided_on: "2026-11-06" };
+  const controls: InvoiceControls = {
+    Button: (props) => <button type="button">Handed-in button for {props.number}</button>,
+    Line: (props) => <p>Handed-in line for {props.quoteId}</p>,
+  };
+
+  it("draws the handed-in button first among an accepted quote's buttons, and the line in its details", async () => {
+    await showQuote(ACCEPTED, {}, controls);
+    expect(buttonNames()[0]).toBe("Handed-in button for QT-0004");
+    expect(within(screen.getByRole("region", { name: "Details" })).getByText("Handed-in line for 4")).toBeTruthy();
+  });
+
+  it("passes the quote's own fields", async () => {
+    const seen: unknown[] = [];
+    const spy: InvoiceControls = {
+      Button: (props) => {
+        seen.push(props);
+        return null;
+      },
+      Line: () => null,
+    };
+    await showQuote({ ...ACCEPTED, deal: { ...ACCEPTED.deal, stage: "won" } }, {}, spy);
+    expect(seen[0]).toEqual({ quoteId: 4, number: "QT-0004", status: "accepted", dealStage: "won" });
+  });
+
+  it("draws neither without them", async () => {
+    await showQuote(ACCEPTED);
+    expect(screen.queryByText(/Handed-in/)).toBeNull();
+    expect(buttonNames()).not.toContain("Create invoice");
   });
 });

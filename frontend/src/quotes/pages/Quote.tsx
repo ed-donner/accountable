@@ -1,6 +1,6 @@
 import { addDays, format, parseISO } from "date-fns";
 import { Copy, Download } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { look } from "../../company/layout";
@@ -39,11 +39,22 @@ const FORM_ID = "quote-form";
 const VALID_FOR_DAYS = 30;
 const SECONDARY = "btn btn-secondary bg-panel";
 
+/** The Create invoice button and the invoice line, handed in by App.tsx so quotes/ imports nothing of invoices/ (Q38). */
+export type InvoiceControls = {
+  Button: ComponentType<InvoiceProps>;
+  Line: ComponentType<InvoiceProps>;
+};
+type InvoiceProps = { quoteId: number; number: string; status: string; dealStage: string };
+
+function invoiceProps(quote: QuoteDetail): InvoiceProps {
+  return { quoteId: quote.id, number: quote.number, status: quote.status, dealStage: quote.deal.stage };
+}
+
 /** A quote's page, at /quotes/7 (Q28). */
-export function Quote() {
+export function Quote({ invoice }: { invoice?: InvoiceControls }) {
   const id = recordId(useParams().id);
   if (id === null) return <MissingRecord word="quote" to="/quotes" section="Quotes" />;
-  return <QuoteRecord key={id} id={id} />;
+  return <QuoteRecord key={id} id={id} invoice={invoice} />;
 }
 
 /** A new draft's page, at /quotes/new?deal=12. Nothing is saved, and no number taken, until Save quote (Q9). */
@@ -65,7 +76,7 @@ function useQuoteLook() {
   return { look: shown, error: settings.error, refetch: () => void settings.refetch() };
 }
 
-function QuoteRecord({ id }: { id: number }) {
+function QuoteRecord({ id, invoice }: { id: number; invoice?: InvoiceControls }) {
   const quote = useQuote(id);
   const appearance = useQuoteLook();
   // Whether the draft's form holds changes not yet saved, which a teammate sending the quote mustn't throw away (Q21).
@@ -84,7 +95,7 @@ function QuoteRecord({ id }: { id: number }) {
     quote.data.status === "draft" || unsaved ? (
       <DraftQuote quote={quote.data} look={appearance.look} onUnsaved={setUnsaved} />
     ) : (
-      <FixedQuote quote={quote.data} look={appearance.look} />
+      <FixedQuote quote={quote.data} look={appearance.look} invoice={invoice} />
     );
   return (
     <>
@@ -171,7 +182,7 @@ function DateDetail({ label, day }: { label: string; day: string }) {
 }
 
 /** Date, Valid until on any quote but a draft, whose form has it, then Sent, Accepted or Declined (Q28). */
-function DetailsPanel({ quote }: { quote: QuoteDetail }) {
+function DetailsPanel({ quote, invoice }: { quote: QuoteDetail; invoice?: InvoiceControls }) {
   return (
     <SidePanel title="Details">
       <dl>
@@ -181,6 +192,7 @@ function DetailsPanel({ quote }: { quote: QuoteDetail }) {
         {quote.decided_on && (
           <DateDetail label={quote.status === "accepted" ? "Accepted" : "Declined"} day={quote.decided_on} />
         )}
+        {invoice && <invoice.Line {...invoiceProps(quote)} />}
       </dl>
       <AddedAndChanged record={quote} />
     </SidePanel>
@@ -503,7 +515,7 @@ function DraftQuote({ quote, look, onUnsaved }: DraftProps) {
 }
 
 /** A sent, accepted or declined quote: the quote with no form, because only a draft can be changed (Q21). */
-function FixedQuote({ quote, look }: { quote: QuoteDetail; look: QuoteLook }) {
+function FixedQuote({ quote, look, invoice }: { quote: QuoteDetail; look: QuoteLook; invoice?: InvoiceControls }) {
   const today = useToday();
   const status = shownStatus(quote, today);
   const accept = useAcceptQuote();
@@ -529,6 +541,7 @@ function FixedQuote({ quote, look }: { quote: QuoteDetail; look: QuoteLook }) {
   return (
     <>
       <QuoteHeader title={quote.number} number chip={<QuoteStatusChip status={status} onPage />} deal={quote.deal}>
+        {invoice && <invoice.Button {...invoiceProps(quote)} />}
         {waiting && (
           <>
             <button type="button" className="btn btn-primary" onClick={() => setDialog("accept")}>
@@ -542,7 +555,7 @@ function FixedQuote({ quote, look }: { quote: QuoteDetail; look: QuoteLook }) {
         <CommonButtons quote={quote} saveFirst={async () => true} />
       </QuoteHeader>
       <QuoteColumns
-        side={<DetailsPanel quote={quote} />}
+        side={<DetailsPanel quote={quote} invoice={invoice} />}
         preview={
           <QuotePreview
             look={look}

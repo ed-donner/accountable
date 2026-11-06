@@ -1023,6 +1023,17 @@ The Profit and loss page under Accounting is built, from `docs/changes/profit-an
 - **Run it.** `ACCOUNTABLE_DB=<scratch>/accountable.db npm run dev` and open Profit and loss from the user menu's Accounting links.
 - **Not run here.** The end-to-end tests (`e2e/profit-and-loss.spec.ts` and the changes to `accounting`, `menu`, `data`, `failures`, `quality` and `stress`) are written and type-checked but weren't run on this computer; run `npm run check` for them.
 
+
+## Quote to invoice: build
+
+Built on the `quote-to-invoice` branch from `docs/changes/quote-to-invoice/plan.md` (V33 to V38, Q38). An accepted quote has Create invoice, which makes a draft invoice on its deal with the quote's lines, quantities, prices and Bill to, and opens it. The quote then shows Open invoice and an Invoice line, and the invoice says "From quote QT-0004". A quote makes one invoice, and a draft deleted frees it.
+
+- **Backend:** migration `0013` adds `invoices.quote_id`, a foreign key to `quotes` with a unique index, so the database itself refuses a second invoice from a quote. `POST /api/invoices/from-quote/{quote_id}` in `invoices/routers/invoices.py` reads the quote, refuses with a 409 in V37's words, inserts the draft inside a savepoint (so a racing second request fails on the index and gets the same 409, on Postgres too), and copies the lines whole through `write_lines` without V8's or V9's checks (V38). `GET /api/invoices?quote_id=` and a `quote_id` on each row let the quote's page find its invoice, and the invoice's reply carries `quote` with the quote's number, tax label and tax rate as text. Sample invoices are linked to their deal's accepted quote, the first invoice on a deal that was voided and invoiced again.
+- **Frontend:** `invoices/QuoteInvoice.tsx` gives the quote page its button and its line, handed in by `App.tsx`, so `quotes/` imports nothing of `invoices/`. The invoice's page has "From quote", the tax-rate notice (V35), and validates a draft made from a quote as soon as it opens, so a field that breaks V8 shows its message at once.
+- **Spec corrections, as the plan said it would need:** the route is `POST /invoices/from-quote/{quote_id}`, not `POST /quotes/{id}/invoice`, and `GET /quotes/{id}` has no `invoice` field. The layout rules allow `invoices/` to import `quotes/tables.py`, and nothing else of quotes', in one direction; `backend.md`, `architecture.md`, `invoices.md` and `quotes.md` say so now.
+- **Old data:** the migration links no existing invoice, because nothing records which quote one came from. A quote in the owner's database that was invoiced by hand shows Create invoice and can make a second invoice.
+- **Proof:** `test_quote_invoice.py`, the migration, layout, route, sample-data, CLI, delete, invoices and limits tests, and the frontend's tests passed here. `e2e/quote-to-invoice.spec.ts` is written but wasn't run on this computer, and neither were the other end-to-end tests; the owner runs them with `npm run check`.
+
 ## Running Accountable
 
 Accountable runs two ways:

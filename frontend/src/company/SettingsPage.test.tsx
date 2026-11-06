@@ -434,6 +434,20 @@ describe("the Cash panel", () => {
     expect(patches(calls)).toEqual([]);
   });
 
+  it("saves other settings with a saved date that's after the page's today, as the backend keeps it", async () => {
+    // Saved while the computer's clock was a day ahead, and it's since been put right.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 5, 12, 0) });
+    onTestFinished(() => void vi.useRealTimers());
+    const ahead = { ...SAMPLE, opening_balance_on: "2026-11-06" };
+    const { calls } = await open(savingBackend(ahead, { ...ahead, phone: "(718) 555-0199" }));
+    await retype("Phone", "(718) 555-0199");
+    await user().click(saveButton());
+
+    await waitFor(() => expect(patches(calls)).toHaveLength(1));
+    expect(patches(calls)[0].body).toMatchObject({ phone: "(718) 555-0199", opening_balance_on: "2026-11-06" });
+    expect(messageBeside("As of")).toBeUndefined();
+  });
+
   it("sends an amount with a minus sign in front as cents below zero, as of today", async () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 5, 12, 0) });
     onTestFinished(() => void vi.useRealTimers());

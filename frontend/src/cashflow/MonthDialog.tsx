@@ -73,19 +73,26 @@ function Group({ title, group, kind, today }: { title: string; group: ExpectedGr
 function Listed({ month, withDeals }: { month: CashMonth; withDeals: boolean }) {
   const expected = useExpected(month.month);
   const today = useToday();
-  if (!expected.data) {
-    return <LoadFailed error={expected.error} onRetry={() => void expected.refetch()} />;
-  }
-  const { comingIn, goingOut, likelyDeals } = expected.data;
+  const { data } = expected;
+  // A failed read says so, with Try again, and a later one keeps the list read before, never showing it as up to date (N6).
+  const failed = (
+    <LoadFailed keeping={data !== undefined} error={expected.error} onRetry={() => void expected.refetch()} />
+  );
+  if (!data) return failed;
+  const { comingIn, goingOut, likelyDeals } = data;
   const shown = [comingIn, goingOut, ...(withDeals ? [likelyDeals] : [])];
-  if (shown.every((group) => group.items.length === 0)) {
-    return <p className="mt-4">Nothing expected in {monthName(month)}.</p>;
-  }
   return (
     <>
-      <Group title="Coming in" group={comingIn} kind="invoice" today={today} />
-      <Group title="Going out" group={goingOut} kind="bill" today={today} />
-      {withDeals && <Group title="Likely deals" group={likelyDeals} kind="deal" today={today} />}
+      {failed}
+      {shown.every((group) => group.items.length === 0) ? (
+        <p className="mt-4">Nothing expected in {monthName(month)}.</p>
+      ) : (
+        <>
+          <Group title="Coming in" group={comingIn} kind="invoice" today={today} />
+          <Group title="Going out" group={goingOut} kind="bill" today={today} />
+          {withDeals && <Group title="Likely deals" group={likelyDeals} kind="deal" today={today} />}
+        </>
+      )}
     </>
   );
 }

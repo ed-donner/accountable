@@ -54,7 +54,8 @@ function SettingsForm({ settings, preview, children }: FormProps) {
   const notify = useNotify();
   const today = useToday();
   const form = useForm<SettingsValues>({
-    resolver: zodResolver(settingsSchema(today)),
+    // With the date as saved, which stays fine though it's after today, as the backend keeps it (B24).
+    resolver: zodResolver(settingsSchema(today, settings.opening_balance_on)),
     defaultValues: toForm(settings),
   });
   const { isDirty } = form.formState;

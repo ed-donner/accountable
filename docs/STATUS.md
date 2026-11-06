@@ -881,6 +881,18 @@ The review's nits are still open:
 
 `npm run check` passes after the fix: 6,435 tests in 7m 11s. Four unit tests took a second or more while another run was busy, none from this branch: `test_logo.py`'s WEBP case at 4.5s, `DataTable.test.tsx`'s paging at 1.4s, and the limits' setup and `QuoteForm.test.tsx`'s 101st line at 1.1s each.
 
+### Independent review
+
+`docs/changes/cash-flow/independent-review.md` found three Important problems. All three are fixed, and each new test failed on the code before its fix:
+
+1. **A deal closing at the end of the calendar broke both cash flow routes (Y13).** The CRM saves any close date, and `crm/cash.py` added the payment terms to it, which goes past Python's last day, Dec 31, 9999, for a date within the terms of it. Every read of the figures and of a month's list then failed with a 500, Likely deals on or off. A deal whose date plus its terms would pass the last day is now expected on that day, long after the forecast, which leaves it out. `test_cash_flow.py` saves Dec 1, Dec 2 and Dec 31, 9999 through the deals route and reads both routes. Dec 2 and Dec 31 failed with `OverflowError` before the fix, and Dec 1, the last date 30 days can be added to, passed.
+2. **A month's list read again and failing showed the old list as if it were current (N6).** The dialog showed "Couldn't load this." only with nothing read yet. Opened again, it showed the list it read before while it read it again, and when that read failed it kept the old invoices, bills and totals, or Nothing expected, with no warning. It now says "Couldn't refresh this, so it may be out of date." with Try again above what it kept, as the panels do. `MonthDialog.test.tsx` covers a list with groups and one with nothing expected.
+3. **The form refused a saved opening date that's after the page's today (B24).** The backend keeps a date that was fine when it was saved, but the form checked every date against the page's today, so with the clock put back a day, no other setting could be saved without changing the opening balance's date. The form's checks now take the saved date, and refuse only a date changed to one after today. `settings.test.ts` checks both, and `SettingsPage.test.tsx` saves the phone number with a saved date a day ahead.
+
+The review's two test coverage findings are still open: no test leaves the dashboard and comes back, or reloads, to show the Likely deals switch off again (Y15), and the likely deals' amounts are only checked with 0% tax, so tax added to them would pass (Y14).
+
+`npm run check` passes after the fixes: 6,442 tests in 7m 00s, with 4,357 backend, 1,738 frontend, 328 end-to-end and 19 speed tests. The same four unit tests as before took a second or more while another run was busy, none from this branch.
+
 Still to come: `docs/IMPROVE.md`.
 
 ## Running Accountable

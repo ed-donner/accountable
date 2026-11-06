@@ -55,6 +55,8 @@ const FILLED: SettingsValues = {
   opening_balance_on: "2025-12-01",
 };
 const TODAY = "2026-11-05";
+// The opening balance's date as the settings were last saved.
+const SAVED_ON = FILLED.opening_balance_on;
 
 describe("the tax rate", () => {
   it.each(ACCEPTED_RATES)("accepts %j, as the backend does", (typed) => {
@@ -97,7 +99,7 @@ describe("a prefix", () => {
 
 describe("the whole form's checks", () => {
   it("finds nothing wrong with the sample company", () => {
-    expect(Object.values(settingsProblems(FILLED, TODAY)).filter(Boolean)).toEqual([]);
+    expect(Object.values(settingsProblems(FILLED, TODAY, SAVED_ON)).filter(Boolean)).toEqual([]);
   });
 
   it("gives every bad field its message at once", () => {
@@ -111,6 +113,7 @@ describe("the whole form's checks", () => {
         quote_prefix: "QT_",
       },
       TODAY,
+      SAVED_ON,
     );
     expect(problems).toMatchObject({
       company_name: COMPANY_NAME_MESSAGE,
@@ -122,11 +125,11 @@ describe("the whole form's checks", () => {
   });
 
   it("puts a clash on the invoice prefix", () => {
-    expect(settingsProblems({ ...FILLED, invoice_prefix: "qt-" }, TODAY).invoice_prefix).toBe(CLASH_MESSAGE);
+    expect(settingsProblems({ ...FILLED, invoice_prefix: "qt-" }, TODAY, SAVED_ON).invoice_prefix).toBe(CLASH_MESSAGE);
   });
 
   it("leaves the blank optional fields alone", () => {
-    const problems = settingsProblems({ ...FILLED, address: "", email: "", phone: "", tax_label: "" }, TODAY);
+    const problems = settingsProblems({ ...FILLED, address: "", email: "", phone: "", tax_label: "" }, TODAY, SAVED_ON);
     expect(Object.values(problems).filter(Boolean)).toEqual([]);
   });
 });
@@ -199,16 +202,20 @@ describe("what a save sends", () => {
   });
 
   it("checks the accent color with the rest", () => {
-    expect(settingsProblems({ ...FILLED, accent_color: "#FFC145" }, TODAY).accent_color).toBe(
+    expect(settingsProblems({ ...FILLED, accent_color: "#FFC145" }, TODAY, SAVED_ON).accent_color).toBe(
       "Too light to read on white. Choose a darker color",
     );
-    expect(settingsProblems(FILLED, TODAY).accent_color).toBeUndefined();
+    expect(settingsProblems(FILLED, TODAY, SAVED_ON).accent_color).toBeUndefined();
   });
 });
 
 describe("the opening balance", () => {
   function problems(amount: string, on: string) {
-    const found = settingsProblems({ ...FILLED, opening_balance_cents: amount, opening_balance_on: on }, TODAY);
+    const found = settingsProblems(
+      { ...FILLED, opening_balance_cents: amount, opening_balance_on: on },
+      TODAY,
+      SAVED_ON,
+    );
     return { amount: found.opening_balance_cents, on: found.opening_balance_on };
   }
 
@@ -244,9 +251,17 @@ describe("the opening balance", () => {
   it("takes a date of today and refuses tomorrow, against the page's today", () => {
     expect(problems("100", TODAY).on).toBeUndefined();
     expect(problems("100", "2026-11-06").on).toBe(OPENING_DATE_FUTURE_MESSAGE);
-    expect(settingsProblems({ ...FILLED, opening_balance_on: "2026-11-06" }, "2026-11-06").opening_balance_on).toBe(
-      undefined,
-    );
+    expect(
+      settingsProblems({ ...FILLED, opening_balance_on: "2026-11-06" }, "2026-11-06", SAVED_ON).opening_balance_on,
+    ).toBe(undefined);
+  });
+
+  it("keeps a saved date that's after the page's today, as the backend does, but refuses a change to one", () => {
+    // Saved while the computer's clock was a day ahead, and it's since been put right.
+    const ahead = { ...FILLED, opening_balance_on: "2026-11-06" };
+    expect(settingsProblems(ahead, TODAY, "2026-11-06").opening_balance_on).toBeUndefined();
+    expect(settingsProblems(ahead, TODAY, SAVED_ON).opening_balance_on).toBe(OPENING_DATE_FUTURE_MESSAGE);
+    expect(settingsProblems(ahead, TODAY, null).opening_balance_on).toBe(OPENING_DATE_FUTURE_MESSAGE);
   });
 
   it("sends whole cents, below zero too, and both as null when both are blank", () => {

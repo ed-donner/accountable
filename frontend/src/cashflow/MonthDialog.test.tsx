@@ -196,6 +196,34 @@ describe("what's listed", () => {
     await user().click(dialog().getByRole("button", { name: "Try again" }));
     expect(await dialog().findByRole("region", { name: "Coming in" })).toBeTruthy();
   });
+
+  it.each([
+    ["its groups", LISTED, () => dialog().findByRole("region", { name: "Coming in" })],
+    ["Nothing expected", expectedReply("2026-12"), () => dialog().findByText("Nothing expected in December 2026.")],
+  ])(
+    "keeps %s when reading the list again fails, says it may be out of date, and tries again",
+    async (_kept, reply, kept) => {
+      let failing = false;
+      const calls = await open({ [`GET ${DECEMBER}`]: () => (failing ? FAILED : { body: reply }) });
+      await user().click(label("Expected in December 2026"));
+      await kept();
+      await user().keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+      // Opened again, it shows the list it read before while it reads it again.
+      failing = true;
+      await user().click(label("Expected in December 2026"));
+      expect(await dialog().findByText("Couldn't refresh this, so it may be out of date.")).toBeTruthy();
+      expect(await kept()).toBeTruthy();
+      expect(listReads(calls)).toHaveLength(2);
+
+      failing = false;
+      await user().click(dialog().getByRole("button", { name: "Try again" }));
+      await waitFor(() => expect(dialog().queryByText("Couldn't refresh this, so it may be out of date.")).toBeNull());
+      expect(await kept()).toBeTruthy();
+      expect(listReads(calls)).toHaveLength(3);
+    },
+  );
 });
 
 describe("closing a month's list", () => {

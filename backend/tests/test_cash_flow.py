@@ -418,6 +418,17 @@ def test_a_late_deal_lands_tomorrow_and_closed_deals_and_one_past_the_forecast_a
     ]
 
 
+@pytest.mark.parametrize("close", ["9999-12-01", "9999-12-02", "9999-12-31"])
+def test_a_deal_closing_at_the_end_of_the_calendar_is_left_out_and_both_routes_still_answer(books, close):
+    """The CRM saves any date, and Dec 1, 9999 is the last one the default 30 days' terms can be added to."""
+    near = books.deal(date(2026, 12, 1), value=2_000, probability=40)
+    far = books.deal(date(2026, 12, 1))
+    saved = books.api.patch(f"/api/deals/{far}", json={"close_date": close})
+    assert saved.status_code == 200, saved.text
+    assert [month["likely_cents"] for month in books.flow()["months"]][-4:] == ["0", "80000", "0", "0"]
+    assert [item["id"] for key in LISTED for item in books.listed(key)["likely_deals"]["items"]] == [near]
+
+
 LIKELY = {"likely_cents", "likely_count", "balance_with_deals_cents"}
 
 

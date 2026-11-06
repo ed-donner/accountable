@@ -133,15 +133,17 @@ function openingAmountProblem(typed: string): string | undefined {
 }
 
 /**
- * The amount and its date go together, both blank for no opening balance, and the date can't
- * be after today, the page's own as it's typed (B23, B24). Dates are yyyy-MM-dd, so they compare as text.
+ * The amount and its date go together, both blank for no opening balance, and a date changed to
+ * one after today, the page's own as it's typed, is refused, while the saved one stays fine, as
+ * the backend keeps it (B23, B24). Dates are yyyy-MM-dd, so they compare as text.
  */
-export function openingBalanceProblems(amount: string, on: string, today: string): Problems {
+export function openingBalanceProblems(amount: string, on: string, today: string, savedOn: string | null): Problems {
   const typed = amount.trim();
   if (typed === "" && on === "") return {};
   return {
     opening_balance_cents: typed === "" ? OPENING_AMOUNT_MISSING_MESSAGE : openingAmountProblem(typed),
-    opening_balance_on: on === "" ? OPENING_DATE_MESSAGE : on > today ? OPENING_DATE_FUTURE_MESSAGE : undefined,
+    opening_balance_on:
+      on === "" ? OPENING_DATE_MESSAGE : on !== savedOn && on > today ? OPENING_DATE_FUTURE_MESSAGE : undefined,
   };
 }
 
@@ -182,7 +184,7 @@ export type SettingsValues = {
 type Problems = Partial<Record<keyof SettingsValues, string>>;
 
 /** Every field's message at once, the clash included, as the backend would give them (B4 to B6, B24). */
-export function settingsProblems(values: SettingsValues, today: string): Problems {
+export function settingsProblems(values: SettingsValues, today: string, savedOn: string | null): Problems {
   const email = values.email.trim();
   const problems: Problems = {
     company_name: values.company_name.trim() === "" ? COMPANY_NAME_MESSAGE : undefined,
@@ -192,15 +194,15 @@ export function settingsProblems(values: SettingsValues, today: string): Problem
     quote_prefix: prefixProblem(values.quote_prefix, QUOTE_PREFIX_BLANK_MESSAGE),
     invoice_prefix: prefixProblem(values.invoice_prefix, INVOICE_PREFIX_BLANK_MESSAGE),
     accent_color: accentProblem(values.accent_color),
-    ...openingBalanceProblems(values.opening_balance_cents, values.opening_balance_on, today),
+    ...openingBalanceProblems(values.opening_balance_cents, values.opening_balance_on, today, savedOn),
   };
   const bothFine = !problems.quote_prefix && !problems.invoice_prefix;
   if (bothFine && prefixesClash(values.quote_prefix, values.invoice_prefix)) problems.invoice_prefix = CLASH_MESSAGE;
   return problems;
 }
 
-/** The form's checks, with today for the opening balance's date. */
-export function settingsSchema(today: string) {
+/** The form's checks, with today and the saved date for the opening balance's date. */
+export function settingsSchema(today: string, savedOn: string | null) {
   return z
     .object({
       company_name: z.string(),
@@ -219,7 +221,7 @@ export function settingsSchema(today: string) {
       opening_balance_on: z.string(),
     })
     .superRefine((values, context) => {
-      for (const [field, message] of Object.entries(settingsProblems(values, today))) {
+      for (const [field, message] of Object.entries(settingsProblems(values, today, savedOn))) {
         if (message) context.addIssue({ code: "custom", path: [field], message });
       }
     });

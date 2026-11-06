@@ -32,7 +32,7 @@ An accepted quote has a Create invoice button. It makes a draft invoice on the q
 
 ## Decisions
 
-- The one-invoice rule is enforced in the database (a unique link from invoice to quote), so two clicks at once can't make two; the API refuses the second with a conflict error.
+- The one-invoice rule is enforced in the database (a unique link from invoice to quote), so two clicks at once can't make two; the API refuses the second with a conflict error. The route and the link live in the invoices area (`POST /api/invoices/from-quote/{quote_id}`, which reads quotes' tables), because quotes and invoices may not import each other.
 - Bill to is copied from the quote's Prepared for, which is fixed once the quote is sent, not from the deal's current organization and contact.
 - The "rate has changed" note compares the tax rate the quote kept when it was sent with the rate in Settings now, and shows on the draft only.
 - A voided invoice still counts as the quote's invoice, so the button keeps opening it; deleting a draft invoice removes the link and lets the quote make a new one.

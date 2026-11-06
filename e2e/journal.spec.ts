@@ -123,7 +123,19 @@ test("scrolling to the end loads the next page, and Load more does too from the 
   await page.getByText(`Showing 100 of ${total} entries`).scrollIntoViewIfNeeded();
   await expect(page.getByText(/^Showing 200 of/)).toBeVisible();
 
-  // The real observer loads the rest of a short list by itself, so the button is tried on a fresh page.
+  // Focusing the button scrolls it into view, and the page's own observer would then load the next page
+  // and take the button away while it loads. So the button is tried on a fresh page whose observer never
+  // reports, as for someone who can't scroll.
+  await page.addInitScript(() => {
+    window.IntersectionObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    } as unknown as typeof IntersectionObserver;
+  });
   await page.goto("/accounting/journal");
   await expect(articles(page)).toHaveCount(100);
   const more = page.getByRole("button", { name: "Load more" });

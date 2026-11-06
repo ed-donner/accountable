@@ -53,9 +53,14 @@ describe("readSettings", () => {
 describe("backendEnv", () => {
   const COPILOT = { OPENROUTER_API_KEY: "made-up-key", OPENROUTER_MODEL: "openai/gpt-4o-mini" };
 
-  it("gives the backend the three settings and the shell", () => {
+  it("gives the backend the three settings and the shell, with the model's address blank", () => {
     const env = backendEnv(ALL, { PATH: "/usr/bin" }, envFile(ALL));
-    expect(env).toEqual({ ...ALL, PATH: "/usr/bin" });
+    expect(env).toEqual({ ...ALL, PATH: "/usr/bin", ACCOUNTABLE_MODEL_URL: "" });
+  });
+
+  it("blanks a model address the shell has, so the key only ever goes to OpenRouter", () => {
+    const env = backendEnv(ALL, { ACCOUNTABLE_MODEL_URL: "http://127.0.0.1:4321" }, envFile({ ...ALL, ...COPILOT }));
+    expect(env.ACCOUNTABLE_MODEL_URL).toBe("");
   });
 
   it("passes the Copilot's two from .env", () => {

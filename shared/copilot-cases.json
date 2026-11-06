@@ -81,7 +81,8 @@
                 ]
               }
             ],
-            "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "negotiation" } }
+            "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "negotiation" } },
+            "shown": "84d426c4238cd3a0c34b75dfa93304354cc0df643e26e3ff8dac0fa1c4493f50"
           }
         }
       },
@@ -95,7 +96,8 @@
           "decision": "cancel",
           "pending": {
             "turn": [],
-            "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "negotiation" } }
+            "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "negotiation" } },
+            "shown": "84d426c4238cd3a0c34b75dfa93304354cc0df643e26e3ff8dac0fa1c4493f50"
           }
         }
       },
@@ -205,7 +207,8 @@
           "messages": [{ "role": "user", "text": "Move it" }],
           "pending": {
             "turn": [],
-            "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "negotiation" } }
+            "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "negotiation" } },
+            "shown": "84d426c4238cd3a0c34b75dfa93304354cc0df643e26e3ff8dac0fa1c4493f50"
           }
         },
         "fields": { "pending": "Send a decision and the change card's pending together" }
@@ -217,7 +220,8 @@
           "decision": "always",
           "pending": {
             "turn": [],
-            "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "negotiation" } }
+            "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "negotiation" } },
+            "shown": "84d426c4238cd3a0c34b75dfa93304354cc0df643e26e3ff8dac0fa1c4493f50"
           }
         },
         "fields": { "decision": "Answer confirm or cancel" }
@@ -227,7 +231,20 @@
         "body": {
           "messages": [{ "role": "user", "text": "Move it" }],
           "decision": "confirm",
-          "pending": { "turn": [], "call": { "id": "call_2", "arguments": { "id": 12 } } }
+          "pending": {
+            "turn": [],
+            "call": { "id": "call_2", "arguments": { "id": 12 } },
+            "shown": "84d426c4238cd3a0c34b75dfa93304354cc0df643e26e3ff8dac0fa1c4493f50"
+          }
+        },
+        "fields": { "pending": "Send the change card's pending as it came" }
+      },
+      {
+        "name": "a pending without its card's digest",
+        "body": {
+          "messages": [{ "role": "user", "text": "Move it" }],
+          "decision": "confirm",
+          "pending": { "turn": [], "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12 } } }
         },
         "fields": { "pending": "Send the change card's pending as it came" }
       },
@@ -236,7 +253,11 @@
         "body": {
           "messages": [{ "role": "user", "text": "Move it" }],
           "decision": "confirm",
-          "pending": { "turn": [], "call": { "id": "call_2", "tool": "move_deal", "arguments": "{\"id\": 12}" } }
+          "pending": {
+            "turn": [],
+            "call": { "id": "call_2", "tool": "move_deal", "arguments": "{\"id\": 12}" },
+            "shown": "84d426c4238cd3a0c34b75dfa93304354cc0df643e26e3ff8dac0fa1c4493f50"
+          }
         },
         "fields": { "pending": "Send the change card's pending as it came" }
       }
@@ -253,7 +274,10 @@
     "change": {
       "type": "change",
       "title": "Move Harbor & Pine renewal to Won?",
-      "fields": [{ "name": "Stage", "now": "Negotiation", "after": "Won", "kind": "text" }],
+      "fields": [
+        { "name": "Stage", "now": "Negotiation", "after": "Won", "kind": "text" },
+        { "name": "Probability", "now": "70%", "after": "100%", "kind": "percent" }
+      ],
       "note": "The close date becomes today, and Sam Carter becomes a customer.",
       "button": "Move deal",
       "pending": {
@@ -270,7 +294,8 @@
             ]
           }
         ],
-        "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "won" } }
+        "call": { "id": "call_2", "tool": "move_deal", "arguments": { "id": 12, "stage": "won" } },
+        "shown": "84d426c4238cd3a0c34b75dfa93304354cc0df643e26e3ff8dac0fa1c4493f50"
       }
     },
     "outcome": {

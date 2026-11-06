@@ -22,6 +22,12 @@ export const SHARED_SETTINGS = ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLIS
 /** The Copilot's settings (Z19). Only npm run dev and npm start pass them on, so no test can reach OpenRouter (C9). */
 export const COPILOT_SETTINGS = ["OPENROUTER_API_KEY", "OPENROUTER_MODEL"];
 
+/** Where the backend asks for the model's replies in place of OpenRouter, which the tests point at a stand-in. */
+export const MODEL_URL_SETTING = "ACCOUNTABLE_MODEL_URL";
+
+/** Port 9 is the old discard service, where nothing listens. */
+export const NO_MODEL = "http://127.0.0.1:9";
+
 // The names the shared app's build reads, and uv's own way to load a settings file such as .env.
 const LEFT_OUT_LOCALLY = new Set([
   ...SHARED_SETTINGS,
@@ -101,6 +107,23 @@ export function isTestRun(env = process.env) {
  */
 export function devCopilotSettings(shell = process.env, envFile = readEnvFile) {
   return copilotSettings(shell, isTestRun(shell) ? "" : envFile());
+}
+
+/**
+ * npm run dev's environment for both servers: without the Supabase settings, but with the Copilot's
+ * two from the shell or .env (C9), and the shell's model address, if any, for trying the stand-in by hand.
+ */
+export function devEnv(shell = process.env, envFile = readEnvFile) {
+  return { ...localEnv(shell), ...devCopilotSettings(shell, envFile) };
+}
+
+/**
+ * The environment every layer of a test run starts from: without the shared app's settings or the
+ * Copilot's, and with every backend asking nowhere for the model's replies unless it's given the
+ * stand-in's address, so no check or test can reach Supabase or OpenRouter, whatever the shell has.
+ */
+export function testRunEnv(shell = process.env) {
+  return { ...localEnv(shell), [MODEL_URL_SETTING]: NO_MODEL };
 }
 
 // The API refuses anyone not signed in, /api/meta included, and its JSON refusal

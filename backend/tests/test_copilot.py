@@ -242,10 +242,15 @@ def test_a_change_gives_its_card_and_changes_nothing(api, stand_in, harbor, deal
     model_ = stand_in(calling(("move_deal", {"id": harbor["renewal"], "stage": "negotiation"})))
     events = chat(api, asked("Move the Harbor & Pine renewal to Negotiation"))
     [card] = events
+    fields = [
+        {"name": "Stage", "now": "Proposal", "after": "Negotiation", "kind": "text"},
+        {"name": "Probability", "now": "40%", "after": "70%", "kind": "percent"},
+    ]
+    shown = tools.Card(card["title"], [schemas.CardField.model_validate(field) for field in fields]).fingerprint
     assert card == {
         "type": "change",
         "title": "Move Harbor & Pine renewal to Negotiation?",
-        "fields": [{"name": "Stage", "now": "Proposal", "after": "Negotiation", "kind": "text"}],
+        "fields": fields,
         "note": None,
         "button": "Move deal",
         "pending": {
@@ -257,6 +262,7 @@ def test_a_change_gives_its_card_and_changes_nothing(api, stand_in, harbor, deal
                 "tool": "move_deal",
                 "arguments": {"id": harbor["renewal"], "stage": "negotiation"},
             },
+            "shown": shown,
         },
     }
     assert len(model_.requests) == 1
@@ -399,6 +405,41 @@ def test_a_confirmed_change_the_api_refuses_says_why_and_the_model_is_told(api, 
     assert told(model_.asked[-1][-1]) == {"refused": "Deal not found"}
 
 
+def test_a_confirm_whose_record_changed_since_its_card_runs_nothing_and_says_so(api, stand_in, harbor, deal_row):
+    """The card said "from Proposal", but someone moved the deal to Qualified meanwhile (Z15)."""
+    model_ = stand_in(calling(("move_deal", {"id": harbor["renewal"], "stage": "negotiation"})), answering("Changed."))
+    card = card_for(api)
+    assert api.patch(f"/api/deals/{harbor['renewal']}", json={"stage": "qualified"}).status_code == 200
+    events = chat(api, answered(card, "confirm"))
+    assert events[1:] == [
+        {"type": "step", "id": "step-1", "words": router.CHANGED_SINCE, "state": "failed", "link": None},
+        {"type": "outcome", "words": router.CHANGED_SINCE, "link": None},
+        {"type": "answer", "text": "Changed."},
+    ]
+    assert told(model_.asked[-1][-1]) == {"refused": router.CHANGED_SINCE}
+    assert deal_row(harbor["renewal"]).stage == "qualified"
+    assert moves_of(harbor["renewal"]) == 1
+
+
+def test_a_confirm_after_the_same_change_was_made_elsewhere_runs_nothing_and_says_why(api, stand_in, harbor, deal_row):
+    stand_in(calling(("move_deal", {"id": harbor["renewal"], "stage": "negotiation"})), answering("Already."))
+    card = card_for(api)
+    assert api.patch(f"/api/deals/{harbor['renewal']}", json={"stage": "negotiation"}).status_code == 200
+    events = chat(api, answered(card, "confirm"))
+    [outcome] = [event for event in events if event["type"] == "outcome"]
+    assert outcome["words"] == "Harbor & Pine renewal is already in Negotiation."
+    assert moves_of(harbor["renewal"]) == 1
+
+
+def test_a_confirm_whose_card_still_says_the_same_runs_the_change(api, stand_in, harbor, deal_row):
+    """A change elsewhere that the card doesn't show, such as the deal's value, leaves the confirm to run."""
+    stand_in(calling(("move_deal", {"id": harbor["renewal"], "stage": "negotiation"})), answering("Done."))
+    card = card_for(api)
+    assert api.patch(f"/api/deals/{harbor['renewal']}", json={"value": 52000}).status_code == 200
+    chat(api, answered(card, "confirm"))
+    assert deal_row(harbor["renewal"]).stage == "negotiation"
+
+
 @pytest.mark.parametrize(
     "call, words",
     [
@@ -411,7 +452,7 @@ def test_a_confirmed_change_the_api_refuses_says_why_and_the_model_is_told(api, 
 def test_a_confirm_whose_pending_isnt_one_of_the_changes_runs_nothing(api, stand_in, harbor, deal_row, call, words):
     before = stages(deal_row, harbor)
     model_ = stand_in()
-    pending = {"turn": [], "call": {"id": "call_1", **call}}
+    pending = {"turn": [], "call": {"id": "call_1", **call}, "shown": "the card as it was shown"}
     [outcome] = chat(api, {**asked("Move it"), "pending": pending, "decision": "confirm"})
     assert outcome["type"] == "outcome"
     assert outcome["words"].startswith(words)
@@ -443,18 +484,33 @@ def test_a_pending_as_large_as_a_turn_can_make_fits_the_body_limit(api, stand_in
             {"role": "tool", "tool_call_id": "call_1", "content": json.dumps({"data": {"rows": rows, "matched": 500}})},
         )
     ]
-    move = calling(("move_deal", {"id": harbor["renewal"], "stage": "negotiation"}))["choices"][0]["message"]
-    call = {"id": "call_1", "tool": "move_deal", "arguments": {"id": harbor["renewal"], "stage": "negotiation"}}
-    body = {**asked("Move it"), "pending": {"turn": [*looked, move], "call": call}, "decision": "confirm"}
+    move_reply = calling(("move_deal", {"id": harbor["renewal"], "stage": "negotiation"}))
+    move = move_reply["choices"][0]["message"]
+    model_ = stand_in(move_reply, answering("Done."))
+    pending = {**card_for(api)["pending"], "turn": [*looked, move]}
+    body = {**asked("Move it"), "pending": pending, "decision": "confirm"}
     assert 500_000 < len(json.dumps(body)) < 2 * 1024 * 1024
-    model_ = stand_in(answering("Done."))
     assert chat(api, body)[-1] == {"type": "answer", "text": "Done."}
     assert deal_row(harbor["renewal"]).stage == "negotiation"
     instructions_and_question, changes_result = 2, 1
-    assert len(model_.asked[0]) == instructions_and_question + len(looked) + len([move]) + changes_result
+    assert len(model_.asked[1]) == instructions_and_question + len(looked) + len([move]) + changes_result
 
 
 # Limits and problems
+
+
+def test_a_tool_that_crashes_ends_the_stream_cleanly_without_a_last_event(api, stand_in, monkeypatch):
+    """So the panel says "Something went wrong." with Try again, rather than the connection being cut (Z21)."""
+    search = tools.every_tool()["search"]
+
+    async def crashing(caller, arguments):
+        raise KeyError("results")
+
+    monkeypatch.setattr(tools, "every_tool", lambda: {"search": replace(search, run=crashing)})
+    stand_in(calling(("search", {"text": "harbor"})))
+    assert chat(api, asked()) == [
+        {"type": "step", "id": "step-1", "words": 'Searching for "harbor"', "state": "running", "link": None},
+    ]
 
 
 def test_eight_replies_without_an_answer_or_a_card_stop_with_z20s_words(api, stand_in):

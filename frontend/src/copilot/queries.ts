@@ -21,8 +21,11 @@ export type Message = { role: Role; text: string };
 export type Decision = "confirm" | "cancel";
 /** The one change a card is waiting on, as the model asked for it. */
 export type PendingCall = { id: string; tool: string; arguments: Record<string, unknown> };
-/** A change card's turn so far, kept as the change event gave it and sent back with the person's answer. */
-export type Pending = { turn: unknown[]; call: PendingCall };
+/**
+ * A change card's turn so far, kept as the change event gave it and sent back with the person's answer.
+ * shown is a digest of the card's words, which a confirm checks the card still has (Z15).
+ */
+export type Pending = { turn: unknown[]; call: PendingCall; shown: string };
 /** The person's message last, unless it answers a change card, when decision and pending come together. */
 export type ChatRequest = { messages: Message[]; pending: Pending | null; decision: Decision | null };
 
@@ -103,7 +106,8 @@ const isPending = (value: unknown) =>
   isFields(value.call) &&
   isText(value.call.id) &&
   isText(value.call.tool) &&
-  isFields(value.call.arguments);
+  isFields(value.call.arguments) &&
+  isText(value.shown);
 
 const IS_EVENT: Record<CopilotEvent["type"], (event: Fields) => boolean> = {
   step: (event) =>

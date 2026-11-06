@@ -28,6 +28,10 @@ const ASK = "Ask a question or for a change";
 const SEARCH_BOX = "Search organizations, contacts, deals and products";
 const THEME_KEY = "accountable-mode";
 const CLOSING = "Which deals close this month?";
+/** The most rows a list hands the model, after which the stand-in says how many more matched (Z9). */
+const MOST_ROWS = 50;
+/** A question the stand-in never answers, so the Copilot is still working for as long as it's asked. */
+const TAKE_YOUR_TIME = "Take your time";
 const CANCELLED = "Cancelled. Nothing was changed.";
 const CANT_MARK_PAID = "I can't mark bills paid. Open the bill and use Mark paid.";
 const MINUTE = "The Copilot has reached OpenRouter's limit for this minute. Wait a minute and try again.";
@@ -219,8 +223,13 @@ test("answers which deals close this month after showing its step, naming the de
   expect(stepShown.text).toContain("Stop");
   expect(answerShown.at - stepShown.at).toBeGreaterThan(100);
 
+  // Each worker has its own servers and database, so nothing else adds a deal between the table and the
+  // answer. With more than 50 closing, the stand-in names the 50 it was given, then how many more matched.
   const named = await log(page).getByRole("listitem").allInnerTexts();
-  expect(named.toSorted()).toEqual(expected.toSorted());
+  const more = Math.max(0, expected.length - MOST_ROWS);
+  expect(named).toHaveLength(expected.length - more);
+  expect(expected).toEqual(expect.arrayContaining(named));
+  await expect(log(page).getByText(/^And \d+ more\.$/)).toHaveText(more > 0 ? [`And ${more} more.`] : []);
 });
 
 test("moves a deal once its card's button is pressed, which the board shows at once, and Cancel moves nothing", async ({
@@ -235,7 +244,11 @@ test("moves a deal once its card's button is pressed, which the board shows at o
   await openCopilot(page);
   await ask(page, `Move ${deal.name} to Negotiation`);
   const move = changeCard(page, `Move ${deal.name} to Negotiation?`);
-  await expect(move.locator("dl")).toHaveText("Stage: from Proposal to Negotiation");
+  // A move gives the deal the new stage's usual probability, as the board does (S1).
+  await expect(move.locator("dl > div")).toHaveText([
+    "Stage: from Proposal to Negotiation",
+    "Probability: from 40% to 70%",
+  ]);
   // Nothing has changed while the card waits.
   expect((await stagesOf(request))[deal.id]).toBe("proposal");
 
@@ -266,7 +279,7 @@ test("moves a deal once its card's button is pressed, which the board shows at o
   await expect(log(page).getByText("Done.", { exact: true })).toBeVisible();
   await ask(page, `Move ${kept.name} to Won`);
   const won = changeCard(page, `Move ${kept.name} to Won?`);
-  await expect(won.locator("dl")).toHaveText("Stage: from Qualified to Won");
+  await expect(won.locator("dl > div")).toHaveText(["Stage: from Qualified to Won", "Probability: from 20% to 100%"]);
   await expect(won.getByText(`The close date becomes today, and ${contact.name} becomes a customer.`)).toBeVisible();
   await keyTo(page, won.getByRole("button", { name: "Cancel" }), "Shift+Tab");
   await page.keyboard.press("Enter");
@@ -335,11 +348,7 @@ test("says when the model's minute's or day's limit is reached, with Try again o
   await expect(messageBox(page)).toBeFocused();
 });
 
-test("keeps the conversation between pages, and signing out while the model is asked drops it", async ({
-  page,
-  request,
-}) => {
-  const { deal } = await addLinkedDeal(request, uniqueName("Copilot leave"));
+test("keeps the conversation between pages, and signing out while the model is asked drops it", async ({ page }) => {
   await page.goto("/");
   await openCopilot(page);
   await ask(page, CLOSING);
@@ -354,16 +363,20 @@ test("keeps the conversation between pages, and signing out while the model is a
   await openCopilot(page);
   await expect(log(page).getByText("These deals close this month:")).toBeVisible();
 
-  // Three replies of the stand-in's: the search, the timeline and the answer. After the first, two
-  // more are still to come, so the sign-out lands while the Copilot works. Its stream is aborted then,
-  // which App.test.tsx proves, and the base test checks the console stays clear.
-  await ask(page, `What's new on ${deal.name}?`);
-  await expect(log(page).getByText(`Searched for "${deal.name}"`)).toBeVisible();
+  // The stand-in never answers this, so the Copilot is still working, Stop and all, when the sign-out
+  // lands. Its stream is aborted then, which App.test.tsx proves, and the base test checks the console
+  // stays clear.
+  await ask(page, TAKE_YOUR_TIME);
   await expect(panel(page).getByRole("button", { name: "Stop" })).toBeVisible();
   await page
     .getByRole("banner")
     .getByRole("button", { name: `Menu for ${SIGNED_IN.name}` })
     .click();
+  // The open menu hides the rest of the page from screen readers, so this looks past that.
+  const stillWorking = page
+    .getByRole("region", { name: "Copilot", includeHidden: true })
+    .getByRole("button", { name: "Stop", includeHidden: true });
+  await expect(stillWorking).toBeVisible();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
 
@@ -373,7 +386,7 @@ test("keeps the conversation between pages, and signing out while the model is a
   await openCopilot(page);
   await expect(log(page).getByRole("button", { name: CLOSING })).toBeVisible();
   await expect(log(page).getByText("These deals close this month:")).toHaveCount(0);
-  await expect(log(page).getByText(`What's new on ${deal.name}?`)).toHaveCount(0);
+  await expect(log(page).getByText(TAKE_YOUR_TIME)).toHaveCount(0);
 });
 
 for (const mode of ["light", "dark"] as const) {
@@ -435,7 +448,7 @@ for (const mode of ["light", "dark"] as const) {
     const won = changeCard(page, `Move ${deal.name} to Won?`);
     await expect(won).toHaveCSS("background-color", colors.page);
     await expect(won.getByRole("heading", { level: 3 })).toHaveCSS("color", colors.ink);
-    await expect(won.locator("dt")).toHaveCSS("color", colors.muted);
+    await expect(won.getByText("Stage:")).toHaveCSS("color", colors.muted);
     await expect(won.locator("dd").getByText("Won")).toHaveCSS("color", colors.ink);
     const moveButton = won.getByRole("button", { name: "Move deal" });
     await expect(moveButton).toHaveCSS("background-color", SEA_GREEN);

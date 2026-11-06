@@ -59,11 +59,26 @@ async def _move_card(caller: Caller, arguments: MoveArguments) -> Card | Refused
     after = STAGE_NAMES[arguments.stage]
     if deal["stage"] == arguments.stage:
         return Refused(f"{deal['name']} is already in {after}.")
+    probability = await _new_probability(caller, deal, arguments.stage)
+    if isinstance(probability, Refused):
+        return probability
+    stage = CardField(name="Stage", now=STAGE_NAMES[deal["stage"]], after=after, kind="text")
     return Card(
         title=f"Move {deal['name']} to {after}?",
-        fields=[CardField(name="Stage", now=STAGE_NAMES[deal["stage"]], after=after, kind="text")],
+        fields=[stage] if probability is None else [stage, probability],
         note=await _what_else_changes(caller, deal, arguments.stage),
     )
+
+
+async def _new_probability(caller: Caller, deal: dict[str, Any], stage: str) -> CardField | Refused | None:
+    """A move gives the deal the new stage's usual probability, replacing one set by hand (S1, P10),
+    so the card shows it when it changes, as the board's card does once it lands."""
+    usual = await _usual_probability(caller, stage)
+    if isinstance(usual, Refused):
+        return usual
+    if usual == deal["probability"]:
+        return None
+    return CardField(name="Probability", now=percent(deal["probability"]), after=percent(usual), kind="percent")
 
 
 async def _what_else_changes(caller: Caller, deal: dict[str, Any], stage: str) -> str | None:
@@ -101,10 +116,13 @@ async def _move(caller: Caller, arguments: MoveArguments) -> Done | Refused:
 
 MOVE_DEAL = Tool(
     name="move_deal",
-    description="Move a deal to another stage. Moving to won or lost also sets its close date to today.",
+    description=(
+        "Move a deal to another stage. Its probability becomes the new stage's usual one. "
+        "Moving to won or lost also sets its close date to today."
+    ),
     arguments=MoveArguments,
     kind="change",
-    routes=(Route("GET", DEAL), Route("GET", CONTACT), Route("PATCH", DEAL)),
+    routes=(Route("GET", DEAL), Route("GET", CONTACT), Route("GET", META), Route("PATCH", DEAL)),
     running=lambda arguments: f"Moving the deal to {STAGE_NAMES[arguments.stage]}",
     run=_move,
     button="Move deal",
@@ -462,7 +480,7 @@ class AddActivityArguments(Arguments):
     contact_id: RecordId | None = Field(None, description="The contact it's on, for an activity not on a deal")
     deal_id: RecordId | None = Field(None, description="The deal it's on, for an activity not on a contact")
     type: ActivityType = "note"
-    description: str
+    description: api.Description
     follow_up_date: date | None = Field(None, description="When something needs doing next, if anything does")
 
     @model_validator(mode="after")

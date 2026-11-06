@@ -20,7 +20,7 @@ import { createRequire } from "node:module";
 import { availableParallelism, tmpdir, totalmem } from "node:os";
 import path from "node:path";
 
-import { ROOT, localEnv, setup, start, stop } from "./setup.mjs";
+import { ROOT, setup, start, stop, testRunEnv } from "./setup.mjs";
 import { TURNS, chooseWorkers, workerPorts } from "./test-plan.mjs";
 import { duration, readPlaywright, readPytest, readVitest, summarize } from "./test-report.mjs";
 import { joinTestRuns } from "./test-runs.mjs";
@@ -36,11 +36,6 @@ const tsc = path.join(path.dirname(frontendRequire.resolve("typescript/package.j
 
 const GITLEAKS_HELP =
   "The secrets check needs gitleaks, which isn't installed. Install it from https://github.com/gitleaks/gitleaks#installing and try again.";
-
-// Port 9 is the old discard service, where nothing listens. Every backend a test run starts asks
-// here for the model's replies, unless it's given the stand-in's address, so none can reach
-// OpenRouter, whatever key it's given.
-const NO_MODEL = "http://127.0.0.1:9";
 
 // Captured output loses its color unless the runner is told it's still wanted.
 const color = process.stdout.isTTY && !process.env.NO_COLOR ? { FORCE_COLOR: "1" } : {};
@@ -227,10 +222,8 @@ async function startRun(mostWorkers) {
   const report = (name) => path.join(folder, name);
   const text = (file) => readFileSync(report(file), "utf8");
 
-  // Without the shared app's settings or the Copilot's, so no check or test can reach Supabase or OpenRouter.
   const env = {
-    ...localEnv(),
-    ACCOUNTABLE_MODEL_URL: NO_MODEL,
+    ...testRunEnv(),
     ACCOUNTABLE_DB: report("test.db"),
     ACCOUNTABLE_TEST_SLOT: String(thisRun.slot),
     // Kept between runs to save filling it each time, and apart from the cache npm run dev uses.

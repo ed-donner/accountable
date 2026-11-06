@@ -12,11 +12,21 @@ import { realpathSync } from "node:fs";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 
+import { MODEL_URL_SETTING } from "./setup.mjs";
+
 /** The made-up key the tests' backends send it. Any key that isn't blank will do. */
 export const STAND_IN_KEY = "stand-in-key";
 
 /** How long it waits before each reply, so the panel's running step can be seen. */
 export const WAIT_MS = 300;
+
+/** A question it never answers, holding the request open until whoever asked lets go, so the Copilot is still working. */
+export const TAKE_YOUR_TIME = "Take your time";
+
+/** The settings a backend needs to ask this stand-in, at its address, with a made-up key. */
+export function standInSettings(url) {
+  return { [MODEL_URL_SETTING]: url, OPENROUTER_API_KEY: STAND_IN_KEY };
+}
 
 export const NO_SCRIPT = "The stand-in has no script for that.";
 export const CANT_MARK_PAID = "I can't mark bills paid. Open the bill and use Mark paid.";
@@ -186,6 +196,7 @@ const SCRIPTS = [
   [/^what's new on (.+)$/i, (used, [, name]) => whatsNew(used, name)],
   [/^show the minute's limit$/i, (_, __, now) => ({ error: rateLimited("minute", now) })],
   [/^show the day's limit$/i, (_, __, now) => ({ error: rateLimited("day", now) })],
+  [new RegExp(`^${TAKE_YOUR_TIME}$`, "i"), () => ({ hold: true })],
 ];
 
 function nextStep({ question, used }, now) {
@@ -225,6 +236,7 @@ export function replyTo({ authorization, body }, now = new Date()) {
   const turn = readTurn(body.messages);
   const step = nextStep(turn, now);
   if (step.error) return step.error;
+  if (step.hold) return { hold: true };
   const model = typeof body.model === "string" ? body.model : "openrouter/free";
   const message = step.calls
     ? { role: "assistant", content: null, tool_calls: toolCalls(step.calls, turn.callsSoFar) }
@@ -250,6 +262,10 @@ async function respond(request, response, { wait, now }) {
   const reply = isChat
     ? replyTo({ authorization: request.headers.authorization, body: parsed(text) }, now())
     : NOT_FOUND;
+  if (reply.hold) {
+    await new Promise((resolve) => response.once("close", resolve));
+    return;
+  }
   await new Promise((resolve) => setTimeout(resolve, wait));
   response.writeHead(reply.status, { "content-type": "application/json", ...reply.headers });
   response.end(JSON.stringify(reply.body));

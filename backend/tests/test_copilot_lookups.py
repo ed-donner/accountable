@@ -221,6 +221,27 @@ def test_a_long_list_hands_the_model_50_rows_and_how_many_matched(api, database)
     assert result.words == "Found 60 deals"
 
 
+def test_a_long_list_keeps_the_open_deals_next_to_close_before_won_and_lost_ones(api, database):
+    """Open deals first, late ones leading, earliest close first, then won and lost, latest close first (Z9)."""
+    deals = [
+        *((f"Won {number:02}", "won", TODAY - timedelta(400 + number)) for number in range(20)),
+        *((f"Lost {number:02}", "lost", TODAY - timedelta(200 + number)) for number in range(10)),
+        *((f"Late {number:02}", "negotiation", TODAY - timedelta(10 - number)) for number in range(5)),
+        *((f"Open {number:02}", "new", TODAY + timedelta(number)) for number in range(40)),
+    ]
+    with db.writing() as conn:
+        for name, stage, closes in deals:
+            values = {"name": name, "stage": stage, "value": 1000, "close_date": closes}
+            rules.add_deal(conn, values, today=TODAY, now=NOW, user_id=None)
+    result = done(api, "list_deals")
+    assert names(result) == [
+        *(f"Late {number:02}" for number in range(5)),
+        *(f"Open {number:02}" for number in range(40)),
+        *(f"Lost {number:02}" for number in range(5)),
+    ]
+    assert result.told["data"]["matched"] == 75
+
+
 # Contacts and organizations
 
 

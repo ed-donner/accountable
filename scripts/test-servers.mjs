@@ -6,7 +6,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 
 import { ROOT, isReady, localEnv, runSync, start } from "./setup.mjs";
-import { STAND_IN_KEY, startStandIn } from "./stand-in-model.mjs";
+import { standInSettings, startStandIn } from "./stand-in-model.mjs";
 import { READY, stackFor } from "./test-plan.mjs";
 
 const WAIT_MS = 60_000;
@@ -29,7 +29,7 @@ if (runSync(process.execPath, [vite, "optimize", "frontend", "--logLevel", "warn
 
 // In this process, so it stops with the rest. Only the backends get its address and a made-up key.
 const standIn = await startStandIn().catch((error) => stopEverything(`Couldn't start the stand-in model: ${error}`));
-const model = { ACCOUNTABLE_MODEL_URL: standIn.url, OPENROUTER_API_KEY: STAND_IN_KEY };
+const model = standInSettings(standIn.url);
 
 for (let index = 0; index < workers; index += 1) {
   const stack = stackFor({ slot, worker: index, database: process.env.ACCOUNTABLE_DB });

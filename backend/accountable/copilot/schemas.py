@@ -113,6 +113,9 @@ class Pending(api.Request):
     """The turn's model messages so far, in OpenAI's chat format: the model's, with their tool calls,
     and each tool's result. Sent back to the model as it came."""
     call: Call
+    shown: Annotated[str, Field(min_length=1, max_length=100)]
+    """A digest of the card's words as the person saw them. A confirm runs the change only if the card,
+    read again from the records, still says the same (Z15)."""
 
 
 class ChatRequest(api.Request):

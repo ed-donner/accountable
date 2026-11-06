@@ -62,10 +62,12 @@ scripts/
   setup.mjs                       shared setup, used by the scripts below that start things, Node built-ins only. It also
                                   gives every command but npm start an environment without the Supabase settings or the
                                   Copilot's, and npm run dev the Copilot's two from the shell or .env, never .env in a
-                                  test run (C9)
+                                  test run (C9). It names the settings, and builds npm run dev's environment and the
+                                  one every test run starts from
   dev.mjs                         npm run dev, which reads the Copilot's two settings from the shell or .env and nothing
                                   else, and in a test run from its own environment only (C9)
-  start.mjs                       npm start: reads .env, builds the frontend, runs the shared app on this computer
+  start.mjs                       npm start: reads .env, builds the frontend, runs the shared app on this computer, with
+                                  ACCOUNTABLE_MODEL_URL blank, so the key goes only to OpenRouter
   test.mjs                        npm test
   check.mjs                       npm run check and npm run check:quick
   e2e.mjs                         npm run e2e: chosen end-to-end tests only
@@ -80,6 +82,7 @@ scripts/
                                   its address, as ACCOUNTABLE_MODEL_URL, and a made-up OPENROUTER_API_KEY
   stand-in-model.mjs              answers as OpenRouter's chat completions do, from replies scripted for each question
                                   e2e/copilot.spec.ts asks, with Node's built-ins only, so no test calls a real model.
+                                  One question, "Take your time", it never answers, keeping the Copilot working.
                                   Run alone, it prints its address, for npm run dev to use by hand with a made-up key
   test-report.mjs                 turns what each test runner wrote into the summary that ends npm test
   agent-check-on-stop.mjs         the coding agent's hook that runs npm run check:quick when it finishes a turn
@@ -89,7 +92,7 @@ scripts/
   agent-guard-playwright-folder.mjs   ui-check's hook that keeps the files it saves in .playwright-mcp/
   agent-hooks.mjs                 what those five hooks decide
   setup.test.mjs, start.test.mjs, test-plan.test.mjs, test-runs.test.mjs, test-report.test.mjs, agent-hooks.test.mjs,
-  vite-watch.test.mjs, stand-in-model.test.mjs
+  vite-watch.test.mjs, stand-in-model.test.mjs, copilot-settings.test.mjs
 backend/accountable/
   main.py                         app, trusted hosts, the sign-in check, JSON-only check, startup, the list of areas
                                   with each one's routes, messages, search kinds, holds and cash, and the built

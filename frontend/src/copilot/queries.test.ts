@@ -49,7 +49,10 @@ describe("the events", () => {
   it("give a card's words without its pending", () => {
     expect(cardOf(EVENTS.change)).toEqual({
       title: "Move Harbor & Pine renewal to Won?",
-      fields: [{ name: "Stage", now: "Negotiation", after: "Won", kind: "text" }],
+      fields: [
+        { name: "Stage", now: "Negotiation", after: "Won", kind: "text" },
+        { name: "Probability", now: "70%", after: "100%", kind: "percent" },
+      ],
       note: "The close date becomes today, and Sam Carter becomes a customer.",
       button: "Move deal",
     });

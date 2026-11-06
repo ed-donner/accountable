@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  MODEL_URL_SETTING,
   ROOT,
   SHARED_SETTINGS,
   copilotSettings,
@@ -53,10 +54,12 @@ export function buildEnv(settings, shell = process.env) {
 /**
  * The backend's environment: the shell's, with the shared app's three settings, and the Copilot's
  * two wherever they're set. Without the Copilot's, it starts all the same, and the panel says
- * there's no key (Z21).
+ * there's no key (Z21). The model's address is blank, so it asks OpenRouter whatever the shell
+ * holds, and never sends the key to a stand-in's address. Blank rather than left out, since uv
+ * loading a settings file never overrides a setting already given.
  */
 export function backendEnv(settings, shell = process.env, envFileText = "") {
-  return { ...shell, ...settings, ...copilotSettings(shell, envFileText) };
+  return { ...shell, ...settings, ...copilotSettings(shell, envFileText), [MODEL_URL_SETTING]: "" };
 }
 
 /** The backend's command, which is render.yaml's startCommand apart from the address. */

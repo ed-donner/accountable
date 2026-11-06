@@ -290,13 +290,40 @@ def test_search_takes_at_most_100_characters():
     assert isinstance(tools.check("search", {"text": "a" * 101}), tools.Refused)
 
 
-def test_a_moves_card_has_the_stage_now_and_after(api, harbor):
+def test_a_moves_card_has_the_stage_and_the_probability_now_and_after(api, harbor):
     shown = card(api, "move_deal", id=harbor["renewal"], stage="negotiation")
     assert shown == tools.Card(
         title="Move Harbor & Pine renewal to Negotiation?",
-        fields=[CardField(name="Stage", now="Proposal", after="Negotiation", kind="text")],
+        fields=[
+            CardField(name="Stage", now="Proposal", after="Negotiation", kind="text"),
+            CardField(name="Probability", now="40%", after="70%", kind="percent"),
+        ],
         note=None,
     )
+
+
+def test_a_moves_card_says_a_hand_set_probability_is_replaced_by_the_stages_usual_one(api, harbor, make):
+    """As the board replaces it when the card lands (S1, P10)."""
+    hand_set = make.deal("Hand-set", stage="negotiation", probability=90, organization_id=harbor["organization"])
+    for stage, after in (("qualified", "20%"), ("won", "100%"), ("lost", "0%")):
+        shown = card(api, "move_deal", id=hand_set, stage=stage)
+        assert isinstance(shown, tools.Card)
+        assert shown.fields[1] == CardField(name="Probability", now="90%", after=after, kind="percent")
+
+
+def test_a_moves_card_leaves_out_a_probability_that_stays_the_same(api, harbor, make):
+    already = make.deal("Already 70", stage="proposal", probability=70, organization_id=harbor["organization"])
+    shown = card(api, "move_deal", id=already, stage="negotiation")
+    assert isinstance(shown, tools.Card)
+    assert [field.name for field in shown.fields] == ["Stage"]
+
+
+def test_a_moves_card_says_what_the_move_really_does_to_the_probability(api, harbor, deal_row, make):
+    hand_set = make.deal("Hand-set", stage="proposal", probability=60, organization_id=harbor["organization"])
+    shown = card(api, "move_deal", id=hand_set, stage="negotiation")
+    assert isinstance(shown, tools.Card)
+    assert isinstance(use(api, "move_deal", id=hand_set, stage="negotiation"), tools.Done)
+    assert shown.fields[1].after == f"{deal_row(hand_set).probability}%"
 
 
 def test_a_move_to_won_says_the_close_date_and_the_new_customer(api, harbor):

@@ -161,7 +161,13 @@ def test_a_card_changes_nothing(api, harbor, follow_up, name):
         ("edit_deal", {"id": 3, "probability": 101}, "probability"),
         ("edit_deal", {"id": 3, "value": 48000.5}, "value"),
         ("add_activity", {"contact_id": 3, "type": "meeting", "description": "Lunch"}, "type"),
+        ("add_activity", {"deal_id": 3, "description": "  "}, "Enter a description"),
+        ("add_activity", {"deal_id": 3, "description": "Called\x00"}, "Use plain text here"),
+        ("add_organization", {"name": "Harbor\x00Pine"}, "Use plain text here"),
+        ("edit_contact", {"id": 3, "phone": "555\x000100"}, "Use plain text here"),
+        ("add_contact", {"name": "Lee Park", "organization_id": 3, "job_title": "\ud800"}, "Use plain text here"),
     ],
+    ids=repr,
 )
 def test_a_value_the_form_refuses_on_its_own_is_refused_before_any_card(name, arguments, words):
     assert words in refused_by_the_check(name, **arguments)
@@ -181,10 +187,9 @@ def test_an_activity_is_on_a_contact_or_a_deal_never_both():
 
 def test_a_run_the_api_refuses_gives_its_words(api, harbor):
     gone = 999
-    assert use(api, "add_organization", name="Harbor\x00Pine") == tools.Refused("Use plain text here")
     assert use(api, "add_contact", name="Lee Park", organization_id=gone) == tools.Refused("Choose an organization")
     assert use(api, "edit_organization", id=gone, industry="Hotels") == tools.Refused("Organization not found")
-    assert use(api, "add_activity", deal_id=harbor["renewal"], description="  ") == tools.Refused("Enter a description")
+    assert use(api, "add_activity", deal_id=gone, description="Called") == tools.Refused("Deal not found")
     assert count(organizations) == 2
     assert count(contacts) == 2
     assert count(activities) == 0

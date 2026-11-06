@@ -368,8 +368,16 @@ async def _find_deals(caller: Caller, arguments: DealsArguments) -> list[dict[st
     if isinstance(listed, Refused):
         return listed
     found = [deal for deal in listed if _deal_fits(deal, arguments, caller.today)]
-    # Earliest close first, as the Deals table sorts, so the 50 kept are the next to close.
-    return sorted(found, key=lambda deal: (deal["close_date"], deal["id"]))
+    return sorted(found, key=_deal_order)
+
+
+def _deal_order(deal: Mapping[str, Any]) -> tuple[int, int, int]:
+    """Open deals first, earliest close first, so the 50 kept are the open deals next to close, late ones
+    leading, then won and lost deals, latest close first (Z9)."""
+    closes = date.fromisoformat(deal["close_date"]).toordinal()
+    if deal["stage"] in OPEN_STAGES:
+        return (0, closes, deal["id"])
+    return (1, -closes, -deal["id"])
 
 
 def _describe_deals(arguments: DealsArguments, found: Rows) -> tuple[Noun, list[str]]:
@@ -387,8 +395,8 @@ def _describe_deals(arguments: DealsArguments, found: Rows) -> tuple[Noun, list[
 LIST_DEALS = _list_look_up(
     name="list_deals",
     description=(
-        "List deals, earliest close first, narrowed by name, stage, organization, main contact, close dates "
-        "or late deals only. Each has its stage, value and expected revenue in whole dollars, and probability."
+        "List deals, open ones first, earliest close first, then won and lost, latest close first, narrowed by "
+        "name, stage, organization, main contact, close dates or late deals only. Each has its stage, value and expected revenue in whole dollars, and probability."
     ),
     arguments=DealsArguments,
     routes=(Route("GET", DEALS),),

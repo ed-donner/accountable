@@ -177,6 +177,10 @@ Phase 1 writes all of this, and no part changes it.
 | `frontend/src/App.tsx` | `AppShell` hands the shell `<Copilot />`. `AppShell` is made again for each session, inside `SignedIn`, so the conversation goes at sign-out (U5) | Phase 3 |
 | `frontend/src/components/Shell.test.tsx` | The order becomes sections, search, date, Copilot, menu, and the bar's buttons become the Copilot's and the menu's | Phase 3 |
 | `frontend/src/App.test.tsx` | The top bar has the Copilot button, and `GET /api/copilot` joins the test replies | Phase 3 |
+| `frontend/src/styles.css` | `--container-page`, 1265px, for `min-w-page`, and the panel's 200ms slide in and out | After the plan: the panel beside the page |
+| `frontend/src/components/DataTable.tsx`, `frontend/src/crm/pages/Dashboard.tsx` | `min-w-page`, so a table and the Dashboard keep their 1280px width beside the panel and scroll sideways in the page's area | After the plan: the panel beside the page |
+| `frontend/src/crm/board/Board.tsx` | Columns at least 180px, and the board scrolling sideways by itself under the page header | After the plan: the panel beside the page |
+| `frontend/src/components/MoneySection.tsx` | Each side's one column can shrink, so its charts narrow with the page | After the plan: the panel beside the page |
 
 ### Scripts, settings and end to end
 
@@ -192,6 +196,7 @@ Phase 1 writes all of this, and no part changes it.
 | `render.yaml` | `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` with `sync: false`, and the comment at the top names five settings | Part F |
 | `e2e/copilot.spec.ts` (new) | See Proof. Its helpers, such as asking a question, live in the file, so `e2e/helpers.ts` doesn't change | Phase 3 |
 | `e2e/quality.spec.ts` | The 1280 test checks the Copilot button inside the bar too, a new case does the same at 1536 with a 15px scrollbar, and the Tab test's 24 presses become 25 | Phase 3 |
+| `e2e/menu.spec.ts` | "the menu button can be reached by Tab" expects the Copilot button between the search box and the menu button. Found at the end, not in this list at first | Phase 3 |
 
 ### Tests that state what the changes touch
 
@@ -305,7 +310,7 @@ The build ends here. Criterion 7's try with the real model comes after, with the
 - **The model is told about 32 tools.** That's a lot for a small free model. The descriptions stay short, and look-ups narrow on our side, so the model rarely has to read a long list. If the hand try shows the model confused, merging tools is a spec change to Z8, not a quiet one.
 - **Injection is proved by structure, not by obedience.** The tests prove a note can't change anything without the person's press: one card, built from the call, and nothing changed until it's pressed. They can't prove a real model ignores the note, which is why the panel warns and Known risks says so.
 - **The top bar.** 136px is worked out from 44px, not measured. Phase 3 measures it at 1280 and 1536, both with a scrollbar. If the date wraps, the search box narrows further, and `shell.md` and `search.md` get the measured figures.
-- **The panel over the board.** At 1280 wide the panel covers the Won and Lost columns. The end-to-end test confirms the move with the panel open, closes it, and finds the card at the top of Negotiation without a reload, which proves the read after a change too.
+- **The panel beside the board.** Planned as a panel over the page's right side, covering the Won and Lost columns at 1280 wide. After the plan, the owner asked for the page to narrow beside the panel instead (Z1, N8), so the Pipeline's columns keep 180px and the board scrolls sideways by itself. The end-to-end test confirms the move with the panel open, closes it, and finds the card at the top of Negotiation without a reload, which proves the read after a change too.
 - **The 2 MB limit.** `pending` carries what the tools read this turn. Fifty rows with text cut to 500 characters stay well under it, and `test_copilot.py` sends a `pending` at the largest it can reasonably be.
 - **Sign-out mid-answer.** The stream is aborted when `AppShell` goes. An aborted `fetch` must log nothing, for Q2, and its events must land nowhere. Part D tests it, and the end-to-end test signs out while the stand-in waits.
 - **Speed.** The Copilot's tools read the same routes as the pages, so Q1 holds for them. The model's time isn't held to Q1.

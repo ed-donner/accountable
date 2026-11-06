@@ -42,6 +42,10 @@ type Run = {
   controller: AbortController;
   steps: Map<string, string>;
   outcome: boolean;
+  /** A confirm whose change ran, by its step. */
+  made: boolean;
+  /** A made change's outcome, until an answer follows it. Remembered if none does, so the model knows (Z7). */
+  unsaid: string | null;
   finished: boolean;
 };
 
@@ -111,13 +115,31 @@ function startConversation(client: QueryClient) {
     if (run.card === null) return;
     run.outcome = true;
     settleCard(run.card, "answered", { words: outcome.words, link: outcome.link });
-    if (run.request.decision === "cancel") remember("assistant", outcome.words);
-    else readEverythingAgain();
+    if (run.request.decision === "cancel") {
+      remember("assistant", outcome.words);
+      return;
+    }
+    readEverythingAgain();
+    run.made = changeRan(run);
+    if (run.made) run.unsaid = outcome.words;
+  }
+
+  /** Whether a confirm's change ran: its step, the only one before its outcome, is done. */
+  function changeRan(run: Run): boolean {
+    const keys = new Set(run.steps.values());
+    return shown.entries.some((entry) => entry.kind === "step" && keys.has(entry.key) && entry.state === "done");
   }
 
   function showProblem(run: Run, words: string, canRetry: boolean) {
-    add({ kind: "problem", key: nextKey(), words, canRetry });
-    if (canRetry) retryable = retryOf(run);
+    retryable = canRetry ? retryOf(run) : null;
+    add({ kind: "problem", key: nextKey(), words, canRetry: retryable !== null });
+  }
+
+  /** A message the backend refused would be refused again in every request after it, so it's forgotten. */
+  function forgetRefused(run: Run) {
+    if (run.request.decision !== null) return;
+    const refused = run.request.messages.at(-1);
+    remembered = remembered.filter((message) => message !== refused);
   }
 
   function apply(run: Run, event: CopilotEvent) {
@@ -136,6 +158,7 @@ function startConversation(client: QueryClient) {
       case "outcome":
         return showOutcome(run, event);
       case "answer":
+        run.unsaid = null;
         remember("assistant", answerToRemember(event.text));
         return add({ kind: "answer", key: nextKey(), text: event.text });
       case "error":
@@ -172,6 +195,7 @@ function startConversation(client: QueryClient) {
       ),
     );
     if (run.card !== null && !run.outcome) settleUnanswered(run, run.card);
+    if (run.unsaid !== null) remember("assistant", run.unsaid);
     if (current === run) {
       current = null;
       show({ working: false });
@@ -199,6 +223,8 @@ function startConversation(client: QueryClient) {
       controller: new AbortController(),
       steps: new Map(),
       outcome: false,
+      made: false,
+      unsaid: null,
       finished: false,
     };
     current = run;
@@ -213,6 +239,7 @@ function startConversation(client: QueryClient) {
     } catch (error) {
       // Stopped, cleared or gone: nothing to say, and nothing logged (Q2).
       if (run.controller.signal.aborted) return;
+      if (isRefused(error)) forgetRefused(run);
       showProblem(run, problemWords(error), canRetryAfter(error));
     } finally {
       finish(run);
@@ -291,11 +318,15 @@ function endsTheReply(event: CopilotEvent, run: Run): boolean {
   return event.type !== "step";
 }
 
-/** A confirm is never sent twice, since its change may have run, so Try again asks the question again. */
-function retryOf(run: Run): Retry {
-  if (run.request.decision === "confirm")
-    return { request: { ...run.request, pending: null, decision: null }, card: null };
-  return { request: run.request, card: run.card };
+/**
+ * A confirm is never sent twice. Once its change has run, or may have, there's nothing to try again, since
+ * asking the question again would offer the same change again. Only one whose change the backend refused,
+ * which changed nothing, turns back into the question.
+ */
+function retryOf(run: Run): Retry | null {
+  if (run.request.decision !== "confirm") return { request: run.request, card: run.card };
+  if (!run.outcome || run.made) return null;
+  return { request: { ...run.request, pending: null, decision: null }, card: null };
 }
 
 /** The backend takes back at most 10,000 characters of an answer, counted as Python counts them. */
@@ -308,7 +339,11 @@ function problemWords(error: unknown): string {
   return Object.values(error.fields)[0] ?? error.message;
 }
 
+function isRefused(error: unknown): boolean {
+  return error instanceof ApiError && error.kind === "fields";
+}
+
 /** Try again can't help a request the backend refused as it was, or a session that has ended. */
 function canRetryAfter(error: unknown): boolean {
-  return !(error instanceof ApiError && (error.kind === "fields" || error.kind === "signed-out"));
+  return !(isRefused(error) || (error instanceof ApiError && error.kind === "signed-out"));
 }

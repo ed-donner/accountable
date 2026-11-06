@@ -25,6 +25,7 @@ MAX_CENTS = MAX_VALUE * 100
 MAX_ID = 2**31 - 1
 
 NAME_MESSAGE = "Enter a name"
+DESCRIPTION_MESSAGE = "Enter a description"
 
 
 class FieldError(Exception):
@@ -71,6 +72,13 @@ def _name(value: str) -> str:
     value = value.strip()
     if not value:
         raise ValueError(NAME_MESSAGE)
+    return value
+
+
+def _description(value: str) -> str:
+    value = value.strip()
+    if not value:
+        raise ValueError(DESCRIPTION_MESSAGE)
     return value
 
 
@@ -121,6 +129,8 @@ def _with_z(value: datetime) -> str:
 
 
 Name = Annotated[str, AfterValidator(_name)]
+# An activity's, which the activity form and the Copilot both check (A1, Z11).
+Description = Annotated[str, AfterValidator(_description)]
 OptionalText = Annotated[str | None, AfterValidator(_blank_to_none)]
 Email = Annotated[str | None, AfterValidator(_email)]
 Website = Annotated[str | None, AfterValidator(_website)]

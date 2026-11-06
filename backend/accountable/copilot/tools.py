@@ -8,6 +8,7 @@ long text cut, or {"refused": "the API's words"}. A change the person confirmed 
 words as "done", which the turn does (Z15).
 """
 
+import hashlib
 import json
 from collections.abc import Callable, Coroutine, Mapping, Sequence
 from dataclasses import dataclass
@@ -15,9 +16,9 @@ from datetime import date
 from functools import cache
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError
+from pydantic import ConfigDict, Field, StrictInt, ValidationError
 
-from accountable.api import MAX_ID
+from accountable import api
 from accountable.copilot.calls import Caller, Reply, Route
 from accountable.copilot.schemas import CardField
 
@@ -39,13 +40,14 @@ MOST_ROWS = 50
 LONGEST_TEXT = 500
 CUT = " (cut)"
 
-RecordId = Annotated[StrictInt, Field(ge=1, le=MAX_ID)]
+RecordId = Annotated[StrictInt, Field(ge=1, le=api.MAX_ID)]
 """A record's id, a whole number, as the only thing an argument can put in a path."""
 
 
-class Arguments(BaseModel):
+class Arguments(api.Request):
     """A tool's arguments, as the model is told of them and as a call's are checked. A field the
-    tool doesn't have is refused, so the model learns its mistake rather than have it ignored."""
+    tool doesn't have is refused, so the model learns its mistake rather than have it ignored.
+    Text is checked as a form's is, so text the database can't store is refused before any card (Z11)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -103,6 +105,13 @@ class Card:
     fields: list[CardField]
     note: str | None = None
     """What else changes by S1, or None."""
+
+    @property
+    def fingerprint(self) -> str:
+        """A digest of everything the card says, which its pending carries, so a confirm can tell
+        whether the card, read again, still says what the person saw (Z15)."""
+        words = {"title": self.title, "fields": [field.model_dump() for field in self.fields], "note": self.note}
+        return hashlib.sha256(json.dumps(words, sort_keys=True).encode()).hexdigest()
 
 
 # A tool

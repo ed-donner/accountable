@@ -391,7 +391,7 @@ describe("a change card", () => {
     expect(requests).toHaveLength(1);
   });
 
-  it("is done with once a confirm fails before its outcome, since the change may have run", async () => {
+  it("is done with once a confirm fails before its outcome, with no Try again, since the change may have run", async () => {
     const { result, reads } = await setup({ chats: [[change()], [error("busy", BUSY)]] });
     act(() => result.current.send(MOVE));
     await until(() => expect(result.current.working).toBe(false));
@@ -399,7 +399,7 @@ describe("a change card", () => {
     act(() => result.current.confirm());
     await until(() => expect(result.current.working).toBe(false));
 
-    expect(shown(result.current.entries).slice(1)).toEqual([card("answered"), problem(BUSY, true)]);
+    expect(shown(result.current.entries).slice(1)).toEqual([card("answered"), problem(BUSY, false)]);
     await until(() => expect(reads("/deals")).toBe(2));
   });
 
@@ -415,7 +415,7 @@ describe("a change card", () => {
     expect(shown(result.current.entries).slice(1)).toEqual([card("answered", refused)]);
   });
 
-  it("says something went wrong when a change that ran stops before the answer", async () => {
+  it("says something went wrong, with no Try again, when a change that ran stops before the answer", async () => {
     const moving = step({ id: "step-1", words: "Moving the deal to Won" });
     const moved = step({ id: "step-1", words: EVENTS.outcome.words, state: "done", link: "/deals/12" });
     const { result } = await setup({ chats: [[change()], [moving, moved, outcome()]] });
@@ -428,7 +428,7 @@ describe("a change card", () => {
     expect(shown(result.current.entries).slice(1)).toEqual([
       card("answered", MOVED),
       { kind: "step", id: "step-1", words: EVENTS.outcome.words, state: "done", link: "/deals/12" },
-      problem("Something went wrong.", true),
+      problem("Something went wrong.", false),
     ]);
   });
 
@@ -523,7 +523,7 @@ describe("a problem", () => {
     await until(() => expect(reads("/copilot")).toBe(2));
   });
 
-  it("asks the question again after a confirm fails, rather than confirming twice", async () => {
+  it("never offers a confirmed change again: no Try again once it's made, and the Copilot remembers it", async () => {
     const moving = step({ id: "step-1", words: "Moving the deal to Won" });
     const moved = step({ id: "step-1", words: EVENTS.outcome.words, state: "done", link: "/deals/12" });
     const { result, requests } = await setup({
@@ -534,6 +534,53 @@ describe("a problem", () => {
     act(() => result.current.confirm());
     await until(() => expect(result.current.working).toBe(false));
     expect(cardIn(result.current.entries)).toEqual(card("answered", MOVED));
+    expect(shown(result.current.entries).at(-1)).toEqual(problem(EVENTS.error.words, false));
+
+    act(() => result.current.retry());
+    expect(result.current.working).toBe(false);
+    expect(requests).toHaveLength(2);
+
+    act(() => result.current.send("What else closes this month?"));
+    await until(() => expect(result.current.working).toBe(false));
+    expect(requests[2].messages).toEqual([
+      { role: "user", text: MOVE },
+      { role: "assistant", text: MOVED.words },
+      { role: "user", text: "What else closes this month?" },
+    ]);
+  });
+
+  it("remembers a made change's outcome only when no answer follows it, as the answer says what happened", async () => {
+    const moving = step({ id: "step-1", words: "Moving the deal to Won" });
+    const moved = step({ id: "step-1", words: EVENTS.outcome.words, state: "done", link: "/deals/12" });
+    const { result, requests } = await setup({
+      chats: [[change()], [moving, moved, outcome(), answer("Done.")], answered()],
+    });
+    act(() => result.current.send(MOVE));
+    await until(() => expect(result.current.working).toBe(false));
+    act(() => result.current.confirm());
+    await until(() => expect(result.current.working).toBe(false));
+
+    act(() => result.current.send(QUESTION));
+    await until(() => expect(result.current.working).toBe(false));
+    expect(requests[2].messages).toEqual([
+      { role: "user", text: MOVE },
+      { role: "assistant", text: "Done." },
+      { role: "user", text: QUESTION },
+    ]);
+  });
+
+  it("asks the question again after a confirmed change the backend refused, since nothing changed", async () => {
+    const moving = step({ id: "step-1", words: "Moving the deal to Won" });
+    const refused = step({ id: "step-1", words: "Deal not found", state: "failed" });
+    const notFound = { words: "Deal not found", link: null };
+    const { result, requests } = await setup({
+      chats: [[change()], [moving, refused, outcome(notFound), error()], answered()],
+    });
+    act(() => result.current.send(MOVE));
+    await until(() => expect(result.current.working).toBe(false));
+    act(() => result.current.confirm());
+    await until(() => expect(result.current.working).toBe(false));
+    expect(shown(result.current.entries).at(-1)).toEqual(problem(EVENTS.error.words, true));
 
     act(() => result.current.retry());
     await until(() => expect(result.current.working).toBe(false));
@@ -597,6 +644,27 @@ describe("a problem", () => {
     await until(() => expect(result.current.working).toBe(false));
 
     expect(shown(result.current.entries).at(-1)).toEqual(problem(words, false));
+  });
+
+  it("forgets a message the backend refused, so the next one isn't refused for it", async () => {
+    const plainTextOnly = refusal(422, {
+      detail: "Check the form.",
+      fields: { "messages.0.text": "Use plain text here" },
+    });
+    const { result, requests } = await setup({ chats: [answered(), plainTextOnly, answered()] });
+    act(() => result.current.send("First"));
+    await until(() => expect(result.current.working).toBe(false));
+    act(() => result.current.send("Harbor\u0000Pine"));
+    await until(() => expect(result.current.working).toBe(false));
+
+    act(() => result.current.send(QUESTION));
+    await until(() => expect(result.current.working).toBe(false));
+
+    expect(requests[2].messages).toEqual([
+      { role: "user", text: "First" },
+      { role: "assistant", text: EVENTS.answer.text },
+      { role: "user", text: QUESTION },
+    ]);
   });
 });
 

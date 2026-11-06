@@ -30,6 +30,11 @@ SOMETHING_WENT_WRONG = "Something went wrong."
 BROKEN_TOOL = (OutOfReach, NotAnId)
 """A tool that reached past its own routes, or put something that isn't an id in a path, which the caller
 refuses before anything is sent. The tool is wrong, so its step fails rather than the turn."""
+CRASHES = (LookupError, TypeError, ValueError, AttributeError, ArithmeticError, RuntimeError, httpx.HTTPError)
+"""What a tool's own code raises when a reply isn't as it expects, such as a missing key or a value of another
+type. Named, since ruff refuses a blind except."""
+CHANGED_SINCE = "The records changed after this card was shown, so nothing was changed."
+"""A confirmed card that, read again, no longer says what the person saw (Z15)."""
 WAITING = (
     "Not done. Each change needs a card of its own, one after another, and the person is answering the card "
     "for an earlier change in this reply. Ask for this one again once they have."
@@ -91,6 +96,16 @@ class Turn:
         self._step_ids = (f"step-{number}" for number in itertools.count(1))
 
     async def events(self, body: schemas.ChatRequest) -> AsyncIterator[str]:
+        """The turn's events. A tool that crashes on something it didn't expect ends the stream cleanly, without
+        a last event, so the panel says "Something went wrong." (Z21). Left to escape, the crash would cut the
+        connection, which the browser takes for the backend being gone."""
+        try:
+            async for event in self._events(body):
+                yield event
+        except CRASHES:
+            return
+
+    async def _events(self, body: schemas.ChatRequest) -> AsyncIterator[str]:
         if self.chosen.key is None:
             yield schemas.line(schemas.error(missing_key(self.request)))
             return
@@ -104,25 +119,25 @@ class Turn:
                 yield schemas.line(schemas.OutcomeEvent(words=f"{checked.words} Nothing was changed."))
                 return
             self.said = list(body.pending.turn)
-            async for event in self._make(body.pending.call.id, checked):
+            async for event in self._make(body.pending, checked):
                 yield event
         async for event in self._ask(body.messages):
             yield event
 
-    async def _make(self, call_id: str, checked: tools.Checked[Any]) -> AsyncIterator[str]:
+    async def _make(self, pending: schemas.Pending, checked: tools.Checked[Any]) -> AsyncIterator[str]:
         """The change the person confirmed, run once, as them (Z15). The model is told how it went: a change
         made comes with the step's words, since the record's data alone doesn't say it was made, and the model
         would answer that it's still waiting for the person to confirm."""
         step = next(self._step_ids)
         yield _running(step, checked)
-        outcome = await self._run(checked)
+        outcome = await self._run_as_shown(checked, pending.shown)
         yield _finished(step, outcome)
         if isinstance(outcome, tools.Done):
             link, told = outcome.link, {"done": outcome.words, **outcome.told}
         else:
             link, told = None, outcome.told
         yield schemas.line(schemas.OutcomeEvent(words=outcome.words, link=link))
-        self._tell(call_id, told)
+        self._tell(pending.call.id, told)
 
     async def _ask(self, messages: Sequence[schemas.Message]) -> AsyncIterator[str]:
         """Asks the model until it answers or asks for a change, at most 8 times in a row (Z20)."""
@@ -190,6 +205,16 @@ class Turn:
         yield _finished(step, card)
         self._tell(call.id, card.told)
 
+    async def _run_as_shown(self, checked: tools.Checked[Any], shown: str) -> tools.Done | tools.Refused:
+        """The change, once its card, read again from the records, still says what the person saw. A record
+        it shows may have changed since, such as a deal moved or a follow-up marked done in another tab."""
+        card = await self._card(checked)
+        if isinstance(card, tools.Refused):
+            return card
+        if card.fingerprint != shown:
+            return tools.Refused(CHANGED_SINCE)
+        return await self._run(checked)
+
     async def _run(self, checked: tools.Checked[Any]) -> tools.Done | tools.Refused:
         try:
             return await checked.tool.run(self.caller.limited_to(checked.tool.routes), checked.arguments)
@@ -211,6 +236,7 @@ class Turn:
         pending = schemas.Pending(
             turn=self.said,
             call=schemas.Call(id=call.id, tool=call.name, arguments=json.loads(call.arguments)),
+            shown=card.fingerprint,
         )
         return schemas.ChangeEvent(
             title=card.title, fields=card.fields, note=card.note, button=tool.button or "", pending=pending

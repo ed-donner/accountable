@@ -43,7 +43,7 @@ describe("a change card", () => {
 
   it("gives each field's name, what it is now and what it will be", () => {
     const { card } = draw(changeEntry());
-    expect(fieldLines(card)).toEqual(["Stage: from Negotiation to Won"]);
+    expect(fieldLines(card)).toEqual(["Stage: from Negotiation to Won", "Probability: from 70% to 100%"]);
   });
 
   it("gives only what a field will be on a new record", () => {
@@ -54,10 +54,10 @@ describe("a change card", () => {
   it("puts each field's name in muted ink and its values in ink", () => {
     const { card } = draw(changeEntry());
     expect(screen.getByText("Stage:").classList.contains("text-muted")).toBe(true);
-    for (const value of ["Negotiation", "Won"]) {
+    for (const value of ["Negotiation", "Won", "70%", "100%"]) {
       expect(screen.getByText(value).closest(".text-muted")).toBeNull();
     }
-    expect(card.querySelectorAll("dd")).toHaveLength(1);
+    expect(card.querySelectorAll("dd")).toHaveLength(2);
   });
 
   it("shows money, dates and percentages in JetBrains Mono, and text in the body font", () => {
@@ -116,7 +116,7 @@ describe("a change card's buttons", () => {
     expect(screen.queryAllByRole("button")).toHaveLength(0);
     const link = screen.getByRole("link", { name: "Moved Harbor & Pine renewal to Won." });
     expect(link.getAttribute("href")).toBe("/deals/12");
-    expect(fieldLines(card)).toEqual(["Stage: from Negotiation to Won"]);
+    expect(fieldLines(card)).toEqual(["Stage: from Negotiation to Won", "Probability: from 70% to 100%"]);
   });
 
   it("give way to Cancelled, with no link, once it's cancelled", () => {

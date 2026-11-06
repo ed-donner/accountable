@@ -3,7 +3,15 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { CANT_MARK_PAID, DONE, INJECTION, NO_SCRIPT, STAND_IN_KEY, startStandIn } from "./stand-in-model.mjs";
+import {
+  CANT_MARK_PAID,
+  DONE,
+  INJECTION,
+  NO_SCRIPT,
+  STAND_IN_KEY,
+  TAKE_YOUR_TIME,
+  startStandIn,
+} from "./stand-in-model.mjs";
 
 const RENEWAL = { kind: "deal", id: 12, name: "Harbor & Pine renewal", stage: "proposal" };
 const HARBOR = { kind: "organization", id: 3, name: "Harbor & Pine" };
@@ -240,6 +248,25 @@ describe("OpenRouter's limits", () => {
     });
     expect(headers.get("x-ratelimit-limit")).toBe("50");
     expect(headers.get("x-ratelimit-remaining")).toBe("0");
+  });
+});
+
+describe("taking its time", () => {
+  it("never answers, holding the request open until whoever asked lets go of it", async () => {
+    const asked = new AbortController();
+    const reply = fetch(`${standIn.url}/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${STAND_IN_KEY}` },
+      body: JSON.stringify({ messages: [{ role: "user", content: TAKE_YOUR_TIME }] }),
+      signal: asked.signal,
+    });
+    const answered = await Promise.race([
+      reply.then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 500)),
+    ]);
+    expect(answered).toBe(false);
+    asked.abort();
+    await expect(reply).rejects.toThrow();
   });
 });
 

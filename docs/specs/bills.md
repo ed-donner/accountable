@@ -58,6 +58,9 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 Bills also give the cash flow at the top of the Money section its money out, the paid bills by the date they were paid, and its money expected out, the unpaid bills, each on its due date ([Y2 and Y7](cash-flow.md#the-forecast)).
 
+- **E25.** Bills post to the books ([J5 and J6](books.md#entries)), each inside the save that causes it (J7). A bill debits the expense account for its category with its total, tax included, and credits Payable, dated its bill date. Marking it paid, or adding or saving it with a paid date, debits Payable and credits Cash, dated the date it was paid. Marking it unpaid reverses the paid entry. Changing the amount, tax, category or bill date reverses the bill's entry and posts a new one, and does the same for its paid entry when the total or the paid date changed. Deleting a bill reverses its entries. A save that changes none of those, such as its notes, due date, bill number or supplier, posts nothing. So Payable always equals what we owe (J11).
+
+
 ## Screens
 
 ### Bills table

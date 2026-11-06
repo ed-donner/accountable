@@ -18,7 +18,10 @@ function code(folder: string) {
 }
 
 // Each business area's folder, found by its queries, so a later area is held to the rules too.
-const AREAS = readdirSync(SOURCE).filter((name) => existsSync(path.join(SOURCE, name, "queries.ts")));
+// The books have no queries yet, because their pages read nothing, so they're listed by name.
+const AREAS = readdirSync(SOURCE).filter(
+  (name) => name === "books" || existsSync(path.join(SOURCE, name, "queries.ts")),
+);
 // The areas the later ones build on. A later area, such as invoices, may import their
 // queries, for their types and reads, and the CRM's deals.ts, such as which stages are
 // open, and nothing else of theirs. Later areas never import each other, and the first
@@ -68,7 +71,7 @@ function appCode() {
 
 describe("the layout rules", () => {
   it("find every area", () => {
-    expect(AREAS).toEqual(["bills", "cashflow", "crm", "invoices", "products", "quotes"]);
+    expect(AREAS).toEqual(["bills", "books", "cashflow", "crm", "invoices", "products", "quotes"]);
   });
 
   it("read where each import leads", () => {
@@ -138,6 +141,19 @@ describe("the cash flow", () => {
       .flatMap((file) => imported(file).map((target) => ({ file, target })));
     expect(importing.some(({ target }) => target.startsWith("cashflow/"))).toBe(true); // Looking in the right place.
     expect(importing.filter(({ target }) => ![undefined, "cashflow"].includes(areaOf(target)))).toEqual([]);
+  });
+});
+
+describe("the books", () => {
+  it("import no other area, and only App.tsx names them", () => {
+    const own = appCode().filter((file) => areaOf(file) === "books");
+    expect(own).toContain("books/AccountingPage.tsx"); // The check is looking in the right place.
+    const importing = own.flatMap((file) => imported(file));
+    expect(importing.filter((target) => ![undefined, "books"].includes(areaOf(target)))).toEqual([]);
+    const naming = appCode()
+      .filter((file) => areaOf(file) !== "books")
+      .filter((file) => imported(file).some((target) => areaOf(target) === "books"));
+    expect(naming).toEqual(["App.tsx"]);
   });
 });
 

@@ -24,6 +24,7 @@ from typing import Any
 from sqlalchemy import Connection, Row, func, insert, select
 
 from accountable import months, who
+from accountable.books import post as books_post
 from accountable.company import documents, tax
 from accountable.crm.tables import contacts, deals, organizations, stage_changes
 from accountable.invoices import figures
@@ -228,6 +229,7 @@ def _write(conn: Connection, plan: Planned, lines: list[Line], settings: Row, nu
     if plan.issue_date is not None:
         values.update(_issued(plan, lines, settings, conn, number, added_at + AN_HOUR))
     invoice_id = conn.execute(insert(invoices).values(**values).returning(invoices.c.id)).scalar_one()
+    _post_issue(conn, invoice_id, values, plan, added_at + AN_HOUR)
     conn.execute(
         insert(invoice_lines),
         [
@@ -237,16 +239,47 @@ def _write(conn: Connection, plan: Planned, lines: list[Line], settings: Row, nu
     )
     for paid_number, (paid_on, cents) in enumerate(plan.paid):
         method = METHODS[(number + paid_number) % len(METHODS)]
-        conn.execute(
-            insert(payments).values(
+        recorded_at = max(moment(paid_on, number + paid_number), added_at + 2 * AN_HOUR)
+        recorder = teammate(number + paid_number + 1)
+        payment_id = conn.execute(
+            insert(payments)
+            .values(
                 invoice_id=invoice_id,
                 paid_on=paid_on,
                 amount_cents=cents,
                 method=method,
                 reference=_reference(method, number),
-                created_at=max(moment(paid_on, number + paid_number), added_at + 2 * AN_HOUR),
-                created_by=teammate(number + paid_number + 1),
+                created_at=recorded_at,
+                created_by=recorder,
             )
+            .returning(payments.c.id)
+        ).scalar_one()
+        books_post.payment_recorded(
+            conn, payment_id=payment_id, invoice_id=invoice_id, on=paid_on, cents=cents, user=recorder, now=recorded_at
+        )
+
+
+def _post_issue(conn: Connection, invoice_id: int, values: dict[str, Any], plan: Planned, issued_at: datetime) -> None:
+    """The issue entry of an issued or void invoice, and a void one's reversal, put down to who issued and voided it."""
+    if plan.issue_date is None:
+        return
+    books_post.invoice_issued(
+        conn,
+        invoice_id=invoice_id,
+        on=plan.issue_date,
+        subtotal_cents=values["subtotal_cents"],
+        tax_cents=values["tax_cents"],
+        total_cents=values["total_cents"],
+        user=values["issued_by"],
+        now=issued_at,
+    )
+    if plan.voided_on is not None:
+        books_post.reverse(
+            conn,
+            source=books_post.invoice_source(invoice_id),
+            event="invoice_voided",
+            user=values["voided_by"],
+            now=values["voided_at"],
         )
 
 

@@ -8,6 +8,7 @@ import pytest
 from accountable import cli, db
 from accountable.bills import sample_data as bill_samples
 from accountable.bills.tables import CATEGORIES, bill_number_key, bills
+from accountable.books.tables import journal_entries, journal_lines
 from accountable.cashflow import router as cash_flow
 from accountable.company import documents, logo, tax
 from accountable.company import sample_data as company_samples
@@ -26,6 +27,7 @@ from accountable.quotes import sample_data as quote_samples
 from accountable.quotes.tables import quote_lines, quotes
 from accountable.users import TEAMMATES, users
 from sqlalchemy import select
+from test_books_checks import CHECKS
 
 DAYS = [date(2027, 1, 1), date(2027, 3, 1), date(2028, 2, 29), date(2027, 1, 31), date(2026, 10, 31), date(2026, 7, 14)]
 
@@ -71,7 +73,11 @@ def seeded(request, rows_by_day, database):
                 "payments": rows_of(conn, payments),
                 "logo": rows_of(conn, company_logo),
                 "settings": conn.execute(select(company_settings)).one(),
+                "entries": conn.execute(select(journal_entries).order_by(journal_entries.c.id)).all(),
+                "journal_lines": rows_of(conn, journal_lines),
             }
+            for check in CHECKS:
+                check(conn)
         # What the dashboard and its Money section show that day.
         rows_by_day[today]["dashboard"] = dashboard.dashboard(today, datetime.combine(today, time(12)))
         rows_by_day[today]["money"] = money.money(today)
@@ -825,3 +831,73 @@ def test_the_dashboard_agrees_with_the_invoices_and_the_accepted_quotes(seeded):
     money_shown = seeded["money"]
     issued = sum(row.total_cents for row in seeded["invoices"] if row.status == "issued")
     assert money_shown.owed.cents + sum(month.cents for month in money_shown.payments) == issued
+
+
+# The books (J9, J13)
+
+
+def entries_of(seeded, kind: str) -> dict[int, list]:
+    found: dict[int, list] = {}
+    for entry in seeded["entries"]:
+        if entry.kind == kind:
+            found.setdefault(entry.source_id, []).append(entry)
+    return found
+
+
+def test_the_four_checks_held_on_every_seeding_day(seeded):
+    """The fixture runs them on the day's database, while it exists."""
+    assert seeded["entries"]
+
+
+def test_each_issued_and_void_invoice_has_its_issue_entry_and_a_void_one_its_reversal(seeded):
+    found = entries_of(seeded, "invoice")
+    issued = [row for row in seeded["invoices"] if row.status in ("issued", "void")]
+    assert set(found) == {row.id for row in issued}
+    for row in issued:
+        first, *reversal = found[row.id]
+        assert (first.event, first.entry_date, first.created_by) == ("invoice_issued", row.issue_date, row.issued_by)
+        assert [entry.event for entry in reversal] == (["invoice_voided"] if row.status == "void" else [])
+        assert all(entry.entry_date == row.issue_date and entry.reverses_id == first.id for entry in reversal)
+
+
+def test_drafts_have_no_entry(seeded):
+    drafts = {row.id for row in seeded["invoices"] if row.status == "draft"}
+    assert drafts
+    assert drafts.isdisjoint(entries_of(seeded, "invoice"))
+
+
+def test_each_payment_each_bill_and_each_paid_bill_has_its_entry_put_down_to_a_made_up_teammate(seeded):
+    teammates = {teammate.id for teammate in TEAMMATES}
+    payments_found = entries_of(seeded, "payment")
+    assert set(payments_found) == {row.id for row in seeded["payments"]}
+    for row in seeded["payments"]:
+        [entry] = payments_found[row.id]
+        assert (entry.entry_date, entry.created_by) == (row.paid_on, row.created_by)
+    bills_found, paid_found = entries_of(seeded, "bill"), entries_of(seeded, "bill_payment")
+    assert set(bills_found) == {row.id for row in seeded["bills"]}
+    assert set(paid_found) == {row.id for row in seeded["bills"] if row.paid_on is not None}
+    for row in seeded["bills"]:
+        assert bills_found[row.id][0].entry_date == row.bill_date
+        if row.paid_on is not None:
+            assert paid_found[row.id][0].entry_date == row.paid_on
+    assert {entry.created_by for entry in seeded["entries"]} <= teammates
+
+
+def test_the_opening_balance_is_posted_to_dana_on_its_date(seeded):
+    [entry] = entries_of(seeded, "opening_balance")[1]
+    assert (entry.entry_date, entry.created_by) == (seeded["settings"].opening_balance_on, "teammate-dana-whitfield")
+
+
+def test_the_books_cash_today_equals_the_cash_flows_to_the_cent(seeded):
+    """No sample payment or paid bill is before the opening balance's date, so the two count the same money (J13)."""
+    opening_day = seeded["settings"].opening_balance_on
+    dated = {entry.id: entry.entry_date for entry in seeded["entries"]}
+    moved_cash = {line.entry_id for line in seeded["journal_lines"] if line.account == "cash"}
+    before = [entry for entry in seeded["entries"] if entry.id in moved_cash and entry.entry_date < opening_day]
+    assert before == [], f"The first cash entry before the opening balance's date: {before[:1]}"
+    cash = sum(
+        line.debit_cents - line.credit_cents
+        for line in seeded["journal_lines"]
+        if line.account == "cash" and dated[line.entry_id] <= seeded["today"]
+    )
+    assert cash == seeded["cash_flow"].cash_today

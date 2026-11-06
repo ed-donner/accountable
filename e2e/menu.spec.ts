@@ -103,7 +103,14 @@ test("the menu shows the initials, the name and email, the themes, Company setti
   await expect(menu(page)).toContainText(me.email);
   await expect(menu(page).getByRole("menuitemradio")).toHaveText(["Light", "Dark", "System"]);
   await expect(menu(page).getByRole("menuitemradio", { checked: true })).toHaveText("Light");
-  await expect(menu(page).getByRole("menuitem")).toHaveText(["Company settings", "Sign out"]);
+  await expect(menu(page).getByRole("menuitem")).toHaveText([
+    "Profit and loss",
+    "Balance sheet",
+    "Journal",
+    "Aged balances",
+    "Company settings",
+    "Sign out",
+  ]);
 
   // 240px wide on the raised surface, below the button and lined up with its right edge.
   await expect(menu(page)).toHaveCSS("width", "240px");

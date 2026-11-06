@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from accountable import db
 from accountable.bills.tables import bills
+from accountable.books.tables import journal_entries
 from accountable.company.tables import company_settings
 from accountable.crm.tables import activities, contacts, deals
 from accountable.invoices.tables import invoice_lines, invoices, payments
@@ -63,6 +64,8 @@ def test_the_data_really_is_at_the_limits(full):
         assert conn.scalar(select(func.count()).select_from(invoice_lines)) == 3000
         assert conn.scalar(select(func.count()).select_from(payments)) == 1500
         assert conn.scalar(select(func.count()).select_from(bills)) == 1000
+        # One for each issued and void invoice, a reversal for each void one, each payment, bill and paid bill, and the opening balance.
+        assert (conn.scalar(select(func.count()).select_from(journal_entries)) or 0) > 4000
         statuses = set(conn.scalars(select(invoices.c.status)))
     assert statuses == {"draft", "issued", "void"}
     shown = {invoice["shows_as"] for invoice in full.get("/api/invoices").json()}
@@ -73,8 +76,11 @@ def test_the_data_really_is_at_the_limits(full):
 CASH_FLOW_MONTH = "/api/cash-flow/expected?month=2026-11"
 
 
+BOOKS = ["/api/books/balances", "/api/books/months", "/api/books/entries"]
+
+
 @pytest.mark.parametrize(
-    "path", ["/api/dashboard", "/api/invoices/money", "/api/bills/dashboard", "/api/cash-flow", CASH_FLOW_MONTH]
+    "path", ["/api/dashboard", "/api/invoices/money", "/api/bills/dashboard", "/api/cash-flow", CASH_FLOW_MONTH, *BOOKS]
 )
 def test_the_dashboard_and_its_money_section_are_quick(full, path):
     elapsed = median_ms(full, path)
@@ -151,6 +157,11 @@ QUERIES = {
     "/api/cash-flow": 6,
     # The settings, the invoices, the unpaid bills and the open deals.
     CASH_FLOW_MONTH: 4,
+    # The books: the balances are one grouped query, the months two, and a page of entries the page,
+    # the count and the lines of the page's entries (J14).
+    "/api/books/balances": 1,
+    "/api/books/months": 2,
+    "/api/books/entries": 3,
 }
 
 

@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## Cash flow
 
-The cash flow answers the question a small business asks every week: how much cash will we have, and when? It's a chart in a full-width row at the top of the dashboard's Money section, worked out from what other areas already hold: the payments received against invoices, the bills marked paid, the invoices still owed, the bills still unpaid and the open deals. It keeps no records of its own. The one thing it needs that nothing else holds, the opening balance, is a company setting ([B23](settings.md#cash)).
+The cash flow answers the question a small business asks every week: how much cash will we have, and when? It's a chart in a full-width row at the top of the dashboard's Money section, worked out from what other areas already hold: the payments received against invoices, the bills marked paid, the invoices still owed, the bills still unpaid and the open deals. It keeps no records of its own. The one thing it needs that nothing else holds, the opening balance, is a company setting ([B23](settings.md#cash)). The books ([books.md](books.md#the-books)) keep a Cash account of their own from the same events, and on the sample data its balance today is Cash today (J13). The cash flow doesn't read the books, and nothing here changes because of them.
 
 ### The months
 

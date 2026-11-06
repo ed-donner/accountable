@@ -11,6 +11,7 @@ from sqlalchemy import Connection, Row, delete, func, insert, select
 
 from accountable import api, db
 from accountable.auth import CurrentUser
+from accountable.books import post as books_post
 from accountable.invoices import figures, schemas
 from accountable.invoices.routers.invoices import detail, get_row, refuse
 from accountable.invoices.tables import ISSUED, payments
@@ -55,19 +56,40 @@ def record_payment(
             raise refuse(schemas.NO_PAYMENT_TAKEN)
         owed = figures.owed(invoice.status, invoice.total_cents, _paid(conn, invoice_id))
         _refuse_a_bad_payment(body, invoice, owed, today)
-        conn.execute(
-            insert(payments).values(invoice_id=invoice_id, **body.model_dump(), created_by=user, created_at=now)
+        received = body.model_dump()
+        payment_id = conn.execute(
+            insert(payments)
+            .values(invoice_id=invoice_id, **received, created_by=user, created_at=now)
+            .returning(payments.c.id)
+        ).scalar_one()
+        books_post.payment_recorded(
+            conn,
+            payment_id=payment_id,
+            invoice_id=invoice_id,
+            on=received["paid_on"],
+            cents=received["amount_cents"],
+            user=user,
+            now=now,
         )
         return detail(conn, invoice_id, today)
 
 
 @router.delete("/{invoice_id}/payments/{payment_id}")
-def delete_payment(invoice_id: api.PathId, payment_id: api.PathId, today: api.Today) -> schemas.InvoiceDetail:
+def delete_payment(
+    invoice_id: api.PathId, payment_id: api.PathId, user: CurrentUser, today: api.Today, now: api.Now
+) -> schemas.InvoiceDetail:
     """What's owed goes back up, and a paid invoice shows as part paid, issued or overdue again (V17)."""
     with db.writing() as conn:
         get_row(conn, invoice_id)
         this_payment = (payments.c.id == payment_id) & (payments.c.invoice_id == invoice_id)
         if conn.scalar(select(payments.c.id).where(this_payment)) is None:
             raise HTTPException(404, "Payment not found")
+        books_post.reverse(
+            conn,
+            source=books_post.payment_source(payment_id, invoice_id),
+            event="payment_deleted",
+            user=user,
+            now=now,
+        )
         conn.execute(delete(payments).where(this_payment))
         return detail(conn, invoice_id, today)

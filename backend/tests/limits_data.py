@@ -1,7 +1,8 @@
 """Fills a database to the Q1 limits: 1,000 contacts, 500 deals, 5,000 activities, 500 products,
 1,000 quotes with 5,000 lines between them, the last a draft with 100 lines for the speed tests,
 1,000 invoices with 3,000 lines and 1,500 payments, and 1,000 bills, with an opening balance
-from before the oldest payment, so the cash flow folds every day of them.
+from before the oldest payment, so the cash flow folds every day of them, and the books' entries for
+all of them, posted by the code every save uses.
 
 Run on its own, it replaces everything in the ACCOUNTABLE_DB database, for the
 end-to-end stress tests. It refuses to touch the real data folder.
@@ -12,6 +13,7 @@ import sys
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import Connection, insert, select, update
 
@@ -302,7 +304,46 @@ def _invoices(
             for place, (quantity, price) in enumerate(quantities, start=1)
         ],
     )
-    conn.execute(insert(payments), _payments(rows, invoice_ids, today, now))
+    made = _payments(rows, invoice_ids, today, now)
+    payment_ids = conn.scalars(insert(payments).returning(payments.c.id, sort_by_parameter_order=True), made).all()
+    _post_invoices(conn, rows, invoice_ids, now)
+    _post_payments(conn, made, payment_ids, now)
+
+
+def _post_invoices(conn: Connection, rows: list[dict], invoice_ids: Sequence[int], now: datetime) -> None:
+    """Each issued and void invoice's entry, and a void one's reversal, through the code every save uses."""
+    from accountable.books import post
+
+    for invoice_id, row in zip(invoice_ids, rows, strict=True):
+        if row["status"] == "draft":
+            continue
+        post.invoice_issued(
+            conn,
+            invoice_id=invoice_id,
+            on=row["issue_date"],
+            subtotal_cents=row["subtotal_cents"],
+            tax_cents=row["tax_cents"],
+            total_cents=row["total_cents"],
+            user=row["issued_by"],
+            now=now,
+        )
+        if row["status"] == "void":
+            post.reverse(conn, source=post.invoice_source(invoice_id), event="invoice_voided", user=None, now=now)
+
+
+def _post_payments(conn: Connection, made: list[dict], payment_ids: Sequence[int], now: datetime) -> None:
+    from accountable.books import post
+
+    for payment_id, payment in zip(payment_ids, made, strict=True):
+        post.payment_recorded(
+            conn,
+            payment_id=payment_id,
+            invoice_id=payment["invoice_id"],
+            on=payment["paid_on"],
+            cents=payment["amount_cents"],
+            user=payment["created_by"],
+            now=now,
+        )
 
 
 def _payments(rows: list[dict], invoice_ids, today: date, now) -> list[dict]:
@@ -345,8 +386,9 @@ def _bills(conn: Connection, today: date, now: datetime, organization_ids: Seque
     """Dated over the last year, due 30 days on. Those due before today are paid, but for one in 10."""
     from accountable import users, who
     from accountable.bills.tables import bill_number_key, bills
+    from accountable.books import post
 
-    bill_rows = []
+    bill_rows: list[dict[str, Any]] = []
     for number in range(BILLS):
         bill_date = today - timedelta(days=number * 7 % 360)
         due_date = bill_date + timedelta(days=30)
@@ -367,18 +409,26 @@ def _bills(conn: Connection, today: date, now: datetime, organization_ids: Seque
                 **who.added(users.teammate(number), now),
             }
         )
-    conn.execute(insert(bills), bill_rows)
+    bill_ids = conn.scalars(insert(bills).returning(bills.c.id, sort_by_parameter_order=True), bill_rows).all()
+    for bill_id, row in zip(bill_ids, bill_rows, strict=True):
+        total = row["amount_cents"] + row["tax_cents"]
+        user = row["created_by"]
+        post.bill_added(
+            conn, bill_id=bill_id, on=row["bill_date"], total_cents=total, category=row["category"], user=user, now=now
+        )
+        if row["paid_on"] is not None:
+            post.bill_paid(conn, bill_id=bill_id, on=row["paid_on"], total_cents=total, user=user, now=now)
 
 
 def _opening_balance(conn: Connection, today: date) -> None:
     """400 days back, before the oldest payment and paid bill, which are under a year old."""
+    from accountable import sample
+    from accountable.books import post
     from accountable.company.tables import company_settings
 
-    conn.execute(
-        update(company_settings).values(
-            opening_balance_cents=25_000_000, opening_balance_on=today - timedelta(days=400)
-        )
-    )
+    on = today - timedelta(days=400)
+    conn.execute(update(company_settings).values(opening_balance_cents=25_000_000, opening_balance_on=on))
+    post.opening_balance(conn, on=on, cents=25_000_000, user=None, now=sample.moment(today - timedelta(days=1), 3))
 
 
 def main() -> int:

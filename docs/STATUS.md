@@ -1001,6 +1001,18 @@ Left as it is: the run instructions below still say the Documents panel sets how
 
 `npm run check` passes: 6,548 tests in 8m 03s, of which 4,442 backend, 1,748 frontend, 339 end-to-end and 19 speed: this branch's tests with main's. One unit test took a second or more, `test_the_data_really_is_at_the_limits` at 1.2s, as before, while another run on the computer was busy.
 
+## The books: build
+
+Accountable keeps double-entry books in the background (J1 to J16, `docs/changes/books/`). Every issued or voided invoice, payment recorded or deleted, bill added, changed, deleted, marked paid or marked unpaid, and every change to the opening balance posts a journal entry inside the same transaction as the change. A reversal swaps the stored lines of the entry it undoes and takes its date, and nothing updates or deletes an entry. Four checks, in `backend/tests/test_books_checks.py`, read the rows and not the posting code: every entry balances, the books balance, Receivable equals what the issued invoices still owe, and Payable equals the unpaid bills. They run on the sample data and after every kind of change.
+
+- **Backend:** `books/` holds the chart (`accounts.py`), the two tables, `post.py` and the three reads, `GET /api/books/balances`, `/months` and `/entries`. `bills/books.py` works out what a bill's save changes. Migration `0012` creates the tables with row-level security and posts the entries for the records the database already has, in a fixed number of statements: the entry rows go in with one statement and their ids are read back, because SQLite runs a many-row insert that returns ids one row at a time.
+- **Frontend:** the menu under the initials has an Accounting group of four links, to four placeholder pages that say the report is coming soon and read nothing.
+- **Sample data:** it posts its entries through the same code as the routes. A sample bill's paid date is no earlier than the cash flow's first day, which a bill paid in the first days of the window was on seeding days such as the 1st of January and of March, so the books' Cash today equals the cash flow's to the cent on every seeding day (J13).
+- **`npm run seed` and `npm run empty`** count journal entries in their question. `empty` posts the opening balance's entry again from the settings it leaves.
+- **Layout:** `books/` imports no other area, and every other area may import `books/post.py` and nothing else of it. `test_layout.py` has a test for each rule.
+- **Spec changes:** `books/post.py`'s functions are named `invoice_issued`, `payment_recorded`, `bill_added`, `bill_paid`, `opening_balance` and `reverse`, not `post_...`, and a later area may import `books/post.py` only, not all of `books/`. `backend.md` and `architecture.md` say so now.
+- **Proof:** this branch's new tests passed as they were written: `test_books_checks.py`, `test_books.py`, `test_books_reads.py`, the migration, CLI, sample-data, limits and layout tests, the frontend's tests, and `e2e/accounting.spec.ts`, `menu.spec.ts` and `data.spec.ts`. The speed tests in `e2e/stress.spec.ts` weren't run here. At the limits the three reads took 10, 23 and 10ms in `test_limits.py`.
+
 ## Running Accountable
 
 Accountable runs two ways:
@@ -1044,6 +1056,8 @@ Invoices bills customers for won deals. New invoice on a won deal's page starts 
 Bills holds the bills the business receives from its suppliers. A supplier is any organization, so add a new one in Organizations first. Each bill has the supplier's bill number, a bill date, a due date 30 days later unless you change it, the amount and the tax as they appear on the bill, and a category. Bills opens on the unpaid ones, earliest due first, so overdue bills come first: a bill is overdue once its due date has passed. Mark paid asks the date you paid it, and Mark unpaid undoes it, with Undo on its message for 10 seconds. An organization's page lists its bills, and an organization with bills can't be deleted.
 
 Below the dashboard's own part, the Money section starts with the cash flow: the money in and out in each of the last 12 months, the cash balance at each month's end, and a dashed forecast for the next 3 months from the open invoices and unpaid bills. The Likely deals switch adds the open deals as a band on top of the forecast, and clicking this month or a forecast month lists what's expected in it. The balance counts from the opening balance in Company settings, and without one the chart shows money in and out with no balance. Below the cash flow, the Money section puts what customers owe us beside what we owe suppliers. On the left: what customers owe, how much is overdue and how late, and the payments received each month. On the right: what we owe and what's overdue, a timeline of the bills due in the next 30 days, and spending by category for the last 12 months.
+
+The menu under your initials also has an Accounting group, with Profit and loss, Balance sheet, Journal and Aged balances. Each page says its report is coming soon. Behind them the books are kept: the first start after this change posts the entries for every invoice, payment, bill and opening balance the database already has, so the books are complete from the start, and on a new database the sample data posts its own.
 
 The search box in the top bar finds organizations, contacts, deals and active products by any part of their name. The round button at the top right, with your initials, opens a menu with your name, the theme, Company settings and Sign out. Company settings holds the business's details for its quotes and invoices: its name, address, email and phone, the sales tax, the payment terms, and the prefixes for quote and invoice numbers. Its Cash panel holds the opening balance, the cash in the bank at the start of a chosen day, which the dashboard's cash flow counts from. Its Documents panel sets how invoices look: one of three designs, an accent color and the company's logo, with a sample invoice that changes as you choose. The whole team shares one set. The theme can be Light, Dark, or System, which follows your computer's own setting as it changes. This browser remembers your choice.
 
@@ -1114,12 +1128,12 @@ The first start against an empty Supabase project builds the tables and fills th
 
 #### Clear the sample data
 
-When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, quote, invoice, payment and bill, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, no logo, no opening balance, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
+When the team is ready to type in its own records, run this in Supabase's SQL Editor. It removes every organization, contact, deal, activity, stage change, product, quote, invoice, payment and bill, and the books' journal entries with them, and starts the counts that number quotes and invoices again at 1. It also resets the company settings, so the made-up company is gone: no company name, address, email or phone, Sales tax at 0%, payment terms of 30 days, QT- and INV- as the prefixes, the Classic design in Midnight, no logo, no opening balance, and nobody shown as having changed them. It leaves the people and the tables in place. It's one transaction, so if any part fails, nothing changes.
 
 ```sql
 begin;
 truncate table quote_lines, quotes, payments, invoice_lines, invoices, activities, stage_changes, deals, contacts,
-  organizations, bills, products, number_counters;
+  organizations, bills, products, number_counters, journal_lines, journal_entries;
 delete from company_logo;
 update company_settings set
   company_name = default, address = default, email = default, phone = default,
@@ -1130,7 +1144,7 @@ update company_settings set
 commit;
 ```
 
-Quotes, invoices with their lines and payments, and bills are in the same `truncate` as the deals, organizations and products because each quote and invoice points at its deal, an issued invoice at its organization, their lines at the products and each bill at its supplier, and Postgres won't empty a table that another table's rows still point at. Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
+The journal's two tables are in the same `truncate`, so the books are cleared with the records they came from and never disagree with them, and the opening balance's entry goes with them because the settings' opening balance is reset too. Quotes, invoices with their lines and payments, and bills are in the same `truncate` as the deals, organizations and products because each quote and invoice points at its deal, an issued invoice at its organization, their lines at the products and each bill at its supplier, and Postgres won't empty a table that another table's rows still point at. Because it resets the company settings, it's for the start, before the team enters its own company details. Afterwards the Company settings page asks for the company name. New records carry on from the next id, so an old address never opens a different record. There's no undo.
 
 #### Put it on Render
 

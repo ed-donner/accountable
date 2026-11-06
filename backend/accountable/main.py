@@ -26,6 +26,8 @@ from accountable.bills import cash as bills_cash
 from accountable.bills import router as bills
 from accountable.bills import schemas as bills_schemas
 from accountable.bills import tables as bills_tables
+from accountable.books import router as books_router
+from accountable.books import schemas as books_schemas
 from accountable.cash import Cash
 from accountable.cashflow import router as cashflow
 from accountable.cashflow import schemas as cashflow_schemas
@@ -107,6 +109,8 @@ AREAS = [
     Area(routers=[bills.router], messages=bills_schemas.FIELD_MESSAGES, holds=bills_tables.HOLDS, cash=bills_cash.CASH),
     # The cash flow keeps no records, and reads every area's money from the app.
     Area(routers=[cashflow.router], messages=cashflow_schemas.FIELD_MESSAGES),
+    # The books keep their own tables, post nothing from here, and give no holds, cash or search kinds.
+    Area(routers=[books_router.router], messages=books_schemas.FIELD_MESSAGES),
 ]
 
 

@@ -15,6 +15,7 @@ from sqlalchemy import Connection, Row, and_, delete, func, insert, or_, select,
 
 from accountable import api, db, who
 from accountable.auth import CurrentUser
+from accountable.books import post as books_post
 from accountable.company import characters, documents, tax
 from accountable.company.lines import LineToSave, document_figures, lines_of, same_lines, write_lines
 from accountable.company.schemas import rate_text
@@ -394,6 +395,16 @@ def _issue(conn: Connection, invoice_id: int, user: str, today: date, now: datet
             **who.changed(user, now),
         )
     )
+    books_post.invoice_issued(
+        conn,
+        invoice_id=invoice_id,
+        on=today,
+        subtotal_cents=totals.subtotal_cents,
+        tax_cents=totals.tax_cents,
+        total_cents=totals.total_cents,
+        user=user,
+        now=now,
+    )
 
 
 @router.post("/{invoice_id}/issue")
@@ -421,6 +432,9 @@ def void_invoice(invoice_id: api.PathId, user: CurrentUser, today: api.Today, no
             update(invoices)
             .where(invoices.c.id == invoice_id)
             .values(status=VOID, voided_by=user, voided_at=now, **who.changed(user, now))
+        )
+        books_post.reverse(
+            conn, source=books_post.invoice_source(invoice_id), event="invoice_voided", user=user, now=now
         )
         return detail(conn, invoice_id, today)
 

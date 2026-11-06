@@ -555,6 +555,53 @@ describe("the app, signed in", () => {
     expect(await screen.findByLabelText("Company name")).toBeTruthy();
   });
 
+  it.each([
+    ["/accounting/profit-and-loss", "Profit and loss", "What the business earned"],
+    ["/accounting/balance-sheet", "Balance sheet", "What the business owns and owes"],
+    ["/accounting/journal", "Journal", "Every entry in the books"],
+    ["/accounting/aged-balances", "Aged balances", "What customers owe"],
+  ])("opens %s inside the top bar, with no section marked", async (address, title, words) => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    render(<App />);
+    visit(address);
+    expect((await heading()).textContent).toBe(title);
+    expect(screen.getByText("This report is coming soon.")).toBeTruthy();
+    expect(screen.getByText(new RegExp(words))).toBeTruthy();
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
+    expect(topBar().queryByRole("link", { current: "page" })).toBeNull();
+  });
+
+  it("opens Profit and loss at /accounting, replacing that address", async () => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    render(<App />);
+    visit("/accounting");
+    expect((await heading()).textContent).toBe("Profit and loss");
+    expect(window.location.pathname).toBe("/accounting/profit-and-loss");
+  });
+
+  it("says an address under /accounting that isn't a page no longer exists, keeping the top bar", async () => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    render(<App />);
+    visit("/accounting/trial-balance");
+    expect((await heading()).textContent).toBe("This page no longer exists");
+    expect(topBar().getAllByRole("link")).toHaveLength(9);
+  });
+
+  it("gets the menu's Accounting links from App.tsx, and opens a page from one", async () => {
+    mockApi({ "GET /meta": META, "GET /me": ALEX });
+    render(<App />);
+    visit("/");
+    await heading();
+    const clicks = user();
+    await clicks.click(await screen.findByRole("button", { name: "Menu for Alex Rivera" }));
+
+    await clicks.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Balance sheet" }));
+
+    expect((await heading()).textContent).toBe("Balance sheet");
+    expect(window.location.pathname).toBe("/accounting/balance-sheet");
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   it("goes to a section from the top bar", async () => {
     visit("/");
     render(<App />);

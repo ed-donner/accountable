@@ -114,6 +114,21 @@ for (const [name, route] of [
   });
 }
 
+// The books' balances, totals by month and a page of entries, from the entries of every invoice, payment and bill (Q1, J14).
+for (const [name, route] of [
+  ["The books' balances", "/api/books/balances"],
+  ["The books' totals by month", "/api/books/months"],
+  ["A page of the books' entries", "/api/books/entries"],
+]) {
+  test(`${name} arrive in under 200ms`, async ({ page, sessionToken }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("revenue-this-month")).toBeVisible();
+    const elapsed = await medianRead(page, sessionToken, route);
+    console.log(`${name}: ${elapsed.toFixed(1)}ms`);
+    expect(elapsed).toBeLessThan(200);
+  });
+}
+
 test("an invoice's PDF downloads in under a second", async ({ page, request, sessionToken }) => {
   const invoices: { id: number; number: string | null }[] = await (await request.get("/api/invoices")).json();
   const issued = invoices.find((invoice) => invoice.number !== null)!;

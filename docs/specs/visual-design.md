@@ -14,9 +14,9 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| Page | `#F0F4F5` | `#04232E` | Page background, row hover, inputs including the search box, secondary buttons, percentage pills, the highlighted menu item and search result |
+| Page | `#F0F4F5` | `#04232E` | Page background, row hover, inputs including the search box, secondary buttons, percentage pills, the highlighted menu item and search result, the Copilot button while its panel is closed, and the person's messages and change cards in the Copilot's panel |
 | Panel | `#FFFFFF` | `#0B3240` | Panels, cards, the top bar, the sign-in panel, the revenue figure's backing |
-| Raised | `#FFFFFF` | `#12404F` | Dialogs, the menu, search results, picker lists, chart tooltips and messages, which float over the rest |
+| Raised | `#FFFFFF` | `#12404F` | Dialogs, the menu, search results, picker lists, chart tooltips and messages, which float over the rest, and the Copilot's panel, with Cancel on its change cards |
 | Ink | `#073B4C` Midnight | `#CDD8DB` Sea Mist | Body text and headings, the revenue line, the deals-won bars, the Won fill, the cash flow's balance line |
 | Ink on Won | `#CDD8DB` Sea Mist | `#073B4C` Midnight | Text on the Won fill |
 | Midnight | `#073B4C` | `#073B4C` | Text on Sea Green, Marigold and Coral, including on the revenue chart's fill |
@@ -28,11 +28,11 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Soft Coral | `#FBC6B5` | `#815F56` | Money expected out on the cash flow, halfway between Coral and the panel |
 | Soft Marigold | `#FFE0A2` | `#857A43` | The cash flow's likely deals band, halfway between Marigold and the panel |
 | Focus ring | `#118AB2` Cerulean | `#4CB3D6` | Focus rings, a lighter Cerulean in dark mode so it shows on every layer |
-| Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, including Sign in, current section, the chosen period on Profit and loss, the paid part of an invoice's bar, the chosen design's ring, money in on the cash flow |
+| Primary | `#06D6A0` Sea Green, Midnight text | Same | Main buttons, including Sign in, current section, the Copilot button while its panel is open, the chosen period on Profit and loss, the paid part of an invoice's bar, the chosen design's ring, money in on the cash flow |
 | Secondary | `#FFC145` Marigold, Midnight text | Same | The initials circle, on the menu button and the local copy's sign-in screen |
 | Sea Green text | `#047A5B` | `#51E2BC` | If Sea Green is ever needed as text, and a switch's track while it's on |
 | Marigold text | `#866522` | `#FFD47D` | If Marigold is ever needed as text |
-| Raspberry text | `#D23E62` | `#F591A9` | Error messages beside a field. Light mode uses the Alert chip's shade |
+| Raspberry text | `#D23E62` | `#F591A9` | Error messages beside a field, and the alert icon of a failed step or a problem in the Copilot's panel. Light mode uses the Alert chip's shade |
 | Information | `#118AB2` Cerulean, white text | Same | Stage-change entries, charts, the Not yet due part in How late and Aged balances, and the icon before the Company settings page's ask for a company name |
 | Alert | `#EF476F` Raspberry, white text | Same | Delete buttons, charts, the 61 to 90 days part in How late and Aged balances, the owed part of an overdue invoice's bar |
 | Deep Raspberry | `#A31D45` | `#C23560` | The Over 90 days part in How late and Aged balances, the last step from calm to alarming. White-panel contrast is 7.45:1 in light mode and 2.57:1 against the dark panel, which is why the parts are also named and given as amounts, never by color alone |
@@ -43,7 +43,7 @@ Dark mode keeps the brand skill's page and Sea Mist ink, but not its black panel
 | Paper | `#FFFFFF` | `#FFFFFF` | Behind a quote's preview, under its white pages |
 | Paper muted ink | `#4A6B76` | `#4A6B76` | The scrollbar of a quote's preview, on paper |
 | Veil | Midnight at 40% | Black at 50% | Behind dialogs |
-| Shadow | Midnight, 18% to 24% | Black, 40% to 50% | Dialogs, the menu, search results, picker lists, chart tooltips, messages, the dragged card |
+| Shadow | Midnight, 18% to 24% | Black, 40% to 50% | Dialogs, the menu, search results, picker lists, chart tooltips, messages, the Copilot's panel, the dragged card |
 
 Small text meets 4.5:1 in both modes, and anything that isn't text, such as the focus ring, meets 3:1:
 
@@ -152,7 +152,7 @@ The fonts are bundled through Fontsource, so nothing loads from outside the app'
 | Probability and date on cards | JetBrains Mono | 12/18 | 400 |
 | Chart axis | JetBrains Mono | 12/16 | 400 |
 
-Numbers are always in JetBrains Mono, so columns of figures line up. Quotes and invoices set their own sizes, in points, in their designs ([V28](invoices.md#designs)). Instrument Serif appears in one place only: the dashboard's summary line.
+Numbers are always in JetBrains Mono, so columns of figures line up. The one exception is the Copilot's answers, which are the model's own text, so their figures can't be picked out reliably and stay in the body font. Its change cards, whose words the backend writes, have their money, dates and percentages in JetBrains Mono. Quotes and invoices set their own sizes, in points, in their designs ([V28](invoices.md#designs)). Instrument Serif appears in one place only: the dashboard's summary line.
 
 ### Shapes
 
@@ -190,7 +190,7 @@ Numbers are always in JetBrains Mono, so columns of figures line up. Quotes and 
 
 ### Motion
 
-The revenue line and its fill draw in once on load. Cards slide apart while one is dragged, and settle into place when dropped. Dialogs fade in quickly. Nothing else moves, and all of it stops under reduced motion. Switching between light and dark mode is instant, with no fade.
+The revenue line and its fill draw in once on load. Cards slide apart while one is dragged, and settle into place when dropped. Dialogs fade in quickly. So does the Copilot's panel, and a Copilot step's loader turns while the step runs. Nothing else moves, and all of it stops under reduced motion. Switching between light and dark mode is instant, with no fade.
 
 ### Words
 
@@ -220,6 +220,12 @@ Plain business English, short labels, no exclamation marks.
 | No search matches | No organizations, contacts, deals or products match "harbour". |
 | Search failed | Couldn't search. Try again. |
 | More search results | See all 12 contacts |
+| Copilot | Copilot. New conversation. Close. Ask a question or for a change. Send. Stop. Try again. Cancel. |
+| Copilot, before the first message | The Copilot can look up anything in Accountable, and add or change organizations, contacts, deals and activities. It asks before changing anything. Which deals close this month? What do customers owe us? Move a deal to Negotiation. Questions, and the records the Copilot reads to answer them, go to openrouter/free through OpenRouter. It can get things wrong, so check anything important on its page. |
+| Copilot steps | Searching for "acme". Listing deals closing Nov 1 to Nov 30, 2026. Reading the dashboard. Read Harbor & Pine renewal. Couldn't read this. This deal no longer exists. |
+| Copilot change card | Move Harbor & Pine renewal to Negotiation? Stage: from Proposal to Negotiation. The close date becomes today, and Sam Carter becomes a customer. Moved Harbor & Pine renewal to Negotiation. Cancelled. Nothing was changed. |
+| Copilot change buttons | Add organization. Save organization. Add contact. Save contact. Add deal. Save deal. Move deal. Add activity. Mark done. |
+| Copilot problems | The words in [Z21](copilot.md#the-model). The Copilot stopped after 8 steps without an answer. Try asking something narrower. |
 | Messages | Deal saved. Deal deleted. Product archived. Product restored. Settings saved. Quote saved. Quote sent. Quote declined. Copied to QT-0012. Draft saved. Draft deleted. Invoice issued. Invoice voided. Payment recorded. Payment deleted. Bill saved. Bill deleted. Bill marked paid. Bill marked unpaid. |
 | Quote accepted | Quote accepted. Harbor & Pine renewal is now Won at $48,001. Close date set to today. Sam Carter is now a customer. |
 | Quote dialogs | Mark QT-0004 as sent? It can't be changed after this. To change it later, copy it to a new draft. Accept QT-0004? Decline QT-0004? This can't be undone. |
@@ -266,7 +272,7 @@ Money always carries its currency, as in `$48,000`. A product's price also carri
 - **Mockup 3, Deal wall:** the style of the pipeline board.
 - **A top-down sales funnel** in place of Mockup 2's funnel bars, in the style common in sales CRMs.
 
-Organizations, Contacts, Deals, Products, Quotes, Invoices, Bills, the record pages, the dashboard's Money section, Profit and loss and the Balance sheet aren't in the mockup, and follow the screens in [profit-and-loss.md](profit-and-loss.md#screens), [balance-sheet.md](balance-sheet.md#screens), [records.md](records.md#screens), [products.md](products.md#screens), [quotes.md](quotes.md#screens), [invoices.md](invoices.md#screens), [bills.md](bills.md#screens) and [cash-flow.md](cash-flow.md#screens), with the Money section laid out as one in [dashboard.md](dashboard.md#dashboard-1), with the same shell, colors and type. Nor is the quote document, the preview and the PDF, which [quotes.md](quotes.md#quote-document) sets out, or the invoice's three designs, which [invoices.md](invoices.md#designs) sets out. Nor are the sign-in screen, the search results, the menu and the Company settings page, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell) and [settings.md](settings.md#company-settings-page). The mockup's top bar has no Products, Quotes, Invoices or Bills section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
+Organizations, Contacts, Deals, Products, Quotes, Invoices, Bills, the record pages, the dashboard's Money section, Profit and loss and the Balance sheet aren't in the mockup, and follow the screens in [profit-and-loss.md](profit-and-loss.md#screens), [balance-sheet.md](balance-sheet.md#screens), [records.md](records.md#screens), [products.md](products.md#screens), [quotes.md](quotes.md#screens), [invoices.md](invoices.md#screens), [bills.md](bills.md#screens) and [cash-flow.md](cash-flow.md#screens), with the Money section laid out as one in [dashboard.md](dashboard.md#dashboard-1), with the same shell, colors and type. Nor is the quote document, the preview and the PDF, which [quotes.md](quotes.md#quote-document) sets out, or the invoice's three designs, which [invoices.md](invoices.md#designs) sets out. Nor are the sign-in screen, the search results, the menu, the Company settings page and the Copilot's panel, which follow their own screens in [sign-in.md](sign-in.md#sign-in-screen), [search.md](search.md#search-box-and-results), [shell.md](shell.md#shell), [settings.md](settings.md#company-settings-page) and [copilot.md](copilot.md#copilot-button-and-panel). The mockup's top bar has no Products, Quotes, Invoices or Bills section, search box or menu, and ends with the date. Mockups 1 to 3 stay in `docs/mockups/` as a record of the options, and aren't a reference. The figures in the mockups come from `docs/mockups/shared.js` and are examples. The app's sample data follows M1 to M6.
 
 The mockups show light mode only. Dark mode follows the dark values in [Color tokens](#color-tokens), and `docs/changes/dark-mode/` holds screenshots of the dashboard and the pipeline in both modes, at 1440 by 900 with the sample data.
 

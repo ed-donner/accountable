@@ -46,6 +46,8 @@ So a contact can't be added before their organization exists, and a deal can't b
 - **F11.** A form that can't read the lists it needs closes and says so, rather than opening with an empty picker.
 - **F12.** The activity form's When box holds minutes. Leaving it untouched keeps the activity's exact time.
 
+The Copilot adds and edits organizations, contacts, deals and activities through the same routes as these forms, so every rule here holds for it too, and a refusal reaches it in the same words ([Z11](copilot.md#what-it-can-change)).
+
 ## Deleting
 
 - **D1.** Delete always asks first, in a dialog that names the record, gives the real counts and says it can't be undone. An activity is named by its description. If the counts can't be read, the dialog says so and won't delete.

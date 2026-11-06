@@ -155,7 +155,8 @@ for (const [name, view] of [
       const start = Date.now();
       await page.goto(`/accounting/aged-balances?view=${view}`);
       await expect(page.getByRole("button", { name: /^(Invoices|Bills) of / })).toHaveCount(25);
-      await expect(page.getByRole("button", { name: "Show 25 more" })).toBeVisible();
+      // Show more names how many are left, up to 25.
+      await expect(page.getByRole("button", { name: /^Show \d+ more$/ })).toBeVisible();
       readings.push(Date.now() - start);
     }
     console.log(`Aged balances, ${name}, 25 rows: ${median(readings)}ms`);

@@ -8,13 +8,10 @@ import { addBill, addIssuedInvoice, isoDay, resetToSampleData } from "./helpers"
 test.describe.configure({ mode: "serial" });
 test.beforeAll(resetToSampleData);
 
-// The placeholders. Profit and loss has its real page, which e2e/profit-and-loss.spec.ts covers.
-const PAGES = [
-  {
-    label: "Balance sheet",
-    path: "/accounting/balance-sheet",
-    words: "What the business owns and owes on any day you choose, and what's left over for the owner.",
-  },
+// The words of each page that is still a placeholder. Profit and loss and Balance sheet have files of their own.
+const PAGES: { label: string; path: string; words: string | null }[] = [
+  { label: "Profit and loss", path: "/accounting/profit-and-loss", words: null },
+  { label: "Balance sheet", path: "/accounting/balance-sheet", words: null },
   {
     label: "Journal",
     path: "/accounting/journal",
@@ -49,7 +46,6 @@ test("the menu has Accounting with its four links, in order, between the themes 
   await page.goto("/");
   await menuButton(page).click();
   await expect(menu(page).getByRole("menuitem")).toHaveText([
-    "Profit and loss",
     ...PAGES.map(({ label }) => label),
     "Company settings",
     "Sign out",
@@ -61,6 +57,7 @@ test("the menu has Accounting with its four links, in order, between the themes 
 
 for (const mode of ["light", "dark"] as const) {
   for (const { label, path, words } of PLACEHOLDERS) {
+    if (words === null) continue;
     test(`${label} opens from the menu in ${mode} mode with its title and its words`, async ({ page }) => {
       await page.goto("/");
       await menuButton(page).click();

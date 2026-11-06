@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from fastapi import Query
 from pydantic import AfterValidator, BaseModel
 
-from accountable.api import CentsSum, PageOffset, UtcTime
+from accountable.api import CentsSum, FieldError, PageOffset, UtcTime
 from accountable.books import accounts, profit_and_loss
 from accountable.users import Person
 
@@ -44,6 +44,13 @@ def _month(value: str) -> str:
     return value
 
 
+def check_accounts(keys: list[str] | None) -> list[str] | None:
+    """The accounts given to the entries route, each checked, with the one message beside `account`."""
+    if keys and any(key not in accounts.BY_KEY for key in keys):
+        raise FieldError({"account": ACCOUNT_MESSAGE})
+    return keys
+
+
 def _account(value: str) -> str:
     if value not in accounts.BY_KEY:
         raise ValueError(ACCOUNT_MESSAGE)
@@ -52,6 +59,7 @@ def _account(value: str) -> str:
 
 MonthQuery = Annotated[str, Query(), AfterValidator(_month)]
 AccountQuery = Annotated[str, Query(), AfterValidator(_account)]
+ENTRIES_ACCOUNTS = Annotated[list[str] | None, Query()]
 Limit = Annotated[int, Query(ge=1, le=500)]
 Offset = PageOffset
 

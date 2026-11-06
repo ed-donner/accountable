@@ -3,7 +3,6 @@ import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { BalanceSheet } from "./pages/BalanceSheet";
 import { Journal } from "./pages/Journal";
 import { Shell, type Section } from "../components/Shell";
 import { queryDefaults } from "../lib/queryDefaults";
@@ -17,12 +16,6 @@ const SECTIONS: Section[] = Array.from({ length: 9 }, (_, place) => ({
 }));
 
 const PAGES = [
-  [
-    "/accounting/balance-sheet",
-    BalanceSheet,
-    "Balance sheet",
-    "What the business owns and owes on any day you choose, and what's left over for the owner.",
-  ],
   [
     "/accounting/journal",
     Journal,

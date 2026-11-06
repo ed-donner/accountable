@@ -227,6 +227,64 @@ def test_an_account_keeps_every_line_of_each_entry_that_touches_it(books):
     assert {line["account"] for line in entry["lines"]} == {"receivable", "revenue", "tax_payable"}
 
 
+PROFIT_ACCOUNTS = [key for key in ACCOUNT_KEYS if key == "revenue" or key.startswith("expense_")]
+
+
+def profit_effect(entry: dict) -> int:
+    """A credit to Revenue adds to Profit to date and a debit to an expense takes away: credit less debit."""
+    return sum(
+        line["credit_cents"] - line["debit_cents"] for line in entry["lines"] if line["account"] in PROFIT_ACCOUNTS
+    )
+
+
+def test_two_accounts_keep_an_entry_that_touches_either_once(books):
+    reply = entries(books, account=["cash", "tax_payable"])
+    cash = entries(books, account="cash")
+    tax = entries(books, account="tax_payable")
+    ids = [entry["id"] for entry in reply["entries"]]
+    assert len(ids) == len(set(ids)) == reply["total"]
+    assert set(ids) == {entry["id"] for entry in cash["entries"] + tax["entries"]}
+
+
+def test_an_entry_with_lines_in_both_accounts_is_in_the_page_and_the_total_once(books):
+    reply = entries(books, account=["receivable", "revenue"])
+    both = [
+        entry for entry in reply["entries"] if {line["account"] for line in entry["lines"]} >= {"receivable", "revenue"}
+    ]
+    assert len(both) == 2
+    assert reply["total"] == len(reply["entries"])
+
+
+def test_revenue_and_the_expense_accounts_together_add_up_to_profit_to_date(books):
+    for day in ("2026-02-09", "2026-03-20", "2026-04-30", "2026-10-31"):
+        found = entries(books, account=PROFIT_ACCOUNTS, to=day)["entries"]
+        profit = sum(profit_effect(entry) for entry in found)
+        now = balances(books, day)
+        expected = int(now["revenue"]) - sum(int(now[key]) for key in PROFIT_ACCOUNTS if key != "revenue")
+        assert profit == expected
+
+
+def test_paging_through_several_accounts_keeps_one_total(books):
+    keys = ["cash", "payable"]
+    everything = entries(books, account=keys)
+    pages = [entries(books, account=keys, limit=2, offset=offset) for offset in range(0, everything["total"], 2)]
+    assert {page["total"] for page in pages} == {everything["total"]}
+    paged = [entry["id"] for page in pages for entry in page["entries"]]
+    assert paged == [entry["id"] for entry in everything["entries"]]
+
+
+@pytest.mark.parametrize("params", [["cash", "bank"], ["bank", "cash"], ["cash", "payable", "bank"]])
+def test_a_bad_account_anywhere_in_the_list_is_refused_beside_its_field(api, params):
+    reply = api.get(ENTRIES, params={"account": params})
+    assert reply.status_code == 422
+    assert reply.json()["fields"] == {"account": "Choose one of the books' accounts"}
+
+
+def test_one_account_and_no_account_reply_as_before(books):
+    assert entries(books, account=["cash"]) == entries(books, account="cash")
+    assert entries(books)["total"] == 9
+
+
 def test_limit_offset_and_the_total_page_through_the_entries(books):
     first = entries(books, limit=4)
     second = entries(books, limit=4, offset=4)

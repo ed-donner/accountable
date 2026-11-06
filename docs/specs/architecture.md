@@ -231,8 +231,8 @@ frontend/src/
                                   and colors, which How late and the aged balances share (X12)
                                   categories.tsx, the six bill categories in order with their labels, colors and round
                                   swatch, and StackSegment, which draws a segment of a stacked column and keeps a small
-                                  one tall enough to see, which the Money section's Spending by category and the
-                                  Profit and loss chart both use
+                                  one tall enough to see, which the Money section's Spending by category, the
+                                  Profit and loss chart and the balance sheet's bars all use
   crm/
     queries.ts, deals.ts, Timeline.tsx, searchGroups.tsx and others
     forms/                        organization, contact, deal and activity forms
@@ -280,11 +280,11 @@ frontend/src/
     charts/                       MoneySection, with BillsMoney, bills' side of the Money section, DueTimeline and
                                   SpendingChart
     pages/                        Bills and Bill
-  books/                          the Accounting pages (J15, J16, X1 to X19), which import no other area
-    AccountingPage.tsx            the placeholder the two reports still to come are: its title, "This report is coming
+  books/                          the Accounting pages (J15, J16, X1 to X19 and the Balance sheet's X1 to X18), which import no other area
+    AccountingPage.tsx            the placeholder the one report still to come is: its title, "This report is coming
                                   soon." and what the report will show
-    pages/                        BalanceSheet and Journal, each a title and a sentence handed to
-                                  AccountingPage, and ProfitAndLoss, the page of its own
+    pages/                        Journal, a title and a sentence handed to
+                                  AccountingPage, and ProfitAndLoss and BalanceSheet, pages of their own
     profit/                       Profit and loss, which reads only /api/books/profit-and-loss:
       queries.ts                  its types, the read for a period and a day, and the read of the entries behind a figure
       ProfitChart.tsx             the 12 months' columns and profit line, with Recharts, and the table behind it
@@ -293,6 +293,13 @@ frontend/src/
       EntriesDialog.tsx           the entries behind a figure, with Show more
       figures.ts                  sums, the margin and the changes as words, and no sums of their own
       test-profit.ts              the tests' replies for a today of Nov 5, 2026, and the chart's size
+    balance.ts                    the balance sheet's own sums, in BigInt: the 12 stops, the columns' figures, Profit
+                                  to date, the totals and the difference, with no React in it
+    queries.ts                    its types, and reading the balances on a day and a page of entries, keyed by the day
+    DateSlider.tsx                the range input with the stops' month names under it
+    BalanceBars.tsx               the two stacked bars, drawn with Recharts and StackSegment, and the table behind them
+    BalanceColumns.tsx            the two columns of accounts and their totals, and the mark that the sides are equal
+    EntriesDialog.tsx             the entries behind a figure, with Show more
     links.ts                      the four pages' addresses and labels, which App.tsx gives the menu and its routes
   aging/                          the Aged balances page (X1 to X20), which imports no other area
     queries.ts                    its types, and reading a view for a day, keyed by the view and the day

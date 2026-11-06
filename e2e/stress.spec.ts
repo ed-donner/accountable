@@ -124,6 +124,14 @@ for (const [name, route] of [
     "A page of the entries behind a figure",
     `/api/books/profit-and-loss/entries?figure=profit&from=${isoDay(-90)}&to=${isoDay()}`,
   ],
+  // The balance sheet's Profit to date: Revenue and the six expense accounts in one read (X15).
+  [
+    "Profit to date's entries, with seven accounts given,",
+    `/api/books/entries?${["revenue", "software", "contractors", "travel", "office", "marketing", "other"]
+      .map((key) => `account=${key === "revenue" ? key : `expense_${key}`}`)
+      .join("&")}&limit=100`,
+  ],
+  ["The balances for a day", `/api/books/balances?on=${isoDay(-30)}`],
 ]) {
   test(`${name} arrive in under 200ms`, async ({ page, sessionToken }) => {
     await page.goto("/");

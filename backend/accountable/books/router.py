@@ -190,14 +190,14 @@ def _entry_fields(row, lines: list[schemas.Line], names: dict[tuple[str, int], s
 @router.get("/entries")
 def entries(
     labels: AppLabels,
-    account: Annotated[schemas.AccountQuery | None, Query()] = None,
+    account: schemas.ENTRIES_ACCOUNTS = None,
     first: Annotated[date | None, Query(alias="from")] = None,
     last: Annotated[date | None, Query(alias="to")] = None,
     limit: schemas.Limit = schemas.DEFAULT_LIMIT,
     offset: schemas.Offset = 0,
 ) -> schemas.Entries:
     """The entries behind a figure, newest first and then by id, each with all of its lines."""
-    conditions = _matching([account] if account else [], first, last)
+    conditions = _matching(schemas.check_accounts(account) or [], first, last)
     with db.reading() as conn:
         page = _page_of(conn, conditions, limit, offset)
         total = conn.execute(select(func.count()).select_from(journal_entries).where(*conditions)).scalar_one()

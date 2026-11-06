@@ -86,9 +86,15 @@ type RowProps = { row: AgedRow; view: View; largest: number; open: boolean; onTo
 /** The row opens its items on a click anywhere in it, and by the keyboard through its button. */
 function OrganizationRow({ row, view, largest, open, onToggle }: RowProps) {
   const { noun, items } = WORDS[view];
+  const [focused, setFocused] = useState(false);
   return (
     <>
-      <tr className="cursor-pointer hover:bg-page" onClick={onToggle}>
+      <tr
+        className="cursor-pointer hover:bg-page"
+        onClick={onToggle}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      >
         <td className={`${CELL} min-w-[240px] whitespace-nowrap`}>
           <div className="flex items-center gap-1">
             <button
@@ -105,7 +111,7 @@ function OrganizationRow({ row, view, largest, open, onToggle }: RowProps) {
           </div>
         </td>
         <td className={`${CELL} w-full min-w-[200px]`}>
-          <AgedBar row={row} largest={largest} noun={noun} />
+          <AgedBar row={row} largest={largest} noun={noun} focused={focused} />
         </td>
         <AmountCells parts={row.parts} total={row.total} />
       </tr>

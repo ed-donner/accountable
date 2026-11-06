@@ -43,6 +43,7 @@ def _owed_by_customers(conn: Connection, on: date) -> list[ages.Owed]:
         .outerjoin(paid, paid.c.invoice_id == invoices.c.id)
         .where(invoices.c.status == ISSUED, invoices.c.issue_date <= on)
     ).all()
+    # Only a zero balance is left out. A negative one is shown, never dropped, so the totals can't drift from the books.
     return [
         ages.Owed(row.id, row.organization_id, row.name, row.number, row.due_date, row.total_cents - row.paid)
         for row in rows

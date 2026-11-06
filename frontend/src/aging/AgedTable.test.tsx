@@ -150,6 +150,23 @@ describe("opening a row", () => {
     expect(opener.getAttribute("aria-expanded")).toBe("false");
   });
 
+  it("shows every part's figures in a tooltip while the row has focus, and hides them when it loses it", async () => {
+    show();
+    const clicks = user();
+    expect(screen.queryByTestId("focus-tip-2")).toBeNull();
+    await clicks.tab();
+    await clicks.tab();
+    await clicks.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Invoices of Harbor & Pine" }));
+    const tip = screen.getByTestId("focus-tip-2");
+    expect(tip.textContent).toContain("Harbor & Pine");
+    expect(tip.textContent).toContain("Not yet due$1,000.001 invoice");
+    expect(tip.textContent).toContain("1 to 30 days$2,000.001 invoice");
+    await clicks.tab();
+    await clicks.tab();
+    expect(screen.queryByTestId("focus-tip-2")).toBeNull();
+  });
+
   it("keeps several open at once", async () => {
     show();
     const clicks = user();

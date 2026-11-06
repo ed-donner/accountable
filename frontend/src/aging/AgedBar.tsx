@@ -22,6 +22,8 @@ type Props = {
   largest: number;
   /** What a part counts: "invoice" or "bill". */
   noun: string;
+  /** The row has the keyboard's focus, which shows every part's figures as pointing at the bar does (X13, Q3). */
+  focused?: boolean;
 };
 
 /** A part's width, never less than the least, but nothing for a part with nothing in it. */
@@ -83,12 +85,43 @@ function Tip({ active, payload, row, noun }: TipProps) {
   );
 }
 
+/** What the tooltip says for a focused row, where no one part is pointed at: each part with money in it. */
+function FocusedTip({ row, noun }: { row: AgedRow; noun: string }) {
+  const present = LATE_PARTS.filter((part) => row.parts.some((owed) => owed.key === part.key && owed.cents > 0n));
+  return (
+    <div
+      aria-hidden="true"
+      data-testid={`focus-tip-${row.id}`}
+      className="absolute bottom-full left-0 z-20 mb-1 w-max max-w-[320px]"
+    >
+      <ChartTooltip
+        label={
+          <>
+            <span className="block text-ink">{row.name}</span>
+            {present.map((part) => {
+              const sum = row.parts.find((owed) => owed.key === part.key)!;
+              return (
+                <span key={part.key} className="flex items-center gap-1.5">
+                  <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: part.color }} />
+                  <span>{part.label}</span>
+                  <span className="num ml-auto pl-3 text-ink">{price(sum.cents)}</span>
+                  <span>{plural(sum.count, noun)}</span>
+                </span>
+              );
+            })}
+          </>
+        }
+      />
+    </div>
+  );
+}
+
 /**
  * One organization's bar: its five parts side by side, Not yet due at the left, each as wide as its
  * amount on a scale shared by the whole view. It draws what the reply says, and the parts are also
  * in the list behind it for a screen reader, where a color alone would say nothing.
  */
-export function AgedBar({ row, largest, noun }: Props) {
+export function AgedBar({ row, largest, noun, focused = false }: Props) {
   const { ref, size } = useSize();
   const leastCents = (BAR.least * Math.max(largest, 1)) / Math.max(size.width, 1);
   const data = [Object.fromEntries(row.parts.map((part) => [part.key, drawnValue(part.cents, leastCents)]))];
@@ -107,6 +140,7 @@ export function AgedBar({ row, largest, noun }: Props) {
           );
         })}
       </ul>
+      {focused && first && <FocusedTip row={row} noun={noun} />}
       {size.width > 0 && first && last && (
         <BarChart
           aria-hidden="true"

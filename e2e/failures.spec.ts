@@ -68,6 +68,12 @@ const SCREENS: Screen[] = [
     shown: (page) => page.getByTestId("revenue-this-month"),
   },
   {
+    name: "Profit and loss",
+    address: () => "/accounting/profit-and-loss",
+    read: () => "/api/books/profit-and-loss",
+    shown: (page) => page.getByRole("region", { name: "Statement" }),
+  },
+  {
     name: "Organizations",
     address: () => "/organizations",
     read: () => "/api/organizations",

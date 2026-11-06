@@ -32,6 +32,7 @@ const SECTIONS = [
   "/quotes",
   "/invoices",
   "/bills",
+  "/accounting/profit-and-loss",
 ];
 const SIZES = [
   { width: 1280, height: 720 },

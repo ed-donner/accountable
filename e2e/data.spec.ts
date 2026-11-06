@@ -235,6 +235,11 @@ test("npm run empty with the app running keeps the teammates and leaves every sc
   await goto(page, "/pipeline");
   await expect(page.getByText("No deals yet. Add the first one.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Add deal to New" })).toBeVisible();
+  await goto(page, "/accounting/profit-and-loss");
+  await expect(page.getByText("The chart will show here once you've issued an invoice or added a bill.")).toBeVisible();
+  const statement = page.getByRole("region", { name: "Statement" });
+  await expect(statement.getByRole("button", { name: /^Revenue, \$0\.00/ })).toBeVisible();
+  await expect(statement.getByRole("button", { name: /^Profit margin, –/ })).toBeVisible();
   for (const path of SCREENS) {
     await goto(page, path);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

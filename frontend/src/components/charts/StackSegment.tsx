@@ -1,6 +1,6 @@
 import { Rectangle, type BarShapeProps } from "recharts";
 
-import { niceTop } from "../../components/charts/axes";
+import { niceTop } from "./axes";
 
 /** The gap in the panel color between two segments of one column, so neighboring colors stay apart. */
 export const STACK_GAP = 2;

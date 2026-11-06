@@ -68,7 +68,10 @@ DESCRIBED = app.openapi()
 SAMPLE_QUERY_VALUES = {"string": "harbor", "integer": "1"}
 # A value a route's own check takes, where it needs one. The fixed today is Oct 31, 2026,
 # so November is a forecast month.
-SAMPLE_QUERIES = {("GET", "/api/cash-flow/expected"): {"month": "2026-11"}}
+SAMPLE_QUERIES = {
+    ("GET", "/api/cash-flow/expected"): {"month": "2026-11"},
+    ("GET", "/api/books/profit-and-loss/entries"): {"figure": "revenue", "from": "2026-10-01", "to": "2026-10-31"},
+}
 # Text JSON can carry that a database can't store: Postgres refuses a NUL character
 # outright, and neither database can encode half of a two-part character.
 UNSTORABLE_TEXT = {"a NUL character": "Harbor\x00Pine", "half of a two-part character": "\ud800"}
@@ -179,6 +182,8 @@ def test_the_routes_were_found():
         ("GET", "/api/books/balances"),
         ("GET", "/api/books/months"),
         ("GET", "/api/books/entries"),
+        ("GET", "/api/books/profit-and-loss"),
+        ("GET", "/api/books/profit-and-loss/entries"),
     ]:
         assert route in READS, route
     assert QUERY_TEXT == [
@@ -188,6 +193,11 @@ def test_the_routes_were_found():
         ("GET", "/api/books/entries", "to"),
         ("GET", "/api/books/months", "from"),
         ("GET", "/api/books/months", "to"),
+        ("GET", "/api/books/profit-and-loss", "period"),
+        ("GET", "/api/books/profit-and-loss", "on"),
+        ("GET", "/api/books/profit-and-loss/entries", "figure"),
+        ("GET", "/api/books/profit-and-loss/entries", "from"),
+        ("GET", "/api/books/profit-and-loss/entries", "to"),
         ("GET", "/api/cash-flow/expected", "month"),
         ("GET", "/api/search", "q"),
     ]

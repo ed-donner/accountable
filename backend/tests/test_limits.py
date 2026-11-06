@@ -76,7 +76,13 @@ def test_the_data_really_is_at_the_limits(full):
 CASH_FLOW_MONTH = "/api/cash-flow/expected?month=2026-11"
 
 
-BOOKS = ["/api/books/balances", "/api/books/months", "/api/books/entries"]
+BOOKS = [
+    "/api/books/balances",
+    "/api/books/months",
+    "/api/books/entries",
+    "/api/books/profit-and-loss",
+    "/api/books/profit-and-loss/entries?figure=profit&from=2026-01-01&to=2026-03-31",
+]
 
 
 @pytest.mark.parametrize(
@@ -158,10 +164,14 @@ QUERIES = {
     # The settings, the invoices, the unpaid bills and the open deals.
     CASH_FLOW_MONTH: 4,
     # The books: the balances are one grouped query, the months two, and a page of entries the page,
-    # the count and the lines of the page's entries (J14).
+    # the count, the lines of the page's entries and a name for each kind of record on it (J14).
     "/api/books/balances": 1,
     "/api/books/months": 2,
-    "/api/books/entries": 3,
+    "/api/books/entries": 5,
+    # The 12 months, the period, the one before, and the earliest entry (X18).
+    "/api/books/profit-and-loss": 4,
+    # The page with its count, the figure's total, the lines, and a name for each of invoices and bills.
+    "/api/books/profit-and-loss/entries?figure=profit&from=2026-01-01&to=2026-12-31": 5,
 }
 
 

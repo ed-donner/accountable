@@ -1218,3 +1218,18 @@ You can run the tests in several worktrees at once, with nothing to set. Each ru
 To run some of the end-to-end tests on their own, such as one file, use `npm run e2e -- e2e/settings.spec.ts`. Playwright's own options work after the file, such as `-g "a save"` to pick tests by name.
 
 Each run leaves a report of the end-to-end tests, with a screenshot of each failure. `npx playwright show-report playwright-report/main` opens it, and `playwright-report/speed` has the speed tests'. CI on GitHub doesn't run the end-to-end tests, so run `npm run check` yourself before merging.
+
+## Journal: build
+
+The books are now visible. Every invoice, payment and bill shows an Accounting panel, the Journal page lists every entry with an account filter, From and To dates and a search, and clicking an account anywhere opens its ledger: a chart of its balance over the last 12 months and every line with a running balance. All of it is read only.
+
+- **Backend.** `books/describe.py` writes each entry's sentence; `post` takes the document number (and a bill's supplier). Migration `0013` adds `description` and `document`, fills them in for the entries already there in a fixed number of queries, and adds the `journal_lines (account, entry_id)` index. `GET /books/entries` gains `q`, `kind` and `source_id`; `GET /books/accounts/{key}/ledger` is new, with the running balance worked out in the database by a window function. `search.py`'s `holding` is now public. The first start after this change fills in the descriptions of the entries already in a database.
+- **Frontend.** `books/queries.ts`, `EntryList`, `AccountingPanel`, `AccountLink`, `useLoadMore`, `charts/BalanceChart`, and the Journal and Ledger pages. Invoices and bills import `books/AccountingPanel` and nothing else of `books/` (`layout.test.ts` states it).
+- **Tests.** `test_books_journal.py`, the `0013` cases in `test_migrations.py`, the new frontend tests beside each file, and `e2e/journal.spec.ts` plus cases in `accounting`, `invoices`, `bills` and `stress`. The Journal, invoice, bill and accounting end-to-end tests pass here; the full `npm run check`, with the speed tests, is for the owner.
+
+### Where the build departed from the plan
+
+- `journal_entries.description` is required but has an empty default in the database. `test_books_checks.py` writes bare entries and may not be edited, so a column with no default would break it. Posting always writes the sentence. The spec (`backend.md`) says so.
+- The Journal's default order within one day is the newest posted first (J17: a reversal above the entry it cancels), not oldest as before. `test_books_reads.py` changed to match. The spec's `backend.md` entry for `/books/entries` now says so.
+- `GET /books/entries` also accepts `kind=bill_payment`, and each ledger line carries its `kind` and `event`, and the reply the date of the newest line, as the spec lists.
+- `test_every_route.py` treats the ledger's `{key}` as an account key (404 when unknown), not a record id.

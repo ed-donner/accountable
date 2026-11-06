@@ -9,6 +9,7 @@ import { ACCOUNTING_LINKS } from "./books/links";
 import { AgedBalances } from "./aging/AgedBalances";
 import { BalanceSheet } from "./books/pages/BalanceSheet";
 import { Journal } from "./books/pages/Journal";
+import { LedgerPage } from "./books/pages/Ledger";
 import { ProfitAndLoss } from "./books/pages/ProfitAndLoss";
 import { CashFlowRow } from "./cashflow/CashFlowRow";
 import { Bill } from "./bills/pages/Bill";
@@ -137,6 +138,7 @@ const router = createBrowserRouter([
       { path: "/accounting/balance-sheet", element: <BalanceSheet /> },
       { path: "/accounting/journal", element: <Journal /> },
       { path: "/accounting/aged-balances", element: <AgedBalances /> },
+      { path: "/accounting/accounts/:key", element: <LedgerPage /> },
       { path: "/settings", element: <SettingsPage preview={SampleInvoice} /> },
       { path: "*", element: <MissingRecord word="page" to="/" section="Dashboard" /> },
     ],

@@ -5,7 +5,7 @@ import { LoadFailed } from "../components/LoadFailed";
 import { formatDate } from "../lib/dates";
 import { price } from "../lib/money";
 import { EVENT_WORDS, ROWS, effect, type FigureId } from "./balance";
-import { useEntries, type EntryReply } from "./queries";
+import { useEntriesUpTo, type EntryReply } from "./queries";
 
 /** The figure opened: which, how much it was on the day, and the day it was opened on. */
 export type Opened = { id: FigureId; name: string; cents: bigint; day: string };
@@ -26,7 +26,7 @@ function Row({ entry, id }: { entry: EntryReply; id: FigureId }) {
 }
 
 function Listed({ opened }: { opened: Opened }) {
-  const entries = useEntries(ROWS.find((row) => row.id === opened.id)!.accounts, opened.day);
+  const entries = useEntriesUpTo(ROWS.find((row) => row.id === opened.id)!.accounts, opened.day);
   const { data } = entries;
   const failed = (
     <LoadFailed keeping={data !== undefined} error={entries.error} onRetry={() => void entries.refetch()} />

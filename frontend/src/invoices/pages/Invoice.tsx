@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } 
 import { FormProvider, useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { Link, useBlocker, useNavigate, useParams } from "react-router";
 
+import { AccountingPanel } from "../../books/AccountingPanel";
 import { useCompanySettings, useSavedLogo, type CompanySettings } from "../../company/settings";
 import { totals } from "../../company/tax";
 import { Chip } from "../../components/Chip";
@@ -454,6 +455,7 @@ function IssuedPage({ invoice, settings, logoUrl, notice }: Shown) {
           <>
             <Details invoice={invoice} />
             <Payments invoice={invoice} onRecord={() => setDialog("pay")} onDelete={setDialog} />
+            <AccountingPanel kind="invoice" id={invoice.id} />
           </>
         }
         preview={<DocumentDrawing values={preview} logoUrl={logoUrl} />}
@@ -543,6 +545,10 @@ function Details({ invoice }: { invoice: InvoiceDetail }) {
 function Payments(props: { invoice: InvoiceDetail; onRecord: () => void; onDelete: (payment: Payment) => void }) {
   const { invoice } = props;
   const canPay = invoice.status === "issued" && invoice.owed_cents > 0;
+  // The payments whose entries are showing under their row (V33).
+  const [opened, setOpened] = useState<number[]>([]);
+  const toggle = (id: number) =>
+    setOpened((now) => (now.includes(id) ? now.filter((other) => other !== id) : [...now, id]));
   return (
     <SidePanel
       title="Payments"
@@ -559,26 +565,40 @@ function Payments(props: { invoice: InvoiceDetail; onRecord: () => void; onDelet
       ) : (
         <ul aria-label="Payments">
           {invoice.payments.map((payment) => (
-            <li key={payment.id} className="flex items-start justify-between gap-3 py-1.5" data-testid="payment">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline gap-x-3">
-                  <span className="num text-[13px]">{formatDate(payment.paid_on)}</span>
-                  <span className="num text-[13px] font-medium">{price(payment.amount_cents)}</span>
-                  <span>{methodLabel(payment.method)}</span>
-                  {payment.reference && <span className="truncate">{payment.reference}</span>}
+            <li key={payment.id} className="py-1.5" data-testid="payment">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-3">
+                    <span className="num text-[13px]">{formatDate(payment.paid_on)}</span>
+                    <span className="num text-[13px] font-medium">{price(payment.amount_cents)}</span>
+                    <span>{methodLabel(payment.method)}</span>
+                    {payment.reference && <span className="truncate">{payment.reference}</span>}
+                  </div>
+                  <div className="text-[13px] leading-[18px] text-muted">
+                    <WhoAndWhen action="Recorded" person={payment.created_by} at={payment.created_at} />
+                  </div>
                 </div>
-                <div className="text-[13px] leading-[18px] text-muted">
-                  <WhoAndWhen action="Recorded" person={payment.created_by} at={payment.created_at} />
+                <div className="flex flex-none items-center gap-1">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    aria-expanded={opened.includes(payment.id)}
+                    aria-label={`Accounting for payment of ${price(payment.amount_cents)}`}
+                    onClick={() => toggle(payment.id)}
+                  >
+                    Accounting
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn flex-none"
+                    aria-label={`Delete payment of ${price(payment.amount_cents)}`}
+                    onClick={() => props.onDelete(payment)}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
                 </div>
               </div>
-              <button
-                type="button"
-                className="icon-btn flex-none"
-                aria-label={`Delete payment of ${price(payment.amount_cents)}`}
-                onClick={() => props.onDelete(payment)}
-              >
-                <Trash2 size={16} aria-hidden="true" />
-              </button>
+              {opened.includes(payment.id) && <AccountingPanel kind="payment" id={payment.id} heading={false} />}
             </li>
           ))}
         </ul>

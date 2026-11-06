@@ -19,6 +19,9 @@ function median(readings: number[]) {
 for (const [name, route] of [
   ["The dashboard's", "/api/dashboard"],
   ["The Money section's", "/api/bills/dashboard"],
+  // The Journal with a search and a filter together, and a page of the Cash ledger, with its running balances (J14).
+  ["A filtered and searched page of the Journal's", "/api/books/entries?q=limits&account=cash&limit=100"],
+  ["A page of the Cash ledger's", "/api/books/accounts/cash/ledger?limit=100"],
 ]) {
   test(`${name} data arrives in under 200ms`, async ({ page, sessionToken }) => {
     await page.goto("/");

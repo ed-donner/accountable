@@ -12,6 +12,7 @@ from typing import NamedTuple
 from sqlalchemy import Connection, exists, insert, select
 
 from accountable.books import accounts
+from accountable.books.describe import describe
 from accountable.books.tables import (
     BILL,
     BILL_PAYMENT,
@@ -54,6 +55,8 @@ def post(
     lines: list[Line],
     user: str | None,
     now: datetime,
+    document: str | None = None,
+    supplier: str | None = None,
 ) -> int | None:
     """Writes one balanced entry and gives its id, or writes nothing if every line is 0."""
     kept = [line for line in lines if line.debit_cents or line.credit_cents]
@@ -61,7 +64,18 @@ def post(
         return None
     if sum(line.debit_cents for line in kept) != sum(line.credit_cents for line in kept):
         raise Unbalanced(f"The {event} entry's debits and credits differ")
-    return _write(conn, on=on, source=source, event=event, lines=kept, user=user, now=now, reverses=None)
+    return _write(
+        conn,
+        on=on,
+        source=source,
+        event=event,
+        lines=kept,
+        user=user,
+        now=now,
+        reverses=None,
+        document=document,
+        description=describe(event, document, supplier),
+    )
 
 
 def _write(
@@ -74,6 +88,8 @@ def _write(
     user: str | None,
     now: datetime,
     reverses: int | None,
+    document: str | None,
+    description: str,
 ) -> int:
     entry_id = conn.execute(
         insert(journal_entries)
@@ -83,6 +99,8 @@ def _write(
             source_id=source.source_id,
             event=event,
             link=source.link,
+            description=description,
+            document=document,
             reverses_id=reverses,
             created_by=user,
             created_at=now,
@@ -110,7 +128,7 @@ def reverse(conn: Connection, *, source: Source, event: str, user: str | None, n
     the same date. Does nothing if there's none open. The stored lines are swapped, never worked out again (J6)."""
     reversal = journal_entries.alias("reversal")
     open_entry = conn.execute(
-        select(journal_entries.c.id, journal_entries.c.entry_date)
+        select(journal_entries.c.id, journal_entries.c.entry_date, journal_entries.c.document)
         .where(
             journal_entries.c.kind == source.kind,
             journal_entries.c.source_id == source.source_id,
@@ -137,6 +155,8 @@ def reverse(conn: Connection, *, source: Source, event: str, user: str | None, n
         user=user,
         now=now,
         reverses=open_entry.id,
+        document=open_entry.document,
+        description=describe(event, open_entry.document),
     )
 
 
@@ -168,6 +188,7 @@ def invoice_issued(
     subtotal_cents: int,
     tax_cents: int,
     total_cents: int,
+    number: str,
     user: str | None,
     now: datetime,
 ) -> int | None:
@@ -176,11 +197,28 @@ def invoice_issued(
         Line(accounts.REVENUE_ACCOUNT, credit_cents=subtotal_cents),
         Line(accounts.TAX_PAYABLE, credit_cents=tax_cents),
     ]
-    return post(conn, on=on, source=invoice_source(invoice_id), event="invoice_issued", lines=lines, user=user, now=now)
+    return post(
+        conn,
+        on=on,
+        source=invoice_source(invoice_id),
+        event="invoice_issued",
+        lines=lines,
+        user=user,
+        now=now,
+        document=number,
+    )
 
 
 def payment_recorded(
-    conn: Connection, *, payment_id: int, invoice_id: int, on: date, cents: int, user: str | None, now: datetime
+    conn: Connection,
+    *,
+    payment_id: int,
+    invoice_id: int,
+    on: date,
+    cents: int,
+    number: str,
+    user: str | None,
+    now: datetime,
 ) -> int | None:
     lines = [Line(accounts.CASH, debit_cents=cents), Line(accounts.RECEIVABLE, credit_cents=cents)]
     return post(
@@ -191,6 +229,7 @@ def payment_recorded(
         lines=lines,
         user=user,
         now=now,
+        document=number,
     )
 
 
@@ -201,6 +240,8 @@ def bill_added(
     on: date,
     total_cents: int,
     category: str,
+    bill_number: str,
+    supplier: str | None,
     user: str | None,
     now: datetime,
     event: str = "bill_added",
@@ -210,7 +251,17 @@ def bill_added(
         Line(accounts.expense_for(category), debit_cents=total_cents),
         Line(accounts.PAYABLE, credit_cents=total_cents),
     ]
-    return post(conn, on=on, source=bill_source(bill_id), event=event, lines=lines, user=user, now=now)
+    return post(
+        conn,
+        on=on,
+        source=bill_source(bill_id),
+        event=event,
+        lines=lines,
+        user=user,
+        now=now,
+        document=bill_number,
+        supplier=supplier,
+    )
 
 
 def bill_paid(
@@ -219,12 +270,22 @@ def bill_paid(
     bill_id: int,
     on: date,
     total_cents: int,
+    bill_number: str,
     user: str | None,
     now: datetime,
     event: str = "bill_paid",
 ) -> int | None:
     lines = [Line(accounts.PAYABLE, debit_cents=total_cents), Line(accounts.CASH, credit_cents=total_cents)]
-    return post(conn, on=on, source=bill_payment_source(bill_id), event=event, lines=lines, user=user, now=now)
+    return post(
+        conn,
+        on=on,
+        source=bill_payment_source(bill_id),
+        event=event,
+        lines=lines,
+        user=user,
+        now=now,
+        document=bill_number,
+    )
 
 
 def opening_balance(

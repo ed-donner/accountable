@@ -43,31 +43,100 @@ def books(api, make):
             subtotal_cents=100_000,
             tax_cents=10_000,
             total_cents=110_000,
+            number="INV-0001",
             **at(date(2026, 1, 15)),
         )
         post.invoice_issued(
-            conn, invoice_id=invoice_2, subtotal_cents=50_000, tax_cents=0, total_cents=50_000, **at(date(2026, 2, 10))
+            conn,
+            invoice_id=invoice_2,
+            subtotal_cents=50_000,
+            tax_cents=0,
+            total_cents=50_000,
+            number="INV-0001",
+            **at(date(2026, 2, 10)),
         )
         post.reverse(conn, source=post.invoice_source(invoice_2), event="invoice_voided", user=None, now=NOW)
-        post.bill_added(conn, bill_id=bill_1, total_cents=55_000, category="software", **at(date(2026, 2, 12)))
-        post.bill_paid(conn, bill_id=bill_1, total_cents=55_000, **at(date(2026, 3, 20)))
-        post.bill_added(conn, bill_id=902, total_cents=30_000, category="travel", **at(date(2026, 2, 20)))
+        post.bill_added(
+            conn,
+            bill_id=bill_1,
+            total_cents=55_000,
+            category="software",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 2, 12)),
+        )
+        post.bill_paid(conn, bill_id=bill_1, total_cents=55_000, bill_number="B-1", **at(date(2026, 3, 20)))
+        post.bill_added(
+            conn,
+            bill_id=902,
+            total_cents=30_000,
+            category="travel",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 2, 20)),
+        )
         post.reverse(conn, source=post.bill_source(902), event="bill_deleted", user=None, now=NOW)
-        post.bill_added(conn, bill_id=bill_3, total_cents=20_000, category="office", **at(date(2026, 3, 5)))
+        post.bill_added(
+            conn,
+            bill_id=bill_3,
+            total_cents=20_000,
+            category="office",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 3, 5)),
+        )
         post.reverse(conn, source=post.bill_source(bill_3), event="bill_changed", user=None, now=NOW)
         post.bill_added(
-            conn, bill_id=bill_3, total_cents=25_000, category="office", event="bill_changed", **at(date(2026, 3, 5))
+            conn,
+            bill_id=bill_3,
+            total_cents=25_000,
+            category="office",
+            event="bill_changed",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 3, 5)),
         )
-        post.bill_added(conn, bill_id=904, total_cents=10_000, category="software", **at(date(2026, 2, 25)))
+        post.bill_added(
+            conn,
+            bill_id=904,
+            total_cents=10_000,
+            category="software",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 2, 25)),
+        )
         post.reverse(conn, source=post.bill_source(904), event="bill_changed", user=None, now=NOW)
         post.bill_added(
-            conn, bill_id=904, total_cents=10_000, category="software", event="bill_changed", **at(date(2026, 3, 10))
+            conn,
+            bill_id=904,
+            total_cents=10_000,
+            category="software",
+            event="bill_changed",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 3, 10)),
         )
-        post.payment_recorded(conn, payment_id=1, invoice_id=invoice_1, cents=60_000, **at(date(2026, 3, 5)))
+        post.payment_recorded(
+            conn, payment_id=1, invoice_id=invoice_1, cents=60_000, number="INV-0001", **at(date(2026, 3, 5))
+        )
         post.invoice_issued(
-            conn, invoice_id=invoice_3, subtotal_cents=20_000, tax_cents=0, total_cents=20_000, **at(date(2026, 10, 31))
+            conn,
+            invoice_id=invoice_3,
+            subtotal_cents=20_000,
+            tax_cents=0,
+            total_cents=20_000,
+            number="INV-0001",
+            **at(date(2026, 10, 31)),
         )
-        post.bill_added(conn, bill_id=905, total_cents=500, category="other", **at(date(2026, 11, 1)))
+        post.bill_added(
+            conn,
+            bill_id=905,
+            total_cents=500,
+            category="other",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 11, 1)),
+        )
     return api
 
 
@@ -128,8 +197,8 @@ def test_each_month_follows_what_was_true_when_it_was_dated(books):
 def test_a_payment_a_paid_bill_and_the_opening_balance_change_no_figure(books, api):
     before = page(api, period="year", on="2026-06-01")["period"]
     with db.writing() as conn:
-        post.payment_recorded(conn, payment_id=2, invoice_id=1, cents=50_000, **at(date(2026, 4, 1)))
-        post.bill_paid(conn, bill_id=906, total_cents=1_000, **at(date(2026, 4, 1)))
+        post.payment_recorded(conn, payment_id=2, invoice_id=1, cents=50_000, number="INV-0001", **at(date(2026, 4, 1)))
+        post.bill_paid(conn, bill_id=906, total_cents=1_000, bill_number="B-1", **at(date(2026, 4, 1)))
         post.opening_balance(conn, cents=5, event="opening_balance_changed", **at(date(2026, 4, 1)))
     assert page(api, period="year", on="2026-06-01")["period"] == before
 
@@ -182,7 +251,15 @@ def test_the_margin_is_in_tenths_and_its_change_in_points(books):
 def test_the_current_period_counts_whole_including_entries_after_today(books, local_app):
     local_app.dependency_overrides[db.local_today] = lambda: date(2026, 10, 15)
     with db.writing() as conn:
-        post.bill_added(conn, bill_id=907, total_cents=7_000, category="travel", **at(date(2026, 10, 16)))
+        post.bill_added(
+            conn,
+            bill_id=907,
+            total_cents=7_000,
+            category="travel",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 10, 16)),
+        )
     reply = page(books)
     shown = reply["period"]
     assert shown["current"] is True
@@ -246,7 +323,13 @@ def test_nothing_is_stored_so_a_new_entry_changes_the_figures_with_no_other_writ
     before = int(page(books)["period"]["revenue_cents"])
     with db.writing() as conn:
         post.invoice_issued(
-            conn, invoice_id=77, subtotal_cents=1_234, tax_cents=100, total_cents=1_334, **at(date(2026, 10, 2))
+            conn,
+            invoice_id=77,
+            subtotal_cents=1_234,
+            tax_cents=100,
+            total_cents=1_334,
+            number="INV-0001",
+            **at(date(2026, 10, 2)),
         )
     assert int(page(books)["period"]["revenue_cents"]) == before + 1_234
 
@@ -255,9 +338,23 @@ def test_sums_past_2_to_the_53_cents_are_exact_strings(api):
     huge = 2**60
     with db.writing() as conn:
         post.invoice_issued(
-            conn, invoice_id=1, subtotal_cents=huge, tax_cents=0, total_cents=huge, **at(date(2026, 10, 2))
+            conn,
+            invoice_id=1,
+            subtotal_cents=huge,
+            tax_cents=0,
+            total_cents=huge,
+            number="INV-0001",
+            **at(date(2026, 10, 2)),
         )
-        post.bill_added(conn, bill_id=1, total_cents=huge + 1, category="other", **at(date(2026, 10, 3)))
+        post.bill_added(
+            conn,
+            bill_id=1,
+            total_cents=huge + 1,
+            category="other",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 10, 3)),
+        )
     shown = page(api)["period"]
     assert shown["revenue_cents"] == str(huge)
     assert shown["expenses_cents"] == str(huge + 1)
@@ -281,11 +378,21 @@ def test_the_reads_are_a_fixed_few_with_one_entry_and_with_many(api):
         return len(statements)
 
     with db.writing() as conn:
-        post.invoice_issued(conn, invoice_id=1, subtotal_cents=5, tax_cents=0, total_cents=5, **at(date(2026, 10, 1)))
+        post.invoice_issued(
+            conn, invoice_id=1, subtotal_cents=5, tax_cents=0, total_cents=5, number="INV-0001", **at(date(2026, 10, 1))
+        )
     one = reads()
     with db.writing() as conn:
         for number in range(2, 202):
-            post.bill_added(conn, bill_id=number, total_cents=5, category="other", **at(date(2026, 9, 1 + number % 28)))
+            post.bill_added(
+                conn,
+                bill_id=number,
+                total_cents=5,
+                category="other",
+                bill_number="B-1",
+                supplier=None,
+                **at(date(2026, 9, 1 + number % 28)),
+            )
     assert reads() == one <= 4
 
 

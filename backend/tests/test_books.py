@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from accountable import db
 from accountable.books import post
+from accountable.books.describe import describe
 from accountable.books.tables import journal_entries, journal_lines
 from accountable.users import TEAMMATES
 from conftest import NOW
@@ -562,3 +563,111 @@ def test_no_function_updates_or_deletes_a_journal_row_but_the_clearing_steps():
 @pytest.mark.parametrize("path", ["balances", "months", "entries"])
 def test_the_books_have_no_route_that_writes(api, method, path):
     assert getattr(api, method)(f"/api/books/{path}", **({} if method == "delete" else {"json": {}})).status_code == 405
+
+
+# The wording (J4)
+
+WORDS = [
+    ("invoice_issued", "INV-0007", None, "Invoice INV-0007 issued"),
+    ("payment_recorded", "INV-0007", None, "Payment received on INV-0007"),
+    ("bill_added", "4417", "Northwind Software", "Bill 4417 from Northwind Software"),
+    ("bill_added", "4417", None, "Bill 4417"),
+    ("bill_paid", "4417", None, "Bill 4417 paid"),
+    ("opening_balance_set", None, None, "Opening balance set"),
+    ("invoice_voided", "INV-0007", None, "Invoice INV-0007 voided"),
+    ("payment_deleted", "INV-0007", None, "Payment deleted from INV-0007"),
+    ("bill_changed", "4417", None, "Bill 4417 changed"),
+    ("bill_unpaid", "4417", None, "Bill 4417 marked unpaid"),
+    ("bill_deleted", "4417", None, "Bill 4417 deleted"),
+    ("opening_balance_changed", None, None, "Opening balance changed"),
+    ("opening_balance_cleared", None, None, "Opening balance cleared"),
+    ("invoice_issued", None, None, "Invoice issued"),
+    ("bill_deleted", None, None, "Bill deleted"),
+]
+
+
+@pytest.mark.parametrize(("event", "document", "supplier", "sentence"), WORDS)
+def test_each_events_sentence_with_and_without_a_document(event, document, supplier, sentence):
+    assert describe(event, document, supplier) == sentence
+
+
+def test_every_event_has_words_with_and_without_a_document():
+    from accountable.books import describe as module
+
+    assert set(module._WITH_DOCUMENT) == set(module._WITHOUT_DOCUMENT)
+
+
+def test_each_helpers_entry_carries_its_description_and_document(conn):
+    post.invoice_issued(
+        conn,
+        invoice_id=1,
+        on=ON,
+        subtotal_cents=SUBTOTAL,
+        tax_cents=TAX,
+        total_cents=TOTAL,
+        number="INV-0007",
+        user=None,
+        now=NOW,
+    )
+    post.payment_recorded(conn, payment_id=1, invoice_id=1, on=ON, cents=1000, number="INV-0007", user=None, now=NOW)
+    post.bill_added(
+        conn,
+        bill_id=1,
+        on=ON,
+        total_cents=500,
+        category="travel",
+        bill_number="4417",
+        supplier="Northwind Software",
+        user=None,
+        now=NOW,
+    )
+    post.bill_paid(conn, bill_id=1, on=ON, total_cents=500, bill_number="4417", user=None, now=NOW)
+    post.opening_balance(conn, on=ON, cents=100, user=None, now=NOW)
+    found = [(entry["description"], entry["document"]) for entry in journal(conn)]
+    assert found == [
+        ("Invoice INV-0007 issued", "INV-0007"),
+        ("Payment received on INV-0007", "INV-0007"),
+        ("Bill 4417 from Northwind Software", "4417"),
+        ("Bill 4417 paid", "4417"),
+        ("Opening balance set", None),
+    ]
+
+
+def test_a_reversal_copies_the_document_and_has_its_own_events_wording(conn):
+    post.bill_added(
+        conn,
+        bill_id=1,
+        on=ON,
+        total_cents=500,
+        category="travel",
+        bill_number="4417",
+        supplier=None,
+        user=None,
+        now=NOW,
+    )
+    post.reverse(conn, source=post.bill_source(1), event="bill_deleted", user=None, now=NOW)
+    original, reversal = journal(conn)
+    assert (reversal["document"], reversal["description"]) == ("4417", "Bill 4417 deleted")
+    assert original["description"] == "Bill 4417"
+
+
+def test_a_reposted_bill_entry_takes_the_new_number_and_matches_its_reversal(conn):
+    post.bill_added(
+        conn, bill_id=1, on=ON, total_cents=500, category="travel", bill_number="4417", supplier="X", user=None, now=NOW
+    )
+    post.reverse(conn, source=post.bill_source(1), event="bill_changed", user=None, now=NOW)
+    post.bill_added(
+        conn,
+        bill_id=1,
+        on=ON,
+        total_cents=600,
+        category="travel",
+        bill_number="4418",
+        supplier=None,
+        user=None,
+        now=NOW,
+        event="bill_changed",
+    )
+    _, reversal, repost = journal(conn)
+    assert (reversal["description"], repost["description"]) == ("Bill 4417 changed", "Bill 4418 changed")
+    assert repost["document"] == "4418"

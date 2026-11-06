@@ -26,17 +26,53 @@ def books(api):
     with db.writing() as conn:
         post.opening_balance(conn, cents=1_000_000, **at(date(2026, 1, 1)))
         post.invoice_issued(
-            conn, invoice_id=1, subtotal_cents=100_000, tax_cents=10_000, total_cents=110_000, **at(date(2026, 2, 10))
+            conn,
+            invoice_id=1,
+            subtotal_cents=100_000,
+            tax_cents=10_000,
+            total_cents=110_000,
+            number="INV-0001",
+            **at(date(2026, 2, 10)),
         )
-        post.payment_recorded(conn, payment_id=1, invoice_id=1, cents=60_000, **at(date(2026, 3, 5)))
-        post.bill_added(conn, bill_id=1, total_cents=55_000, category="software", **at(date(2026, 3, 20)))
-        post.bill_paid(conn, bill_id=1, total_cents=55_000, **at(date(2026, 4, 2)))
-        post.bill_added(conn, bill_id=2, total_cents=30_000, category="travel", **at(date(2026, 4, 10)))
+        post.payment_recorded(conn, payment_id=1, invoice_id=1, cents=60_000, number="INV-0001", **at(date(2026, 3, 5)))
+        post.bill_added(
+            conn,
+            bill_id=1,
+            total_cents=55_000,
+            category="software",
+            bill_number="B-1",
+            supplier="Northwind",
+            **at(date(2026, 3, 20)),
+        )
+        post.bill_paid(conn, bill_id=1, total_cents=55_000, bill_number="B-1", **at(date(2026, 4, 2)))
+        post.bill_added(
+            conn,
+            bill_id=2,
+            total_cents=30_000,
+            category="travel",
+            bill_number="B-2",
+            supplier="Northwind",
+            **at(date(2026, 4, 10)),
+        )
         post.reverse(conn, source=post.bill_source(2), event="bill_deleted", user=None, now=NOW)
         post.invoice_issued(
-            conn, invoice_id=2, subtotal_cents=20_000, tax_cents=0, total_cents=20_000, **at(date(2026, 10, 31))
+            conn,
+            invoice_id=2,
+            subtotal_cents=20_000,
+            tax_cents=0,
+            total_cents=20_000,
+            number="INV-0002",
+            **at(date(2026, 10, 31)),
         )
-        post.bill_added(conn, bill_id=3, total_cents=500, category="other", **at(date(2026, 11, 1)))
+        post.bill_added(
+            conn,
+            bill_id=3,
+            total_cents=500,
+            category="other",
+            bill_number="B-3",
+            supplier="Northwind",
+            **at(date(2026, 11, 1)),
+        )
     return api
 
 
@@ -103,7 +139,7 @@ def test_without_a_day_the_balance_is_todays(books):
 
 def test_a_balance_below_zero_shows_a_minus_sign(api):
     with db.writing() as conn:
-        post.bill_paid(conn, bill_id=1, total_cents=500, **at(date(2026, 1, 5)))
+        post.bill_paid(conn, bill_id=1, total_cents=500, bill_number="B-1", **at(date(2026, 1, 5)))
     assert balances(api)["cash"] == "-500"
     assert balances(api)["payable"] == "-500"
 
@@ -193,13 +229,13 @@ def entries(api, **params) -> dict:
     return reply.json()
 
 
-def test_entries_come_newest_first_then_by_id_each_with_its_lines_and_link(books):
+def test_entries_come_newest_first_then_newest_posted_first_each_with_its_lines_and_link(books):
     reply = entries(books)
     assert reply["total"] == len(reply["entries"]) == 9
     found = reply["entries"]
     assert [entry["entry_date"] for entry in found] == sorted((entry["entry_date"] for entry in found), reverse=True)
     april = [entry["event"] for entry in found if entry["entry_date"] == "2026-04-10"]
-    assert april == ["bill_added", "bill_deleted"]
+    assert april == ["bill_deleted", "bill_added"]
     top = found[0]
     assert (top["entry_date"], top["event"], top["kind"], top["source_id"], top["link"]) == (
         "2026-11-01",
@@ -350,7 +386,15 @@ def test_sums_past_2_to_the_53_cents_are_sent_as_exact_digits(api):
     big = 2**53 // 2 + 1
     with db.writing() as conn:
         for number in range(3):
-            post.bill_added(conn, bill_id=number + 1, total_cents=big, category="software", **at(date(2026, 3, 1)))
+            post.bill_added(
+                conn,
+                bill_id=number + 1,
+                total_cents=big,
+                category="software",
+                bill_number=f"B-{number + 1}",
+                supplier="Northwind",
+                **at(date(2026, 3, 1)),
+            )
     expected = str(3 * big)
     assert expected == "13510798882111491"
     assert balances(api)["payable"] == expected
@@ -365,10 +409,24 @@ def test_an_entry_has_a_label_that_is_its_records_name_or_nothing(books, make):
     bill = make.bill(make.organization("Northwind Software"), "8841")
     with db.writing() as conn:
         post.invoice_issued(
-            conn, invoice_id=invoice, subtotal_cents=100, tax_cents=0, total_cents=100, **at(date(2026, 5, 1))
+            conn,
+            invoice_id=invoice,
+            subtotal_cents=100,
+            tax_cents=0,
+            total_cents=100,
+            number="INV-0001",
+            **at(date(2026, 5, 1)),
         )
-        post.bill_added(conn, bill_id=bill, total_cents=100, category="other", **at(date(2026, 5, 2)))
-        post.bill_paid(conn, bill_id=bill, total_cents=100, **at(date(2026, 5, 3)))
+        post.bill_added(
+            conn,
+            bill_id=bill,
+            total_cents=100,
+            category="other",
+            bill_number="B-1",
+            supplier=None,
+            **at(date(2026, 5, 2)),
+        )
+        post.bill_paid(conn, bill_id=bill, total_cents=100, bill_number="B-1", **at(date(2026, 5, 3)))
     found = books.get(ENTRIES, params={"limit": 500}).json()["entries"]
     labels = {(entry["kind"], entry["source_id"]): entry["label"] for entry in found}
     assert labels[("invoice", invoice)] == "INV-0042"
@@ -391,9 +449,23 @@ def test_a_page_of_100_entries_names_its_records_in_one_read_for_each_kind(books
     with db.writing() as conn:
         for invoice, bill in made:
             post.invoice_issued(
-                conn, invoice_id=invoice, subtotal_cents=5, tax_cents=0, total_cents=5, **at(date(2026, 6, 1))
+                conn,
+                invoice_id=invoice,
+                subtotal_cents=5,
+                tax_cents=0,
+                total_cents=5,
+                number="INV-0001",
+                **at(date(2026, 6, 1)),
             )
-            post.bill_added(conn, bill_id=bill, total_cents=5, category="other", **at(date(2026, 6, 2)))
+            post.bill_added(
+                conn,
+                bill_id=bill,
+                total_cents=5,
+                category="other",
+                bill_number="B-1",
+                supplier=None,
+                **at(date(2026, 6, 2)),
+            )
     statements: list[str] = []
 
     def count(_conn, _cursor, statement, *_rest) -> None:

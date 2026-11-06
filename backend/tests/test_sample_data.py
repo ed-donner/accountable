@@ -945,6 +945,20 @@ def test_the_books_cash_today_equals_the_cash_flows_to_the_cent(seeded):
     assert cash == seeded["cash_flow"].cash_today
 
 
+def test_every_sample_entry_has_a_description_and_all_but_the_opening_balance_have_a_document(seeded):
+    numbers = {row.id: row.number for row in seeded["invoices"]}
+    bill_numbers = {row.id: row.bill_number for row in seeded["bills"]}
+    pay_to_invoice = {row.id: numbers[row.invoice_id] for row in seeded["payments"]}
+    expected = {"invoice": numbers, "payment": pay_to_invoice, "bill": bill_numbers, "bill_payment": bill_numbers}
+    for entry in seeded["entries"]:
+        assert entry.description
+        if entry.kind == "opening_balance":
+            assert entry.document is None
+        else:
+            assert entry.document == expected[entry.kind][entry.source_id]
+            assert entry.document in entry.description
+
+
 def stops_of(today: date) -> list[date]:
     """The balance sheet's 12 stops (X2): the last day of each of the 11 months before this one, then today."""
     first = today.replace(day=1)

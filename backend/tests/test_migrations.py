@@ -2,7 +2,7 @@ import io
 from datetime import date, datetime, timedelta
 
 import pytest
-from accountable import db
+from accountable import cli, db
 from accountable.bills.tables import bill_number_key, bills
 from accountable.books.tables import journal_entries, journal_lines
 from accountable.company import documents
@@ -1111,7 +1111,11 @@ def test_it_takes_the_same_number_of_queries_for_5_records_as_for_50(tmp_path, m
 
 def test_the_books_tables_match_the_migrations(database):
     assert {"journal_entries", "journal_lines"} <= set(live())
-    assert live()["journal_lines"]["indexes"].keys() == {"ix_journal_lines_entry_id", "ix_journal_lines_account"}
+    assert live()["journal_lines"]["indexes"].keys() == {
+        "ix_journal_lines_entry_id",
+        "ix_journal_lines_account",
+        "ix_journal_lines_account_entry",
+    }
     assert live()["journal_entries"]["indexes"]["ix_journal_entries_reverses_id"] == ("reverses_id",)
 
 
@@ -1164,6 +1168,68 @@ def test_on_postgres_the_books_tables_get_row_level_security_and_64_bit_cents_an
     assert "CREATE UNIQUE INDEX ix_journal_entries_reverses_id ON journal_entries (reverses_id)" in postgres_sql
 
 
+# The journal's wording (0014)
+
+_old_entries = table(
+    "journal_entries",
+    column("entry_date", Date),
+    column("kind", Text),
+    column("source_id", Integer),
+    column("event", Text),
+    column("link", Text),
+    column("reverses_id", Integer),
+    column("created_at", DateTime),
+)
+
+
+def the_migration():
+    import importlib.util
+
+    path = next(db.MIGRATIONS.glob("versions/0014_*.py"))
+    spec = importlib.util.spec_from_file_location("migration_0014", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def at_0012_with_records(path, *, extra: bool = False) -> None:
+    at_0011_with_records(path)
+    db._upgrade(path, "0012")
+    if extra:
+        # Entries the migration at 0012 never posted: a bill that has since been deleted, and a change to a real one.
+        with db.writing() as conn:
+            for kind, source_id, event, link in (
+                ("bill", 99, "bill_added", "/bills/99"),
+                ("bill", 99, "bill_deleted", "/bills/99"),
+                ("bill", 1, "bill_changed", "/bills/1"),
+                ("bill_payment", 2, "bill_unpaid", "/bills/2"),
+                ("payment", 1, "payment_deleted", "/invoices/1"),
+                ("opening_balance", 1, "opening_balance_changed", "/settings"),
+            ):
+                conn.execute(
+                    insert(_old_entries).values(
+                        entry_date=date(2026, 3, 1),
+                        kind=kind,
+                        source_id=source_id,
+                        event=event,
+                        link=link,
+                        created_at=WHEN,
+                    )
+                )
+    db.dispose()
+
+
+@pytest.fixture
+def database_at_0012(tmp_path, monkeypatch):
+    path = tmp_path / "at-0012.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+    db.dispose()
+    at_0012_with_records(path, extra=True)
+    yield path
+    db.dispose()
+
+
 # The quote an invoice was made from (0013)
 
 
@@ -1191,6 +1257,106 @@ def database_from_before_invoice_quotes(tmp_path, monkeypatch):
     db.dispose()
     yield path
     db.dispose()
+
+
+def wording() -> list[tuple]:
+    with db.reading() as conn:
+        rows = conn.execute(select(journal_entries).order_by(journal_entries.c.id)).all()
+    return [(row.kind, row.source_id, row.event, row.description, row.document) for row in rows]
+
+
+def test_0014_fills_in_each_kind_of_entry_in_the_wording(database_at_0012):
+    db.prepare_database(nothing)
+    with db.reading() as conn:
+        invoice_number = {
+            row.id: row.total_cents for row in conn.execute(select(invoices.c.id, invoices.c.total_cents))
+        }
+        organization = conn.scalar(select(organizations.c.name))
+    found = wording()
+    assert invoice_number
+    # Nothing in 0011's invoices has a number, so their entries carry none and the event's own words.
+    assert ("invoice", 1, "invoice_issued", "Invoice issued", None) in found
+    assert ("invoice", 3, "invoice_voided", "Invoice voided", None) in found
+    assert ("payment", 1, "payment_recorded", "Payment received", None) in found
+    assert ("bill", 1, "bill_added", f"Bill B-0-None from {organization}", "B-0-None") in found
+    assert ("bill_payment", 2, "bill_paid", f"Bill B-0-{date(2026, 3, 1)} paid", f"B-0-{date(2026, 3, 1)}") in found
+    assert ("opening_balance", 1, "opening_balance_set", "Opening balance set", None) in found
+    assert ("opening_balance", 1, "opening_balance_changed", "Opening balance changed", None) in found
+    assert ("bill", 1, "bill_changed", "Bill B-0-None changed", "B-0-None") in found
+    assert (
+        "bill_payment",
+        2,
+        "bill_unpaid",
+        f"Bill B-0-{date(2026, 3, 1)} marked unpaid",
+        f"B-0-{date(2026, 3, 1)}",
+    ) in (found)
+
+
+def test_0014_gives_an_entry_whose_record_has_gone_its_events_words_and_no_document(database_at_0012):
+    db.prepare_database(nothing)
+    found = wording()
+    assert ("bill", 99, "bill_added", "Bill added", None) in found
+    assert ("bill", 99, "bill_deleted", "Bill deleted", None) in found
+    # A payment whose invoice-linked row exists, deleted: its document is the invoice's number, here none.
+    assert ("payment", 1, "payment_deleted", "Payment deleted", None) in found
+
+
+def test_0014_takes_an_invoices_number_for_its_entries_and_its_payments(tmp_path, monkeypatch):
+    monkeypatch.setenv("ACCOUNTABLE_DB", str(tmp_path / "numbered.db"))
+    db.dispose()
+    at_0012_with_records(tmp_path / "numbered.db")
+    with db.writing() as conn:
+        for invoice_id in conn.scalars(select(invoices.c.id)).all():
+            conn.execute(update(invoices).where(invoices.c.id == invoice_id).values(number=f"INV-{invoice_id:04d}"))
+    db.dispose()
+    db.prepare_database(nothing)
+    found = wording()
+    assert ("invoice", 1, "invoice_issued", "Invoice INV-0001 issued", "INV-0001") in found
+    assert ("invoice", 3, "invoice_voided", "Invoice INV-0003 voided", "INV-0003") in found
+    assert ("payment", 1, "payment_recorded", "Payment received on INV-0001", "INV-0001") in found
+    db.dispose()
+
+
+def test_0014_takes_the_same_number_of_queries_for_5_entries_as_for_50(tmp_path, monkeypatch):
+    totals = []
+    for count in (1, 10):
+        path = tmp_path / f"count-{count}.db"
+        monkeypatch.setenv("ACCOUNTABLE_DB", str(path))
+        db.dispose()
+        at_0011_with_records(path, count=count)
+        db._upgrade(path, "0012")
+        db.dispose()
+        totals.append(statements_to_upgrade(path))
+    assert totals[0] == totals[1]
+
+
+def test_the_fill_equals_what_posting_wrote_on_the_sample_data(database):
+    with db.writing() as conn:
+        cli.fill_sample(conn)
+    written = wording()
+    assert len(written) > 100
+    with db.writing() as conn:
+        conn.execute(update(journal_entries).values(description="", document=None))
+    assert wording() != written
+    with db.writing() as conn:
+        the_migration().fill(conn)
+    assert wording() == written
+
+
+def test_0014_makes_the_columns_and_the_index_and_has_one_head(database):
+    columns = live()["journal_entries"]["columns"]
+    assert columns["description"][1] is False
+    assert columns["document"][1] is True
+    assert live()["journal_lines"]["indexes"]["ix_journal_lines_account_entry"] == ("account", "entry_id")
+    config = Config()
+    config.set_main_option("script_location", str(db.MIGRATIONS))
+    assert ScriptDirectory.from_config(config).get_current_head() == "0014"
+
+
+def test_on_postgres_0014_adds_the_columns_and_the_index(postgres_sql):
+    assert "ALTER TABLE journal_entries ADD COLUMN description TEXT DEFAULT '' NOT NULL;" in postgres_sql
+    assert "ALTER TABLE journal_entries ADD COLUMN document TEXT;" in postgres_sql
+    assert "CREATE INDEX ix_journal_lines_account_entry ON journal_lines (account, entry_id)" in postgres_sql
 
 
 def invoice_rows() -> list[tuple]:

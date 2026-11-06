@@ -81,6 +81,11 @@ BOOKS = [
     "/api/books/balances",
     "/api/books/months",
     "/api/books/entries",
+    # A search and a filter together, and the biggest ledger's page (J14).
+    "/api/books/entries?q=limits&account=cash&from=2025-01-01&to=2026-12-31",
+    "/api/books/entries?kind=invoice&source_id=5",
+    "/api/books/accounts/cash/ledger",
+    "/api/books/accounts/receivable/ledger?offset=100",
     "/api/books/profit-and-loss",
     "/api/books/profit-and-loss/entries?figure=profit&from=2026-01-01&to=2026-03-31",
 ]
@@ -178,6 +183,8 @@ QUERIES = {
     "/api/books/balances": 1,
     "/api/books/months": 2,
     "/api/books/entries": 5,
+    # The ranked page and the count with the account's totals.
+    "/api/books/accounts/cash/ledger": 2,
     # The 12 months, the period, the one before, and the earliest entry (X18).
     "/api/books/profit-and-loss": 4,
     # The page with its count, the figure's total, the lines, and a name for each of invoices and bills.

@@ -63,7 +63,7 @@ class Group(BaseModel):
     results: list[SerializeAsAny[BaseModel]]
 
 
-def _holding(text: str) -> Matcher:
+def holding(text: str) -> Matcher:
     """Names holding the text in any case, with the database's lower on both sides, so
     each database agrees with itself (K2). autoescape only takes a plain string, and
     this text goes through lower first, so % and _ are escaped here to match only themselves."""
@@ -75,8 +75,8 @@ def _holding(text: str) -> Matcher:
 
 def _matching(conn: Connection, kinds: Sequence[Kind], text: str) -> list[Row]:
     """Every match of every kind, in one query, because each one crosses the internet in the shared app."""
-    holding = _holding(text)
-    found = [kind.found(holding).add_columns(literal(kind.name).label("kind")) for kind in kinds]
+    matcher = holding(text)
+    found = [kind.found(matcher).add_columns(literal(kind.name).label("kind")) for kind in kinds]
     return list(conn.execute(union_all(*found)).all())
 
 

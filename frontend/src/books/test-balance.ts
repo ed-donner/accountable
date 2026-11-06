@@ -97,6 +97,8 @@ export function entry(id: number, changes: Partial<EntryReply> = {}): EntryReply
     kind: "invoice",
     source_id: id,
     event: "invoice_issued",
+    description: "Invoice issued",
+    document: null,
     link: `/invoices/${id}`,
     reverses_id: null,
     reversed_by_id: null,

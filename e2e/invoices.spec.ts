@@ -263,6 +263,42 @@ test("void, and delete a payment", async ({ page, request }) => {
   await expect(page.getByRole("button", { name: "Void" })).toBeVisible();
 });
 
+test("an issued invoice's Accounting panel shows its entry, a payment's button its own, and the reversal after voiding", async ({
+  page,
+  request,
+}) => {
+  const issued = await addIssuedInvoice(request, "Panel Co", 125000);
+  await page.goto(`/invoices/${issued.invoice.id}`);
+  const panel = page.getByRole("region", { name: "Accounting", exact: true }).first();
+  await expect(panel.getByRole("article")).toHaveCount(1);
+  await expect(panel).toContainText(`Invoice ${issued.invoice.number} issued`);
+
+  const recording = page.waitForResponse(isWrite("POST", /\/payments$/));
+  await page.getByRole("button", { name: "Record payment" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Record payment" }).click();
+  expect((await recording).ok()).toBe(true);
+  await page.getByRole("button", { name: /^Accounting for payment of/ }).click();
+  await expect(page.getByTestId("payment").getByRole("article")).toContainText(
+    `Payment received on ${issued.invoice.number}`,
+  );
+  // The invoice's own panel shows the invoice's entries only.
+  await expect(panel.getByRole("article")).toHaveCount(1);
+
+  const deleting = page.waitForResponse(isWrite("DELETE", /\/payments\/\d+$/));
+  await page.getByRole("button", { name: /^Delete payment of/ }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete payment" }).click();
+  expect((await deleting).ok()).toBe(true);
+  await expect(page.getByText("No payments yet.")).toBeVisible();
+
+  const voiding = page.waitForResponse(isWrite("POST", /\/void$/));
+  await page.getByRole("button", { name: "Void" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Void" }).click();
+  expect((await voiding).ok()).toBe(true);
+  await expect(panel.getByRole("article")).toHaveCount(2);
+  await expect(panel.getByText("Reversal")).toBeVisible();
+  await expect(panel.getByText("Reversed", { exact: true })).toBeVisible();
+});
+
 test("the sample data fills every part", async ({ page, request }) => {
   await page.goto("/invoices");
   const filter = page.getByRole("group", { name: "Filter by status" });

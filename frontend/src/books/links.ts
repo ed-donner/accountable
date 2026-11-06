@@ -10,3 +10,8 @@ export const ACCOUNTING_LINKS: MenuGroup = {
     { label: "Aged balances", to: "/accounting/aged-balances" },
   ],
 };
+
+/** An account's ledger, from its key (J15). It has no link in the menu. */
+export function ledgerPath(key: string): string {
+  return `/accounting/accounts/${key}`;
+}

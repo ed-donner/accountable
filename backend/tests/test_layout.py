@@ -277,6 +277,11 @@ def test_sqlite_specific_code_stays_in_db():
             assert "sqlite3" not in path.read_text(), path
 
 
+def test_the_books_wording_imports_nothing_but_the_standard_library():
+    tree = ast.parse((PACKAGE / "books" / "describe.py").read_text())
+    assert not [node for node in ast.walk(tree) if isinstance(node, ast.Import | ast.ImportFrom)]
+
+
 def test_labels_is_a_top_level_file_that_names_no_area():
     assert (PACKAGE / "labels.py").exists()
     assert not any(names(PACKAGE / "labels.py", area) for area in AREAS)

@@ -111,8 +111,9 @@ backend/accountable/
   migrations/                     Alembic, with batch mode on. 0006 adds number_counters, 0007 bills, 0008 quotes
                                   and quote_lines, 0009 the invoices tables, company_logo, and the design and accent
                                   color settings, 0010 each invoice's issue_order, and 0011 the opening balance's two
-                                  columns, blank, and 0012 the books' two tables, with the entries for the records already there, and 0013
-                                  invoices.quote_id, blank on the invoices already there, with its unique index
+                                  columns, blank, 0012 the books' two tables, with the entries for the records already there,
+                                  0013 invoices.quote_id, blank on the invoices already there, with its unique index, and 0014 the
+                                  entries' description and document, filled in for the entries already there
   crm/
     tables.py                     SQLAlchemy Core tables, and RECORDS, the ones seed and empty count
     schemas.py                    the CRM's Pydantic request and reply models, and the messages for its fields
@@ -157,7 +158,11 @@ backend/accountable/
     post.py                       posting and reversing entries inside the caller's transaction: one function for each
                                   thing an area does to the money, which checks an entry balances before writing it (J3 to J7)
     schemas.py                    the reply models for the reads, and the messages for their parameters
-    router.py                     GET /books/balances, /books/months and /books/entries, and their queries (J12), and
+    describe.py                   the description and document number of each event's entry (J4), the one place the wording is
+                                  written for new entries. Migration 0014 writes the same wording in SQL of its own, since a migration
+                                  must not change when the app does, and a test checks the two agree
+    router.py                     GET /books/balances, /books/months, /books/entries and /books/accounts/{key}/ledger, and their
+                                  queries, including the ledger's running balance by window function (J12, J18), and
                                   GET /books/profit-and-loss with its /entries (X1 to X18), with the queries
     profit_and_loss.py            the periods, the margin and the changes from the period before, in whole numbers,
                                   which take plain values and read nothing (X3 to X7)
@@ -280,11 +285,17 @@ frontend/src/
     charts/                       MoneySection, with BillsMoney, bills' side of the Money section, DueTimeline and
                                   SpendingChart
     pages/                        Bills and Bill
-  books/                          the Accounting pages (J15, J16, X1 to X19 and the Balance sheet's X1 to X18), which import no other area
-    AccountingPage.tsx            the placeholder the one report still to come is: its title, "This report is coming
-                                  soon." and what the report will show
-    pages/                        Journal, a title and a sentence handed to
-                                  AccountingPage, and ProfitAndLoss and BalanceSheet, pages of their own
+  books/                          the Accounting pages and panels (J15 to J22, and the Balance sheet's X1 to X18), which import no other area, and which the invoice
+                                  and bill pages import for their Accounting panels, as every area may import the books
+    queries.ts                    its types, and reading the entries, an account's ledger and its months, keyed by the day, and the balances on a day (X10)
+    EntryList.tsx                 draws entries as J17 and the Entries screen describe: the heading, the lines in Debit and
+                                  Credit columns, the totals and the Reversal and Reversed chips. Journal and the panels share it
+    AccountLink.tsx               an account's name as a link to its ledger
+    AccountingPanel.tsx           the Accounting panel an invoice, a payment and a bill each show, which reads the entries
+                                  one record made (J19) and takes the kind and the id
+    useLoadMore.ts                loading a page at a time, as the end of the list scrolls into view, with a Load more button (J20)
+    charts/                       BalanceChart, one account's balance by month, built from the shared tooltip, useSize and axes
+    pages/                        BalanceSheet, Journal, Ledger and ProfitAndLoss, the pages
     profit/                       Profit and loss, which reads only /api/books/profit-and-loss:
       queries.ts                  its types, the read for a period and a day, and the read of the entries behind a figure
       ProfitChart.tsx             the 12 months' columns and profit line, with Recharts, and the table behind it
@@ -295,12 +306,12 @@ frontend/src/
       test-profit.ts              the tests' replies for a today of Nov 5, 2026, and the chart's size
     balance.ts                    the balance sheet's own sums, in BigInt: the 12 stops, the columns' figures, Profit
                                   to date, the totals and the difference, with no React in it
-    queries.ts                    its types, and reading the balances on a day and a page of entries, keyed by the day
     DateSlider.tsx                the range input with the stops' month names under it
     BalanceBars.tsx               the two stacked bars, drawn with Recharts and StackSegment, and the table behind them
     BalanceColumns.tsx            the two columns of accounts and their totals, and the mark that the sides are equal
     EntriesDialog.tsx             the entries behind a figure, with Show more
-    links.ts                      the four pages' addresses and labels, which App.tsx gives the menu and its routes
+    links.ts                      the four pages' addresses and labels, which App.tsx gives the menu and its routes, and the
+                                  ledger's address, which has no link in the menu
   aging/                          the Aged balances page (X1 to X20), which imports no other area
     queries.ts                    its types, and reading a view for a day, keyed by the view and the day
     AgedBalances.tsx              the page: title, date picker, the Customers and Suppliers control, the legend and the

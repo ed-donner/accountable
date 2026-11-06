@@ -8,14 +8,14 @@ import { addBill, addIssuedInvoice, isoDay, resetToSampleData } from "./helpers"
 test.describe.configure({ mode: "serial" });
 test.beforeAll(resetToSampleData);
 
-// The words of each page that is still a placeholder. Profit and loss and Balance sheet have files of their own.
+// Every page has its report now. Profit and loss, Balance sheet and Aged balances have files of their own.
 const PAGES: { label: string; path: string; words: string | null }[] = [
   { label: "Profit and loss", path: "/accounting/profit-and-loss", words: null },
   { label: "Balance sheet", path: "/accounting/balance-sheet", words: null },
   {
     label: "Journal",
     path: "/accounting/journal",
-    words: "Every entry in the books, newest first, each linking to the invoice, payment or bill it came from.",
+    words: null,
   },
   {
     label: "Aged balances",
@@ -23,8 +23,8 @@ const PAGES: { label: string; path: string; words: string | null }[] = [
     words: "What customers owe and what the business owes, grouped by how late each amount is.",
   },
 ];
-// The pages that still say their report is coming. Aged balances has its report (X1 to X20).
-const PLACEHOLDERS = PAGES.filter(({ label }) => label !== "Aged balances");
+// The Journal's page is covered here; the others have files of their own.
+const JOURNAL = PAGES.filter(({ label }) => label === "Journal");
 const PANEL = { light: "rgb(255, 255, 255)", dark: "rgb(11, 50, 64)" };
 const FOCUS = { light: "rgb(17, 138, 178)", dark: "rgb(76, 179, 214)" };
 
@@ -56,8 +56,7 @@ test("the menu has Accounting with its four links, in order, between the themes 
 });
 
 for (const mode of ["light", "dark"] as const) {
-  for (const { label, path, words } of PLACEHOLDERS) {
-    if (words === null) continue;
+  for (const { label, path, words } of JOURNAL) {
     test(`${label} opens from the menu in ${mode} mode with its title and its words`, async ({ page }) => {
       await page.goto("/");
       await menuButton(page).click();
@@ -70,6 +69,14 @@ for (const mode of ["light", "dark"] as const) {
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await expect(menu(page)).toHaveCount(0);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(label);
+      await expect(topBarLinks(page)).toHaveCount(9);
+      await expect(page.locator('nav[aria-label="Sections"] a[aria-current="page"]')).toHaveCount(0);
+      if (words === null) {
+        await expect(page.getByText("This report is coming soon.")).toHaveCount(0);
+        await expect(page.getByRole("searchbox", { name: "Search entries" })).toBeVisible();
+        await expect(page.getByRole("region", { name: "Entries" })).toHaveCSS("background-color", PANEL[mode]);
+        return;
+      }
       const panel = page.getByRole("region", { name: "Report status" });
       await expect(panel.getByText("This report is coming soon.")).toBeVisible();
       await expect(panel.getByText(words)).toBeVisible();

@@ -1,4 +1,4 @@
-import type { Category } from "./queries";
+export type Category = "software" | "contractors" | "travel" | "office" | "marketing" | "other";
 
 export type CategoryStyle = {
   value: Category;

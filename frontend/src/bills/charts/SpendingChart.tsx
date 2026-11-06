@@ -4,9 +4,9 @@ import { ChartTooltip } from "../../components/charts/ChartTooltip";
 import { MONTH_CHART, MUTED_AXIS_TEXT, centsAxis, soFarOver } from "../../components/charts/monthColumns";
 import { useSize } from "../../components/charts/useSize";
 import { price } from "../../lib/money";
-import { CATEGORIES, CategoryLabel, Swatch } from "../categories";
+import { CATEGORIES, CategoryLabel, Swatch } from "../../components/charts/categories";
 import type { Category, SpendingMonth } from "../queries";
-import { StackSegment, stackScale } from "./StackSegment";
+import { StackSegment, stackScale } from "../../components/charts/StackSegment";
 
 /**
  * A month as the chart draws it, in numbers, which are close enough for heights at any size,

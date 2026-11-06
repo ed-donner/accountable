@@ -119,6 +119,11 @@ for (const [name, route] of [
   ["The books' balances", "/api/books/balances"],
   ["The books' totals by month", "/api/books/months"],
   ["A page of the books' entries", "/api/books/entries"],
+  ["The profit and loss figures", "/api/books/profit-and-loss"],
+  [
+    "A page of the entries behind a figure",
+    `/api/books/profit-and-loss/entries?figure=profit&from=${isoDay(-90)}&to=${isoDay()}`,
+  ],
 ]) {
   test(`${name} arrive in under 200ms`, async ({ page, sessionToken }) => {
     await page.goto("/");

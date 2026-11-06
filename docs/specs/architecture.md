@@ -102,6 +102,8 @@ backend/accountable/
   cash.py                         what an area's money gives the cash flow: a total for each day it came in or went
                                   out, and each item expected, with its expected date, amount and what a month's list
                                   shows of it (Y2 to Y13)
+  labels.py                       what an area that posts to the books gives them to name its records: the invoice's
+                                  number, a bill's number and supplier, found for many ids in one read (J12, X13)
   cli.py                          seed and empty commands, for the local copy only, across every area: each area's
                                   sample data in order, its records counted, and every table but the people's and
                                   the settings' wiped, in the order their foreign keys allow, the journal's included,
@@ -155,7 +157,10 @@ backend/accountable/
     post.py                       posting and reversing entries inside the caller's transaction: one function for each
                                   thing an area does to the money, which checks an entry balances before writing it (J3 to J7)
     schemas.py                    the reply models for the reads, and the messages for their parameters
-    router.py                     GET /books/balances, /books/months and /books/entries, and their queries (J12)
+    router.py                     GET /books/balances, /books/months and /books/entries, and their queries (J12), and
+                                  GET /books/profit-and-loss with its /entries (X1 to X18), with the queries
+    profit_and_loss.py            the periods, the margin and the changes from the period before, in whole numbers,
+                                  which take plain values and read nothing (X3 to X7)
   aging/                          aged balances (X1 to X20), a later area that imports only crm/tables.py,
                                   invoices/tables.py and bills/tables.py, and keeps no tables of its own
     ages.py                       the five parts and which one a days-past-due falls in (X1), and the order of
@@ -179,6 +184,7 @@ backend/accountable/
     routers/                      invoices (with drafts, issuing and voiding) and making a draft from an accepted quote (V33), payments, pdf and money
     cash.py                       the payments, and the open invoices with their customers' average days paid late,
                                   for the cash flow (Y2, Y5, Y6)
+    labels.py                     an invoice's name for the books' entries: its number (X13)
     sample_data.py                the sample invoices and payments, dated from a given day
   bills/                          the bills from suppliers (E1 to E24), a later area
     tables.py                     the bills table, its Hold on the supplier organization, and RECORDS
@@ -186,6 +192,7 @@ backend/accountable/
                                   its fields
     router.py                     the bills routes, the figures for bills' side of the Money section, and their queries
     cash.py                       the paid and unpaid bills, for the cash flow (Y2, Y7)
+    labels.py                     a bill's name for the books' entries: its number from its supplier (X13)
     books.py                      what a bill's save posts to the books, from the bill before and after it (E25, J6)
     sample_data.py                the sample suppliers and their bills, dated from a given day
   cashflow/                       the cash flow (Y1 to Y22), a later area that keeps no tables and imports only company/
@@ -222,6 +229,10 @@ frontend/src/
                                   of a money axis, monthColumns.tsx, the layout the Money section's two month
                                   charts share, and lateness.ts, the five parts of how late money is with their labels
                                   and colors, which How late and the aged balances share (X12)
+                                  categories.tsx, the six bill categories in order with their labels, colors and round
+                                  swatch, and StackSegment, which draws a segment of a stacked column and keeps a small
+                                  one tall enough to see, which the Money section's Spending by category and the
+                                  Profit and loss chart both use
   crm/
     queries.ts, deals.ts, Timeline.tsx, searchGroups.tsx and others
     forms/                        organization, contact, deal and activity forms
@@ -264,18 +275,24 @@ frontend/src/
     pages/                        Invoices and Invoice
   bills/                          the bills from suppliers, a later area
     queries.ts                    its types, reads and saves, the Money figures, and marking a bill paid and unpaid
-    categories.tsx                the six categories in order, with their labels, colors and round swatch
     status.tsx                    unpaid, overdue and paid from today, their chip, and the paid date's checks
     BillForm.tsx, MarkPaidDialog.tsx, DeleteBill.tsx, and BillsPanel.tsx, an organization's bills
     charts/                       MoneySection, with BillsMoney, bills' side of the Money section, DueTimeline and
-                                  SpendingChart, and StackSegment, which draws a segment of a stacked column for
-                                  both and keeps a small one tall enough to see
+                                  SpendingChart
     pages/                        Bills and Bill
-  books/                          the Accounting pages (J15, J16), which import no other area and read nothing yet
-    AccountingPage.tsx            the placeholder Profit and loss, Balance sheet and Journal are: their title, "This report is
-                                  coming soon." and what the report will show
-    pages/                        ProfitAndLoss, BalanceSheet and Journal, each a title and a sentence handed to
-                                  AccountingPage
+  books/                          the Accounting pages (J15, J16, X1 to X19), which import no other area
+    AccountingPage.tsx            the placeholder the two reports still to come are: its title, "This report is coming
+                                  soon." and what the report will show
+    pages/                        BalanceSheet and Journal, each a title and a sentence handed to
+                                  AccountingPage, and ProfitAndLoss, the page of its own
+    profit/                       Profit and loss, which reads only /api/books/profit-and-loss:
+      queries.ts                  its types, the read for a period and a day, and the read of the entries behind a figure
+      ProfitChart.tsx             the 12 months' columns and profit line, with Recharts, and the table behind it
+      Statement.tsx               the statement's rows, their amounts as buttons, and the changes
+      PeriodSwitch.tsx            the Month, Quarter and Year switch and the arrows
+      EntriesDialog.tsx           the entries behind a figure, with Show more
+      figures.ts                  sums, the margin and the changes as words, and no sums of their own
+      test-profit.ts              the tests' replies for a today of Nov 5, 2026, and the chart's size
     links.ts                      the four pages' addresses and labels, which App.tsx gives the menu and its routes
   aging/                          the Aged balances page (X1 to X20), which imports no other area
     queries.ts                    its types, and reading a view for a day, keyed by the view and the day
@@ -309,7 +326,7 @@ Accountable will grow from a sales CRM into a Business OS, including ERP, so the
 - **A later area shows its records on the CRM's pages through `App.tsx`,** never by changing the CRM's queries or replies. A deal's quotes come from the quotes area's own route, such as `/api/quotes?deal_id=7`, in a panel the quotes area gives `App.tsx`, which hands it to the deal's page (R7). The dashboard takes sections the same way (H10). So an organization's bills come from `/api/bills?organization_id=7`, in the Bills panel, a deal's invoices from `/api/invoices?deal_id=7`, in the Invoices panel, and the Money section's cash flow row and its two sides from `/api/cash-flow`, `/api/invoices/money` and `/api/bills/dashboard`, never from `/api/dashboard`. Every area's routes start with words of their own after `/api`, which `backend/tests/test_layout.py` checks, so `main.py` can give a field error the right area's messages.
 - **A later area's record can hold a deal or an organization** (D4). The area says which of its columns hold one, as a `Hold`, and `main.py` hands every area's holds to the CRM's delete routes through the app, so the CRM never names the area. Quotes give one, on `quotes.deal_id`, with the word `quote`, invoices two, on `invoices.deal_id` and `invoices.organization_id`, with the word `invoice`, and bills one, on `bills.organization_id`, with the word `bill`.
 - **`company/` holds the company settings, on both sides.** It's an area beside `crm/` and `products/`, called `company/` because the backend's `settings.py` already decides which copy runs. It imports only the top level, and `books/` to post the opening balance (B25), and never another area. It isn't at the top level because not every area needs it: the CRM and products don't. It's the one area every other can import: later areas that need the company's details, such as quotes and invoices, can import it. `company/documents.py` gives them the settings as saved and each document's next number, and takes from `main.py` where each kind keeps the numbers it has taken, so a changed prefix is checked against them (B6). `company/tax.py` and `company/tax.ts` give them the sums on their lines, `company/lines.py` the saving of those lines, and `company/layout.py`, `company/pdf.py`, `company/layout.ts` and `company/DocumentDrawing.tsx` their pages, on the PDF and in the preview. The sample company is in `company/sample_data.py`, and the function that fills a new database fills it too.
-- **The top level holds only what every area needs.** Signing in and people are needed by every area, so `auth.py` and `users.py` sit there, and `users.py` holds the made-up teammates that any area's sample records are put down to. `sample.py` gives every area's sample data the same times of day and the same rule for which teammate added and last changed each record. It also gives quotes' and invoices' sample data their lines, from the price list each reads, because the two never read each other: a won deal's lines follow from its value alone, so its accepted quote and its invoice have the same ones. `who.py` gives every area's record tables the same four columns, `created_at`, `updated_at`, `created_by` and `updated_by`, and what saves and replies do with them. `api.py` has the base request model and its checks, the field types such as names, emails, websites, ids, dollars and cents, the sums of cents that bills, invoices and the cash flow send as digits, and the errors shown beside a field. Each area keeps the messages for its own fields, and `main.py` hands the error handler the messages of the area whose route a request reached, from the words the route starts with. Two areas can each have a field of one name with different rules: the CRM's activities need a description, and a product's is optional. The top bar's search spans every area, so `search.py` sits at the top level too: it runs the one query and puts the results in order, and each area's own `search.py` says what to look for in its tables. `holds.py` lets any area's records hold a deal or an organization (D4), `cash.py` lets any area give the cash flow its money, and `months.py` gives every area's charts by month the same 12 months, and the cash flow the 3 after them. An area can import any of these, but they never import an area, so `main.py` passes `db.py` the function that fills a new database, passes `search.py` each area's kinds and puts each area's holds and cash on the app. `main.py` keeps one list of areas, each with its routers, its fields' messages, its search kinds, its holds, its cash and where its documents keep their numbers, so a later area joins with one entry. Only `main.py`, `cli.py` and the migrations name an area's folder.
+- **The top level holds only what every area needs.** Signing in and people are needed by every area, so `auth.py` and `users.py` sit there, and `users.py` holds the made-up teammates that any area's sample records are put down to. `sample.py` gives every area's sample data the same times of day and the same rule for which teammate added and last changed each record. It also gives quotes' and invoices' sample data their lines, from the price list each reads, because the two never read each other: a won deal's lines follow from its value alone, so its accepted quote and its invoice have the same ones. `who.py` gives every area's record tables the same four columns, `created_at`, `updated_at`, `created_by` and `updated_by`, and what saves and replies do with them. `api.py` has the base request model and its checks, the field types such as names, emails, websites, ids, dollars and cents, the sums of cents that bills, invoices and the cash flow send as digits, and the errors shown beside a field. Each area keeps the messages for its own fields, and `main.py` hands the error handler the messages of the area whose route a request reached, from the words the route starts with. Two areas can each have a field of one name with different rules: the CRM's activities need a description, and a product's is optional. The top bar's search spans every area, so `search.py` sits at the top level too: it runs the one query and puts the results in order, and each area's own `search.py` says what to look for in its tables. `holds.py` lets any area's records hold a deal or an organization (D4), `cash.py` lets any area give the cash flow its money, `labels.py` lets invoices and bills name their records for the books' entries without `books/` importing either, as `main.py` hands them over, and `months.py` gives every area's charts by month the same 12 months, and the cash flow the 3 after them. An area can import any of these, but they never import an area, so `main.py` passes `db.py` the function that fills a new database, passes `search.py` each area's kinds and puts each area's holds and cash on the app. `main.py` keeps one list of areas, each with its routers, its fields' messages, its search kinds, its holds, its cash and where its documents keep their numbers, so a later area joins with one entry. Only `main.py`, `cli.py` and the migrations name an area's folder.
 - **One database setup.** All tables share one `metadata` and one migration history, and anything specific to SQLite or Postgres stays in `db.py` and the migrations. There's no raw SQL, check constraints included, apart from turning on row-level security in the migrations, which SQLAlchemy can't say.
 - **A router file holds its routes and their queries.** The dashboard's figures and funnel live in its router. `products/`, `company/`, `books/`, `quotes/`, `bills/`, `cashflow/` and `aging/` each have one router, so it's `router.py` in their folder, with no folder around it. `invoices/` has four, so they're in `invoices/routers/`, as the CRM's are in `crm/routers/`. In `crm/`, a module outside `routers/` exists only because several files use it, as `quotes/document.py` does, which the router and the PDF both use, and each area's `search.py` exists because the top-level `search.py` needs it, as each area's `cash.py` does because the cash flow needs it.
 - **How quotes and invoices look is in `company/`.** The choice of design, the accent color and the logo are company settings, which `company/` keeps and checks, and both areas draw the designs, so the drawing is in `company/` too, with each kind's words in `shared/document-designs.json`. Each area builds its document's plain values, the quote's in `quotes/document.py` and `quotes/QuotePreview.tsx`, and the invoice's in `invoices/routers/pdf.py` and `invoices/pages/Invoice.tsx`, and hands them to the shared layout. Each also keeps its own rules for what a new line starts from, its checks and its messages, and hands the lines to `company/lines.py` to save. The Company settings page shows the sample invoice through a component `App.tsx` hands it, so `company/` never imports `invoices/`.

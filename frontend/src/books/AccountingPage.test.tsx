@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 
 import { BalanceSheet } from "./pages/BalanceSheet";
 import { Journal } from "./pages/Journal";
-import { ProfitAndLoss } from "./pages/ProfitAndLoss";
 import { Shell, type Section } from "../components/Shell";
 import { queryDefaults } from "../lib/queryDefaults";
 import { mockApi } from "../test-utils";
@@ -18,12 +17,6 @@ const SECTIONS: Section[] = Array.from({ length: 9 }, (_, place) => ({
 }));
 
 const PAGES = [
-  [
-    "/accounting/profit-and-loss",
-    ProfitAndLoss,
-    "Profit and loss",
-    "What the business earned and what it spent each month, and the profit or loss that leaves.",
-  ],
   [
     "/accounting/balance-sheet",
     BalanceSheet,

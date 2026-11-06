@@ -4,7 +4,7 @@ Part of the [spec](../spec.md), which has the summary, the terms, the quality ru
 
 ## The books
 
-Accountable keeps double-entry books in the background. Every event that moves money posts a journal entry, so the books say what the business earned, what it owns and what it owes, and can be checked the way an accountant would check them. Nobody types an entry: the invoices, payments, bills and the opening balance post their own, in the save that changes them. The first report to read them is Aged balances ([aged-balances.md](aged-balances.md#aged-balances)), which works out its figures from the invoices and bills and checks them against the books. The other Accounting pages say a report is coming, and the backend already answers what those reports will ask: an account's balance on a date, each account's totals by month, and the entries behind any figure.
+Accountable keeps double-entry books in the background. Every event that moves money posts a journal entry, so the books say what the business earned, what it owns and what it owes, and can be checked the way an accountant would check them. Nobody types an entry: the invoices, payments, bills and the opening balance post their own, in the save that changes them. The first reports are [Profit and loss](profit-and-loss.md#profit-and-loss) and Aged balances ([aged-balances.md](aged-balances.md#aged-balances)), which works out its figures from the invoices and bills and checks them against the books. The other Accounting pages still say their report is coming, and the backend already answers what they will ask: an account's balance on a date, each account's totals by month, and the entries behind any figure.
 
 ### Accounts
 
@@ -75,7 +75,7 @@ A save that changes nothing money-related, such as a bill's notes, due date or n
 - **J12.** The backend answers three questions, each from the entries alone, and none of them is stored:
   - **Balance on a date:** every account's balance on a day, counting every entry dated up to and including it (`GET /books/balances`). Without a day, it's today.
   - **Totals by month:** for each month in a range, each account's debits, its credits and its balance at the month's end (`GET /books/months`). Without a range, it's the last 12 months, as every chart by month shows.
-  - **The entries behind a figure:** the entries in a range of dates that touch an account, newest first, each with its lines, its source and the page that opens it (`GET /books/entries`). A balance on a day is the entries to that day, a month's figure the entries between the month's first and last days, so any figure can be traced to the invoices, payments and bills behind it, reversals included.
+  - **The entries behind a figure:** the entries in a range of dates that touch an account, newest first, each with its lines, its source, the page that opens it and a label naming the record, such as the invoice's number or "8841 from Northwind Software" for a bill, or nothing if the record has been deleted or has no name, as a payment and the opening balance have none (`GET /books/entries`). The books don't read the areas to name a record: each area that posts gives `main.py` a function that names its records in one read, as it gives its holds and cash, so the label is the record's name now, not as it was when posted. A balance on a day is the entries to that day, a month's figure the entries between the month's first and last days, so any figure can be traced to the invoices, payments and bills behind it, reversals included.
 
   Sums are sent as strings of digits, with a minus sign in front below zero, as the cash flow's are (Y20), because a sum of 46 invoices can pass what a browser holds exactly. A line's own amount is a number. The routes start with `/api/books` ([API](backend.md#api)).
 - **J13.** The books' Cash and the cash flow's agree. On a fresh copy with the sample data, the Cash account's balance on today equals Cash today on the dashboard's cash flow ([Y16](cash-flow.md#reading-it)), to the cent. They count the same payments and paid bills, and the opening balance. They can differ only where the business moved cash before the opening balance's date: the cash flow leaves those payments and bills out of its balance, because the opening balance is the cash at the start of its date (Y9), and the books keep every entry. The sample data moves no cash before its opening balance's date.
@@ -84,11 +84,10 @@ A save that changes nothing money-related, such as a bill's notes, due date or n
 ### The Accounting pages
 
 - **J15.** The menu under the person's initials has an Accounting group of four links, Profit and loss, Balance sheet, Journal and Aged balances, between the themes and Company settings ([N7](shell.md#app-shell)). They open `/accounting/profit-and-loss`, `/accounting/balance-sheet`, `/accounting/journal` and `/accounting/aged-balances`, each with its own address (N2). `/accounting` alone opens Profit and loss. Like Company settings, an Accounting page keeps the top bar, isn't one of its nine sections, and so leaves no section marked as current. Any other address under `/accounting` shows "This page no longer exists" (N4).
-- **J16.** Aged balances has its report ([X1 to X20](aged-balances.md#aged-balances)). Every other Accounting page is for now a placeholder that says the report is coming and what it will show, in plain words. Each has its title, "This report is coming soon." and what it will hold:
+- **J16.** Profit and loss ([X1 to X19](profit-and-loss.md#profit-and-loss)) and Aged balances ([X1 to X20](aged-balances.md#aged-balances)) have their reports. The other two Accounting pages are for now placeholders that say the report is coming and what it will show, in plain words. Each has its title, "This report is coming soon." and what it will hold:
 
 | Page | What it says it will show |
 |---|---|
-| Profit and loss | What the business earned and what it spent each month, and the profit or loss that leaves. |
 | Balance sheet | What the business owns and owes on any day you choose, and what's left over for the owner. |
 | Journal | Every entry in the books, newest first, each linking to the invoice, payment or bill it came from. |
 | Aged balances | (Has its report: [aged-balances.md](aged-balances.md#aged-balances).) |
@@ -99,9 +98,9 @@ A save that changes nothing money-related, such as a bill's notes, due date or n
 
 ### Accounting pages
 
-Each placeholder page is the page title at the top left, in Instrument Sans at the size the Company settings title has, semibold, in ink, and under it one panel on the page background, rounded with no outline, as the other panels are, in light and dark mode. The panel is about 560px wide and left-aligned under the title. In it, the lucide-react Info icon in Cerulean comes before "This report is coming soon." in semibold ink, then, under it in muted ink, the sentence for that page from J16. No button, no figure, no table and no gradient. It sits as it does on every page, under the top bar's floating bar with space around it, and there's no line across the top.
+Profit and loss has its own screen ([Screens](profit-and-loss.md#screens)), under the same title, and so has Aged balances. Each placeholder page is the page title at the top left, in Instrument Sans at the size the Company settings title has, semibold, in ink, and under it one panel on the page background, rounded with no outline, as the other panels are, in light and dark mode. The panel is about 560px wide and left-aligned under the title. In it, the lucide-react Info icon in Cerulean comes before "This report is coming soon." in semibold ink, then, under it in muted ink, the sentence for that page from J16. No button, no figure, no table and no gradient. It sits as it does on every page, under the top bar's floating bar with space around it, and there's no line across the top.
 
-The three placeholders share one component, which takes the title and the sentence, so the wording is in one place. Their words are the ones in J16, with no exclamation marks. Aged balances has its own screen ([Aged balances page](aged-balances.md#aged-balances-page)).
+The placeholders share one component, which takes the title and the sentence, so the wording is in one place. Their words are the ones in J16, with no exclamation marks. Aged balances has its own screen ([Aged balances page](aged-balances.md#aged-balances-page)).
 
 ### Accounting links in the menu
 

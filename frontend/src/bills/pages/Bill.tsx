@@ -18,7 +18,7 @@ import { price } from "../../lib/money";
 import { useToday } from "../../lib/useToday";
 import { recordId } from "../../lib/validate";
 import { BillForm } from "../BillForm";
-import { CategoryLabel } from "../categories";
+import { CategoryLabel } from "../../components/charts/categories";
 import { DeleteBill } from "../DeleteBill";
 import { MarkPaidDialog } from "../MarkPaidDialog";
 import { useBill, usePaid, type BillDetail } from "../queries";

@@ -7,7 +7,7 @@ the shared app's routes on their own SQLite database, with a stand-in for Supaba
 import os
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePath, PurePosixPath
 
 import jwt
@@ -25,6 +25,7 @@ from accountable import api, auth, cli, db, search, settings, users
 from accountable.aging import router as aging_router
 from accountable.aging import schemas as aging_schemas
 from accountable.bills import cash as bills_cash
+from accountable.bills import labels as bills_labels
 from accountable.bills import router as bills
 from accountable.bills import schemas as bills_schemas
 from accountable.bills import tables as bills_tables
@@ -42,9 +43,11 @@ from accountable.crm import search as crm_search
 from accountable.crm.routers import activities, contacts, dashboard, deals, meta, organizations
 from accountable.holds import Hold
 from accountable.invoices import cash as invoices_cash
+from accountable.invoices import labels as invoices_labels
 from accountable.invoices import schemas as invoices_schemas
 from accountable.invoices import tables as invoices_tables
 from accountable.invoices.routers import invoices, money, payments, pdf
+from accountable.labels import Labels
 from accountable.products import router as products
 from accountable.products import schemas as products_schemas
 from accountable.products import search as products_search
@@ -71,6 +74,8 @@ class Area:
     """The money it moves or expects, for the cash flow (Y1 to Y22)."""
     numbered: Sequence[Numbered] = ()
     """Where its documents keep the numbers they take, so a new prefix can't match one (B6)."""
+    labels: Mapping[str, Labels] = field(default_factory=dict)
+    """What it calls its records, by the kind of books entry they post, for the entries behind a figure (X13)."""
 
     @property
     def route_starts(self) -> set[str]:
@@ -106,9 +111,16 @@ AREAS = [
         holds=invoices_tables.HOLDS,
         cash=invoices_cash.CASH,
         numbered=invoices_tables.NUMBERED,
+        labels={"invoice": invoices_labels.labels},
     ),
     # Bills aren't searched from the top bar (K1), and each one holds its supplier (D4).
-    Area(routers=[bills.router], messages=bills_schemas.FIELD_MESSAGES, holds=bills_tables.HOLDS, cash=bills_cash.CASH),
+    Area(
+        routers=[bills.router],
+        messages=bills_schemas.FIELD_MESSAGES,
+        holds=bills_tables.HOLDS,
+        cash=bills_cash.CASH,
+        labels={"bill": bills_labels.labels, "bill_payment": bills_labels.labels},
+    ),
     # The cash flow keeps no records, and reads every area's money from the app.
     Area(routers=[cashflow.router], messages=cashflow_schemas.FIELD_MESSAGES),
     # The books keep their own tables, post nothing from here, and give no holds, cash or search kinds.
@@ -136,6 +148,7 @@ def make_app(
     app.state.holds = [hold for area in AREAS for hold in area.holds]
     app.state.cash = [area.cash for area in AREAS if area.cash is not None]
     app.state.numbered = [numbered for area in AREAS for numbered in area.numbered]
+    app.state.labels = {kind: names for area in AREAS for kind, names in area.labels.items()}
 
     # Each middleware added goes outside the ones before it, so a request meets these
     # in the opposite order: the host, then the token, then the body's size, then its

@@ -94,7 +94,10 @@ export function Statement({ period, previousLabel, switcher, onOpen, register }:
         <tbody>
           {rowsOf(period).map((row) => (
             <tr key={row.figure} className={`h-9 ${row.strong ? "font-semibold" : ""}`}>
-              <th scope="row" className={`text-left font-[inherit] ${row.gap ? "pt-3" : ""}`}>
+              <th
+                scope="row"
+                className={`text-left ${row.strong ? "font-semibold" : "font-normal"} ${row.gap ? "pt-3" : ""}`}
+              >
                 {row.label}
               </th>
               <td className={`text-right ${row.gap ? "pt-3" : ""} ${row.quiet ? "text-muted" : ""}`}>

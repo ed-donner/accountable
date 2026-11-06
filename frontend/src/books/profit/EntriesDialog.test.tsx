@@ -73,9 +73,9 @@ describe("the entries dialog", () => {
     show({ [FIRST]: entriesReply("revenue", [entry(1), BILL, GONE]) });
     const rows = await screen.findAllByRole("listitem");
     expect(rows.map((row) => row.textContent)).toEqual([
-      "Nov 2, 2026Invoice INV-001 Issued$1,000.00",
-      "Mar 5, 2026Bill 8841 from Northwind Software Changed Reversal-$200.00",
-      "Nov 2, 2026Deleted bill Deleted$30.00",
+      "Nov 2, 2026Invoice INV-001Issued$1,000.00",
+      "Mar 5, 2026Bill 8841 from Northwind SoftwareChanged Reversal-$200.00",
+      "Nov 2, 2026Deleted billDeleted$30.00",
     ]);
     expect(within(rows[0]).getByRole("link").getAttribute("href")).toBe("/invoices/1");
     expect(within(rows[1]).getByRole("link").getAttribute("href")).toBe("/bills/5");

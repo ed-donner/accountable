@@ -33,7 +33,7 @@ function Row({ entry }: { entry: EntryReply }) {
       <span className="num w-[92px] flex-none text-[13px] leading-5 text-muted">{formatDate(entry.entry_date)}</span>
       <span className="min-w-0 flex-1">
         <Source entry={entry} />
-        <span className="text-muted"> {eventName(entry.event)}</span>
+        <span className="ml-1.5 text-muted">{eventName(entry.event)}</span>
         {entry.reverses_id !== null && (
           <>
             {" "}

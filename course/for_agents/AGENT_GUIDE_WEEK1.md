@@ -8,7 +8,7 @@ No repo work. The slides cover the course, how coding agents are changing the jo
 
 **Part 1, scene setting.** How LLMs work, tokens and the context window, intelligence, speed and cost on Artificial Analysis, and what an agent is: an LLM calling tools in a loop inside a harness. Students who know this already can watch it at double speed.
 
-**Part 2, the agents.** A coding agent is a harness (Claude Code, Copilot, Codex, Cursor, OpenCode, Pi) plus an LLM. The slides cover the surfaces each agent comes in, a timeline from 2024 to 2026 with November 2025 as the turning point, the four ways to take the course, the installs (VS Code, Git, Node, uv and a coding agent), cloning this repo, and the commands in each agent (the table at the top of each guide).
+**Part 2, the agents.** A coding agent is a harness (Claude Code, Copilot, Codex, Cursor, OpenCode, Pi or Antigravity CLI) plus an LLM. The slides cover the surfaces each agent comes in, a timeline from 2024 to 2026 with November 2025 as the turning point, the four ways to take the course, the installs (VS Code, Git, Node, uv and a coding agent), cloning this repo, and the commands in each agent (the table at the top of each guide).
 
 **Part 3, the crash course,** in Claude Code. The student sets up their agent one step at a time while the slides explain each piece. Each agent's guide, `course/coding_agents/<agent>.md`, has the same eleven sections. After "Install and sign in" they are:
 
@@ -24,6 +24,8 @@ No repo work. The slides cover the course, how coding agents are changing the jo
 - **Check and commit your setup:** check the repo against the tree and checklist in the guide, then commit with `git add .` and `git commit -m "Day 2 setup"`. The MVP is built on Day 3.
 
 The slides also cover the context window: what fills it, `/context`, and what `/compact` does.
+
+**The handout.** Day 2 ends with a written lecture on Udemy: a PDF with a one-page reference for each coding agent. Each page covers installation, the common slash commands, the files and folders in the repo and the home folder, MCP servers and plugins, pro tips, and the IDE or app version. When the student wants a quick reference for their agent, point them to it.
 
 **Watch out for:**
 

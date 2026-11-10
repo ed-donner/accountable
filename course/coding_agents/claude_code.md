@@ -2,7 +2,7 @@
 
 Claude Code is Anthropic's coding agent, and it's the one I use on camera, in the VS Code terminal. This guide is the written version of what I do in the Week 1 Day 2 lesson, with one section per step.
 
-The other guides in this folder cover the same steps in Codex, GitHub Copilot, Cursor, OpenCode and Pi, with the same headings.
+The other guides in this folder cover the same steps in Codex, GitHub Copilot, Cursor, OpenCode, Pi and Antigravity CLI, with the same headings.
 
 Run the commands in the VS Code terminal, in your `accountable` folder. On Windows that terminal is PowerShell. `~` means your home folder; in PowerShell the same folder is `$HOME`.
 
@@ -10,16 +10,16 @@ Run the commands in the VS Code terminal, in your `accountable` folder. On Windo
 
 These are the Claude Code commands I use in the lessons, with the closest match in each of the other agents. Type them in the agent's prompt; `pi install` runs in the terminal.
 
-| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi |
-|---|---|---|---|---|---|---|
-| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` |
-| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` |
-| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` |
-| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer |
-| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
-| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` |
-| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` |
-| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` |
+| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi | Antigravity |
+|---|---|---|---|---|---|---|---|
+| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` | `/model` |
+| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` | `/effort` |
+| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` | `/usage` |
+| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer | `/context` |
+| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
+| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` | `/skills` |
+| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` | `/mcp` |
+| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` | `/plugin` |
 
 - In the `/model` picker, the left and right arrow keys set the effort too.
 - `/usage` shows the session's cost and your plan's usage limits. `/cost` and `/stats` open it as well.
@@ -27,7 +27,7 @@ These are the Claude Code commands I use in the lessons, with the closest match 
 
 ## 1. Install and sign in
 
-You need a Claude Pro plan or higher. The plans and their prices are at [claude.com/pricing](https://claude.com/pricing). A Claude Console account with prepaid API credits also works. Claude Code has no free route; if you want to spend nothing, use the OpenCode or Pi guide.
+You need a Claude Pro plan or higher. The plans and their prices are at [claude.com/pricing](https://claude.com/pricing). A Claude Console account with prepaid API credits also works. Claude Code has no free route; if you want to spend nothing, use the OpenCode, Pi or Antigravity guide.
 
 Mac:
 

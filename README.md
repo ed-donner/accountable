@@ -1,4 +1,4 @@
-# AI SDLC: The AI-Native Software Engineer with Coding Agents
+# AI SDLC: The AI-Native Software Engineer in the Agentic Era
 
 ## Accountable: the course project
 
@@ -28,7 +28,7 @@ And in case you haven't heard it from me enough, I'd be delighted if you'd consi
 
 1. **Follow me exactly.** I use Claude Code in the terminal in VS Code, on a Claude Pro plan ([claude.com/pricing](https://claude.com/pricing)).
 2. **Use your own paid plan** with another coding agent. The guide for your agent in [course/coding_agents/](course/coding_agents/) has every step.
-3. **Use a free or cheap plan:** OpenCode with OpenCode Zen, or Pi with OpenRouter. Follow the guide for your agent, and expect free models to need a lot of patience.
+3. **Use a free or cheap plan:** OpenCode with its free models, Pi with OpenRouter, or Antigravity CLI on a free Google account. Follow the guide for your agent, and expect free models to need a lot of patience.
 4. **Go free and live vicariously through me.** Switch to my code with git each day (below) and get my results without spending tokens or time.
 
 The guides for each agent:
@@ -39,6 +39,7 @@ The guides for each agent:
 - [Cursor](course/coding_agents/cursor.md)
 - [OpenCode](course/coding_agents/opencode.md)
 - [Pi](course/coding_agents/pi.md)
+- [Antigravity CLI](course/coding_agents/antigravity.md)
 
 ## For immediate help
 

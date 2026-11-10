@@ -8,16 +8,16 @@ Run the commands in Cursor's terminal, in your `accountable` folder. On Windows 
 
 These are the Claude Code commands I use in the lessons, with the closest match in each of the other agents. Type them in the agent's prompt; `pi install` runs in the terminal.
 
-| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi |
-|---|---|---|---|---|---|---|
-| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` |
-| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` |
-| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` |
-| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer |
-| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
-| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` |
-| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` |
-| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` |
+| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi | Antigravity |
+|---|---|---|---|---|---|---|---|
+| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` | `/model` |
+| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` | `/effort` |
+| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` | `/usage` |
+| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer | `/context` |
+| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
+| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` | `/skills` |
+| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` | `/mcp` |
+| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` | `/plugin` |
 
 - These are the commands in Cursor's command-line agent, `agent`. `/model` also sets the reasoning effort.
 - Cursor's reference page lists the compact command as `/summarize`; `/compact` and `/compress` do the same.
@@ -99,7 +99,7 @@ Cursor has no single settings file for the project. Each kind of setting has its
 }
 ```
 
-**Hide `.env`.** Create a `.cursorignore` file at the repo root with this line, which hides the file from the agent:
+**Hide `.env`.** Cursor already ignores `.env` files by default. To make it explicit, create a `.cursorignore` file at the repo root with this line. It blocks the agent's file tools, though terminal commands and MCP tools can still read the file:
 
 ```text
 .env
@@ -134,6 +134,12 @@ Cursor has no command for adding a server. Create `.cursor/mcp.json`:
 ```
 
 Open **Customize** in the sidebar to check that `playwright` is listed and turned on. In the terminal, `agent mcp list` shows the same servers.
+
+The command-line agent loads a project's servers only after you approve them. Run this once in the terminal:
+
+```bash
+agent mcp enable playwright
+```
 
 ## 8. Code Mode
 
@@ -174,7 +180,7 @@ Cursor has plugins, installed from the Cursor Marketplace in **Customize**. The 
 npx skills add anthropics/skills --skill frontend-design -a cursor
 ```
 
-It installs into `.agents/skills/frontend-design/`. Commit it with the rest of today's setup.
+It installs into `.agents/skills/frontend-design/` and records the install in `skills-lock.json`. Commit both with the rest of today's setup.
 
 ## 11. Check and commit your setup
 
@@ -199,7 +205,8 @@ accountable/
 ├── .cursorignore                added today
 ├── .gitignore
 ├── AGENTS.md                    changed today
-└── README.md
+├── README.md
+└── skills-lock.json             added today
 ```
 
 Check each piece:
@@ -225,5 +232,5 @@ git checkout week1day2-end
 
 My branch has Claude Code's setup, not yours. After switching:
 
-- If you did today's steps and committed them, bring your files across from `main` with `git checkout main -- .agents .cursor .cursorignore`.
+- If you did today's steps and committed them, bring your files across from `main` with `git checkout main -- .agents .cursor .cursorignore skills-lock.json`.
 - If you didn't, redo steps 6, 7 and 10 of this guide. For the brand skill, copy my `.claude/skills/brand/` folder to `.agents/skills/brand/`, since `docs/BRAND.md` is gone on my branch.

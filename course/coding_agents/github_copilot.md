@@ -10,16 +10,16 @@ Run the commands in the VS Code terminal, in your `accountable` folder. On Windo
 
 These are the Claude Code commands I use in the lessons, with the closest match in each of the other agents. Type them in the agent's prompt; `pi install` runs in the terminal.
 
-| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi |
-|---|---|---|---|---|---|---|
-| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` |
-| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` |
-| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` |
-| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer |
-| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
-| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` |
-| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` |
-| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` |
+| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi | Antigravity |
+|---|---|---|---|---|---|---|---|
+| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` | `/model` |
+| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` | `/effort` |
+| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` | `/usage` |
+| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer | `/context` |
+| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
+| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` | `/skills` |
+| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` | `/mcp` |
+| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` | `/plugin` |
 
 - These are Copilot CLI commands. `/model` also sets the reasoning effort, or start Copilot with `copilot --effort high` (or `low`, `medium`, `xhigh`, `max`).
 - `/usage` shows the session's token totals and credits, not your plan's limits.
@@ -101,7 +101,7 @@ The project's MCP servers go in `.mcp.json` at the repo root. Copilot CLI also r
 
 **In your home folder:** `~/.copilot/` holds your `settings.json`, `mcp-config.json` (your own MCP servers), `copilot-instructions.md`, your own agents and skills, and `config.json`, which records the folders you trust.
 
-**The scopes:** settings from your organization win. The repository's `.github/copilot/settings.json` can set only a short list of keys, such as the model and plugins, and each key has its own rule for how it combines with your user settings. Everything else is a user setting in `~/.copilot/settings.json`.
+**The scopes:** for most keys, your own settings override the ones your organization manages. A few, such as sandbox limits, always follow your organization. The repository's `.github/copilot/settings.json` can set only a short list of keys, such as the model and plugins, and each key has its own rule for how it combines with your user settings. Everything else is a user setting in `~/.copilot/settings.json`.
 
 ## 5. Settings
 
@@ -225,7 +225,7 @@ accountable/
 └── README.md
 ```
 
-If you use Copilot in VS Code, `.vscode/settings.json` is there too. The `frontend-design` plugin is installed on your machine rather than in the repo; if you used the skills tool instead, it's in `.agents/skills/frontend-design/`.
+If you use Copilot in VS Code, `.vscode/settings.json` is there too. The `frontend-design` plugin is installed on your machine rather than in the repo; if you used the skills tool instead, it's in `.agents/skills/frontend-design/`, with `skills-lock.json` at the repo root.
 
 Check each piece:
 

@@ -8,16 +8,16 @@ Run the commands in the VS Code terminal, in your `accountable` folder. On Windo
 
 These are the Claude Code commands I use in the lessons, with the closest match in each of the other agents. Type them in the agent's prompt; `pi install` runs in the terminal.
 
-| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi |
-|---|---|---|---|---|---|---|
-| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` |
-| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` |
-| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` |
-| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer |
-| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
-| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` |
-| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` |
-| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` |
+| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi | Antigravity |
+|---|---|---|---|---|---|---|---|
+| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` | `/model` |
+| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` | `/effort` |
+| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` | `/usage` |
+| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer | `/context` |
+| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
+| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` | `/skills` |
+| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` | `/mcp` |
+| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` | `/plugin` |
 
 - Codex has no `/effort` command: `/model` asks for the model and then the reasoning effort.
 - Codex has no `/context` command. After your first message, `/status` shows how much of the context window is left as one figure, below your settings and above your usage limits. To keep it in view, add `context-used` to the footer with `/statusline`.
@@ -125,9 +125,14 @@ default_permissions = "accountable"
 [permissions.accountable]
 extends = ":workspace"
 
+[permissions.accountable.filesystem]
+glob_scan_max_depth = 3
+
 [permissions.accountable.filesystem.":workspace_roots"]
 "**/*.env" = "deny"
 ```
+
+On Windows, WSL and Linux, Codex needs `glob_scan_max_depth` to apply a `**` pattern like this one.
 
 `:workspace` is the same boundary the Auto preset uses. Permission profiles replace the older `sandbox_mode` setting; if `sandbox_mode` is set in any config file, or you start Codex with `--sandbox`, Codex uses the older setting and ignores the profile.
 
@@ -178,7 +183,7 @@ It installs into `.agents/skills/`. You don't need to install one today.
 
 ## 10. A plugin
 
-Codex has its own plugin directory: run `/plugins` to browse it, and start a new session after installing one.
+Codex's plugin directory, which it shares with ChatGPT, is separate from Claude Code's: run `/plugins` to browse it, and start a new session after installing one.
 
 The plugin I install in Claude Code, Anthropic's `frontend-design`, is a Claude Code plugin with a single skill inside. Anthropic publishes the same skill in its skills repo. Install it with Vercel's skills tool:
 
@@ -186,7 +191,7 @@ The plugin I install in Claude Code, Anthropic's `frontend-design`, is a Claude 
 npx skills add anthropics/skills --skill frontend-design -a codex
 ```
 
-It installs into `.agents/skills/frontend-design/`. Commit it with the rest of today's setup.
+It installs into `.agents/skills/frontend-design/` and records the install in `skills-lock.json`. Commit both with the rest of today's setup.
 
 ## 11. Check and commit your setup
 
@@ -209,7 +214,8 @@ accountable/
 │   └── TECH_STACK.md
 ├── .gitignore
 ├── AGENTS.md                    changed today
-└── README.md
+├── README.md
+└── skills-lock.json             added today
 ```
 
 Check each piece:
@@ -236,5 +242,5 @@ git checkout week1day2-end
 
 My branch has Claude Code's setup, not yours. After switching:
 
-- If you did today's steps and committed them, bring your files across from `main` with `git checkout main -- .agents .codex`.
+- If you did today's steps and committed them, bring your files across from `main` with `git checkout main -- .agents .codex skills-lock.json`.
 - If you didn't, redo steps 6, 7 and 10 of this guide. For the brand skill, copy my `.claude/skills/brand/` folder to `.agents/skills/brand/`, since `docs/BRAND.md` is gone on my branch.

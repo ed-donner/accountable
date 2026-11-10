@@ -12,11 +12,13 @@ My checkpoints are branches, like my versions of the Week 1 days. In the `accoun
 git checkout week2day2-intents
 ```
 
-Read the two intents the developers agreed with their agents: `docs/changes/products/intent.md` and `docs/changes/company-settings/intent.md`. To see what the lead prepared before they started, look at the commits just before them:
+Read the two intents the developers agreed with their agents: `docs/changes/products/intent.md` and `docs/changes/company-settings/intent.md`. To see what the lead prepared before they started, list the lead's Prepare main commits:
 
 ```
-git log --oneline -8
+git log --oneline --grep "^Prepare:"
 ```
+
+`git show --stat` followed by a commit's id shows the files it changed.
 
 ### The results
 

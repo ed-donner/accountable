@@ -8,16 +8,16 @@ Run the commands in the VS Code terminal, in your `accountable` folder. On Windo
 
 These are the Claude Code commands I use in the lessons, with the closest match in each of the other agents. Type them in the agent's prompt; `pi install` runs in the terminal.
 
-| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi |
-|---|---|---|---|---|---|---|
-| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` |
-| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` |
-| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` |
-| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer |
-| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
-| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` |
-| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` |
-| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` |
+| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi | Antigravity |
+|---|---|---|---|---|---|---|---|
+| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` | `/model` |
+| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` | `/effort` |
+| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` | `/usage` |
+| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer | `/context` |
+| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
+| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` | `/skills` |
+| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` | `/mcp` |
+| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` | `/plugin` |
 
 - `/thinking` sets the thinking level, and Shift+Tab cycles through the levels. (In Claude Code, Shift+Tab switches permission modes.)
 - Pi shows context use and cost in the footer, and `/session` shows the session's token use.
@@ -40,6 +40,8 @@ powershell -c "irm https://pi.dev/install.ps1 | iex"
 ```
 
 You can also install with npm (Node 22.19 or later): `npm install -g --ignore-scripts @earendil-works/pi-coding-agent`. The old package name, `@mariozechner/pi-coding-agent`, is deprecated.
+
+On Windows, Pi runs its shell commands in Git Bash, which came with Git when you followed [../SETUP.md](../SETUP.md).
 
 Once you've cloned the repo ([../SETUP.md](../SETUP.md)), start Pi in your `accountable` folder:
 
@@ -89,7 +91,7 @@ Run `/reload` in Pi to pick it up.
 
 ## 4. Config folders and scopes
 
-**In the project:** the `.pi/` folder, which loads only after you trust the project. Pi asks when it finds one; you can also run `/trust`.
+**In the project:** the `.pi/` folder, which loads only after you trust the project. Pi asks when it finds one, and also when it finds skills in `.agents/skills/` (step 9). You can also run `/trust`.
 
 - `settings.json`: project settings and Pi packages
 - `mcp.json`: the project's MCP servers
@@ -169,7 +171,7 @@ The plugin I install in Claude Code, Anthropic's `frontend-design`, is a Claude 
 npx skills add anthropics/skills --skill frontend-design -a pi
 ```
 
-It installs into `.agents/skills/frontend-design/`. Commit it with the rest of today's setup.
+It installs into `.agents/skills/frontend-design/` and records the install in `skills-lock.json`. Commit both with the rest of today's setup.
 
 ## 11. Check and commit your setup
 
@@ -191,7 +193,8 @@ accountable/
 │   └── TECH_STACK.md
 ├── .gitignore
 ├── AGENTS.md                    changed today
-└── README.md
+├── README.md
+└── skills-lock.json             added today
 ```
 
 Check each piece:
@@ -217,5 +220,5 @@ git checkout week1day2-end
 
 My branch has Claude Code's setup, not yours. After switching:
 
-- If you did today's steps and committed them, bring your files across from `main` with `git checkout main -- .agents .pi`.
+- If you did today's steps and committed them, bring your files across from `main` with `git checkout main -- .agents .pi skills-lock.json`.
 - If you didn't, redo steps 7 and 10 of this guide. For the brand skill, copy my `.claude/skills/brand/` folder to `.agents/skills/brand/`, since `docs/BRAND.md` is gone on my branch.

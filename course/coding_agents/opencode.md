@@ -8,16 +8,16 @@ Run the commands in the VS Code terminal, in your `accountable` folder. On Windo
 
 These are the Claude Code commands I use in the lessons, with the closest match in each of the other agents. Type them in the agent's prompt; `pi install` runs in the terminal.
 
-| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi |
-|---|---|---|---|---|---|---|
-| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` |
-| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` |
-| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` |
-| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer |
-| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
-| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` |
-| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` |
-| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` |
+| What it does | Claude Code | Codex | Copilot CLI | Cursor CLI | OpenCode | Pi | Antigravity |
+|---|---|---|---|---|---|---|---|
+| Pick the model | `/model` | `/model` | `/model` | `/model` | `/models` | `/model` | `/model` |
+| Set the reasoning effort | `/effort` | in `/model` | in `/model` | in `/model` | `/variants` | `/thinking` | `/effort` |
+| See your usage | `/usage` | `/usage` | `/usage` | `/usage` | `/usage` | `/session` | `/usage` |
+| See what fills the context window | `/context` | `/status` | `/context` | `/context` | the sidebar | the footer | `/context` |
+| Summarize the conversation to free up context | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` | `/compact` |
+| List your skills | `/skills` | `/skills` | `/skills` | `/skills` | `/skills` | `/skill:` | `/skills` |
+| Manage MCP servers | `/mcp` | `/mcp` | `/mcp` | `/mcp` | `/mcps` | `/mcp` | `/mcp` |
+| Manage plugins | `/plugin` | `/plugins` | `/plugin` | `/plugin` | `/plugins` | `pi install` | `/plugin` |
 
 - OpenCode uses plurals: `/models`, `/mcps` and `/plugins`.
 - `/variants` sets the reasoning effort (`/thinking` and `/effort` open it too), and Ctrl+T cycles through the variants.
@@ -40,7 +40,7 @@ Windows (OpenCode doesn't support Windows package managers; npm works):
 npm install -g @opencode/cli
 ```
 
-There's also a standalone Windows binary on [opencode.ai](https://opencode.ai/v2/docs/).
+There's also a standalone Windows binary on [opencode.ai](https://opencode.ai/docs/).
 
 Be careful with older instructions: `curl https://opencode.ai/install`, without `v2`, installs OpenCode 1, which uses different config keys. If you installed OpenCode 1 with a package manager, remove it first. Both versions use the `opencode` command.
 
@@ -50,7 +50,7 @@ Once you've cloned the repo ([../SETUP.md](../SETUP.md)), start OpenCode in your
 opencode
 ```
 
-**Free models:** run `/models` and choose one marked Free. These are free for a limited time and the list changes, so keep a second choice in mind. Some of the free models' providers use your prompts to improve their models; OpenCode's model list says which.
+**Free models:** run `/models` and choose one marked Free. These are free for a limited time and the list changes, so keep a second choice in mind. Some of the free models' providers use your prompts to improve their models; OpenCode's [privacy notes](https://opencode.ai/docs/console/models/#privacy) say which.
 
 **Paid options:** OpenCode Go is a monthly subscription ([opencode.ai/go](https://opencode.ai/go)), and the OpenCode Console also sells pay-as-you-go credit. You can also use your own provider account. Connect any of these with `/connect`.
 
@@ -58,7 +58,7 @@ opencode
 
 Open `AGENTS.md` and `docs/intent.md` in VS Code and read them. This is what OpenCode reads before it starts work. `AGENTS.md` is short and points to the files in `docs/`, which the agent opens when it needs them.
 
-OpenCode V2 reads only `AGENTS.md`: your own global file first, then each `AGENTS.md` from the folder you started in up to the project root. It doesn't read `CLAUDE.md` (OpenCode 1 did).
+OpenCode V2 reads only `AGENTS.md`: your own global file first, then each `AGENTS.md` from the folder you started in up toward your home folder. It doesn't read `CLAUDE.md` (OpenCode 1 did).
 
 ## 3. Your own instructions file
 
@@ -183,7 +183,7 @@ OpenCode's plugins are JavaScript or TypeScript code: npm packages listed under 
 npx skills add anthropics/skills --skill frontend-design -a opencode
 ```
 
-It installs into `.agents/skills/frontend-design/`. Commit it with the rest of today's setup.
+It installs into `.agents/skills/frontend-design/` and records the install in `skills-lock.json`. Commit both with the rest of today's setup.
 
 ## 11. Check and commit your setup
 
@@ -204,7 +204,8 @@ accountable/
 ├── .gitignore
 ├── AGENTS.md                    changed today
 ├── opencode.jsonc               added today
-└── README.md
+├── README.md
+└── skills-lock.json             added today
 ```
 
 Check each piece:
@@ -231,5 +232,5 @@ git checkout week1day2-end
 
 My branch has Claude Code's setup, not yours. After switching:
 
-- If you did today's steps and committed them, bring your files across from `main` with `git checkout main -- .agents opencode.jsonc`.
+- If you did today's steps and committed them, bring your files across from `main` with `git checkout main -- .agents opencode.jsonc skills-lock.json`.
 - If you didn't, redo steps 6, 7 and 10 of this guide. The brand skill works as it is, since OpenCode reads `.claude/skills/`.

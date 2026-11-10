@@ -12,10 +12,10 @@ My checkpoints are branches, like my versions of the Week 1 days. In the `accoun
 git checkout week2day3-intents
 ```
 
-Read the three intents the developers agreed with their agents, in `docs/changes/quotes/`, `docs/changes/invoices/` and `docs/changes/bills/`. To see what the lead prepared before they started, look at the commits just before them:
+Read the three intents the developers agreed with their agents, in `docs/changes/quotes/`, `docs/changes/invoices/` and `docs/changes/bills/`. To see what the lead prepared before they started, list the lead's Prepare main commits. The two at the top are today's, and the two below them are from Day 2:
 
 ```
-git log --oneline -10
+git log --oneline --grep "^Prepare:"
 ```
 
 ### The three features merged

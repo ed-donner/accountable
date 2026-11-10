@@ -176,6 +176,13 @@ git branch -d copilot
 git push fork main
 ```
 
+If you moved your `main` onto one of my branches and GitHub refuses the push, your fork's `main` still has your own work on it. Save that work to GitHub as its own branch, then replace your fork's `main`:
+
+```
+git push fork my-week2day4
+git push --force fork main
+```
+
 Render deploys `main` with your key once its CI checks pass. Open your app on Render, sign in and ask the Copilot something. On the free plan the app sleeps after 15 minutes without visits, and the next visit takes about a minute to wake it.
 
 ## My version

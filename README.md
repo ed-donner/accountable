@@ -19,6 +19,7 @@ _If you're looking at this in VS Code or Cursor, right-click `README.md` in the 
 
 ## Key links
 
+- The slides for every day and the two PDF handouts: [my Google Drive folder](https://drive.google.com/drive/folders/1ar40RuSIJxJC5CJavHsEDE8CECqEZrC1?usp=sharing)
 - My curriculum of courses on Udemy: [edwarddonner.com/curriculum](https://edwarddonner.com/curriculum)
 - My digital avatar, which answers common questions about my courses: [edwarddonner.com/avatar](https://edwarddonner.com/avatar)
 
@@ -26,7 +27,7 @@ And in case you haven't heard it from me enough, I'd be delighted if you'd consi
 
 ## Four ways to take the course
 
-1. **Follow me exactly.** I use Claude Code in the terminal in VS Code, on a Claude Pro plan ([claude.com/pricing](https://claude.com/pricing)).
+1. **Follow me exactly.** I use Claude Code in the terminal in VS Code, on a Claude paid plan ([claude.com/pricing](https://claude.com/pricing)).
 2. **Use your own paid plan** with another coding agent. The guide for your agent in [course/coding_agents/](course/coding_agents/) has every step.
 3. **Use a free or cheap plan:** OpenCode with its free models, Pi with OpenRouter, or Antigravity CLI on a free Google account. Follow the guide for your agent, and expect free models to need a lot of patience.
 4. **Go free and live vicariously through me.** Switch to my code with git each day (below) and get my results without spending tokens or time.

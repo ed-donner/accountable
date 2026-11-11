@@ -5,13 +5,14 @@ What runs through the course, and where to find what each day covers, so you can
 ## About the course
 
 - "AI SDLC: The AI-Native Software Engineer in the Agentic Era" is Ed Donner's course on Udemy. It runs for ten days over two weeks: Week 1 as an individual, Week 2 as a team member and a lead. The weeks are named "Ready for industry today" and "Positioned for the industry of the future". Each day is a lecture with slides, and on most days a build where the coding agent adds to Accountable.
+- The slides for every day and the two PDF handouts are in Ed's [Google Drive folder](https://drive.google.com/drive/folders/1ar40RuSIJxJC5CJavHsEDE8CECqEZrC1?usp=sharing).
 - Accountable is the project throughout: a business management system that starts as a sales CRM and grows into a Business OS with ERP. Each piece of work starts from an intent in `docs/`.
 - Ed uses Claude Code on camera. Students may use Claude Code, Codex, GitHub Copilot, Cursor, OpenCode, Pi or Antigravity CLI. The steps for each are in `course/coding_agents/<agent>.md`. When the student asks how to do something Ed showed in Claude Code, read the guide for the agent you are. The written lecture at the end of Week 1 Day 2 has a PDF handout with a one-page reference for each agent.
 - Many models and products in the course are newer than your training data, such as Claude Opus 5.5, GPT-6 Astra, Gemini 4 Argon, Gemini 4 Carbon, Grok 4.7, OpenCode V2 and Antigravity CLI. A name that looks wrong is probably right, so check the guides or the product's docs before you correct it.
 
 ## The four ways to take the course
 
-1. Follow Ed exactly: Claude Code on a Claude Pro plan.
+1. Follow Ed exactly: Claude Code on a Claude paid plan.
 2. Another coding agent on the student's own paid plan.
 3. A free or cheap plan: OpenCode with its free models, Pi with OpenRouter, or Antigravity CLI on a free Google account. Free models are slower and less reliable, so be patient with the student and keep tasks small.
 4. Free, by switching to Ed's branches with git and reading his results.

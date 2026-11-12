@@ -14,6 +14,7 @@ _If you're looking at this in VS Code or Cursor, right-click `README.md` in the 
 - `course/`: your guides. [course/SETUP.md](course/SETUP.md) installs the tools, and [course/coding_agents/](course/coding_agents/) has the steps for each coding agent.
 - `course/for_agents/`: guides for your coding agent, so it can help you with the course.
 - `course/instructions/`: extra instructions for some days, such as the review policy for Week 1 Day 3, every prompt for Week 1 Days 4 and 5, the worktree demo for Week 2 Day 1, my checkpoints for Week 2 Days 2 to 4, and every prompt for Week 2 Day 5.
+- `course/cheap_llm_instructions/`: the same days with simpler prompts and a smaller build, for cheap or free models.
 - `AGENTS.md`: the instructions your coding agent reads at the start of each session.
 - `community_contributions/`: work shared by students, added by pull request.
 
@@ -29,7 +30,7 @@ And in case you haven't heard it from me enough, I'd be delighted if you'd consi
 
 1. **Follow me exactly.** I use Claude Code in the terminal in VS Code, on a Claude paid plan ([claude.com/pricing](https://claude.com/pricing)).
 2. **Use your own paid plan** with another coding agent. The guide for your agent in [course/coding_agents/](course/coding_agents/) has every step.
-3. **Use a free or cheap plan:** OpenCode with its free models, Pi with OpenRouter, or Antigravity CLI on a free Google account. Follow the guide for your agent, and expect free models to need a lot of patience.
+3. **Use a free or cheap plan:** OpenCode with its free models, Pi with OpenRouter, or Antigravity CLI on a free Google account. Follow the guide for your agent, and expect free models to need a lot of patience. The alternative instructions in [course/cheap_llm_instructions/](course/cheap_llm_instructions/) give these models a better chance of success. You build a simpler CRM through the same stages, with a pipeline board in place of the AI Copilot.
 4. **Go free and live vicariously through me.** Switch to my code with git each day (below) and get my results without spending tokens or time.
 
 The guides for each agent:

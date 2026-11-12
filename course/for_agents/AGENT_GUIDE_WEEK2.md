@@ -1,5 +1,7 @@
 # Week 2 guide for the coding agent: Positioned for the industry of the future
 
+This guide follows Ed's route. For a student on the route for cheap or free models (`course/cheap_llm_instructions/`), read "The route for cheap or free models" in `course/for_agents/AGENT_COURSE_GUIDE.md` first.
+
 ## Day 1: AI SDLC in Industry
 
 No repo work. A short theory day on how the AI SDLC lifecycles work for teams, with many people as well as many agents. The slides cover the problems teams run into with coding agents, the five lifecycles from Week 1 Day 1 (Anthropic, AWS, OpenAI, Google and Atlassian) compared stage by stage, and AWS's AI-DLC v2 in the most detail: its pieces of work (intents, Units and Bolts), the people and agents on a team, its phases, stages and approval gates, its scopes, how it runs in a coding agent, its team mode and the setup a whole team shares. AI-DLC v2 runs in the coding agent with AWS's `aidlc` tool and needs no AWS account. The day then covers what changes in the course as it moves from one person to a team: Anthropic's six stages stay, with several developers on different changes, teammates reviewing each pull request and shared cloud agents.

@@ -14,8 +14,26 @@ What runs through the course, and where to find what each day covers, so you can
 
 1. Follow Ed exactly: Claude Code on a Claude paid plan.
 2. Another coding agent on the student's own paid plan.
-3. A free or cheap plan: OpenCode with its free models, Pi with OpenRouter, or Antigravity CLI on a free Google account. Free models are slower and less reliable, so be patient with the student and keep tasks small.
+3. A free or cheap plan: OpenCode with its free models, Pi with OpenRouter, or Antigravity CLI on a free Google account. Free models are slower and less reliable, so be patient with the student and keep tasks small. The alternative instructions in `course/cheap_llm_instructions/` are written for this route ("The route for cheap or free models", below).
 4. Free, by switching to Ed's branches with git and reading his results.
+
+## The route for cheap or free models
+
+`course/cheap_llm_instructions/` has the same files as `course/instructions/`, with simpler prompts and a smaller build, for students on cheap or free models. Each file starts with what's different from the main instructions. The student builds a simpler CRM:
+
+- **Week 1 Day 3:** the MVP has four pages and three kinds of record (organizations, contacts and deals). The pages are a dashboard with three figures and two bar charts, and a table for each kind of record with an Add form. There's no editing, deleting, search, page for each record, pipeline board or activities. The student replaces `docs/intent.md` with the smaller intent in the Day 3 file. The agent makes one mockup of the dashboard, and the student checks it by eye.
+- **Week 1 Day 4:** the harness with fewer checks, with no coverage target, complexity limit or ty. CI runs `npm run check:quick` from the start. The git pre-commit hook stays, and the coding agent's hook for `.env` is optional. Dark mode has a shorter intent.
+- **Week 1 Day 5:** one subagent, the reviewer, and no ui-check. Then sign-in and a shared database on Supabase, deployed to Render, with no search, user menu or record of who added each record. `npm run dev` and the tests use SQLite and a made-up user. The spec stays in one file, `docs/spec.md`.
+- **Week 2 Days 2 to 4:** lectures only, with nothing to build.
+- **Week 2 Day 5:** a pipeline board in place of the AI Copilot, with no model calls in the app, deployed to Render. The assignment is any small change the student chooses.
+
+On every build day the agent builds one phase of the plan per fresh session, and the student commits after each phase ("Build: phase 1" and so on).
+
+When you help a student on this route:
+
+- Keep each task small, and suggest a fresh session when one runs long.
+- Don't suggest Ed's branches. They hold his full build, which is much bigger than the student's. A student who wants to look at Ed's build uses a second clone in a folder of its own, as `course/cheap_llm_instructions/week2day2.md` shows, so their own build and database stay as they are.
+- The week guides describe Ed's route. Most of their "Watch out for" points apply here too, such as those on Supabase, Render, CI and gitleaks. Skip the ones about ui-check, the spec split, search, the user menu and the Copilot.
 
 ## Models and usage limits
 

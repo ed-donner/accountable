@@ -1,5 +1,7 @@
 # Week 1 guide for the coding agent: Ready for industry today
 
+This guide follows Ed's route. For a student on the route for cheap or free models (`course/cheap_llm_instructions/`), read "The route for cheap or free models" in `course/for_agents/AGENT_COURSE_GUIDE.md` first.
+
 ## Day 1: The AI SDLC
 
 No repo work. The slides cover the course, how coding agents are changing the job (job postings, the five levels of adoption), the AI SDLC lifecycles from Anthropic, AWS, OpenAI, Google and Atlassian, and the human role: intent, judgment, taste and accountability. The instant win is a small app built from one paragraph in Claude's free plan.

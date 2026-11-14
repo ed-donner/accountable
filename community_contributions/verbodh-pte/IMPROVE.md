@@ -6,3 +6,7 @@ Run this at Deploy, after the review fixes and before the merge.
 2. For a mistake that has happened twice, add the correction to AGENTS.md or docs/REVIEW.md, or suggest a change to docs/STANDARDS.md for the person to make. If a tool can catch it, add it to the checks instead.
 3. Remove anything out of date.
 4. Improve this file, so that the next round makes a better change. Keep this as the last step.
+
+## Lessons
+
+A test must read the label a person sees. A pressed state is not enough. Dark mode shipped with the button still saying Dark mode. The end-to-end test looked for that same name, so it passed.

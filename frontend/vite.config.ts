@@ -15,6 +15,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    // A stray .only would skip every other test and still pass, so it always fails the run.
+    allowOnly: false,
     css: { modules: { classNameStrategy: 'non-scoped' } },
   },
 })

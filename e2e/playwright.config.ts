@@ -10,7 +10,8 @@ export default defineConfig({
   // One worker: the tests share one database, which each test reloads with the sample data.
   workers: 1,
   fullyParallel: false,
-  forbidOnly: !!process.env.CI,
+  // A stray test.only would skip every other test and still pass, so it always fails the run.
+  forbidOnly: true,
   retries: 0,
   reporter: [['list']],
   timeout: 30_000,

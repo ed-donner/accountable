@@ -55,7 +55,7 @@ Then, in a terminal, from the `accountable` folder:
     - **Pipeline:** drag with the mouse or move with Space and the arrow keys, plus a Move to… menu on each card. Moves show at once and roll back with a message if saving fails.
     - **Deals, Contacts and Organizations:** tables with search, sort, add, edit and delete, and record pages with timelines.
   - Brand: colours and fonts from the brand skill, bundled so the app works offline (R2). White text sits only on the darker Cerulean and Raspberry fills, to meet contrast (R58).
-- **Tests** (`npm test`), all passing:
+- **Tests** (`npm test`), all passing. `npm test` runs all three kinds even if one fails, and exits non-zero if any test fails or a stray `.only` is left in. This was checked with deliberately failing tests in each kind.
   - 49 backend tests (pytest).
   - 36 frontend unit tests (Vitest).
   - 32 end-to-end tests (Playwright with the installed Chrome), one file per intent success criterion. Any browser console error or warning fails a test (R59).

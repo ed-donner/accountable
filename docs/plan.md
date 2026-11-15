@@ -18,43 +18,51 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 | `pyproject.toml`, `uv.lock` | New. Python 3.12, FastAPI, Uvicorn, SQLAlchemy Core, Pydantic, pytest, httpx (for the FastAPI test client). |
 | `.gitignore` | Add `backend/data/` (D2) and the test database folder. |
 | `docs/STATUS.md` | Updated at every commit point. By the end it has install and run steps a non-technical person can follow (R7). |
-| `docs/spec.md` | Phase 0 only: record the chosen mockup in 2.7, and add the two darker text-bearing colours to the 2.8 token table. |
+| `docs/spec.md` | Already updated: direction B with the left sidebar (2.7), the darker text-bearing colours (2.8), and the code layout grouped by feature (2.2). Phase 0 adds the answers on the funnel and rounding rules. |
 
-### Backend: `backend/`
+The layout follows spec 2.2. Both halves are grouped by feature, with no base classes, repositories or generic CRUD helpers.
 
-| File | What it holds |
-|---|---|
-| `app/main.py` | FastAPI app, `/api` routers. On startup, creates and seeds the database if the file is new (R3). |
-| `app/db.py` | Engine from `ACCOUNTABLE_DB` (default `backend/data/accountable.db`), metadata, the four tables (2.4), indexes (D7), `PRAGMA foreign_keys = ON`. |
-| `app/stages.py` | The six stages, their probabilities and open flag (R13). |
-| `app/today.py` | The single "today" function (D9). It reads an optional `ACCOUNTABLE_TODAY` so tests can fix the date. |
-| `app/schemas.py` | Pydantic request and response models, with validation messages per field (422). |
-| `app/routers/organizations.py`, `contacts.py`, `deals.py`, `activities.py`, `dashboard.py`, `stages.py` | The endpoints in 2.5. |
-| `app/services/deals.py` | Stage rules R14–R16, stage change entries (R12, D5), move and renumber (D8), late flag (R17), expected revenue (R18). |
-| `app/services/deletes.py` | Delete previews and deletes for R26–R30, in one transaction each (D6). |
-| `app/services/dashboard.py` | Figures for R45–R50. |
-| `app/seed.py` | Sample data generator with a fixed random seed and dates relative to today (R52–R55, D23–D25). `--reset` clears and reloads. |
-| `tests/conftest.py` | A temporary database per test, the FastAPI test client and a fixed "today". |
-| `tests/test_*.py` | See Proof. |
-
-### Frontend: `frontend/`
+### Backend: `backend/app/`, ten modules
 
 | File | What it holds |
 |---|---|
-| `package.json`, `vite.config.ts`, `tsconfig.json`, `index.html` | Vite + React + TypeScript. The `/api` proxy to port 8000 (D1). Vitest config. |
-| `src/main.tsx`, `src/App.tsx` | Router (D15) and QueryClient. |
-| `src/styles/tokens.css`, `global.css` | Brand tokens (2.8), the type scale, a focus outline on every focusable element, and `@fontsource` imports (R2). |
-| `src/api/client.ts`, `src/api/hooks.ts`, `src/api/types.ts` | Typed fetch client and TanStack Query hooks. Changes invalidate lists, details and `dashboard` (D11). |
-| `src/lib/money.ts`, `dates.ts`, `deals.ts` | Formatting money in cents, date and relative-time helpers, and the client copy of the stage rules used for optimistic totals (D3, D12). |
-| `src/components/AppShell` | Midnight sidebar with Overview, Pipeline (with the open count), Deals, Contacts, Organizations (D16). |
-| `src/components/DataTable` | TanStack Table wrapper: search, sort, row menu, empty state (R19–R25, D18). |
-| `src/components/Drawer`, `ConfirmDialog`, `Toast`, `RowMenu` | Radix-based. Focus trap and return, Escape closes (R57, D13, D14, D22). |
-| `src/components/Money`, `StageBadge`, `LateTag`, `Timeline`, `ActivityForm`, `FollowUpChip` | Shared pieces (D20). |
-| `src/components/forms/*` | React Hook Form + Zod forms for organization, contact, deal and activity, with labelled fields and field errors (R58). |
-| `src/pages/Dashboard.tsx` | The Overview page at `/` (D17). |
-| `src/pages/Pipeline.tsx` | The board at `/pipeline` (D21). |
-| `src/pages/Organizations.tsx`, `OrganizationDetail.tsx`, `Contacts.tsx`, `ContactDetail.tsx`, `Deals.tsx`, `DealDetail.tsx` | Tables and record pages (D18, D19). |
-| `src/**/*.test.ts(x)` | See Proof. |
+| `main.py` | FastAPI app, including each module's router under `/api`. On startup, creates and seeds the database if the file is new (R3). |
+| `settings.py` | `ACCOUNTABLE_DB` (default `backend/data/accountable.db`, D2), `ACCOUNTABLE_TODAY`, and the single `today()` (D9). Later settings (Supabase, sign-in) go here too. |
+| `db.py` | Engine, metadata, all four tables (2.4), indexes (D7), `PRAGMA foreign_keys = ON`. |
+| `stages.py` | The six stages, probabilities and open flag (R13). The deal rules as plain functions with no database: probability on create and stage change (R14, R15), close date on Won or Lost (R16), late flag (R17), expected revenue in cents (R18). |
+| `organizations.py` | Its routes, request and response models, queries, delete preview and delete (R8, R26, R27, R31). |
+| `contacts.py` | The same for contacts, including the status filter (R9, R23, R28, R32). |
+| `deals.py` | The same for deals, plus `GET /stages`, `POST /deals/{id}/move` with renumbering (D8), and writing stage change entries (R10, R12, R29, R33, R40, R42). |
+| `activities.py` | Activities and timelines, mark done, and refusing stage change entries (R11, R30, R34–R38, D5). |
+| `dashboard.py` | `GET /dashboard` and its figures (R45–R50). |
+| `seed.py` | Sample data generator with a fixed random seed and dates relative to today (R52–R55, D23–D25). `--reset` clears and reloads. |
+
+Tests go in `backend/tests/`: `conftest.py` (a temporary database per test, the FastAPI test client and a fixed today), plus one test file per module (see Proof).
+
+### Frontend: `frontend/src/`
+
+| File | What it holds |
+|---|---|
+| `../package.json`, `../vite.config.ts`, `../tsconfig.json`, `../index.html` | Vite + React + TypeScript, the `/api` proxy to port 8000 (D1), and the Vitest config. |
+| `main.tsx`, `App.tsx` | Routes (D15) and the QueryClient. |
+| `api.ts` | The one fetch wrapper: base URL, JSON, and turning a 422 or 409 into messages a form or dialog can show. |
+| `format.ts` | Money in cents shown as `$12,500`, the `$1.2M` axis format, and dates and relative times. |
+| `styles/tokens.css`, `global.css` | Brand tokens (2.8), the type scale, a focus outline on every focusable element, and `@fontsource` imports (R2). |
+| `components/` | Only what two or more features use: `AppShell` (the sidebar with Overview, Pipeline with its open count, Deals, Contacts and Organizations; D16), `DataTable` (R19–R25, D18), `Drawer`, `ConfirmDialog`, `Toast` (Radix; R57, D13, D14, D22), `StageBadge`. |
+| `features/overview/` | The Overview page (D17): summary panel, revenue chart, funnel, deals won chart, and panels for follow-ups and recent activity. |
+| `features/pipeline/` | The Pipeline page (D21): board, columns, cards, the Move to menu, the optimistic move, and its totals (R39–R44, D12). Probabilities come from `GET /stages`. |
+| `features/deals/`, `features/contacts/`, `features/organizations/` | Each holds its table page, record page, form (React Hook Form + Zod), query hooks and types, and its CSS Modules (R8–R10, R19–R33). |
+| `features/activities/` | Timeline, ActivityForm and the follow-up chip, used by the contact and deal pages and by Overview (R34–R38, D20). |
+
+Tests sit next to the code they test, as `*.test.ts(x)` (see Proof).
+
+**What was left out on purpose:**
+- No separate service, repository or schema layers on the backend; a route can query the database directly.
+- No API type generator.
+- No shared hooks file.
+- No folder per tiny component.
+
+Each of these can be added later, when a real need appears.
 
 ### End to end: `e2e/`
 
@@ -70,11 +78,12 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 
 ### Phase 0: Decisions before code
 
-1. The student picks a mockup direction (A, B, C or a mix) from `docs/mockups/`. Record it in `spec.md` 2.7. If the student doesn't choose, build direction A, because D16–D21 already describe it.
-2. Add `--cerulean-solid #0D6C8C` and `--raspberry-solid #C8264F` to the token table in `spec.md` 2.8. White text on plain Cerulean or Raspberry fails R58 at small sizes.
-3. Confirm the two rule details in Risks 4 and 5 (funnel for deals created past New, rounding of expected revenue). Note the answers in `spec.md`.
+1. ~~Pick a mockup direction.~~ Done: direction B for Overview and Pipeline, with the left sidebar (spec 2.7, D16, D17, D21).
+2. ~~Add the darker text-bearing colours.~~ Done: `--cerulean-solid` and `--raspberry-solid` in spec 2.8.
+3. ~~Settle the code layout.~~ Done: grouped by feature (spec 2.2).
+4. ~~Confirm the funnel and rounding rules.~~ Done: the plan's proposed rules went into spec R18 and R48 as the defaults.
 
-**Done when** the spec says which direction is built. **Commit:** "Plan: decisions".
+**Done when** all four are done. **Commit:** "Plan: decisions".
 
 ### Phase 1: Skeleton that runs and tests
 
@@ -88,7 +97,7 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 
 ### Phase 2: Database and sample data
 
-1. `db.py` tables, indexes and foreign keys (2.4, D6, D7). `stages.py` and `today.py`.
+1. `db.py` tables, indexes and foreign keys (2.4, D6, D7). `settings.py`, and the stage list in `stages.py`.
 2. Startup creates and seeds the database when the file is new (R3).
 3. `seed.py`: the deterministic generator with stage paths and matching stage change entries (R52–R55, D23–D25). It also builds the follow-ups (some overdue, one or two today, some upcoming) and the 3–4 late deals.
 4. `npm run seed` clears and reloads rows in one transaction rather than deleting the file, so it works while the app is running (R4).
@@ -97,20 +106,21 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 
 ### Phase 3: API and business rules
 
-1. Schemas and CRUD routers for organizations, contacts, deals and activities (2.5), with 422 messages per field.
-2. `services/deals.py`: R14–R16 on create and PATCH, stage change entries on every stage change, `POST /deals/{id}/move` with renumbering (D8), plus `is_late` and `expected_cents` on reads.
-3. `services/deletes.py`: delete previews with counts, and the deletes, including the 409 for an organization with deals (R26–R30).
-4. `services/dashboard.py` and `GET /dashboard`: tiles, 12 months of revenue and counts, funnel, recent activity, grouped follow-ups (R45–R50).
-5. The API refuses to create, edit or delete stage change entries (D5).
+1. The deal rules as plain functions in `stages.py` (R14–R18), tested first.
+2. `organizations.py`, `contacts.py`, `deals.py` and `activities.py`: routes, request and response models, and queries (2.5), with 422 messages per field.
+3. In `deals.py`: apply the rules on create and PATCH, write a stage change entry on every stage change, and add `POST /deals/{id}/move` with renumbering (D8). Reads include `is_late` and `expected_cents`.
+4. In each record's module: the delete preview with counts, and the delete in one transaction. This includes the 409 for an organization with deals (R26–R30, D6).
+5. `dashboard.py` and `GET /dashboard`: summary figures, 12 months of revenue and counts, funnel, recent activity, grouped follow-ups (R45–R50).
+6. `activities.py` refuses to create, edit or delete stage change entries (D5).
 
 **Done when** every backend unit test in Proof passes. **Commit:** "Build: API".
 
 ### Phase 4: Frontend foundation
 
-1. `tokens.css` and `global.css` from 2.8 and the chosen mockup, with bundled fonts (R2).
-2. AppShell with the five-item sidebar and the current section highlighted (D16). Routes for D15, including `/pipeline` and the back button.
-3. API client, query hooks and invalidation (D11).
-4. Shared components: Money, StageBadge, LateTag, Drawer, ConfirmDialog, Toast, RowMenu, all keyboard-usable with visible focus (R57).
+1. `tokens.css` and `global.css` from 2.8 and mockup B, with bundled fonts (R2).
+2. AppShell with the five-item left sidebar and the current section highlighted (D16). Routes for D15, including `/pipeline` and the back button. Each feature gets an empty page in its folder.
+3. `api.ts` and `format.ts`. Agree the query-key convention so that changes invalidate lists, details and `dashboard` (D11).
+4. The shared components: Drawer, ConfirmDialog, Toast and StageBadge, all keyboard-usable with visible focus (R57). Anything else waits until a second feature needs it.
 
 **Done when** every route renders inside the shell, the frontend unit tests for formatting pass, and keyboard focus is visible everywhere. **Commit:** "Build: app shell".
 
@@ -127,7 +137,7 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 
 ### Phase 6: Pipeline
 
-1. Board with six columns in R13's order. Cards in saved order, with the Late tag and red close date (R39, D21). Columns scroll sideways on narrow screens.
+1. Board in `features/pipeline/` as mockup B draws it: summary strip, column header panels, cards with the probability bar. Six columns in R13's order, with cards in saved order, and the Late tag and red close date (R39, D21). Columns scroll sideways on narrow screens, and each column's cards scroll on their own.
 2. dnd-kit drag between and within columns, dropping at any point (R40).
 3. Keyboard pick-up, move and drop with the dnd-kit keyboard sensor, plus the "Move to…" menu on each card (R41).
 4. Add button per column, creating the deal at the top (R42). Search box and open totals.
@@ -138,13 +148,13 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 
 ### Phase 7: Overview (the dashboard)
 
-1. Four headline tiles (R45).
-2. Recharts line chart of revenue won and bar chart of deals won, with gridlines, axes and tooltips as D17 says (R46, R47).
-3. Funnel (R48), Follow-ups with mark done (R50), Recent activity linking to records (R49).
+1. The Midnight summary panel with the bar of open value by stage (R45, D17).
+2. Recharts line chart of revenue won, headed by the 12-month total, and bar chart of deals won, with gridlines, axes and tooltips as D17 says (R46, R47).
+3. The trapezoid funnel (R48), Follow-ups grouped with mark done (R50), and Recent activity linking to records (R49).
 4. Every figure updates after a change (R51).
 5. End-to-end tests for the Overview.
 
-**Done when** the Overview end-to-end tests pass and the page matches the chosen mockup by eye. **Commit:** "Build: overview".
+**Done when** the Overview end-to-end tests pass and the page matches mockup B by eye. **Commit:** "Build: overview".
 
 ### Phase 8: Quality and sign-off
 
@@ -152,7 +162,7 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 2. **Accessibility (R57, R58):** check every page for keyboard use, focus return, labels, field errors and contrast.
 3. **Layout (R60):** check widths of 1024, 1280 and 1440 px.
 4. **Console (R59):** confirm the console-error fixture is on for every end-to-end test.
-5. **Mockup match:** compare each screen with the chosen mockup in Playwright screenshots and fix the differences.
+5. **Mockup match:** compare each screen with mockup B in Playwright screenshots, at 1440 px and at 1024 px, and fix the differences.
 6. **Run instructions:** write the install and run steps in `docs/STATUS.md` (R7).
 7. **Manual walkthrough (R61):** the student uses every section and action in a real browser.
 
@@ -176,7 +186,9 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 | 10 | **Contrast on brand colours (R58).** White text on Cerulean (4.0:1) and on Raspberry (3.6:1) fails AA at small sizes. | Use the darker solid tokens from Phase 0 for pills, tags and filled headers. Keep the plain colours for bars, dots and charts. |
 | 11 | **Console noise (R59).** Recharts sizing warnings, React key warnings and Radix accessibility warnings are common. | A Playwright fixture fails any test that logs an error or warning, so noise is caught as soon as it appears. |
 | 12 | **Speed at about 1,000 rows (R56).** Rendering 1,000 table rows or a long Won column can be slow. | Measure in Phase 8 before optimising. Add TanStack Virtual only to a table that misses 200 ms. Pipeline columns already scroll on their own. |
-| 13 | **Scope creep from the mockups.** Mockup C has panels the spec doesn't ask for (Biggest open deals, Late deals). | Build only what the spec and the chosen direction need. Anything extra goes to STATUS.md as an idea. |
+| 13 | **Scope creep from the mockups.** Mockups A and C have panels the spec doesn't ask for. | Build only what the spec and direction B need. Where the mockup and the spec differ, the spec wins (the sidebar, for example). Anything extra goes to STATUS.md as an idea. |
+| 15 | **Schema changes once there's real data.** The MVP creates tables only when the database is new, so a later column change would need hand work on an existing database. | All tables are in `db.py`, so Alembic can be added in one place with the first schema change, or with the move to Supabase (spec 2.2). Not needed for the MVP. |
+| 16 | **The layout drifting back into layers.** A fresh session may reach for `services/`, `schemas.py` or a shared `hooks.ts` out of habit. | Spec 2.2 states the grouping rule. A new file goes in its feature's module or folder. Something moves to shared code only when a second feature uses it. |
 | 14 | **Delete counts going stale.** Counts in a delete dialog can change before the click (R26, R27). | The delete re-checks inside its transaction, and returns 409 if an organization has gained deals. |
 
 ---
@@ -191,27 +203,25 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 |---|---|
 | `test_startup.py` | A new database file is created and seeded on startup, and an existing one is left alone (R3). `ACCOUNTABLE_DB` is honoured, and the default database file is never touched by tests (R6, D2). |
 | `test_seed.py` | About 15 organizations in 5+ industries, 40 contacts covering all three statuses, 30 deals in all six stages, 80 activities (R52). At least one Won deal in each of the last 12 months, open deals closing ahead, 3–4 late deals, overdue, today and upcoming follow-ups (R53). Every deal past New has stage entries matching its path (R54). `example.com` emails and `555` phones (R55). Same data for the same seed (D23). Reset clears and reloads (R4). |
-| `test_validation.py` | Required fields, value ≥ 0, probability 0–100, contact status values, and that an activity needs a contact or a deal. Each failure returns 422 with a message for the field (R8–R11). |
-| `test_deal_rules.py` | A new deal takes its stage's probability unless one is given (R14). A stage change takes the new probability and replaces a hand-set one, and a hand edit without a stage change is kept (R15). Moving to Won or Lost sets the close date to today, and moving out leaves it (R16). The late flag (R17). Expected revenue and its rounding (R18). |
-| `test_stage_changes.py` | Every stage change, by PATCH or move, writes exactly one entry with the old and new stage (R12). The API refuses to create, edit or delete entries (D5). |
-| `test_move.py` | Moving within a column and between columns puts the card at the given index. Both columns are renumbered 0…n with no gaps or duplicates (R40, D8). A new deal goes to the top of its column (R42). |
-| `test_deletes.py` | An organization with deals is blocked with a 409 and a message naming the count, and one without deals unlinks its contacts (R27). Deleting a contact unlinks its deals, deletes activities linked only to it, and keeps those also on a deal (R28). Deleting a deal deletes its stage entries and only-deal activities, and keeps those also on a contact (R29). Deleting an activity removes just that one (R30). Previews return the right counts (R26). |
-| `test_activities.py` | An activity on a contact and a deal appears in both timelines, newest first (R34, R36). Edit, delete and mark done (R37). Follow-up grouping as overdue, due today and upcoming (R38). |
+| `test_stages.py` | The deal rules as plain functions, with no database. A new deal takes its stage's probability unless one is given (R14). A stage change takes the new probability and replaces a hand-set one, and a hand edit without a stage change is kept (R15). Moving to Won or Lost sets the close date to today, and moving out leaves it (R16). The late flag (R17). Expected revenue and its rounding (R18). |
+| `test_organizations.py` | Name is required, with a 422 message for the field (R8). The list includes `contact_count`, `deal_count` and `open_deal_value_cents`. The detail page data includes contacts and deals (R31). With deals, delete is blocked with a 409 and a message naming the count. Without deals, delete unlinks its contacts. The preview gives the same counts (R26, R27). |
+| `test_contacts.py` | Required name and the allowed status values (R9). The status filter (R23). The detail includes deals and timeline (R32). Delete unlinks its deals, deletes activities linked only to it, and keeps those also on a deal. The preview counts match (R26, R28). |
+| `test_deals.py` | Required fields, value ≥ 0 and probability 0–100 (R10). The rules are applied through the API on create and PATCH (R14–R16). Every stage change, by PATCH or move, writes exactly one entry with the old and new stage (R12). Moving within and between columns puts the card at the given index and renumbers both columns 0…n (R40, D8). A new deal goes to the top of its column (R42). Lists include `expected_cents` and `is_late`. Delete removes its stage entries and only-deal activities, and keeps those also on a contact (R29). `GET /stages` (R13). |
+| `test_activities.py` | An activity needs a contact or a deal (R11). An activity on both shows in both timelines, newest first (R34, R36). Edit, delete and mark done (R30, R37). Follow-up grouping as overdue, due today and upcoming (R38). Stage change entries can't be created, edited or deleted (D5). |
 | `test_dashboard.py` | With a fixed "today" and known data: open value and count, expected revenue, won this month, and the 12-month win rate (R45). Revenue and count for each of 12 months, including the current one (R46, R47). Funnel values and counts, including Lost deals and deals created past New (R48). The 10 most recent activities and stage entries (R49). Open follow-ups grouped and sorted soonest first (R50). Figures change after a deal is won and after a follow-up is added (R51). |
-| `test_api_lists.py` | List endpoints return the derived fields (`contact_count`, `deal_count`, `open_deal_value_cents`, names, `expected_cents`, `is_late`), and the contact status filter works (2.5, R23). |
 
 ### Frontend unit tests (Vitest + Testing Library, `frontend/src/`)
 
 | File | Proves |
 |---|---|
-| `lib/money.test.ts` | Cents shown as `$12,500`, with the currency always present; `$1.2M` only in the axis formatter (2.8 rule 9). |
-| `lib/dates.test.ts` | Relative and exact times, the follow-up chip text, and the late check against a given today (R17, D20). |
-| `lib/deals.test.ts` | The client copy of the stage rules and optimistic board totals: open total, expected revenue and per-column figures after a move (R43, D12). Rounding matches the server. |
+| `format.test.ts` | Cents shown as `$12,500`, with the currency always present; `$1.2M` only in the axis format (2.8 rule 9). Relative and exact times, and the follow-up chip text (D20). |
+| `api.test.ts` | A 422 becomes messages per field and a 409 becomes a message a dialog can show. |
 | `components/DataTable.test.tsx` | Search filters across visible text columns, case-insensitive (R19). Sort toggles and shows in the heading (R20). The empty and no-results message with the add button (R25). |
 | `components/ConfirmDialog.test.tsx` | Delete dialog wording from preview counts, the blocked organization case with only Close (R26, R27, D22), focus trap and return, and Escape (R57). |
-| `components/forms/*.test.tsx` | Every field has a visible label, errors appear next to the field and are announced, and the required fields and number limits work (R58, R8–R11). |
-| `components/Timeline.test.tsx` | Entry icons, stage-change badges with no edit or delete, the follow-up chip in Raspberry when overdue, and the done checkbox (R34, R37, D20). |
-| `pages/Pipeline.test.tsx` | A failed move rolls the card and totals back and shows the error toast (R44). |
+| `features/deals/DealForm.test.tsx`, `features/contacts/ContactForm.test.tsx`, `features/organizations/OrganizationForm.test.tsx`, `features/activities/ActivityForm.test.tsx` | Every field has a visible label, errors appear next to the field and are announced, and the required fields and number limits work (R58, R8–R11). The activity form suggests the deal's main contact first (R35). |
+| `features/activities/Timeline.test.tsx` | Entry icons, stage-change badges with no edit or delete, the follow-up chip in Raspberry when overdue, and the done checkbox (R34, R37, D20). |
+| `features/pipeline/totals.test.ts` | Optimistic board totals: open total, expected revenue and per-column figures after a move, using probabilities from `GET /stages` (R43, D12). Rounding matches the server. |
+| `features/pipeline/Board.test.tsx` | A failed move rolls the card and totals back and shows the error toast (R44). |
 
 ### End-to-end tests (Playwright with installed Chrome, `e2e/tests/`)
 
@@ -236,5 +246,5 @@ There is one file per success criterion in intent.md, as spec 2.10 asks. Every t
 ### Proof that isn't a test
 
 - **Speed (R56, intent 8):** the Phase 8 measurement with about 1,000 rows per table, with the timings written in STATUS.md.
-- **Look (intent 7):** Playwright screenshots of every screen at 1440 px compared side by side with the chosen mockup, plus a check at 1024 and 1280 px (R60).
+- **Look (intent 7):** Playwright screenshots of every screen at 1440 px compared side by side with mockup B, plus a check at 1024 and 1280 px against B's narrower layout (R60).
 - **Real-browser walkthrough (R61, intent 10):** the student uses every section and action as a salesperson would, checks each screen by eye and watches the console. Passing tests is necessary but not enough.

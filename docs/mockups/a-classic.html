@@ -42,7 +42,7 @@ h2{font-size:16px;font-weight:600}
 [hidden]{display:none!important}
 .tp{display:flex;flex-direction:column;gap:20px}
 
-.shell{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
 .side{background:var(--midnight);color:var(--sea-mist);padding:24px 16px;display:flex;flex-direction:column;gap:28px}
 .brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;font-size:18px;padding:0 8px}
 .mark{width:28px;height:28px;border-radius:8px;background:var(--sea-green);display:grid;place-items:center;color:var(--midnight);font-weight:700}
@@ -53,7 +53,7 @@ h2{font-size:16px;font-weight:600}
 .nav .nb{margin-left:auto;font:600 11px var(--mono);padding:1px 8px;border-radius:99px;background:rgba(205,216,219,.14);color:var(--sea-mist)}
 .nav a.on .nb{background:var(--sea-green);color:var(--midnight)}
 .nav a:focus-visible{outline:2px solid var(--cerulean);outline-offset:2px}
-.side .foot{margin-top:auto;padding:12px;border-radius:10px;background:rgba(205,216,219,.08);font-size:12px}
+
 main{padding:28px 32px 40px;display:flex;flex-direction:column;gap:20px;min-width:0}
 .top{display:flex;align-items:flex-end;justify-content:space-between}
 .top p{margin-top:2px}

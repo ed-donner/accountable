@@ -42,7 +42,7 @@ Requirement IDs (R1, R2, …) are stable: refer to them in tests, commits and `d
 - **R15** When a deal's stage changes, by drag, keyboard or the edit form, it takes the new stage's probability, replacing any value set by hand. A probability edited by hand without a stage change is kept.
 - **R16** When a deal moves into Won or Lost, its close date becomes today. It can be edited afterwards. Moving a deal out of Won or Lost leaves the close date unchanged.
 - **R17** A deal is **late** when it is open (not Won or Lost) and its close date is before today. Late deals stand out in the Deals table and on their pipeline card (see D21).
-- **R18** Expected revenue for a deal is value × probability ÷ 100.
+- **R18** Expected revenue for a deal is value × probability ÷ 100, rounded half up to whole cents. Totals add up the rounded figures for each deal, on the server and in the browser alike.
 
 ### 1.4 Tables (Organizations, Contacts, Deals)
 
@@ -90,7 +90,7 @@ Requirement IDs (R1, R2, …) are stable: refer to them in tests, commits and `d
 - **R45** Headline figures: open pipeline value (with the number of open deals), expected revenue of open deals, revenue won this month, and win rate over the last 12 months (won ÷ (won + lost), by close date).
 - **R46** A **line chart** of revenue won per month for the last 12 months up to and including the current month.
 - **R47** A **bar chart** of the number of deals won per month over the same 12 months.
-- **R48** A **funnel** showing, for each stage from New to Won, the total value of deals that have reached that stage or gone past it. A deal "reached" a stage if it is in it now or its stage history passed through it. Lost deals count up to the furthest stage they reached before Lost.
+- **R48** A **funnel** showing, for each stage from New to Won, the total value of deals that have reached that stage or gone past it. A deal "reached" a stage if it is in it now or its stage history passed through it. Lost deals count up to the furthest stage they reached before Lost. Each deal counts at every stage up to the furthest one it reached, so a deal created straight at Proposal also counts at New and Qualified, and the funnel never widens.
 - **R49** **Recent activity**: the 10 most recent activities and stage change entries across all records, each linking to its contact or deal.
 - **R50** **Follow-ups**: every open follow-up, grouped as Overdue, Due today and Upcoming, soonest first, each with a checkbox to mark it done and a link to its contact or deal.
 - **R51** Every dashboard figure is calculated from the current data and changes as soon as the data does (for example after a deal is marked won or a follow-up is added).
@@ -128,7 +128,7 @@ Browser ──► Vite dev server (5173) ──/api proxy──► FastAPI (8000
 
 - **D1** The frontend calls the backend's JSON API under `/api`, which Vite proxies to port 8000 in development.
 - **D2** The database file is `backend/data/accountable.db`, and git ignores it. The `ACCOUNTABLE_DB` environment variable overrides the path, and the tests set it to a temporary file.
-- **D3** The backend does the business rules (R14–R16, the stage change entries, delete rules, dashboard figures). The frontend only repeats them for instant feedback on the pipeline (R43), then uses the server's answer.
+- **D3** The backend does the business rules (R14–R16, the stage change entries, delete rules, dashboard figures). The frontend only repeats them for instant feedback on the pipeline (R43), then uses the server's answer. It takes stage probabilities from `GET /stages` rather than keeping its own copy.
 
 ### 2.2 Repository layout
 
@@ -137,23 +137,38 @@ package.json            npm scripts, workspaces: ["frontend"]
 pyproject.toml, uv.lock
 backend/
   app/
-    main.py             FastAPI app, routers, startup creates + seeds DB if new
-    db.py               engine, metadata, table definitions
-    stages.py           stage list and default probabilities (R13)
-    schemas.py          Pydantic request/response models
-    routers/            organizations.py, contacts.py, deals.py, activities.py, dashboard.py
-    services/           deletes.py, deals.py (stage rules), dashboard.py
+    main.py             FastAPI app: includes each module's router; startup creates + seeds the DB if new
+    settings.py         environment settings (ACCOUNTABLE_DB, ACCOUNTABLE_TODAY) and today()
+    db.py               engine, metadata, every table definition
+    stages.py           the stages and their probabilities (R13), and the deal rules as plain functions (R14–R18)
+    organizations.py    routes, request/response models, queries and the delete rule for organizations
+    contacts.py         the same for contacts
+    deals.py            the same for deals, plus move/renumber and stage change entries
+    activities.py       the same for activities and timelines
+    dashboard.py        the dashboard figures and their route
     seed.py             sample data generator; `python -m backend.app.seed --reset`
-  tests/                pytest
+  tests/                pytest, one file per module
 frontend/
   src/
-    api/                typed fetch client + TanStack Query hooks
-    components/         AppShell, DataTable, ConfirmDialog, Timeline, ActivityForm, Money, StageBadge…
-    pages/              Dashboard, Organizations, OrganizationDetail, Contacts, ContactDetail,
-                        Deals, DealDetail, Pipeline
+    main.tsx, App.tsx   entry, routes, query client
+    api.ts              the one fetch wrapper: base URL, JSON, turning errors into field messages
+    format.ts           money and date formatting
     styles/             tokens.css, global.css
+    components/         UI shared by two or more features: AppShell, DataTable, Drawer, ConfirmDialog,
+                        Toast, StageBadge
+    features/
+      overview/         the Overview page and its panels and charts
+      pipeline/         the board, its cards and the optimistic move
+      deals/            table, record page, form, queries and types
+      contacts/         the same for contacts
+      organizations/    the same for organizations
+      activities/       Timeline, ActivityForm and follow-up queries, used by the record pages and Overview
 e2e/                    Playwright tests
 ```
+
+**How the code is grouped.** Both halves are grouped by feature, not by technical layer. Everything about deals is in `deals.py` on the backend and `features/deals/` on the frontend. On the backend, a route can query the database directly. A rule moves into a plain function only when it is shared or worth testing on its own, as the deal rules in `stages.py` are. On the frontend, each feature keeps its own pages, forms, CSS Modules, TanStack Query hooks and types. A component moves to `components/` only when a second feature uses it. There are no base classes, repositories or generic CRUD helpers.
+
+**How it grows.** A new section in the same area (for example Products) is one more backend module and one more feature folder. When a second business area arrives, such as invoicing for the ERP, the backend modules go into one package per area (`app/crm/`, `app/invoicing/`), and each area gets its own table definitions. All tables are in `db.py` for now so that a migration tool (Alembic) can be added in one place. That happens with the first schema change after real data exists, or the move to Supabase.
 
 ### 2.3 Libraries
 
@@ -188,7 +203,7 @@ All IDs are integer primary keys. Timestamps are stored as ISO 8601 UTC, dates a
 
 - **D4** Money is stored as whole cents to avoid rounding errors and sent to the frontend as cents.
 - **D5** Stage change entries are rows in `activities` with `kind = stage_change`, so timelines and recent activity come from one query. The API refuses to create, edit or delete them directly.
-- **D6** Delete rules (R27–R29) are done in the service layer inside one transaction, not left to `ON DELETE` alone, because "delete the activity only if it has no other link" needs logic. SQLite foreign keys are turned on (`PRAGMA foreign_keys = ON`).
+- **D6** Delete rules (R27–R29) are done by the delete function in the record's own module (`organizations.py`, `contacts.py`, `deals.py`) inside one transaction, not left to `ON DELETE` alone, because "delete the activity only if it has no other link" needs logic. SQLite foreign keys are turned on (`PRAGMA foreign_keys = ON`).
 - **D7** Indexes on every foreign key, `deals(stage, position)` and `activities(follow_up_date, done)`.
 - **D8** Positions are integers. A move renumbers the source and target columns (0, 1, 2…) in the same transaction, which is simple and fast at this size.
 
@@ -228,13 +243,14 @@ All under `/api`, JSON in and out. Validation errors return 422 with a message p
 
 ### 2.7 Screens
 
+**Chosen direction: B** (`docs/mockups/b-summary.html`, both Overview and Pipeline), drawn with the left sidebar described in D16. Between 1024 and 1279 px, the mockup also shows the narrower layout. The stage bar drops below the figures, the charts go full width, and Follow-ups sits beside Recent activity (R60).
+
 **D16 App shell.** A fixed Midnight sidebar on the left with the Accountable wordmark, the five sections with icons (Overview, Pipeline, Deals, Contacts, Organizations; Pipeline shows the open deal count), and the current section highlighted with a Sea Green marker and Sea Mist text. The main area uses the page background with a page title and the page's main action at top right.
 
-**D17 Overview (the dashboard).** The landing page, titled Overview. It holds:
-- Row 1: four headline tiles (R45), each a white panel with a label, a large JetBrains Mono figure and a small line of context ("12 open deals").
-- Row 2: revenue won line chart (R46, about two-thirds width) beside the deals won bar chart (R47).
-- Row 3: pipeline funnel (R48), one horizontal bar per stage in its stage colour, labelled with stage, deal count and value.
-- Row 4: Follow-ups (R50) beside Recent activity (R49).
+**D17 Overview (the dashboard).** The landing page, titled Overview, with today's date on the right. It holds:
+- Row 1: one Midnight summary panel (R45). It shows open pipeline value with the open deal count, expected revenue in Sea Green, revenue won this month, and win rate over 12 months. Beside these, a bar of open value by stage, split in stage colours, with each open stage's deal count and value. This is the only dark panel; every other panel is white.
+- Row 2: the revenue won line chart (R46, about two-thirds width), headed by the 12-month total and the number of deals won. Beside it, the sales funnel (R48), drawn as stacked trapezoids in stage colours, each labelled with stage, value and deal count.
+- Row 3, three columns: the deals won bar chart (R47); Follow-ups (R50), grouped Overdue, Due today and Upcoming, with "4 days overdue" in Raspberry; and Recent activity (R49), where stage changes show as two stage badges with an arrow.
 - Charts have light gridlines, no chart borders, Midnight axis labels, and a tooltip with the exact value and month.
 
 **D18 Tables (Organizations, Contacts, Deals).** A white panel holding a toolbar (search box on the left; status filter on Contacts; add button on the right), then the table. Rows are 48 px tall with a light hover tint. Edit and Delete live in a row menu (⋯) that's reachable by keyboard. Columns:
@@ -246,7 +262,12 @@ All under `/api`, JSON in and out. Validation errors return 422 with a message p
 
 **D20 Timeline.** A vertical list, newest first. Each entry has an icon for its kind (note, call, email, stage change), the description, a relative and exact time, and a follow-up chip ("Follow up 18 Nov", Raspberry if overdue) with a done checkbox. Stage changes show the two stage badges with an arrow and have no edit or delete actions.
 
-**D21 Pipeline page.** Below the page title: a search box and the open totals, then six columns that scroll sideways if the screen is narrow. Each column header has the stage name, a small stage-colour dot, the deal count, the total value and the expected revenue. Cards are white, rounded and show the deal name, organization, value and close date. A late card gets a Raspberry "Late" tag and a Raspberry close date (the same marking as in the Deals table). The card being dragged lifts with a shadow, and the drop point shows as a gap. The board header shows the open totals (R43).
+**D21 Pipeline page.** Below the page title, a white summary strip holds the search box, the open totals (R43), the number of late deals, and the bar of open value by stage. Below it are six columns that scroll sideways if the screen is narrow, and each column's cards scroll on their own.
+- **Column headers** are white panels with the stage badge, the add button (R42), the deal count, the total value and the expected revenue. Won and Lost say "closed" instead of expected revenue.
+- **Cards** are white and rounded. Each shows the deal name, organization · main contact, a probability bar in the stage colour with its percentage, the value and the close date. Each card has a ⋯ menu with "Move to…" (R41).
+- **Won and Lost cards** are muted, with no probability bar, and show the date they closed.
+- **A late card** gets a Raspberry "Late" tag and a Raspberry close date, the same marking as in the Deals table.
+- **While dragging,** the card lifts with a shadow and the drop point shows as a gap.
 
 **D22 Delete dialog.** States the consequence in plain words, for example "Delete Jane Doe? Their 2 deals will stay, with no main contact. 5 activities will be deleted." A blocked delete (R27) explains why and only offers Close.
 
@@ -276,7 +297,9 @@ All under `/api`, JSON in and out. Validation errors return 422 with a message p
 | `--coral` | `#F78C6B` | Proposal stage |
 | `--coral-text` | darkened to ≥ 4.5:1 | Coral used as text |
 | `--cerulean` | `#118AB2` | Negotiation stage, links, info (white text) |
-| `--raspberry` | `#EF476F` | Late deals, overdue follow-ups, destructive actions (white text) |
+| `--cerulean-solid` | `#0D6C8C` | Fill behind small white text in Cerulean: Negotiation badge (white on `--cerulean` is only 4.0:1) |
+| `--raspberry` | `#EF476F` | Late deals, overdue follow-ups, destructive actions (bars, dots, icons) |
+| `--raspberry-solid` | `#C8264F` | Fill behind small white text in Raspberry: Late tag, overdue count, Delete button (white on `--raspberry` is only 3.6:1) |
 | `--midnight` | `#073B4C` | Body text, sidebar background, Won stage |
 | `--sea-mist` | `#CDD8DB` | Sidebar text, Lost stage, chart gridlines |
 | `--page` | `#F0F4F5` | Page background |

@@ -297,8 +297,9 @@ const actInk = (a) => ({ stage: '#0D6C8C', call: '#05795B', email: '#8A5A00', no
 // =====================================================================
 // A — Classic sidebar (closest to spec D16–D21)
 // =====================================================================
-const A_CSS = `
-.shell{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+// The left sidebar from spec D16, shared by A and B (B was chosen with this sidebar instead of its top bar).
+const SIDEBAR_CSS = `
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
 .side{background:var(--midnight);color:var(--sea-mist);padding:24px 16px;display:flex;flex-direction:column;gap:28px}
 .brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;font-size:18px;padding:0 8px}
 .mark{width:28px;height:28px;border-radius:8px;background:var(--sea-green);display:grid;place-items:center;color:var(--midnight);font-weight:700}
@@ -309,7 +310,8 @@ const A_CSS = `
 .nav .nb{margin-left:auto;font:600 11px var(--mono);padding:1px 8px;border-radius:99px;background:rgba(205,216,219,.14);color:var(--sea-mist)}
 .nav a.on .nb{background:var(--sea-green);color:var(--midnight)}
 .nav a:focus-visible{outline:2px solid var(--cerulean);outline-offset:2px}
-.side .foot{margin-top:auto;padding:12px;border-radius:10px;background:rgba(205,216,219,.08);font-size:12px}
+`;
+const A_CSS = SIDEBAR_CSS + `
 main{padding:28px 32px 40px;display:flex;flex-direction:column;gap:20px;min-width:0}
 .top{display:flex;align-items:flex-end;justify-content:space-between}
 .top p{margin-top:2px}
@@ -440,22 +442,13 @@ function cardA(d, extra = '') {
 }
 
 // =====================================================================
-// B — Top bar, summary-led
+// B — Summary-led (chosen direction), with the left sidebar from D16
 // =====================================================================
-const B_CSS = `
-.wrap{padding:20px 32px 40px;display:flex;flex-direction:column;gap:20px}
-.bar{display:flex;align-items:center;gap:28px;padding:12px 16px 12px 20px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
-.mark{width:28px;height:28px;border-radius:50%;background:var(--midnight);display:grid;place-items:center;color:var(--sea-green);font-weight:700;font-size:14px}
-.nav{display:flex;gap:4px;margin-right:auto}
-.nav a{padding:8px 14px;border-radius:999px;color:var(--muted);text-decoration:none;font-weight:600}
-.nav a.on{background:var(--sea-green);color:var(--midnight)}
-.nav a{display:inline-flex;align-items:center;gap:6px}
-.nav .nb{font:600 11px var(--mono);padding:1px 7px;border-radius:99px;background:var(--tint);color:var(--midnight)}
-.nav a.on .nb{background:#fff}
-.nav a:focus-visible{outline:2px solid var(--cerulean);outline-offset:2px}
+const B_CSS = SIDEBAR_CSS + `
+.wrap{padding:28px 32px 32px;display:flex;flex-direction:column;gap:20px;min-width:0}
 .hello{display:flex;align-items:center;justify-content:space-between}
 .hello .acc{font:500 14px var(--sans);color:var(--muted)}
+.hello .right{display:flex;align-items:center;gap:20px}
 .fu-g{font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 0}
 .fu-g:first-of-type{margin-top:0}
 .li.c{padding:7px 0}
@@ -491,13 +484,13 @@ const B_CSS = `
 .badge{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none}
 /* pipeline */
 .ptitle{display:flex;align-items:flex-end;justify-content:space-between}
-:root{--board-top:340px}
+:root{--board-top:254px}
 .strip{padding:20px 24px;display:grid;grid-template-columns:auto auto 1fr;gap:36px;align-items:center}
 .strip .k{font-size:12px;color:var(--muted);font-weight:500}
 .strip .v{font:600 22px var(--mono)}
 .strip .pair{display:flex;gap:32px}
 .slab{display:flex;justify-content:space-between;margin-top:8px;font:12px var(--mono);color:var(--muted)}
-.board{display:grid;grid-template-columns:repeat(4,minmax(190px,1fr)) repeat(2,minmax(160px,.82fr));gap:14px}
+.board{display:grid;grid-template-columns:repeat(4,minmax(172px,1fr)) repeat(2,minmax(150px,.82fr));gap:14px;padding-right:4px}
 .board > div{display:flex;flex-direction:column}
 .colh{padding:12px 14px;margin-bottom:10px;flex:none}
 .colh .r1{display:flex;align-items:center;justify-content:space-between}
@@ -513,15 +506,23 @@ const B_CSS = `
 .prob{display:flex;align-items:center;gap:8px;margin-top:12px;font:11px var(--mono);color:var(--muted)}
 .track{flex:1;height:6px;border-radius:99px;background:#E8EEF0;overflow:hidden}
 .track div{height:100%;border-radius:99px}
-.dc .f{display:flex;justify-content:space-between;margin-top:10px;font:12px var(--mono)}
+.dc .f{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:10px;font:12px var(--mono);white-space:nowrap}
 .dc .f b{font-size:14px;font-weight:600}
 .dc.closed{background:#F7F9FA;box-shadow:none}
-`;
-function topbarB(on) {
-  return `<header class="panel bar"><div class="brand"><span class="mark">A</span>Accountable</div><nav class="nav" aria-label="Sections">${NAV.map(
-    (n) => `<a class="${n.k === on ? 'on' : ''}" ${navHref(n)}>${n.label}${n.count ? `<span class="nb" aria-label="${open.length} open deals">${open.length}</span>` : ''}</a>`
-  ).join('')}</nav><button class="btn primary">${icon('plus', 16)}New deal</button></header>`;
+/* 1024–1279 px (R60): the summary panel and strip put their stage bar below the figures, charts
+   go full width with a height cap, and Follow-ups sits beside Recent activity. Only the board
+   scrolls sideways. */
+@media (max-width:1279px){
+.hero{grid-template-columns:auto auto;gap:24px 40px}
+.hero > :last-child{grid-column:1/-1}
+.strip{grid-template-columns:auto 1fr;gap:20px 32px}
+.strip > :last-child{grid-column:1/-1}
+.g21{grid-template-columns:1fr}
+.g111{grid-template-columns:1fr 1fr}
+.g111 > :first-child{grid-column:1/-1}
+.g21 svg,.g111 svg{max-height:300px}
 }
+`;
 function stackBar(onDark) {
   const openStages = STAGES.filter((s) => isOpen({ stage: s.key }));
   return `<div class="stack">${openStages
@@ -583,10 +584,10 @@ function dashboardB() {
       .map((d, i) => cardB(d, i === menuAt))
       .join('')}</div></div>`;
   }).join('')}</section>`;
-  const body = `<div class="wrap">${topbarB('overview')}
-  <div class="hello"><div>${titleH1()}</div><span class="acc">Sunday, November 15, 2026</span></div>
+  const body = `<div class="shell">${sidebarA('overview')}<main class="wrap">
+  <div class="hello"><div>${titleH1()}</div><div class="right"><span class="acc">Sunday, November 15, 2026</span><button class="btn primary">${icon('plus', 16)}New deal</button></div></div>
   <div id="overview" data-panel="overview" class="tp">${overview}</div>
-  <div id="pipeline" data-panel="pipeline" class="tp" hidden>${pipeline}</div></div>`;
+  <div id="pipeline" data-panel="pipeline" class="tp" hidden>${pipeline}</div></main></div>`;
   return page('Accountable · Mockup B', B_CSS, body);
 }
 // R41: every card has a "Move to…" menu; one is shown open, with keyboard highlight on the next stage.
@@ -601,7 +602,7 @@ function cardB(d, menu = false) {
   const st = S[d.stage], late = isLate(d);
   return `<div class="dc ${isOpen(d) ? '' : 'closed'} ${menu ? 'menu-open' : ''}"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px"><div class="n">${esc(d.name)}</div><div style="display:flex;gap:4px;align-items:center">${late ? '<span class="late-tag">Late</span>' : ''}<span class="kebab ${menu ? 'on' : ''}" aria-label="Actions for ${esc(d.name)}">${icon('more', 16)}</span></div></div>${menu ? moveMenu(d) : ''}<div class="o">${esc(d.org)} · ${esc(d.contact)}</div>${
     isOpen(d) ? `<div class="prob"><div class="track"><div style="width:${d.p}%;background:${st.color}"></div></div>${d.p}%</div>` : ''
-  }<div class="f"><b>${money(d.value)}</b><span class="${late ? 'late' : 'faint'}">${isOpen(d) ? dshort(d.close) : d.stage + ' ' + dshort(d.close)}</span></div></div>`;
+  }<div class="f"><b>${money(d.value)}</b><span class="${late ? 'late' : 'faint'}">${dshort(d.close)}</span></div></div>`;
 }
 
 // =====================================================================

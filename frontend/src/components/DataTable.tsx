@@ -14,8 +14,9 @@ import {
   type RowData,
   type SortingState,
 } from '@tanstack/react-table'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import styles from './DataTable.module.css'
 
 /** Search and sort happen in the browser (D10), with TanStack Table rather than hand-rolled code. */
@@ -29,6 +30,10 @@ export const tableSetup = tableFeatures({
   // `text` (case-insensitive) is what automatic sorting picks for string columns.
   sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic, text: sortFn_text },
 })
+
+/** Above this many rows, only the rows in view are drawn, so search and sort stay quick (R56). */
+const VIRTUAL_FROM = 200
+const ROW_HEIGHT = 48
 
 /** Column helper for a table of `T`. Define columns at module scope so they stay stable. */
 export const columnHelper = <T extends RowData>() => createColumnHelper<typeof tableSetup, T>()
@@ -72,6 +77,22 @@ export function DataTable<T extends RowData>({ data, columns, noun, addLabel, on
   const visible = table.getRowModel().rows
   const searchId = `search-${noun}`
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const virtual = visible.length > VIRTUAL_FROM
+  const virtualizer = useVirtualizer({
+    count: visible.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 12,
+    enabled: virtual,
+    initialRect: { width: 1200, height: 800 },
+  })
+  const items = virtual ? virtualizer.getVirtualItems() : null
+  const shown = items ? items.map((i) => ({ row: visible[i.index], index: i.index })) : visible.map((row, index) => ({ row, index }))
+  const padTop = items?.length ? items[0].start : 0
+  const padBottom = items?.length ? virtualizer.getTotalSize() - items[items.length - 1].end : 0
+  const columnCount = table.getAllLeafColumns().length
+
   return (
     <section className={`panel ${styles.panel}`}>
       <div className={styles.toolbar}>
@@ -111,8 +132,9 @@ export function DataTable<T extends RowData>({ data, columns, noun, addLabel, on
           </button>
         </div>
       ) : (
-        <div className={styles.scroll}>
-          <table className={styles.table}>
+        <div className={styles.scroll} ref={scrollRef}>
+          {/* When virtualized, the row count and indexes keep screen readers' "row 512 of 1,000" right. */}
+          <table className={styles.table} aria-rowcount={virtual ? visible.length + 1 : undefined}>
             <thead>
               {table.getHeaderGroups().map((group) => (
                 <tr key={group.id}>
@@ -147,8 +169,13 @@ export function DataTable<T extends RowData>({ data, columns, noun, addLabel, on
               ))}
             </thead>
             <tbody>
-              {visible.map((row) => (
-                <tr key={row.id}>
+              {padTop > 0 && (
+                <tr aria-hidden="true">
+                  <td colSpan={columnCount} style={{ height: padTop, padding: 0, boxShadow: 'none' }} />
+                </tr>
+              )}
+              {shown.map(({ row, index }) => (
+                <tr key={row.id} aria-rowindex={virtual ? index + 2 : undefined}>
                   {row.getAllCells().map((cell) => {
                     const meta = cell.column.columnDef.meta as { align?: 'right' } | undefined
                     return (
@@ -159,6 +186,11 @@ export function DataTable<T extends RowData>({ data, columns, noun, addLabel, on
                   })}
                 </tr>
               ))}
+              {padBottom > 0 && (
+                <tr aria-hidden="true">
+                  <td colSpan={columnCount} style={{ height: padBottom, padding: 0, boxShadow: 'none' }} />
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

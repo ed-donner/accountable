@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { KeyboardEvent } from 'react'
+import { memo, type KeyboardEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { RowMenu } from '../../components/RowMenu'
 import { STAGE_COLOR } from '../../components/StageBadge'
@@ -16,7 +16,7 @@ type Props = {
 }
 
 /** A card: name, organization · contact, probability, value and close date (D21). */
-export function DealCard({ deal, dragDisabled, onMoveTo }: Props) {
+export const DealCard = memo(function DealCard({ deal, dragDisabled, onMoveTo }: Props) {
   const navigate = useNavigate()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: deal.id,
@@ -58,7 +58,7 @@ export function DealCard({ deal, dragDisabled, onMoveTo }: Props) {
       </div>
     </article>
   )
-}
+})
 
 /** The card's contents, shared with the lifted copy shown while dragging. */
 export function CardBody({ deal }: { deal: Deal }) {

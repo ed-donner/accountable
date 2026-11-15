@@ -177,9 +177,10 @@ e2e/                    Playwright tests
 | Routing | React Router | Standard |
 | Server data and caching | TanStack Query | Caching, refetch after changes, optimistic pipeline moves |
 | Tables | TanStack Table | Sorting and filtering without hand-rolling them |
+| Long tables | TanStack Virtual | Above 200 rows, only the rows in view are drawn, so search and sort stay under 200 ms (R56) |
 | Charts | Recharts | Line, bar and funnel charts, and easy to theme |
 | Drag and drop | dnd-kit (`@dnd-kit/core`, `@dnd-kit/sortable`) | Sortable columns and a keyboard sensor built in (R41) |
-| Dialogs, menus, selects | Radix UI primitives | Accessible focus handling (R57) |
+| Dialogs, menus, toasts | Radix UI primitives | Accessible focus handling (R57). Selects are the native HTML `<select>`, which is accessible as it is |
 | Forms | React Hook Form + Zod | Validation with field-level errors |
 | Dates | date-fns | Formatting and date maths |
 | Icons | lucide-react | Clean line icons |

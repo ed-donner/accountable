@@ -45,11 +45,11 @@ describe('Pipeline', () => {
     // Before the server answers, the card and the totals have already moved.
     const wonColumn = screen.getByRole('region', { name: /^Won/ })
     expect(await within(wonColumn).findByText('Site safety app')).toBeInTheDocument()
-    expect(screen.getByTestId('open-value')).toHaveTextContent('$20,000')
+    await vi.waitFor(() => expect(screen.getByTestId('open-value')).toHaveTextContent('$20,000'))
 
     failMove()
     expect(await screen.findByText(/Couldn't move Site safety app, so it's back where it was/)).toBeInTheDocument()
     expect(await within(screen.getByRole('region', { name: /^New/ })).findByText('Site safety app')).toBeInTheDocument()
-    expect(screen.getByTestId('open-value')).toHaveTextContent('$30,000')
+    await vi.waitFor(() => expect(screen.getByTestId('open-value')).toHaveTextContent('$30,000'))
   })
 })

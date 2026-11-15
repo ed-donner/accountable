@@ -24,7 +24,8 @@ export function placeDeals(deals: Deal[], columns: Columns, probabilityOf: (s: S
       const deal = byId.get(id)
       if (!deal) return
       if (deal.stage === stage) {
-        placed.push({ ...deal, position })
+        // Unchanged deals keep the same object, so their cards can skip redrawing (R56).
+        placed.push(deal.position === position ? deal : { ...deal, position })
         return
       }
       const probability = probabilityOf(stage)

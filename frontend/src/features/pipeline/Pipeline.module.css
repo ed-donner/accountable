@@ -79,6 +79,7 @@
   scrollbar-width: thin;
 }
 .column {
+  position: relative; /* keeps its screen-reader-only text inside the board's sideways scroll */
   display: flex;
   flex-direction: column;
   min-height: 0;

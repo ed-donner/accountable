@@ -18,7 +18,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StageBadge } from '../../components/StageBadge'
 import { money } from '../../format'
 import { isOpenStage, STAGE_NAMES, type Deal, type StageName } from '../deals/api'
@@ -218,6 +218,16 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
 
   const active = activeId === null ? undefined : byId.get(activeId)
 
+  // Stable, so memoized cards don't redraw when something else on the board changes.
+  const moveTo = useCallback(
+    (deal: Deal, to: StageName) => {
+      onMove(deal, to, 0)
+      // The card re-renders in its new column; keep keyboard focus on its menu button (R57).
+      setTimeout(() => document.querySelector<HTMLElement>(`article[data-deal-id="${deal.id}"] button[aria-label^="Actions for"]`)?.focus(), 100)
+    },
+    [onMove],
+  )
+
   return (
     <DndContext
       sensors={sensors}
@@ -245,11 +255,7 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
             matches={matches}
             searching={!!query}
             onAdd={onAdd}
-            onMoveTo={(deal, to) => {
-              onMove(deal, to, 0)
-              // The card re-renders in its new column; keep keyboard focus on its menu button (R57).
-              setTimeout(() => document.querySelector<HTMLElement>(`article[data-deal-id="${deal.id}"] button[aria-label^="Actions for"]`)?.focus(), 100)
-            }}
+            onMoveTo={moveTo}
           />
         ))}
       </div>

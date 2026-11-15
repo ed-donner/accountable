@@ -49,7 +49,9 @@ export function PipelinePage() {
     onSettled: () => refreshAll(queryClient),
   })
 
-  const onMove = useCallback((deal: Deal, stage: StageName, index: number) => move.mutate({ deal, stage, index }), [move])
+  // `mutate` is stable, unlike the mutation object, so cards that receive this don't redraw needlessly.
+  const { mutate } = move
+  const onMove = useCallback((deal: Deal, stage: StageName, index: number) => mutate({ deal, stage, index }), [mutate])
   const open = openTotals(placed)
   const late = placed.filter((d) => d.is_late).length
   const openStages = (stages.data ?? []).filter((s) => isOpenStage(s.name))

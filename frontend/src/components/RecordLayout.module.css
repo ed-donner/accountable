@@ -1,0 +1,84 @@
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  color: var(--muted);
+  font-weight: 600;
+}
+.header {
+  padding: 22px 24px;
+}
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px 24px;
+  margin: 18px 0 0;
+}
+.facts dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.facts dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 20px;
+  align-items: start;
+}
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.section {
+  padding: 20px 22px;
+}
+.links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.links li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+}
+.links li + li {
+  box-shadow: inset 0 1px 0 #edf2f3;
+}
+.detail {
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.extra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}

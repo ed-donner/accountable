@@ -1,0 +1,19 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.label {
+  font-weight: 600;
+}
+.hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+.error {
+  margin: 0;
+  color: var(--raspberry-text);
+  font-size: 13px;
+  font-weight: 600;
+}

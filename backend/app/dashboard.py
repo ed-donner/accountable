@@ -3,14 +3,62 @@
 from datetime import date
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 from sqlalchemy import Connection, select
 
 from . import activities, db, settings, stages
+from .activities import Activity
 from .db import deals
+from .stages import Stage
 
 router = APIRouter(tags=["dashboard"])
 
-FUNNEL_STAGES = ["New", "Qualified", "Proposal", "Negotiation", "Won"]
+
+class StageTotals(BaseModel):
+    stage: Stage
+    count: int
+    value_cents: int
+    expected_cents: int
+
+
+class MonthFigures(BaseModel):
+    month: str  # YYYY-MM
+    label: str
+    year: int
+    revenue_cents: int
+    won_count: int
+
+
+class FunnelStep(BaseModel):
+    stage: Stage
+    count: int
+    value_cents: int
+
+
+class FollowUps(BaseModel):
+    overdue: list[Activity]
+    today: list[Activity]
+    upcoming: list[Activity]
+
+
+class Dashboard(BaseModel):
+    today: date
+    open_count: int
+    open_value_cents: int
+    open_expected_cents: int
+    late_count: int
+    open_by_stage: list[StageTotals]
+    won_this_month: MonthFigures
+    win_rate: int | None
+    won_last_12: int
+    closed_last_12: int
+    won_value_last_12_cents: int
+    monthly: list[MonthFigures]
+    funnel: list[FunnelStep]
+    recent_activity: list[Activity]
+    follow_ups: FollowUps
+
+
 MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
@@ -58,7 +106,7 @@ def figures(conn: Connection, today: date) -> dict:
     window_end = f"{keys[-1]}-31"
     won_count = lost_count = 0
     for d in all_deals:
-        if d["stage"] not in ("Won", "Lost") or not (window_start <= d["close_date"] <= window_end):
+        if stages.is_open(d["stage"]) or not (window_start <= d["close_date"] <= window_end):
             continue
         if d["stage"] == "Won":
             won_count += 1
@@ -81,7 +129,7 @@ def figures(conn: Connection, today: date) -> dict:
         history.setdefault(deal_id, []).extend([from_stage, to_stage])
     reached = {d["id"]: furthest_stage_index(d, history) for d in all_deals}
     funnel = []
-    for stage in FUNNEL_STAGES:
+    for stage in stages.FUNNEL_STAGES:
         index = stages.stage_index(stage)
         in_funnel = [d for d in all_deals if reached[d["id"]] >= index]
         funnel.append(
@@ -113,7 +161,7 @@ def figures(conn: Connection, today: date) -> dict:
     }
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", response_model=Dashboard)
 def get_dashboard() -> dict:
     """Everything the Overview shows, in one response (R45–R50)."""
     with db.transaction() as conn:

@@ -4,24 +4,25 @@ Covers R11, R12, R30, R34–R38 and D5.
 """
 
 from datetime import date, datetime
-from typing import Annotated, Literal
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel
 from sqlalchemy import Connection, insert, select, update
 
-from . import db, settings
-from .db import activities, contacts, deals
+from . import api, db, settings
+from .api import Name as Description
+from .db import ActivityKind, EnteredKind, activities, contacts, deals
+from .stages import Stage
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
-Kind = Literal["note", "call", "email"]
-Description = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+FollowUpState = Literal["overdue", "today", "upcoming"]
 STAGE_CHANGE_LOCKED = "Stage changes are recorded automatically and can't be changed or deleted."
 
 
 class ActivityIn(BaseModel):
-    kind: Kind
+    kind: EnteredKind
     contact_id: int | None = None
     deal_id: int | None = None
     description: Description
@@ -32,7 +33,7 @@ class ActivityIn(BaseModel):
 
 class ActivityPatch(BaseModel):
     # Required fields may be left out of a PATCH but not sent as null.
-    kind: Kind = None  # type: ignore[assignment]
+    kind: EnteredKind = None  # type: ignore[assignment]
     contact_id: int | None = None
     deal_id: int | None = None
     description: Description = None  # type: ignore[assignment]
@@ -41,7 +42,27 @@ class ActivityPatch(BaseModel):
     done: bool = None  # type: ignore[assignment]
 
 
-def follow_up_state(follow_up: str | None, done: bool, today: date) -> str | None:
+class Activity(BaseModel):
+    """A timeline entry, with the names of what it's linked to and its follow-up state (R38)."""
+
+    id: int
+    kind: ActivityKind
+    contact_id: int | None
+    contact_name: str | None
+    deal_id: int | None
+    deal_name: str | None
+    description: str
+    occurred_at: datetime
+    follow_up_date: date | None
+    follow_up_state: FollowUpState | None
+    done: bool
+    from_stage: Stage | None
+    to_stage: Stage | None
+    created_at: datetime
+    updated_at: datetime
+
+
+def follow_up_state(follow_up: str | None, done: bool, today: date) -> FollowUpState | None:
     """R38: overdue, today or upcoming, for an open follow-up."""
     if not follow_up or done:
         return None
@@ -122,22 +143,22 @@ def _get_or_404(conn: Connection, activity_id: int) -> dict:
 
 def _check_links(conn: Connection, contact_id: int | None, deal_id: int | None) -> None:
     if contact_id is None and deal_id is None:
-        raise db.field_error("contact_id", "Link it to a contact or a deal")
+        raise api.field_error("contact_id", "Link it to a contact or a deal")
     if contact_id is not None:
-        db.require_row(conn, contacts, contact_id, "contact_id", "Choose a contact from the list")
+        api.require_row(conn, contacts, contact_id, "contact_id", "Choose a contact from the list")
     if deal_id is not None:
-        db.require_row(conn, deals, deal_id, "deal_id", "Choose a deal from the list")
+        api.require_row(conn, deals, deal_id, "deal_id", "Choose a deal from the list")
 
 
-@router.get("")
+@router.get("", response_model=list[Activity])
 def list_activities(contact_id: int | None = None, deal_id: int | None = None) -> list[dict]:
     if contact_id is None and deal_id is None:
-        raise db.field_error("contact_id", "Give a contact or a deal")
+        raise api.field_error("contact_id", "Give a contact or a deal")
     with db.transaction() as conn:
         return timeline(conn, contact_id=contact_id, deal_id=deal_id)
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=Activity)
 def create_activity(body: ActivityIn) -> dict:
     """R35: a note, call or email on a contact and/or deal, with an optional follow-up."""
     now = db.now_iso()
@@ -152,7 +173,7 @@ def create_activity(body: ActivityIn) -> dict:
         return _get_or_404(conn, activity_id)
 
 
-@router.patch("/{activity_id}")
+@router.patch("/{activity_id}", response_model=Activity)
 def update_activity(activity_id: int, body: ActivityPatch) -> dict:
     """R37: edit, or mark done. Stage change entries can't be edited (D5)."""
     changes = body.model_dump(exclude_unset=True)

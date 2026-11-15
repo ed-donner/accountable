@@ -1,19 +1,19 @@
 """Organizations: routes, request models, queries and the delete rule (R8, R26, R27, R31)."""
 
-from typing import Annotated
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel
 from sqlalchemy import Connection, func, insert, select, update
 
-from . import db, deals
-from .db import contacts, organizations
+from . import api, contacts, db, deals
+from .api import Name, Text
+from .contacts import Contact
+from .db import organizations
+from .deals import Deal
 from .stages import OPEN_STAGES
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
-
-Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-Text = Annotated[str, StringConstraints(strip_whitespace=True)]
 
 
 class OrganizationIn(BaseModel):
@@ -31,9 +31,34 @@ class OrganizationPatch(BaseModel):
     notes: Text | None = None
 
 
+class Organization(BaseModel):
+    """An organization, with how many contacts and deals it has and the value of its open deals."""
+
+    id: int
+    name: str
+    website: str | None
+    industry: str | None
+    notes: str | None
+    contact_count: int
+    deal_count: int
+    open_deal_value_cents: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class OrganizationDetail(Organization):
+    contacts: list[Contact]
+    deals: list[Deal]
+
+
+class OrganizationDeletePreview(api.DeletePreview):
+    deal_count: int
+    contact_count: int
+
+
 def _counts():
     contact_count = (
-        select(func.count()).where(contacts.c.organization_id == organizations.c.id).scalar_subquery()
+        select(func.count()).where(db.contacts.c.organization_id == organizations.c.id).scalar_subquery()
     )
     deal_count = select(func.count()).where(db.deals.c.organization_id == organizations.c.id).scalar_subquery()
     open_value = (
@@ -55,14 +80,14 @@ def get_or_404(conn: Connection, org_id: int) -> dict:
     return dict(row)
 
 
-@router.get("")
+@router.get("", response_model=list[Organization])
 def list_organizations() -> list[dict]:
     with db.transaction() as conn:
         rows = conn.execute(select(organizations, *_counts()).order_by(organizations.c.name)).mappings()
         return [dict(r) for r in rows]
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=Organization)
 def create_organization(body: OrganizationIn) -> dict:
     now = db.now_iso()
     with db.transaction() as conn:
@@ -72,22 +97,17 @@ def create_organization(body: OrganizationIn) -> dict:
         return get_or_404(conn, org_id)
 
 
-@router.get("/{org_id}")
+@router.get("/{org_id}", response_model=OrganizationDetail)
 def get_organization(org_id: int) -> dict:
     """R31: details, its contacts and deals, and the total value of its open deals."""
     with db.transaction() as conn:
         org = get_or_404(conn, org_id)
-        org["contacts"] = [
-            dict(r)
-            for r in conn.execute(
-                select(contacts).where(contacts.c.organization_id == org_id).order_by(contacts.c.name)
-            ).mappings()
-        ]
+        org["contacts"] = contacts.contact_rows(conn, db.contacts.c.organization_id == org_id)
         org["deals"] = deals.deal_rows(conn, db.deals.c.organization_id == org_id)
         return org
 
 
-@router.patch("/{org_id}")
+@router.patch("/{org_id}", response_model=Organization)
 def update_organization(org_id: int, body: OrganizationPatch) -> dict:
     changes = body.model_dump(exclude_unset=True)
     with db.transaction() as conn:
@@ -102,12 +122,12 @@ def update_organization(org_id: int, body: OrganizationPatch) -> dict:
 def _delete_preview(conn: Connection, org: dict) -> dict:
     name, n_deals, n_contacts = org["name"], org["deal_count"], org["contact_count"]
     if n_deals:
-        deal_word = "deal" if n_deals == 1 else "deals"
         return {
             "blocked": True,
             "deal_count": n_deals,
             "contact_count": n_contacts,
-            "message": f"{name} has {n_deals} {deal_word}. Move them to another organization or delete them first.",
+            "message": f"{name} has {api.plural(n_deals, 'deal', 'deals')}. "
+            "Move them to another organization or delete them first.",
         }
     if n_contacts:
         contact_words = "contact will stay" if n_contacts == 1 else "contacts will stay"
@@ -117,7 +137,7 @@ def _delete_preview(conn: Connection, org: dict) -> dict:
     return {"blocked": False, "deal_count": 0, "contact_count": n_contacts, "message": message}
 
 
-@router.get("/{org_id}/delete-preview")
+@router.get("/{org_id}/delete-preview", response_model=OrganizationDeletePreview)
 def delete_preview(org_id: int) -> dict:
     """R26, R27: what deleting will do, or why it can't be deleted."""
     with db.transaction() as conn:
@@ -131,5 +151,5 @@ def delete_organization(org_id: int) -> None:
         preview = _delete_preview(conn, get_or_404(conn, org_id))
         if preview["blocked"]:
             raise HTTPException(409, preview["message"])
-        conn.execute(update(contacts).where(contacts.c.organization_id == org_id).values(organization_id=None))
+        conn.execute(update(db.contacts).where(db.contacts.c.organization_id == org_id).values(organization_id=None))
         conn.execute(organizations.delete().where(organizations.c.id == org_id))

@@ -3,20 +3,21 @@
 Covers R10, R12, R14–R18 (through `stages`), R29, R33, R40, R42 and D8.
 """
 
-from datetime import date
-from typing import Annotated, Literal
+from datetime import date, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field
 from sqlalchemy import Connection, and_, insert, select, update
 
-from . import activities, db, settings, stages
+from . import activities, api, db, settings, stages
+from .activities import Activity
+from .api import Name
 from .db import contacts, deals, organizations
+from .stages import Stage
 
 router = APIRouter(tags=["deals"])
 
-Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-Stage = Literal["New", "Qualified", "Proposal", "Negotiation", "Won", "Lost"]
 Cents = Annotated[int, Field(ge=0)]
 Percent = Annotated[int, Field(ge=0, le=100)]
 
@@ -45,6 +46,44 @@ class DealPatch(BaseModel):
 class MoveIn(BaseModel):
     stage: Stage
     index: Annotated[int, Field(ge=0)]
+
+
+class StageInfo(BaseModel):
+    """R13: a stage, its usual probability and whether deals in it are open."""
+
+    name: Stage
+    probability: int
+    open: bool
+
+
+class Deal(BaseModel):
+    """A deal with its organization and contact names, expected revenue (R18) and late flag (R17)."""
+
+    id: int
+    name: str
+    organization_id: int
+    organization_name: str
+    main_contact_id: int | None
+    contact_name: str | None
+    stage: Stage
+    value_cents: int
+    probability: int
+    expected_cents: int
+    close_date: date
+    is_late: bool
+    position: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class DealDetail(Deal):
+    timeline: list[Activity]
+
+
+class DealDeletePreview(api.DeletePreview):
+    stage_changes: int
+    activities_deleted: int
+    activities_kept: int
 
 
 # ---------- queries ----------
@@ -98,9 +137,9 @@ def _renumber(conn: Connection, ids: list[int]) -> None:
 
 def _check_links(conn: Connection, organization_id: int | None, main_contact_id: int | None) -> None:
     if organization_id is not None:
-        db.require_row(conn, organizations, organization_id, "organization_id", "Choose an organization")
+        api.require_row(conn, organizations, organization_id, "organization_id", "Choose an organization")
     if main_contact_id is not None:
-        db.require_row(conn, contacts, main_contact_id, "main_contact_id", "Choose a contact from the list")
+        api.require_row(conn, contacts, main_contact_id, "main_contact_id", "Choose a contact from the list")
 
 
 def _change_stage(conn: Connection, deal: dict, new_stage: str, at: str) -> dict:
@@ -120,19 +159,19 @@ def _change_stage(conn: Connection, deal: dict, new_stage: str, at: str) -> dict
 # ---------- routes ----------
 
 
-@router.get("/stages")
+@router.get("/stages", response_model=list[StageInfo])
 def list_stages() -> list[dict]:
     """R13: the fixed stages with their usual probability and whether they're open."""
     return stages.stage_list()
 
 
-@router.get("/deals")
+@router.get("/deals", response_model=list[Deal])
 def list_deals() -> list[dict]:
     with db.transaction() as conn:
         return deal_rows(conn)
 
 
-@router.post("/deals", status_code=201)
+@router.post("/deals", status_code=201, response_model=Deal)
 def create_deal(body: DealIn) -> dict:
     """R14 for the probability, and R42: a new deal goes to the top of its column."""
     now = db.now_iso()
@@ -148,7 +187,7 @@ def create_deal(body: DealIn) -> dict:
         return get_or_404(conn, deal_id)
 
 
-@router.get("/deals/{deal_id}")
+@router.get("/deals/{deal_id}", response_model=DealDetail)
 def get_deal(deal_id: int) -> dict:
     """R33: details, figures, organization and main contact, and the timeline."""
     with db.transaction() as conn:
@@ -157,7 +196,7 @@ def get_deal(deal_id: int) -> dict:
         return deal
 
 
-@router.patch("/deals/{deal_id}")
+@router.patch("/deals/{deal_id}", response_model=Deal)
 def update_deal(deal_id: int, body: DealPatch) -> dict:
     changes = body.model_dump(exclude_unset=True)
     now = db.now_iso()
@@ -179,7 +218,7 @@ def update_deal(deal_id: int, body: DealPatch) -> dict:
         return get_or_404(conn, deal_id)
 
 
-@router.post("/deals/{deal_id}/move")
+@router.post("/deals/{deal_id}/move", response_model=Deal)
 def move_deal(deal_id: int, body: MoveIn) -> dict:
     """R40: change stage and/or place. The deal lands at `index` in the target column."""
     now = db.now_iso()
@@ -205,11 +244,7 @@ def _delete_counts(conn: Connection, deal_id: int) -> dict:
     }
 
 
-def _count(n: int, one: str, many: str) -> str:
-    return f"{n} {one if n == 1 else many}"
-
-
-@router.get("/deals/{deal_id}/delete-preview")
+@router.get("/deals/{deal_id}/delete-preview", response_model=DealDeletePreview)
 def delete_preview(deal_id: int) -> dict:
     """R26, R29: what deleting this deal will do."""
     with db.transaction() as conn:
@@ -217,9 +252,9 @@ def delete_preview(deal_id: int) -> dict:
         counts = _delete_counts(conn, deal_id)
     parts = [f"Delete {deal['name']}?"]
     if counts["activities_deleted"]:
-        parts.append(f"{_count(counts['activities_deleted'], 'activity', 'activities')} will be deleted.")
+        parts.append(f"{api.plural(counts['activities_deleted'], 'activity', 'activities')} will be deleted.")
     if counts["activities_kept"]:
-        kept = _count(counts["activities_kept"], "activity", "activities")
+        kept = api.plural(counts["activities_kept"], "activity", "activities")
         parts.append(f"{kept} also linked to a contact will stay on that contact.")
     if counts["stage_changes"]:
         parts.append("Its stage history will be deleted.")

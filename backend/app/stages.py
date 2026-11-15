@@ -1,24 +1,23 @@
 """The pipeline stages (R13) and the deal rules (R14–R18), as plain functions with no database."""
 
 from datetime import date
+from typing import Literal, get_args
 
-# (name, usual probability of close, open?)
-STAGES = [
-    ("New", 10, True),
-    ("Qualified", 25, True),
-    ("Proposal", 50, True),
-    ("Negotiation", 75, True),
-    ("Won", 100, False),
-    ("Lost", 0, False),
-]
-STAGE_NAMES = [name for name, _, _ in STAGES]
-PROBABILITY = {name: p for name, p, _ in STAGES}
-OPEN_STAGES = [name for name, _, is_open_stage in STAGES if is_open_stage]
-CLOSED_STAGES = ["Won", "Lost"]
+# The one list of stages, in pipeline order. Everything else (the API's types, the
+# database check, the funnel) is built from it, so adding a stage starts here.
+Stage = Literal["New", "Qualified", "Proposal", "Negotiation", "Won", "Lost"]
+STAGE_NAMES: list[Stage] = list(get_args(Stage))
+
+# The usual probability of closing, per stage.
+PROBABILITY: dict[Stage, int] = {"New": 10, "Qualified": 25, "Proposal": 50, "Negotiation": 75, "Won": 100, "Lost": 0}
+CLOSED_STAGES: list[Stage] = ["Won", "Lost"]
+OPEN_STAGES: list[Stage] = [s for s in STAGE_NAMES if s not in CLOSED_STAGES]
+# R48: the funnel runs from New to Won; Lost deals count at the furthest stage they reached.
+FUNNEL_STAGES: list[Stage] = [s for s in STAGE_NAMES if s != "Lost"]
 
 
 def stage_list() -> list[dict]:
-    return [{"name": n, "probability": p, "open": o} for n, p, o in STAGES]
+    return [{"name": s, "probability": PROBABILITY[s], "open": is_open(s)} for s in STAGE_NAMES]
 
 
 def stage_index(stage: str) -> int:

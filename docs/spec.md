@@ -139,8 +139,9 @@ backend/
   app/
     main.py             FastAPI app: includes each module's router; startup creates + seeds the DB if new
     settings.py         environment settings (ACCOUNTABLE_DB, ACCOUNTABLE_TODAY) and today()
-    db.py               engine, metadata, every table definition
+    db.py               engine, metadata, every table definition and the values its columns allow
     stages.py           the stages and their probabilities (R13), and the deal rules as plain functions (R14–R18)
+    api.py              shared by every route: request field types, the 422 field messages, delete preview shape
     organizations.py    routes, request/response models, queries and the delete rule for organizations
     contacts.py         the same for contacts
     deals.py            the same for deals, plus move/renumber and stage change entries

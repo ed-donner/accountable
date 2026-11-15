@@ -1,19 +1,19 @@
 """Contacts: routes, request models, queries and the delete rule (R9, R23, R26, R28, R32)."""
 
-from typing import Annotated, Literal
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel
 from sqlalchemy import Connection, and_, insert, select, update
 
-from . import activities, db, deals
+from . import activities, api, db, deals
+from .activities import Activity
+from .api import Name, Text
+from .db import ContactStatus as Status
 from .db import contacts, organizations
+from .deals import Deal
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
-
-Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-Text = Annotated[str, StringConstraints(strip_whitespace=True)]
-Status = Literal["lead", "qualified", "customer"]
 
 
 class ContactIn(BaseModel):
@@ -35,35 +35,64 @@ class ContactPatch(BaseModel):
     status: Status = None  # type: ignore[assignment]
 
 
+class Contact(BaseModel):
+    id: int
+    name: str
+    email: str | None
+    phone: str | None
+    job_title: str | None
+    organization_id: int | None
+    organization_name: str | None
+    status: Status
+    created_at: datetime
+    updated_at: datetime
+
+
+class ContactDetail(Contact):
+    deals: list[Deal]
+    timeline: list[Activity]
+
+
+class ContactDeletePreview(api.DeletePreview):
+    deal_count: int
+    activities_deleted: int
+    activities_kept: int
+
+
 def _select():
     return select(contacts, organizations.c.name.label("organization_name")).select_from(
         contacts.outerjoin(organizations, contacts.c.organization_id == organizations.c.id)
     )
 
 
+def contact_rows(conn: Connection, where=None) -> list[dict]:
+    """Contacts with their organization's name, by name."""
+    query = _select().order_by(contacts.c.name)
+    if where is not None:
+        query = query.where(where)
+    return [dict(r) for r in conn.execute(query).mappings()]
+
+
 def get_or_404(conn: Connection, contact_id: int) -> dict:
-    row = conn.execute(_select().where(contacts.c.id == contact_id)).mappings().first()
-    if row is None:
+    rows = contact_rows(conn, contacts.c.id == contact_id)
+    if not rows:
         raise HTTPException(404, "Contact not found")
-    return dict(row)
+    return rows[0]
 
 
 def _check_org(conn: Connection, organization_id: int | None) -> None:
     if organization_id is not None:
-        db.require_row(conn, organizations, organization_id, "organization_id", "Choose an organization from the list")
+        api.require_row(conn, organizations, organization_id, "organization_id", "Choose an organization from the list")
 
 
-@router.get("")
+@router.get("", response_model=list[Contact])
 def list_contacts(status: Status | None = None) -> list[dict]:
     """R23: optionally filtered by status."""
-    query = _select().order_by(contacts.c.name)
-    if status:
-        query = query.where(contacts.c.status == status)
     with db.transaction() as conn:
-        return [dict(r) for r in conn.execute(query).mappings()]
+        return contact_rows(conn, contacts.c.status == status if status else None)
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=Contact)
 def create_contact(body: ContactIn) -> dict:
     now = db.now_iso()
     with db.transaction() as conn:
@@ -74,7 +103,7 @@ def create_contact(body: ContactIn) -> dict:
         return get_or_404(conn, contact_id)
 
 
-@router.get("/{contact_id}")
+@router.get("/{contact_id}", response_model=ContactDetail)
 def get_contact(contact_id: int) -> dict:
     """R32: details, organization, their deals as main contact, and their timeline."""
     with db.transaction() as conn:
@@ -84,7 +113,7 @@ def get_contact(contact_id: int) -> dict:
         return contact
 
 
-@router.patch("/{contact_id}")
+@router.patch("/{contact_id}", response_model=Contact)
 def update_contact(contact_id: int, body: ContactPatch) -> dict:
     changes = body.model_dump(exclude_unset=True)
     with db.transaction() as conn:
@@ -95,11 +124,7 @@ def update_contact(contact_id: int, body: ContactPatch) -> dict:
         return get_or_404(conn, contact_id)
 
 
-def _count(n: int, one: str, many: str) -> str:
-    return f"{n} {one if n == 1 else many}"
-
-
-@router.get("/{contact_id}/delete-preview")
+@router.get("/{contact_id}/delete-preview", response_model=ContactDeletePreview)
 def delete_preview(contact_id: int) -> dict:
     """R26, R28: what deleting this contact will do (D22)."""
     a = db.activities
@@ -111,11 +136,11 @@ def delete_preview(contact_id: int) -> dict:
     kept = len(links) - deleted
     parts = [f"Delete {contact['name']}?"]
     if n_deals:
-        parts.append(f"Their {_count(n_deals, 'deal', 'deals')} will stay, with no main contact.")
+        parts.append(f"Their {api.plural(n_deals, 'deal', 'deals')} will stay, with no main contact.")
     if deleted:
-        parts.append(f"{_count(deleted, 'activity', 'activities')} will be deleted.")
+        parts.append(f"{api.plural(deleted, 'activity', 'activities')} will be deleted.")
     if kept:
-        parts.append(f"{_count(kept, 'activity', 'activities')} also linked to a deal will stay on that deal.")
+        parts.append(f"{api.plural(kept, 'activity', 'activities')} also linked to a deal will stay on that deal.")
     return {
         "blocked": False,
         "deal_count": n_deals,

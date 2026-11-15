@@ -1,4 +1,4 @@
-"""The database: engine, every table (spec 2.4) and a transaction helper.
+"""The database: engine, every table (spec 2.4), the values its columns allow, and a transaction helper.
 
 All tables live here so a migration tool can be added in one place later (spec 2.2).
 """
@@ -6,8 +6,8 @@ All tables live here so a migration tool can be added in one place later (spec 2
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal, get_args
 
-from fastapi.exceptions import RequestValidationError
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -23,12 +23,22 @@ from sqlalchemy import (
     Text,
     create_engine,
     event,
-    select,
 )
 
-from . import settings
+from . import settings, stages
+
+# The values a column allows. The API's request and response types use these too.
+ContactStatus = Literal["lead", "qualified", "customer"]
+EnteredKind = Literal["note", "call", "email"]  # the activities a person adds
+ActivityKind = Literal[EnteredKind, "stage_change"]  # plus the one the system writes (R12)
 
 metadata = MetaData()
+
+
+def _one_of(column: str, values: tuple | list, name: str) -> CheckConstraint:
+    allowed = ", ".join(f"'{v}'" for v in values)
+    return CheckConstraint(f"{column} IN ({allowed})", name=name)
+
 
 
 def _timestamps() -> list[Column]:
@@ -57,7 +67,7 @@ contacts = Table(
     Column("organization_id", Integer, ForeignKey("organizations.id", ondelete="SET NULL"), index=True),
     Column("status", String, nullable=False, server_default="lead"),
     *_timestamps(),
-    CheckConstraint("status IN ('lead', 'qualified', 'customer')", name="contact_status"),
+    _one_of("status", get_args(ContactStatus), "contact_status"),
 )
 
 deals = Table(
@@ -75,9 +85,7 @@ deals = Table(
     *_timestamps(),
     CheckConstraint("value_cents >= 0", name="deal_value"),
     CheckConstraint("probability BETWEEN 0 AND 100", name="deal_probability"),
-    CheckConstraint(
-        "stage IN ('New', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost')", name="deal_stage"
-    ),
+    _one_of("stage", stages.STAGE_NAMES, "deal_stage"),
     Index("ix_deals_stage_position", "stage", "position"),
 )
 
@@ -97,7 +105,7 @@ activities = Table(
     Column("from_stage", String),
     Column("to_stage", String),
     *_timestamps(),
-    CheckConstraint("kind IN ('note', 'call', 'email', 'stage_change')", name="activity_kind"),
+    _one_of("kind", get_args(ActivityKind), "activity_kind"),
     CheckConstraint("contact_id IS NOT NULL OR deal_id IS NOT NULL", name="activity_link"),
     Index("ix_activities_follow_up", "follow_up_date", "done"),
 )
@@ -153,13 +161,3 @@ def to_iso(moment: datetime) -> str:
         moment = moment.replace(tzinfo=UTC)
     return moment.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
-
-def field_error(field: str, message: str) -> RequestValidationError:
-    """A 422 for one field, in the same shape as a failed request validation."""
-    return RequestValidationError([{"type": "value_error", "loc": ("body", field), "msg": message, "input": None}])
-
-
-def require_row(conn: Connection, table: Table, row_id: int, field: str, message: str) -> None:
-    """422 on `field` when a linked record doesn't exist, for example a deleted organization."""
-    if conn.execute(select(table.c.id).where(table.c.id == row_id)).first() is None:
-        raise field_error(field, message)

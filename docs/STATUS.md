@@ -56,7 +56,7 @@ Then, in a terminal, from the `accountable` folder:
     - **Deals, Contacts and Organizations:** tables with search, sort, add, edit and delete, and record pages with timelines.
   - Brand: colours and fonts from the brand skill, bundled so the app works offline (R2). White text sits only on the darker Cerulean and Raspberry fills, to meet contrast (R58).
 - **Tests** (`npm test`), all passing:
-  - 46 backend tests (pytest).
+  - 49 backend tests (pytest).
   - 36 frontend unit tests (Vitest).
   - 32 end-to-end tests (Playwright with the installed Chrome), one file per intent success criterion. Any browser console error or warning fails a test (R59).
 - **Checked in a real browser (Playwright):**
@@ -75,6 +75,13 @@ Then, in a terminal, from the `accountable` folder:
 
   Tables over 200 rows draw only the rows in view (TanStack Virtual). The board's figures are a little over the 200 ms aim at that size in development mode, and well under it at the sample size.
 
+- **Backend foundation tidy-up**, after the MVP:
+  - Every route has a response model (spec 2.2), so the OpenAPI schema at `/docs` is the full contract for the frontend. A test fails if a new route returns a bare `dict`.
+  - The stages are listed once, in `stages.py`. The API types, the database check and the funnel are all built from that list. Contact statuses and activity kinds are listed once, in `db.py`.
+  - `api.py` holds what every route shares: the `Name`/`Text` field types, the 422 field messages (moved from `main.py` and `db.py`), the delete preview shape and `plural()`.
+  - Fixed: an organization's contacts now include `organization_name`, which the frontend type already expected.
+  - The API's output is otherwise unchanged. This was checked by comparing every GET response before and after.
+
 ## Notes
 
 - `npm install` may say one package's install script, `fsevents`, is waiting for approval. It's an optional macOS file-watching helper; the app and tests work without it.
@@ -84,4 +91,5 @@ Then, in a terminal, from the `accountable` folder:
 ## Next
 
 - **Your walkthrough (R61):** use every section and action as a salesperson would, and check each screen by eye against `docs/mockups/b-summary-*.png`. Watch the browser console (View → Developer → JavaScript Console in Chrome). Note anything that looks or feels wrong here.
+- **Before moving to Supabase (Postgres):** dates and timestamps are stored as text, which suits SQLite. Decide whether to switch them to real `Date`/`DateTime` columns as part of that move. The response models already declare them as dates and times, so the API won't change.
 - Then the course's Deploy stage: a review of this branch against `docs/REVIEW.md`.

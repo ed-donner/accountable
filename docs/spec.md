@@ -76,9 +76,9 @@ Requirement IDs (R1, R2, …) are stable: refer to them in tests, commits and `d
 - **R37** Activities can be edited, deleted and marked done from any timeline they appear in.
 - **R38** An activity with a follow-up date that isn't done shows on the dashboard as **overdue** (date before today), **due today**, or **upcoming** (any later date). Marking it done removes it from the dashboard.
 
-### 1.8 Pipeline
+### 1.8 Pipeline (its own section)
 
-- **R39** The Pipeline shows one column per stage in R13's order, each holding its deals as cards in their saved order.
+- **R39** Pipeline is its own item in the left menu, after Overview, and opens at `/pipeline`, so a refresh stays on it. The menu item shows the open deal count. The Pipeline page shows one column per stage in R13's order, each holding its deals as cards in their saved order.
 - **R40** Dragging a card to another column changes the deal's stage (applying R15 and R16 and creating a stage change entry). Dragging within a column changes its position. A card can be dropped at any point in a column and stays exactly there, including after a refresh.
 - **R41** Everything in R40 can also be done by keyboard. Focus a card, press Space to pick it up, use the arrow keys to move it, press Space to drop it or Escape to cancel. Each card also has a "Move to…" menu.
 - **R42** Each column has an add button that creates a deal at that stage, at the top of the column.
@@ -224,13 +224,13 @@ All under `/api`, JSON in and out. Validation errors return 422 with a message p
 - **D12** Pipeline moves are optimistic. The board updates its card order and totals at once (R43), sends `move`, and on failure rolls back and shows a toast (R44).
 - **D13** Add and edit forms open in a side drawer from the right, so the table stays visible. Delete confirmations and Log activity open in a centred dialog.
 - **D14** After saving, the drawer closes and a short toast confirms it ("Deal saved"). Errors stay in the form next to the field.
-- **D15** URLs: `/` dashboard, `/organizations`, `/organizations/:id`, `/contacts`, `/contacts/:id`, `/deals`, `/deals/:id`, `/pipeline`. Refresh and the back button work on every page.
+- **D15** URLs: `/` Overview (the dashboard), `/pipeline`, `/organizations`, `/organizations/:id`, `/contacts`, `/contacts/:id`, `/deals`, `/deals/:id`. Refresh and the back button work on every page.
 
 ### 2.7 Screens
 
-**D16 App shell.** A fixed Midnight sidebar on the left with the Accountable wordmark, the five sections with icons (Dashboard, Pipeline, Deals, Contacts, Organizations), and the current section highlighted with a Sea Green marker and Sea Mist text. The main area uses the page background with a page title and the page's main action at top right.
+**D16 App shell.** A fixed Midnight sidebar on the left with the Accountable wordmark, the five sections with icons (Overview, Pipeline, Deals, Contacts, Organizations; Pipeline shows the open deal count), and the current section highlighted with a Sea Green marker and Sea Mist text. The main area uses the page background with a page title and the page's main action at top right.
 
-**D17 Dashboard.**
+**D17 Overview (the dashboard).** The landing page, titled Overview. It holds:
 - Row 1: four headline tiles (R45), each a white panel with a label, a large JetBrains Mono figure and a small line of context ("12 open deals").
 - Row 2: revenue won line chart (R46, about two-thirds width) beside the deals won bar chart (R47).
 - Row 3: pipeline funnel (R48), one horizontal bar per stage in its stage colour, labelled with stage, deal count and value.
@@ -246,7 +246,7 @@ All under `/api`, JSON in and out. Validation errors return 422 with a message p
 
 **D20 Timeline.** A vertical list, newest first. Each entry has an icon for its kind (note, call, email, stage change), the description, a relative and exact time, and a follow-up chip ("Follow up 18 Nov", Raspberry if overdue) with a done checkbox. Stage changes show the two stage badges with an arrow and have no edit or delete actions.
 
-**D21 Pipeline.** Six columns that scroll sideways if the screen is narrow. Each column header has the stage name, a small stage-colour dot, the deal count, the total value and the expected revenue. Cards are white, rounded and show the deal name, organization, value and close date. A late card gets a Raspberry "Late" tag and a Raspberry close date (the same marking as in the Deals table). The card being dragged lifts with a shadow, and the drop point shows as a gap. The board header shows the open totals (R43).
+**D21 Pipeline page.** Below the page title: a search box and the open totals, then six columns that scroll sideways if the screen is narrow. Each column header has the stage name, a small stage-colour dot, the deal count, the total value and the expected revenue. Cards are white, rounded and show the deal name, organization, value and close date. A late card gets a Raspberry "Late" tag and a Raspberry close date (the same marking as in the Deals table). The card being dragged lifts with a shadow, and the drop point shows as a gap. The board header shows the open totals (R43).
 
 **D22 Delete dialog.** States the consequence in plain words, for example "Delete Jane Doe? Their 2 deals will stay, with no main contact. 5 activities will be deleted." A blocked delete (R27) explains why and only offers Close.
 

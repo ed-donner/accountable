@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import styles from './RecordLayout.module.css'
 
@@ -49,10 +49,11 @@ export function RecordLayout({ backTo, backLabel, title, badges, facts, actions,
 
 /** A white panel with a heading, used for linked records and the timeline. */
 export function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
+  const id = useId()
   return (
-    <section className={`panel ${styles.section}`}>
+    <section className={`panel ${styles.section}`} aria-labelledby={id}>
       <div className="card-head">
-        <h2>{title}</h2>
+        <h2 id={id}>{title}</h2>
         {aside}
       </div>
       {children}

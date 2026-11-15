@@ -190,7 +190,8 @@ def load(conn: Connection, today: date) -> None:
     for i in range(40 - len(MAIN_CONTACTS)):
         name = f"{FIRST_NAMES[i]} {LAST_NAMES[(i * 7) % len(LAST_NAMES)]}"
         status = statuses[i % 3]
-        org = None if status == "lead" and i % 2 == 0 else org_ids[org_names[(i * 5) % len(org_names)]]
+        # 7 shares no factor with 15, so the contacts spread across every organization.
+        org = None if status == "lead" and i % 2 == 0 else org_ids[org_names[(i * 7 + 3) % len(org_names)]]
         contact_rows.append((name, org, JOB_TITLES[i % len(JOB_TITLES)], status))
     for i, (name, org_id, title, status) in enumerate(contact_rows):
         email = name.lower().replace(" ", ".") + "@example.com"

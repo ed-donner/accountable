@@ -26,6 +26,14 @@ export function Drawer({ open, onOpenChange, title, children, footer, centered =
           className={centered ? styles.dialog : styles.drawer}
           aria-describedby={undefined}
           onCloseAutoFocus={returnFocus}
+          onOpenAutoFocus={(event) => {
+            // Start in the first field rather than on the Close button.
+            const field = (event.currentTarget as HTMLElement).querySelector<HTMLElement>('input, select, textarea')
+            if (field) {
+              event.preventDefault()
+              field.focus()
+            }
+          }}
         >
           <div className={styles.head}>
             <Dialog.Title asChild>

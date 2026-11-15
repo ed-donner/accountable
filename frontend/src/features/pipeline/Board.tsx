@@ -1,6 +1,8 @@
 import {
   closestCorners,
   DndContext,
+  pointerWithin,
+  type CollisionDetection,
   DragOverlay,
   KeyboardSensor,
   PointerSensor,
@@ -35,7 +37,30 @@ type Props = {
   onPlacedChange: (placed: Deal[]) => void
 }
 
+/**
+ * R40: with a mouse the card goes where the pointer is, wherever on the card it was grabbed.
+ * With the keyboard there's no pointer, so the nearest target by corners is used.
+ */
 const isStage = (id: UniqueIdentifier): id is StageName => typeof id === 'string' && (STAGE_NAMES as readonly string[]).includes(id)
+
+const collisionDetection: CollisionDetection = (args) => {
+  if (args.pointerCoordinates) {
+    const under = pointerWithin(args)
+    // Cards sit inside their column, so prefer the card under the pointer over the column itself.
+    const cards = under.filter((c) => !isStage(c.id))
+    if (cards.length) return cards
+    const columnHit = under.find((c) => isStage(c.id))
+    if (columnHit) {
+      // In a gap between cards, or below the last one: the nearest card in that column, else the column.
+      const inColumn = args.droppableContainers.filter(
+        (d) => d.id === columnHit.id || d.data.current?.sortable?.containerId === columnHit.id,
+      )
+      const near = closestCorners({ ...args, droppableContainers: inColumn.filter((d) => !isStage(d.id)) })
+      return near.length ? near : [columnHit]
+    }
+  }
+  return closestCorners(args)
+}
 
 /** Six columns in R13's order; drag with the mouse, or Space and the arrow keys (R39–R41). */
 export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedChange }: Props) {
@@ -155,7 +180,9 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
     origin.current = null
     if (!stage || !start) return
     const index = final[stage].indexOf(id)
-    if (stage !== start.stage || index !== start.index) onMove(byId.get(id) ?? deals.find((d) => d.id === id)!, stage, index)
+    // Pass the deal as saved (with its saved stage), not as shown mid-drag, so the move knows what changed.
+    const saved = deals.find((d) => d.id === id)
+    if (saved && (stage !== start.stage || index !== start.index)) onMove(saved, stage, index)
   }
 
   function onDragCancel() {
@@ -165,17 +192,26 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
   }
 
   const nameOf = (id: UniqueIdentifier) => byId.get(Number(id))?.name ?? 'Deal'
-  /** "Proposal, position 3 of 5", as shown: within a column, sortable moves the card visually first. */
+  /**
+   * "Proposal, position 3 of 5", where the card is shown. dnd-kit announces before our state
+   * catches up, so this works from the target the card is over, not only from `columns`.
+   */
   const where = (id: UniqueIdentifier, overId?: UniqueIdentifier | null) => {
-    const stage = containerOf(id)
-    if (!stage) return ''
-    const list = columns[stage]
+    const from = containerOf(id)
+    const to = (overId != null ? containerOf(overId) : undefined) ?? from
+    if (!to) return ''
+    const list = columns[to]
+    if (to !== from) {
+      // Moving into another column: it takes the place of the card it's over, or goes at the end.
+      const at = overId == null || isStage(overId) ? list.length : list.indexOf(Number(overId))
+      return `${to}, position ${at + 1} of ${list.length + 1}`
+    }
     const shown = overId != null && !isStage(overId) && list.includes(Number(overId)) ? list.indexOf(Number(overId)) : list.indexOf(Number(id))
-    return `${stage}, position ${shown + 1} of ${list.length}`
+    return `${to}, position ${shown + 1} of ${list.length}`
   }
   const announcements: Announcements = {
     onDragStart: ({ active }) => `Picked up ${nameOf(active.id)} in ${where(active.id)}. Use the arrow keys to move it, Space to drop it, Escape to cancel.`,
-    onDragOver: ({ active, over }) => `${nameOf(active.id)} is now in ${where(active.id, over?.id)}.`,
+    onDragOver: ({ active, over }) => (over?.id === active.id ? undefined : `${nameOf(active.id)} is now in ${where(active.id, over?.id)}.`),
     onDragEnd: ({ active, over }) => `Dropped ${nameOf(active.id)} in ${where(active.id, over?.id)}.`,
     onDragCancel: ({ active }) => `Move cancelled. ${nameOf(active.id)} is back where it was.`,
   }
@@ -185,7 +221,7 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetection}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
@@ -209,7 +245,11 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
             matches={matches}
             searching={!!query}
             onAdd={onAdd}
-            onMoveTo={(deal, to) => onMove(deal, to, 0)}
+            onMoveTo={(deal, to) => {
+              onMove(deal, to, 0)
+              // The card re-renders in its new column; keep keyboard focus on its menu button (R57).
+              setTimeout(() => document.querySelector<HTMLElement>(`article[data-deal-id="${deal.id}"] button[aria-label^="Actions for"]`)?.focus(), 100)
+            }}
           />
         ))}
       </div>

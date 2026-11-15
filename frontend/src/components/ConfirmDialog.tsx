@@ -28,7 +28,8 @@ export function ConfirmDialog({ open, onOpenChange, title, previewPath, message,
   const preview = useQuery({
     queryKey: ['delete-preview', previewPath],
     queryFn: () => api<DeletePreview>(previewPath!),
-    enabled: open && !!previewPath,
+    // Off while deleting: the refresh after a delete must not ask for the deleted record (R59).
+    enabled: open && !!previewPath && !busy,
     gcTime: 0,
     staleTime: 0,
   })

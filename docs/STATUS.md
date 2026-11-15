@@ -12,8 +12,9 @@ No code has been written yet.
   - Regenerate with `node docs/mockups/generate.mjs docs/mockups`.
 - Navigation: Pipeline is its own item in the left menu (Overview, Pipeline, Deals, Contacts, Organizations), and Overview is the landing page. The Dashboard tabs are gone (intent.md, spec.md R39, D15–D17, D21 and the mockups updated).
 
+- `docs/plan.md`: the build plan, covering the files that change, nine phases (0–8) each ending at a commit point, risks, and proof (backend and frontend unit tests, and end-to-end tests mapped to the intent's success criteria).
+
 ## Next
 
-- Choose a mockup direction (or a mix) and note it in `docs/spec.md` 2.7.
-
-- Set up the repo skeleton (root `package.json`, `frontend/`, `backend/`, `e2e/`) per `docs/TECH_STACK.md` and `docs/spec.md` 2.2.
+- Phase 0 of `docs/plan.md`: choose a mockup direction (or a mix), add the two darker text-bearing colours to spec 2.8, and confirm the funnel and rounding rules (plan Risks 4 and 5).
+- Then build from Phase 1 (skeleton), in a fresh session.

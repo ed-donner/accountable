@@ -73,11 +73,9 @@ def last_12_months(today: date) -> list[tuple[int, int]]:
 
 
 def furthest_stage_index(deal: dict, history: dict[int, list[str]]) -> int:
-    """R48: Won reaches every stage; an open deal its current one; Lost the furthest it reached first."""
-    if deal["stage"] != "Lost":
-        return stages.stage_index(deal["stage"])
-    reached = [stages.stage_index(s) for s in history.get(deal["id"], []) if s not in ("Lost", None)]
-    return max(reached, default=0)
+    """R48: the furthest stage a deal has been in, now or in its history, never counting Lost."""
+    seen = [deal["stage"], *history.get(deal["id"], [])]
+    return max((stages.stage_index(s) for s in seen if s not in ("Lost", None)), default=0)
 
 
 def figures(conn: Connection, today: date) -> dict:

@@ -56,7 +56,7 @@ Then, in a terminal, from the `accountable` folder:
     - **Deals, Contacts and Organizations:** tables with search, sort, add, edit and delete, and record pages with timelines.
   - Brand: colours and fonts from the brand skill, bundled so the app works offline (R2). White text sits only on the darker Cerulean and Raspberry fills, to meet contrast (R58).
 - **Tests** (`npm test`), all passing. `npm test` runs all three kinds even if one fails, and exits non-zero if any test fails or a stray `.only` is left in. This was checked with deliberately failing tests in each kind.
-  - 49 backend tests (pytest).
+  - 50 backend tests (pytest).
   - 36 frontend unit tests (Vitest).
   - 32 end-to-end tests (Playwright with the installed Chrome), one file per intent success criterion. Any browser console error or warning fails a test (R59).
 - **Checked in a real browser (Playwright):**
@@ -82,6 +82,10 @@ Then, in a terminal, from the `accountable` folder:
   - Fixed: an organization's contacts now include `organization_name`, which the frontend type already expected.
   - The API's output is otherwise unchanged. This was checked by comparing every GET response before and after.
 
+- **Review against `docs/REVIEW.md`** (Deploy stage): one Important finding, now fixed.
+  - The funnel (R48) counted only the current stage for open and Won deals, so a deal moved back (say Negotiation → Qualified) dropped out of the stages it had already reached. It now uses the furthest stage in the deal's current stage or its history, for every deal. A new test covers moving back and reopening a Won deal.
+  - The Minor findings are left as they are; see "Next".
+
 ## Notes
 
 - `npm install` may say one package's install script, `fsevents`, is waiting for approval. It's an optional macOS file-watching helper; the app and tests work without it.
@@ -92,4 +96,12 @@ Then, in a terminal, from the `accountable` folder:
 
 - **Your walkthrough (R61):** use every section and action as a salesperson would, and check each screen by eye against `docs/mockups/b-summary-*.png`. Watch the browser console (View → Developer → JavaScript Console in Chrome). Note anything that looks or feels wrong here.
 - **Before moving to Supabase (Postgres):** dates and timestamps are stored as text, which suits SQLite. Decide whether to switch them to real `Date`/`DateTime` columns as part of that move. The response models already declare them as dates and times, so the API won't change.
-- Then the course's Deploy stage: a review of this branch against `docs/REVIEW.md`.
+- **Minor review findings, not yet fixed:**
+  - a Lost deal that was once Won still counts in the funnel's Won step;
+  - very large values or ids give a 500 instead of a 422;
+  - the Overview follow-up checkbox stays ticked after a failed save;
+  - optimistic pipeline cards don't set the Won/Lost close date or the Late tag until the server replies;
+  - the backend doesn't check the Host header (DNS rebinding);
+  - there are no length limits on text fields;
+  - `.mcp.json` doesn't pin the Playwright MCP version.
+- Then merge `mvp-moni` into `main`.

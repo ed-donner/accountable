@@ -70,6 +70,24 @@ def test_funnel_counts_reached_stages(empty_client):  # R48
     assert created_late["stage"] == "Proposal"
 
 
+def test_funnel_keeps_stages_a_deal_moved_back_from(empty_client):  # R48
+    org = make_org(empty_client)
+    c = empty_client
+    moved_back = make_deal(c, org["id"], "Moved back", stage="Proposal", value_cents=100)
+    for stage in ["Negotiation", "Qualified"]:
+        c.post(f"/api/deals/{moved_back['id']}/move", json={"stage": stage, "index": 0})
+    reopened = make_deal(c, org["id"], "Reopened", stage="Won", value_cents=200)
+    c.post(f"/api/deals/{reopened['id']}/move", json={"stage": "Negotiation", "index": 0})
+    funnel = {f["stage"]: (f["count"], f["value_cents"]) for f in dash(c)["funnel"]}
+    assert funnel == {
+        "New": (2, 300),
+        "Qualified": (2, 300),
+        "Proposal": (2, 300),
+        "Negotiation": (2, 300),
+        "Won": (1, 200),
+    }
+
+
 def test_recent_activity_and_follow_ups(empty_client):  # R49, R50
     person = make_contact(empty_client)
     for i in range(12):

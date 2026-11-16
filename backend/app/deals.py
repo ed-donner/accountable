@@ -18,7 +18,9 @@ from .stages import Stage
 
 router = APIRouter(tags=["deals"])
 
-Cents = Annotated[int, Field(ge=0)]
+# Up to $10 billion a deal, so totals stay well inside what JavaScript numbers hold exactly.
+MAX_CENTS = 10**12
+Cents = Annotated[int, Field(ge=0, le=MAX_CENTS)]
 Percent = Annotated[int, Field(ge=0, le=100)]
 
 
@@ -118,6 +120,7 @@ def deal_rows(conn: Connection, where=None) -> list[dict]:
 
 
 def get_or_404(conn: Connection, deal_id: int) -> dict:
+    api.not_found_unless_fits(deal_id, "Deal not found")
     rows = deal_rows(conn, deals.c.id == deal_id)
     if not rows:
         raise HTTPException(404, "Deal not found")
@@ -257,7 +260,8 @@ def delete_preview(deal_id: int) -> dict:
         kept = api.plural(counts["activities_kept"], "activity", "activities")
         parts.append(f"{kept} also linked to a contact will stay on that contact.")
     if counts["stage_changes"]:
-        parts.append("Its stage history will be deleted.")
+        history = api.plural(counts["stage_changes"], "stage change", "stage changes")
+        parts.append(f"Its stage history ({history}) will be deleted.")
     return {"blocked": False, **counts, "message": " ".join(parts)}
 
 

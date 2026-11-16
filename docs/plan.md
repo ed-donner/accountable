@@ -22,12 +22,13 @@ Nothing exists yet apart from the docs, so almost every file below is new. `READ
 
 The layout follows spec 2.2. Both halves are grouped by feature, with no base classes, repositories or generic CRUD helpers.
 
-### Backend: `backend/app/`, ten modules
+### Backend: `backend/app/`, eleven modules
 
 | File | What it holds |
 |---|---|
 | `main.py` | FastAPI app, including each module's router under `/api`. On startup, creates and seeds the database if the file is new (R3). |
 | `settings.py` | `ACCOUNTABLE_DB` (default `backend/data/accountable.db`, D2), `ACCOUNTABLE_TODAY`, and the single `today()` (D9). Later settings (Supabase, sign-in) go here too. |
+| `api.py` | What every route shares: the request field types and their limits, the 422 field messages (R58), the delete preview shape and `plural()`. |
 | `db.py` | Engine, metadata, all four tables (2.4), indexes (D7), `PRAGMA foreign_keys = ON`. |
 | `stages.py` | The six stages, probabilities and open flag (R13). The deal rules as plain functions with no database: probability on create and stage change (R14, R15), close date on Won or Lost (R16), late flag (R17), expected revenue in cents (R18). |
 | `organizations.py` | Its routes, request and response models, queries, delete preview and delete (R8, R26, R27, R31). |

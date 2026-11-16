@@ -47,6 +47,21 @@ describe('DataTable', () => {
     expect(names()).toEqual(['alpha', 'Charlie', 'Bravo'])
   })
 
+  it('sorts a mostly-empty text column with empty values first, in a steady order (R20)', async () => {
+    const textCols = col.columns([col.accessor('name', { header: 'Name' }), col.accessor('city', { header: 'City', sortFn: 'text' })])
+    const many: Row[] = [
+      ...Array.from({ length: 12 }, (_, i) => ({ id: i + 10, name: `Empty ${i}`, city: null, amount: 0 })),
+      { id: 1, name: 'In Leeds', city: 'Leeds', amount: 0 },
+      { id: 2, name: 'In Bristol', city: 'bristol', amount: 0 },
+    ]
+    renderApp(<DataTable data={many} columns={textCols} noun="things" addLabel="New thing" onAdd={vi.fn()} getRowId={(r) => String(r.id)} />)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /City/ }))
+    expect(names().slice(-2)).toEqual(['In Bristol', 'In Leeds'])
+    await user.click(screen.getByRole('button', { name: /City/ }))
+    expect(names().slice(0, 2)).toEqual(['In Leeds', 'In Bristol'])
+  })
+
   it('shows a plain message and the add button when empty or nothing matches (R25)', async () => {
     const { user, onAdd } = setup()
     await user.type(screen.getByLabelText('Search things'), 'zzz')

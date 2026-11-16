@@ -1,12 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { api, ApiError, refreshAll } from '../../api'
+import { api, refreshAll } from '../../api'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Section } from '../../components/RecordLayout'
 import { useToast } from '../../components/Toast'
 import { ActivityForm, type TimelineContext } from './ActivityForm'
-import { KIND_LABELS, setDone, type Activity } from './api'
+import { KIND_LABELS, useSetDone, type Activity } from './api'
 import { Timeline } from './Timeline'
 
 /** The timeline panel on a contact or deal page, with Log activity (R34–R37). */
@@ -16,15 +16,7 @@ export function TimelineSection({ entries, context }: { entries: Activity[]; con
   const [editing, setEditing] = useState<Activity | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Activity | null>(null)
 
-  async function toggleDone(a: Activity, done: boolean) {
-    try {
-      await setDone(a.id, done)
-      await refreshAll(queryClient)
-      toast(done ? 'Follow-up marked done' : 'Follow-up reopened')
-    } catch (e) {
-      toast(e instanceof ApiError ? e.message : 'Something went wrong. Try again.', 'error')
-    }
-  }
+  const toggleDone = useSetDone()
 
   return (
     <Section

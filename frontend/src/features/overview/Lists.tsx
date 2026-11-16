@@ -1,11 +1,9 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, FileText, Mail, Phone } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router'
-import { ApiError, refreshAll } from '../../api'
 import { StageBadge } from '../../components/StageBadge'
-import { useToast } from '../../components/Toast'
 import { dueText, exactTime, relativeTime, shortDate } from '../../format'
-import { setDone, type Activity } from '../activities/api'
+import { useSetDone, type Activity } from '../activities/api'
 import type { Dashboard } from './api'
 import styles from './Overview.module.css'
 
@@ -23,18 +21,15 @@ const GROUPS = [
 
 /** R50: every open follow-up, grouped and soonest first, with a checkbox to mark it done. */
 export function FollowUps({ data }: { data: Dashboard }) {
-  const queryClient = useQueryClient()
-  const toast = useToast()
+  const setDone = useSetDone()
+  // Ticked while saving; a saved one then leaves the list, a failed one unticks again.
+  const [saving, setSaving] = useState<ReadonlySet<number>>(new Set())
   const total = GROUPS.reduce((n, g) => n + data.follow_ups[g.key].length, 0)
 
   async function markDone(a: Activity) {
-    try {
-      await setDone(a.id, true)
-      await refreshAll(queryClient)
-      toast('Follow-up marked done')
-    } catch (e) {
-      toast(e instanceof ApiError ? e.message : 'Something went wrong. Try again.', 'error')
-    }
+    if (saving.has(a.id)) return
+    setSaving((s) => new Set(s).add(a.id))
+    if (!(await setDone(a, true))) setSaving((s) => new Set([...s].filter((id) => id !== a.id)))
   }
 
   return (
@@ -57,6 +52,7 @@ export function FollowUps({ data }: { data: Dashboard }) {
                     type="checkbox"
                     className={styles.check}
                     aria-label={`Mark done: ${a.description}`}
+                    checked={saving.has(a.id)}
                     onChange={() => markDone(a)}
                   />
                   <div className={styles.itemText}>

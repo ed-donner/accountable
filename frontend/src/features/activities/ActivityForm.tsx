@@ -3,13 +3,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { ApiError, refreshAll } from '../../api'
+import { ApiError, errorMessage, refreshAll } from '../../api'
 import { Drawer } from '../../components/Drawer'
-import { Field, fieldProps } from '../../components/Field'
+import { Field, fieldProps, longTextField } from '../../components/Field'
 import { useToast } from '../../components/Toast'
 import { toLocalInput } from '../../format'
 import { useContacts } from '../contacts/api'
-import { KIND_LABELS, saveActivity, type Activity } from './api'
+import { ENTERED_KINDS, KIND_LABELS, saveActivity, type Activity } from './api'
 
 /** Where the activity is logged from, and what it can also be linked to (R35). */
 export type TimelineContext =
@@ -17,8 +17,8 @@ export type TimelineContext =
   | { kind: 'deal'; id: number; name: string; mainContactId: number | null }
 
 const schema = z.object({
-  kind: z.enum(['note', 'call', 'email']),
-  description: z.string().trim().min(1, 'Describe what happened'),
+  kind: z.enum(ENTERED_KINDS),
+  description: longTextField('Describe what happened'),
   occurred_at: z.string().min(1, 'Enter when it happened'),
   follow_up_date: z.string(),
   other_id: z.string(),
@@ -83,7 +83,7 @@ export function ActivityForm({ open, onOpenChange, context, activity }: Props) {
       Object.entries(fields).forEach(([name, message]) =>
         form.setError((name === 'contact_id' || name === 'deal_id' ? 'other_id' : name) as keyof Values, { message }),
       )
-      if (!Object.keys(fields).length) form.setError('root', { message: e instanceof ApiError ? e.message : 'Something went wrong. Try again.' })
+      if (!Object.keys(fields).length) form.setError('root', { message: errorMessage(e) })
     }
   }
 
@@ -107,7 +107,7 @@ export function ActivityForm({ open, onOpenChange, context, activity }: Props) {
       <form id="activity-form" onSubmit={form.handleSubmit(submit)} noValidate>
         <Field id="activity-kind" label="Type">
           <select className="select" {...fieldProps('activity-kind')} {...form.register('kind')}>
-            {(['note', 'call', 'email'] as const).map((k) => (
+            {ENTERED_KINDS.map((k) => (
               <option key={k} value={k}>
                 {KIND_LABELS[k]}
               </option>

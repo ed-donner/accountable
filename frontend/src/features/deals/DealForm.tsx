@@ -3,17 +3,20 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
-import { ApiError, refreshAll } from '../../api'
+import { ApiError, errorMessage, refreshAll } from '../../api'
 import { Drawer } from '../../components/Drawer'
-import { Field, fieldProps } from '../../components/Field'
+import { Field, fieldProps, nameField } from '../../components/Field'
 import { useToast } from '../../components/Toast'
-import { dollarsToCents } from '../../format'
+import { dollarsToCents, money } from '../../format'
 import { useContacts } from '../contacts/api'
 import { useOrganizations } from '../organizations/api'
 import { saveDeal, STAGE_NAMES, useStages, type Deal, type DealInput, type StageName } from './api'
 
+/** The server's limit per deal (deals.py MAX_CENTS), in dollars. */
+const MAX_DOLLARS = 10_000_000_000
+
 const schema = z.object({
-  name: z.string().trim().min(1, 'Enter a name'),
+  name: nameField('Enter a name'),
   organization_id: z.string().min(1, 'Choose an organization'),
   main_contact_id: z.string(),
   stage: z.enum(STAGE_NAMES),
@@ -21,7 +24,8 @@ const schema = z.object({
     .string()
     .trim()
     .min(1, 'Enter a value')
-    .refine((v) => Number.isFinite(Number(v)) && Number(v) >= 0, 'Enter an amount of 0 or more'),
+    .refine((v) => Number.isFinite(Number(v)) && Number(v) >= 0, 'Enter an amount of 0 or more')
+    .refine((v) => !(Number(v) > MAX_DOLLARS), `Enter an amount up to ${money(MAX_DOLLARS * 100)}`),
   probability: z
     .string()
     .trim()
@@ -84,7 +88,7 @@ export function DealForm({ open, onOpenChange, deal, defaultStage = 'New' }: Pro
       Object.entries(fields).forEach(([name, message]) =>
         form.setError((name === 'value_cents' ? 'value' : name) as keyof Values, { message }),
       )
-      if (!Object.keys(fields).length) form.setError('root', { message: e instanceof ApiError ? e.message : 'Something went wrong. Try again.' })
+      if (!Object.keys(fields).length) form.setError('root', { message: errorMessage(e) })
     }
   }
 

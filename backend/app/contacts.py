@@ -8,7 +8,7 @@ from sqlalchemy import Connection, and_, insert, select, update
 
 from . import activities, api, db, deals
 from .activities import Activity
-from .api import Name, Text
+from .api import EmailAddress, Name, Text
 from .db import ContactStatus as Status
 from .db import contacts, organizations
 from .deals import Deal
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 class ContactIn(BaseModel):
     name: Name
-    email: Text | None = None
+    email: EmailAddress | None = None
     phone: Text | None = None
     job_title: Text | None = None
     organization_id: int | None = None
@@ -28,7 +28,7 @@ class ContactIn(BaseModel):
 class ContactPatch(BaseModel):
     # Required fields may be left out of a PATCH but not sent as null.
     name: Name = None  # type: ignore[assignment]
-    email: Text | None = None
+    email: EmailAddress | None = None
     phone: Text | None = None
     job_title: Text | None = None
     organization_id: int | None = None
@@ -74,6 +74,7 @@ def contact_rows(conn: Connection, where=None) -> list[dict]:
 
 
 def get_or_404(conn: Connection, contact_id: int) -> dict:
+    api.not_found_unless_fits(contact_id, "Contact not found")
     rows = contact_rows(conn, contacts.c.id == contact_id)
     if not rows:
         raise HTTPException(404, "Contact not found")

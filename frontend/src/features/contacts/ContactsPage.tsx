@@ -18,14 +18,15 @@ const makeColumns = (actions: Actions) =>
   col.columns([
     col.accessor('name', { header: 'Name', cell: (info) => <Link to={`/contacts/${info.row.original.id}`}>{info.getValue()}</Link> }),
     col.accessor((c) => STATUS_LABELS[c.status], { id: 'status', header: 'Status', cell: (info) => <StatusBadge status={info.row.original.status} /> }),
-    col.accessor('job_title', { header: 'Job title', cell: (info) => info.getValue() ?? '' }),
+    col.accessor('job_title', { header: 'Job title', sortFn: 'text', cell: (info) => info.getValue() ?? '' }),
     col.accessor('organization_name', {
       header: 'Organization',
+      sortFn: 'text',
       cell: (info) =>
         info.row.original.organization_id ? <Link to={`/organizations/${info.row.original.organization_id}`}>{info.getValue()}</Link> : '',
     }),
-    col.accessor('email', { header: 'Email', cell: (info) => info.getValue() ?? '' }),
-    col.accessor('phone', { header: 'Phone', cell: (info) => <span className="mono">{info.getValue() ?? ''}</span> }),
+    col.accessor('email', { header: 'Email', sortFn: 'text', cell: (info) => info.getValue() ?? '' }),
+    col.accessor('phone', { header: 'Phone', sortFn: 'text', cell: (info) => <span className="mono">{info.getValue() ?? ''}</span> }),
     col.display({
       id: 'actions',
       header: () => <span className="visually-hidden">Actions</span>,

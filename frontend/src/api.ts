@@ -12,6 +12,12 @@ export class ApiError extends Error {
   }
 }
 
+/** The message shown when nothing more specific is known. */
+export const GENERIC_ERROR = 'Something went wrong. Try again.'
+
+/** What to tell the person about a failed request. */
+export const errorMessage = (e: unknown) => (e instanceof ApiError ? e.message : GENERIC_ERROR)
+
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
 /** The one fetch wrapper: JSON in and out, under /api (D1). */
@@ -29,7 +35,7 @@ export async function api<T>(path: string, method: Method = 'GET', body?: unknow
   if (response.status === 204) return undefined as T
   const data = await response.json().catch(() => null)
   if (!response.ok) {
-    const detail = typeof data?.detail === 'string' ? data.detail : 'Something went wrong. Try again.'
+    const detail = typeof data?.detail === 'string' ? data.detail : GENERIC_ERROR
     throw new ApiError(response.status, detail, data?.fields ?? {})
   }
   return data as T

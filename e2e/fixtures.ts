@@ -11,7 +11,9 @@ export function reseed() {
   })
 }
 
-export const test = base.extend<{ fresh: void; consoleGuard: void }>({
+export const test = base.extend<{ fresh: void; consoleGuard: void; allowConsole: RegExp[] }>({
+  // Console messages a test causes on purpose, such as Chrome logging a request the test makes fail.
+  allowConsole: [[], { option: true }],
   // Every test starts from the sample data, so tests never depend on each other.
   fresh: [
     async ({}, use) => {
@@ -22,10 +24,11 @@ export const test = base.extend<{ fresh: void; consoleGuard: void }>({
   ],
   // R59: no errors or warnings in the browser console during normal use.
   consoleGuard: [
-    async ({ page }, use) => {
+    async ({ page, allowConsole }, use) => {
       const problems: string[] = []
       page.on('console', (m) => {
-        if (m.type() === 'error' || m.type() === 'warning') problems.push(`${m.type()}: ${m.text()}`)
+        if ((m.type() === 'error' || m.type() === 'warning') && !allowConsole.some((r) => r.test(m.text())))
+          problems.push(`${m.type()}: ${m.text()}`)
       })
       page.on('pageerror', (e) => problems.push(`page error: ${e.message}`))
       await use()

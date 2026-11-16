@@ -3,20 +3,20 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { ApiError, refreshAll } from '../../api'
+import { ApiError, errorMessage, refreshAll } from '../../api'
 import { Drawer } from '../../components/Drawer'
-import { Field, fieldProps } from '../../components/Field'
+import { Field, fieldProps, nameField, textField } from '../../components/Field'
 import { useToast } from '../../components/Toast'
 import { useOrganizations } from '../organizations/api'
 import { saveContact, STATUSES, STATUS_LABELS, type Contact } from './api'
 
 const schema = z.object({
-  name: z.string().trim().min(1, 'Enter a name'),
-  job_title: z.string().trim(),
+  name: nameField('Enter a name'),
+  job_title: textField(),
   organization_id: z.string(),
   status: z.enum(STATUSES),
   email: z.union([z.literal(''), z.email('Enter an email address like name@example.com')]),
-  phone: z.string().trim(),
+  phone: textField(),
 })
 type Values = z.infer<typeof schema>
 
@@ -61,7 +61,7 @@ export function ContactForm({ open, onOpenChange, contact }: Props) {
     } catch (e) {
       const fields = e instanceof ApiError ? e.fields : {}
       Object.entries(fields).forEach(([name, message]) => form.setError(name as keyof Values, { message }))
-      if (!Object.keys(fields).length) form.setError('root', { message: e instanceof ApiError ? e.message : 'Something went wrong. Try again.' })
+      if (!Object.keys(fields).length) form.setError('root', { message: errorMessage(e) })
     }
   }
 
@@ -111,14 +111,14 @@ export function ContactForm({ open, onOpenChange, contact }: Props) {
             </select>
           )}
         </Field>
-        <Field id="contact-title" label="Job title" hint="(optional)">
-          <input className="input" autoComplete="off" {...fieldProps('contact-title')} {...form.register('job_title')} />
+        <Field id="contact-title" label="Job title" hint="(optional)" error={errors.job_title?.message}>
+          <input className="input" autoComplete="off" {...fieldProps('contact-title', errors.job_title?.message)} {...form.register('job_title')} />
         </Field>
         <Field id="contact-email" label="Email" hint="(optional)" error={errors.email?.message}>
           <input className="input" type="email" autoComplete="off" {...fieldProps('contact-email', errors.email?.message)} {...form.register('email')} />
         </Field>
-        <Field id="contact-phone" label="Phone" hint="(optional)">
-          <input className="input" type="tel" autoComplete="off" {...fieldProps('contact-phone')} {...form.register('phone')} />
+        <Field id="contact-phone" label="Phone" hint="(optional)" error={errors.phone?.message}>
+          <input className="input" type="tel" autoComplete="off" {...fieldProps('contact-phone', errors.phone?.message)} {...form.register('phone')} />
         </Field>
         {errors.root && (
           <p className="late" role="alert">

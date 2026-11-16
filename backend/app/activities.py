@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, insert, select, update
 
 from . import api, db, settings
-from .api import Name as Description
+from .api import LongText as Description
 from .db import ActivityKind, EnteredKind, activities, contacts, deals
 from .stages import Stage
 
@@ -135,6 +135,7 @@ def log_stage_change(conn: Connection, deal_id: int, old: str, new: str, at: str
 
 
 def _get_or_404(conn: Connection, activity_id: int) -> dict:
+    api.not_found_unless_fits(activity_id, "Activity not found")
     rows = _rows(conn, _select().where(activities.c.id == activity_id))
     if not rows:
         raise HTTPException(404, "Activity not found")
@@ -154,6 +155,8 @@ def _check_links(conn: Connection, contact_id: int | None, deal_id: int | None) 
 def list_activities(contact_id: int | None = None, deal_id: int | None = None) -> list[dict]:
     if contact_id is None and deal_id is None:
         raise api.field_error("contact_id", "Give a contact or a deal")
+    if any(i is not None and not api.fits(i) for i in (contact_id, deal_id)):
+        return []  # no record can have that id
     with db.transaction() as conn:
         return timeline(conn, contact_id=contact_id, deal_id=deal_id)
 

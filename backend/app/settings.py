@@ -13,6 +13,13 @@ def db_path() -> Path:
     return Path(os.environ.get("ACCOUNTABLE_DB") or DEFAULT_DB)
 
 
+def allowed_hosts() -> list[str]:
+    """Host names the API answers to. Only this computer by default, which also stops a web page
+    from reaching the API through DNS rebinding. `ACCOUNTABLE_ALLOWED_HOSTS` (comma-separated) adds a deployed name."""
+    extra = os.environ.get("ACCOUNTABLE_ALLOWED_HOSTS", "")
+    return ["localhost", "127.0.0.1", *(h.strip() for h in extra.split(",") if h.strip())]
+
+
 def today() -> date:
     """The server's local date. `ACCOUNTABLE_TODAY` (YYYY-MM-DD) pins it, for tests only."""
     pinned = os.environ.get("ACCOUNTABLE_TODAY")

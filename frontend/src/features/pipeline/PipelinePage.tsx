@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { api, ApiError, refreshAll } from '../../api'
 import { PageHeader } from '../../components/PageHeader'
 import { STAGE_COLOR } from '../../components/StageBadge'
 import { useToast } from '../../components/Toast'
 import { money } from '../../format'
-import { isOpenStage, useDeals, useStages, type Deal, type StageName } from '../deals/api'
+import { useDeals, useStages, type Deal, type StageName } from '../deals/api'
 import { DealForm } from '../deals/DealForm'
 import { Board } from './Board'
 import styles from './Pipeline.module.css'
@@ -30,23 +30,41 @@ export function PipelinePage() {
   )
 
   // D12: the board and its totals update at once; on failure the card goes back (R44).
+  // Moves can overlap (two quick drags), so the board is always `confirmed` (the deals as last
+  // saved) with every move still in flight applied on top. A failed move drops out of that list
+  // without undoing the others, and the deals are refetched only once no move is in flight, so
+  // a refetch can't show a later move as not yet made.
+  const confirmed = useRef<Deal[] | undefined>(undefined)
+  const inFlight = useRef<Move[]>([])
+  const apply = (deals: Deal[], moves: Move[]) =>
+    moves.reduce((d, m) => applyMove(d, m.deal.id, m.stage, m.index, probabilityOf), deals)
+  const settle = (m: Move) => {
+    inFlight.current = inFlight.current.filter((x) => x !== m)
+  }
   const move = useMutation({
     mutationFn: ({ deal, stage, index }: Move) => api<Deal>(`/deals/${deal.id}/move`, 'POST', { stage, index }),
-    onMutate: async ({ deal, stage, index }: Move) => {
+    onMutate: async (m: Move) => {
       await queryClient.cancelQueries({ queryKey: ['deals'] })
-      const previous = queryClient.getQueryData<Deal[]>(['deals'])
-      if (previous) queryClient.setQueryData(['deals'], applyMove(previous, deal.id, stage, index, probabilityOf))
-      return { previous }
+      const current = queryClient.getQueryData<Deal[]>(['deals'])
+      if (!current) return
+      if (inFlight.current.length === 0) confirmed.current = current
+      inFlight.current = [...inFlight.current, m]
+      queryClient.setQueryData(['deals'], apply(current, [m]))
     },
-    onError: (error, { deal }, context) => {
-      if (context?.previous) queryClient.setQueryData(['deals'], context.previous)
+    onError: (error, m) => {
+      settle(m)
+      if (confirmed.current) queryClient.setQueryData(['deals'], apply(confirmed.current, inFlight.current))
       const reason = error instanceof ApiError && error.status ? ` ${error.message}` : ''
-      toast(`Couldn't move ${deal.name}, so it's back where it was.${reason}`, 'error')
+      toast(`Couldn't move ${m.deal.name}, so it's back where it was.${reason}`, 'error')
     },
-    onSuccess: (_saved, { deal, stage }) => {
-      if (stage !== deal.stage) toast(`${deal.name} moved to ${stage}`)
+    onSuccess: (_saved, m) => {
+      settle(m)
+      if (confirmed.current) confirmed.current = apply(confirmed.current, [m])
+      if (m.stage !== m.deal.stage) toast(`${m.deal.name} moved to ${m.stage}`)
     },
-    onSettled: () => refreshAll(queryClient),
+    onSettled: () => {
+      if (inFlight.current.length === 0) return refreshAll(queryClient)
+    },
   })
 
   // `mutate` is stable, unlike the mutation object, so cards that receive this don't redraw needlessly.
@@ -54,7 +72,7 @@ export function PipelinePage() {
   const onMove = useCallback((deal: Deal, stage: StageName, index: number) => mutate({ deal, stage, index }), [mutate])
   const open = openTotals(placed)
   const late = placed.filter((d) => d.is_late).length
-  const openStages = (stages.data ?? []).filter((s) => isOpenStage(s.name))
+  const openStages = (stages.data ?? []).filter((s) => s.open)
 
   return (
     <>
@@ -125,7 +143,7 @@ export function PipelinePage() {
           </div>
         </div>
       </section>
-      {search && <p className={styles.searchNote}>Showing deals that match “{search}”. Clear the search to drag cards; the Move to menu still works.</p>}
+      {search && <p className={styles.searchNote}>Showing deals that match “{search}”.</p>}
       {deals.error ? (
         <p className="empty" role="alert">
           Couldn't load the pipeline. Refresh the page to try again.

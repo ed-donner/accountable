@@ -20,6 +20,9 @@ function trim(n: number): string {
   return n.toFixed(1).replace(/\.0$/, '')
 }
 
+/** Today on this computer as "2026-11-15", the same "today" the server uses (D9). */
+export const todayISO = (now = new Date()) => format(now, 'yyyy-MM-dd')
+
 /** A date-only value ("2026-11-15") as a local date, so it never shifts a day. */
 export function day(value: string): Date {
   return parseISO(value)

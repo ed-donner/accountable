@@ -65,4 +65,13 @@ describe('DealForm', () => {
     expect(await screen.findByText('Must be 0 or more')).toBeInTheDocument()
     expect(screen.getByLabelText('Value (USD)')).toHaveAttribute('aria-invalid', 'true')
   })
+
+  it('refuses a value bigger than the server can save', async () => {
+    fakeApi(lists)
+    const user = userEvent.setup()
+    renderApp(<DealForm open onOpenChange={vi.fn()} />)
+    await user.type(screen.getByLabelText('Value (USD)'), '1e20')
+    await user.click(screen.getByRole('button', { name: 'Save deal' }))
+    expect(await screen.findByText('Enter an amount up to $10,000,000,000')).toBeInTheDocument()
+  })
 })

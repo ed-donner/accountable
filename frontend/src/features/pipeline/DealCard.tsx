@@ -10,18 +10,13 @@ import styles from './Pipeline.module.css'
 
 type Props = {
   deal: Deal
-  /** Dragging is off while the board is filtered by search, since positions would be ambiguous. */
-  dragDisabled: boolean
   onMoveTo: (deal: Deal, stage: StageName) => void
 }
 
 /** A card: name, organization · contact, probability, value and close date (D21). */
-export const DealCard = memo(function DealCard({ deal, dragDisabled, onMoveTo }: Props) {
+export const DealCard = memo(function DealCard({ deal, onMoveTo }: Props) {
   const navigate = useNavigate()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: deal.id,
-    disabled: dragDisabled,
-  })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: deal.id })
   const open = isOpenStage(deal.stage)
 
   // Space picks up the card only when the card itself has focus, not its link or menu (R41).

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, func, insert, select, update
 
 from . import api, contacts, db, deals
-from .api import Name, Text
+from .api import Name, Text, WebAddress
 from .contacts import Contact
 from .db import organizations
 from .deals import Deal
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/organizations", tags=["organizations"])
 
 class OrganizationIn(BaseModel):
     name: Name
-    website: Text | None = None
+    website: WebAddress | None = None
     industry: Text | None = None
     notes: Text | None = None
 
@@ -26,7 +26,7 @@ class OrganizationIn(BaseModel):
 class OrganizationPatch(BaseModel):
     # A required field may be left out of a PATCH, but not sent as null: null fails validation (422).
     name: Name = None  # type: ignore[assignment]
-    website: Text | None = None
+    website: WebAddress | None = None
     industry: Text | None = None
     notes: Text | None = None
 
@@ -74,6 +74,7 @@ def _counts():
 
 
 def get_or_404(conn: Connection, org_id: int) -> dict:
+    api.not_found_unless_fits(org_id, "Organization not found")
     row = conn.execute(select(organizations, *_counts()).where(organizations.c.id == org_id)).mappings().first()
     if row is None:
         raise HTTPException(404, "Organization not found")

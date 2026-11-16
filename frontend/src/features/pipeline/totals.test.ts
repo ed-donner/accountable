@@ -42,6 +42,15 @@ describe('pipeline totals (R43, D12)', () => {
     expect(kept.probability).toBe(33)
   })
 
+  it('gives a card moved into Won or Lost today\'s close date, and works out Late when it reopens (R16, R17)', () => {
+    const won = applyMove(deals, 2, 'Won', 0, probabilityOf, '2027-01-10').find((d) => d.id === 2)!
+    expect([won.close_date, won.is_late]).toEqual(['2027-01-10', false])
+    const reopened = applyMove(deals, 4, 'New', 0, probabilityOf, '2027-01-10').find((d) => d.id === 4)!
+    expect([reopened.close_date, reopened.is_late]).toEqual(['2026-12-01', true])
+    const notLate = applyMove(deals, 4, 'New', 0, probabilityOf, '2026-11-15').find((d) => d.id === 4)!
+    expect(notLate.is_late).toBe(false)
+  })
+
   it('takes a card out of the open totals when it moves to Won', () => {
     const moved = applyMove(deals, 2, 'Won', 0, probabilityOf)
     expect(openTotals(moved).count).toBe(2)

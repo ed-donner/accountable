@@ -41,6 +41,8 @@ test('the Move to menu moves a card', async ({ page, request }) => {
   await page.getByRole('button', { name: 'Actions for Telehealth add-on' }).focus()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('menu')).toContainText('Move to…')
+  // The menu focuses its first item as it opens; wait for that, or it can take focus back from Lost.
+  await expect(page.getByRole('menuitem').first()).toBeFocused()
   await page.getByRole('menuitem', { name: 'Lost' }).focus()
   await page.keyboard.press('Enter')
   await expect(toast(page, 'Telehealth add-on moved to Lost')).toBeVisible()

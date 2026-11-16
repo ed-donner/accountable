@@ -113,10 +113,19 @@ activities = Table(
 _engines: dict[Path, Engine] = {}
 
 
-def _turn_on_foreign_keys(dbapi_connection, _record) -> None:
+def _on_connect(dbapi_connection, _record) -> None:
+    # Let SQLAlchemy say when a transaction starts, instead of the sqlite3 driver putting it off
+    # until the first write (see `_begin_now`).
+    dbapi_connection.isolation_level = None
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON")
     cursor.close()
+
+
+def _begin_now(conn) -> None:
+    """Take SQLite's write lock as each transaction starts, so the reads a change is based on
+    (for example a column's order before a move) can't go stale under another request."""
+    conn.exec_driver_sql("BEGIN IMMEDIATE")
 
 
 def engine() -> Engine:
@@ -125,7 +134,8 @@ def engine() -> Engine:
     if path not in _engines:
         path.parent.mkdir(parents=True, exist_ok=True)
         eng = create_engine(f"sqlite:///{path}", connect_args={"check_same_thread": False})
-        event.listen(eng, "connect", _turn_on_foreign_keys)
+        event.listen(eng, "connect", _on_connect)
+        event.listen(eng, "begin", _begin_now)
         _engines[path] = eng
     return _engines[path]
 

@@ -9,6 +9,22 @@ from backend.app import db, settings
 from backend.app.main import app
 
 TODAY = date(2026, 11, 15)
+# The API answers only to this computer's names (settings.allowed_hosts).
+LOCAL = "http://localhost"
+
+
+@pytest.fixture(autouse=True, scope="session")
+def real_database_untouched():
+    """R6: after the whole run, your own database file is exactly as it was (or still absent).
+    Using the app while the tests run would change it too, so don't."""
+
+    def snapshot():
+        path = settings.DEFAULT_DB
+        return (path.stat().st_size, path.stat().st_mtime_ns) if path.exists() else None
+
+    before = snapshot()
+    yield
+    assert snapshot() == before, f"the tests changed {settings.DEFAULT_DB}"
 
 
 @pytest.fixture(autouse=True)
@@ -24,7 +40,7 @@ def isolated_db(tmp_path, monkeypatch):
 @pytest.fixture
 def client():
     """The app on a freshly seeded database (startup seeds a new file, R3)."""
-    with TestClient(app) as c:
+    with TestClient(app, base_url=LOCAL) as c:
         yield c
 
 
@@ -32,7 +48,7 @@ def client():
 def empty_client():
     """The app on an empty database: the schema exists, so startup doesn't seed it."""
     db.create_schema()
-    with TestClient(app) as c:
+    with TestClient(app, base_url=LOCAL) as c:
         yield c
 
 

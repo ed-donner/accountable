@@ -3,19 +3,19 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { ApiError, refreshAll } from '../../api'
+import { ApiError, errorMessage, refreshAll } from '../../api'
 import { Drawer } from '../../components/Drawer'
-import { Field, fieldProps } from '../../components/Field'
+import { Field, fieldProps, nameField, textField, websiteField } from '../../components/Field'
 import { useToast } from '../../components/Toast'
 import { saveOrganization, type Organization } from './api'
 
 export const INDUSTRIES = ['Construction', 'Financial Services', 'Healthcare', 'Logistics', 'Manufacturing', 'Retail', 'Software']
 
 const schema = z.object({
-  name: z.string().trim().min(1, 'Enter a name'),
-  website: z.string().trim(),
-  industry: z.string().trim(),
-  notes: z.string().trim(),
+  name: nameField('Enter a name'),
+  website: websiteField(),
+  industry: textField(),
+  notes: textField(),
 })
 type Values = z.infer<typeof schema>
 
@@ -51,7 +51,7 @@ export function OrganizationForm({ open, onOpenChange, organization }: Props) {
     } catch (e) {
       const fields = e instanceof ApiError ? e.fields : {}
       Object.entries(fields).forEach(([name, message]) => form.setError(name as keyof Values, { message }))
-      form.setError('root', { message: e instanceof ApiError ? e.message : 'Something went wrong. Try again.' })
+      form.setError('root', { message: errorMessage(e) })
     }
   }
 
@@ -75,19 +75,19 @@ export function OrganizationForm({ open, onOpenChange, organization }: Props) {
         <Field id="org-name" label="Name" error={errors.name?.message}>
           <input className="input" autoComplete="off" {...fieldProps('org-name', errors.name?.message)} {...form.register('name')} />
         </Field>
-        <Field id="org-industry" label="Industry" hint="(optional)">
-          <input className="input" list="industries" autoComplete="off" {...fieldProps('org-industry')} {...form.register('industry')} />
+        <Field id="org-industry" label="Industry" hint="(optional)" error={errors.industry?.message}>
+          <input className="input" list="industries" autoComplete="off" {...fieldProps('org-industry', errors.industry?.message)} {...form.register('industry')} />
           <datalist id="industries">
             {INDUSTRIES.map((i) => (
               <option key={i} value={i} />
             ))}
           </datalist>
         </Field>
-        <Field id="org-website" label="Website" hint="(optional)">
-          <input className="input" type="url" placeholder="https://" {...fieldProps('org-website')} {...form.register('website')} />
+        <Field id="org-website" label="Website" hint="(optional)" error={errors.website?.message}>
+          <input className="input" type="url" placeholder="acme.com" {...fieldProps('org-website', errors.website?.message)} {...form.register('website')} />
         </Field>
-        <Field id="org-notes" label="Notes" hint="(optional)">
-          <textarea className="textarea" {...fieldProps('org-notes')} {...form.register('notes')} />
+        <Field id="org-notes" label="Notes" hint="(optional)" error={errors.notes?.message}>
+          <textarea className="textarea" {...fieldProps('org-notes', errors.notes?.message)} {...form.register('notes')} />
         </Field>
         {errors.root && !Object.keys(errors).some((k) => k !== 'root') && (
           <p className="late" role="alert">

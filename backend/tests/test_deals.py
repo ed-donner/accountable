@@ -114,7 +114,7 @@ def test_delete_removes_history_and_only_deal_activities(empty_client, org):  # 
     assert (preview["activities_deleted"], preview["activities_kept"], preview["stage_changes"]) == (2, 1, 1)
     assert preview["message"] == (
         "Delete Doomed? 2 activities will be deleted. 1 activity also linked to a contact will stay on that contact. "
-        "Its stage history will be deleted."
+        "Its stage history (1 stage change) will be deleted."
     )
     assert empty_client.delete(f"/api/deals/{d['id']}").status_code == 204
     timeline = empty_client.get(f"/api/contacts/{person['id']}").json()["timeline"]

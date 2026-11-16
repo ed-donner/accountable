@@ -46,7 +46,7 @@ Then, in a terminal, from the `accountable` folder:
     - the funnel and rounding rules (R48, R18)
     - the code layout grouped by feature (2.2)
 - `docs/mockups/`: three design directions (A classic sidebar, B summary-led, C icon rail with a Today column). B is the chosen direction, drawn with the left sidebar. It has a 1440 px screenshot of each section, and a layout for 1024–1279 px. Rebuild them with `node docs/mockups/generate.mjs docs/mockups`.
-- `docs/plan.md`: the build plan. All phases are done (0–8). Phase 8's own walkthrough is yours, under "Next".
+- `docs/plan.md`: the build plan. Phases 0–7 are done. Phase 8 is done apart from step 5, comparing screenshots with mockup B, and step 7, your walkthrough; both are under "Next".
 - Navigation: Pipeline is its own item in the left menu (Overview, Pipeline, Deals, Contacts, Organizations), and Overview is the landing page.
 - **The app** (spec 2.2, grouped by feature):
   - Backend (`backend/app/`): FastAPI and SQLAlchemy Core on SQLite. It holds all business rules: stages and probabilities (R13–R18), stage change entries (R12), moves (D8), delete rules (R26–R30) and the dashboard figures (R45–R50). It also holds the sample data (R52–R55).
@@ -56,9 +56,9 @@ Then, in a terminal, from the `accountable` folder:
     - **Deals, Contacts and Organizations:** tables with search, sort, add, edit and delete, and record pages with timelines.
   - Brand: colours and fonts from the brand skill, bundled so the app works offline (R2). White text sits only on the darker Cerulean and Raspberry fills, to meet contrast (R58).
 - **Tests** (`npm test`), all passing. `npm test` runs all three kinds even if one fails, and exits non-zero if any test fails or a stray `.only` is left in. This was checked with deliberately failing tests in each kind.
-  - 50 backend tests (pytest).
-  - 36 frontend unit tests (Vitest).
-  - 32 end-to-end tests (Playwright with the installed Chrome), one file per intent success criterion. Any browser console error or warning fails a test (R59).
+  - 57 backend tests (pytest).
+  - 42 frontend unit tests (Vitest).
+  - 37 end-to-end tests (Playwright with the installed Chrome), one file per intent success criterion. Any browser console error or warning fails a test (R59).
 - **Checked in a real browser (Playwright):**
   - At 1024, 1280 and 1440 px, nothing scrolls sideways except the pipeline board (R60).
   - The console stays clean.
@@ -82,9 +82,39 @@ Then, in a terminal, from the `accountable` folder:
   - Fixed: an organization's contacts now include `organization_name`, which the frontend type already expected.
   - The API's output is otherwise unchanged. This was checked by comparing every GET response before and after.
 
-- **Review against `docs/REVIEW.md`** (Deploy stage): one Important finding, now fixed.
-  - The funnel (R48) counted only the current stage for open and Won deals, so a deal moved back (say Negotiation → Qualified) dropped out of the stages it had already reached. It now uses the furthest stage in the deal's current stage or its history, for every deal. A new test covers moving back and reopening a Won deal.
-  - The Minor findings are left as they are; see "Next".
+- **Review against `docs/REVIEW.md`** (Deploy stage): every finding below is dealt with. Each code fix has a test, except 7: it's a one-frame glitch, so the existing drag tests only guard against breaking drops.
+  - Important
+    1. [fixed] The funnel (R48) ignored stage history for open and Won deals, so a deal moved back dropped out of stages it had reached. It now counts every deal up to the furthest stage in its current stage or its history (`dashboard.py`).
+  - Minor: bugs
+    2. [no change] A Lost deal that was once Won counts in the funnel's Won step. R48 says a Lost deal counts "up to the furthest stage it reached before Lost", and Won is one of those, so this is what the spec asks for. Change R48 if you'd rather leave Lost deals out of Won.
+    3. [fixed] Very large values or ids gave a 500. Ids beyond SQLite's range now give 404 (or 422 for a linked record), a deal's value is capped at $10 billion (`MAX_CENTS`), and the deal form says so.
+    4. [fixed] The Overview follow-up checkbox stayed ticked after a failed save. It's now controlled: ticked while saving, unticked again if saving fails.
+    5. [fixed] Optimistic pipeline cards now take today's close date when moved into Won or Lost (R16), and work out Late when a deal reopens (R17), before the server replies.
+    6. [fixed] When two moves overlapped, a failure in the first undid the second. The board is now the last saved deals plus every move still saving, so a failed move drops out alone, and the deals are refetched only once no move is in flight.
+    7. [fixed] A dropped card could snap back for a frame. The board keeps showing the drop until the optimistic update arrives.
+    8. [fixed] Two moves at the same moment could read stale positions. Each transaction now takes SQLite's write lock as it starts (`BEGIN IMMEDIATE`, in `db.py`).
+    9. [fixed] Sorting a mostly-empty text column could be unstable. Those columns sort as text, empty first.
+  - Minor: security
+    10. [fixed] The backend answers only to `localhost` and `127.0.0.1` (TrustedHostMiddleware), which blocks DNS rebinding. `ACCOUNTABLE_ALLOWED_HOSTS` adds a deployed host name later.
+    11. [fixed] Text has limits: 200 characters for names, 5,000 for notes and descriptions, and requests over 1 MB are refused. The forms check the same limits.
+    12. [fixed] A website must be an http(s) address (`acme.com` is saved as `https://acme.com`), and an email must look like one, on both sides.
+    13. [fixed] `.mcp.json` pins `@playwright/mcp@0.0.85`, the version already in use.
+  - Minor: spec and plan
+    14. [fixed] R26: the deal delete dialog says how many stage changes go, for example "Its stage history (3 stage changes) will be deleted."
+    15. [fixed] Cards can now be dragged while the pipeline is filtered by search (R40); a card lands next to the card it's dropped on.
+    16. [fixed] Plan proof gaps:
+        - an end-to-end test restarts a backend and finds the saved data (R5);
+        - another holds the server's reply and checks the totals, card and close date change first (D12);
+        - the backend tests check that your own database file is unchanged after the run (R6).
+    17. [fixed] Docs drift: `plan.md` lists `api.py` (eleven modules). Plan risk 8's network-off check is now an end-to-end test, which fails if the app requests anything beyond this computer. Phase 8's screenshot comparison with mockup B was never recorded, so it's part of your walkthrough under "Next".
+  - Nits (the five from the review)
+    - N1 [fixed] One `errorMessage()` and `GENERIC_ERROR` in `api.ts` replace seven copies of the same fallback.
+    - N2 [fixed] Marking a follow-up done is one hook, `useSetDone()` in `features/activities/api.ts`, used by the Overview and the timelines.
+    - N3 [fixed] The note, call and email kinds are listed once (`ENTERED_KINDS`).
+    - N4 [fixed] The Pipeline reads each stage's `open` flag from the server. The frontend type is now `StageInfo`, as on the backend.
+    - N5 [fixed] Spec 2.2's list of shared components includes Field, PageHeader, RecordLayout, RowMenu and useReturnFocus.
+  - Found while fixing: the end-to-end test "the Move to menu moves a card" failed about 1 run in 5, before and after these changes. It focused the Lost item before the menu had finished focusing its first item, so Enter sometimes chose New. It now waits for the menu first, and passed 25 runs in a row.
+  - Also found while fixing: the Website, Industry and Notes fields (organizations) and Job title and Phone (contacts) never showed their errors. They do now.
 
 ## Notes
 
@@ -94,14 +124,6 @@ Then, in a terminal, from the `accountable` folder:
 
 ## Next
 
-- **Your walkthrough (R61):** use every section and action as a salesperson would, and check each screen by eye against `docs/mockups/b-summary-*.png`. Watch the browser console (View → Developer → JavaScript Console in Chrome). Note anything that looks or feels wrong here.
+- **Your walkthrough (R61, plan Phase 8 steps 5 and 7):** use every section and action as a salesperson would, and check each screen by eye against `docs/mockups/b-summary-*.png`. Watch the browser console (View → Developer → JavaScript Console in Chrome). Note anything that looks or feels wrong here.
 - **Before moving to Supabase (Postgres):** dates and timestamps are stored as text, which suits SQLite. Decide whether to switch them to real `Date`/`DateTime` columns as part of that move. The response models already declare them as dates and times, so the API won't change.
-- **Minor review findings, not yet fixed:**
-  - a Lost deal that was once Won still counts in the funnel's Won step;
-  - very large values or ids give a 500 instead of a 422;
-  - the Overview follow-up checkbox stays ticked after a failed save;
-  - optimistic pipeline cards don't set the Won/Lost close date or the Late tag until the server replies;
-  - the backend doesn't check the Host header (DNS rebinding);
-  - there are no length limits on text fields;
-  - `.mcp.json` doesn't pin the Playwright MCP version.
-- Then merge `mvp-moni` into `main`.
+- Then commit the review fixes and merge `mvp-moni` into `main`.

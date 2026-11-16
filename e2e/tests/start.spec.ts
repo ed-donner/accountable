@@ -26,3 +26,20 @@ test('every section has sample data', async ({ page }) => {
     await s.check()
   }
 })
+
+// R2 and plan risk 8: the app runs with no internet. Every request it makes stays on this computer.
+test('makes no requests beyond this computer', async ({ page }) => {
+  const outside: string[] = []
+  await page.route(
+    (url) => !['localhost', '127.0.0.1'].includes(url.hostname),
+    (route) => (outside.push(route.request().url()), route.abort()),
+  )
+  for (const path of ['/', '/pipeline', '/deals', '/contacts', '/organizations']) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  }
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: /^Organizations/ }).click()
+  await page.getByRole('link', { name: 'Granite Build Co' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Granite Build Co' })).toBeVisible()
+  expect(outside).toEqual([])
+})

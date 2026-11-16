@@ -7,20 +7,22 @@ from fastapi.testclient import TestClient
 from backend.app import db, settings
 from backend.app.main import app
 
+from .conftest import LOCAL
+
 
 def test_new_database_file_is_created_and_seeded(isolated_db):  # R3
     assert not isolated_db.exists()
-    with TestClient(app) as c:
+    with TestClient(app, base_url=LOCAL) as c:
         assert isolated_db.exists()
         assert len(c.get("/api/organizations").json()) == 15
 
 
 def test_existing_database_is_left_alone(isolated_db):  # R3, R5
     db.create_schema()
-    with TestClient(app) as c:
+    with TestClient(app, base_url=LOCAL) as c:
         assert c.get("/api/organizations").json() == []
         c.post("/api/organizations", json={"name": "Kept"})
-    with TestClient(app) as c:
+    with TestClient(app, base_url=LOCAL) as c:
         assert [o["name"] for o in c.get("/api/organizations").json()] == ["Kept"]
 
 

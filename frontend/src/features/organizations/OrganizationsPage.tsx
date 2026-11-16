@@ -20,9 +20,10 @@ const makeColumns = (actions: Actions) =>
       header: 'Name',
       cell: (info) => <Link to={`/organizations/${info.row.original.id}`}>{info.getValue()}</Link>,
     }),
-    col.accessor('industry', { header: 'Industry', cell: (info) => info.getValue() ?? '' }),
+    col.accessor('industry', { header: 'Industry', sortFn: 'text', cell: (info) => info.getValue() ?? '' }),
     col.accessor('website', {
       header: 'Website',
+      sortFn: 'text',
       cell: (info) => (info.getValue() ? <span className="muted">{info.getValue()!.replace(/^https?:\/\//, '')}</span> : ''),
     }),
     col.accessor('contact_count', { header: 'Contacts', enableGlobalFilter: false, meta: { align: 'right' }, cell: (info) => <span className="mono">{info.getValue()}</span> }),

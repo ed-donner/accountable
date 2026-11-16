@@ -67,10 +67,15 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
   const [columns, setColumns] = useState<Columns>(() => groupByStage(deals))
   const [activeId, setActiveId] = useState<number | null>(null)
   const origin = useRef<{ stage: StageName; index: number } | null>(null)
+  // The deals as they were when a card was dropped. The board keeps showing the drop until the
+  // move's optimistic update replaces them, instead of snapping back to them for a frame.
+  const droppedOn = useRef<Deal[] | null>(null)
 
   // Between drags, the board follows the saved (or optimistic) order.
   useEffect(() => {
-    if (activeId === null) setColumns(groupByStage(deals))
+    if (activeId !== null || deals === droppedOn.current) return
+    droppedOn.current = null
+    setColumns(groupByStage(deals))
   }, [deals, activeId])
 
   const placed = useMemo(() => placeDeals(deals, columns, probabilityOf), [deals, columns, probabilityOf])
@@ -78,12 +83,20 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
   const byId = useMemo(() => new Map(placed.map((d) => [d.id, d])), [placed])
 
   const query = search.trim().toLowerCase()
-  const matches = (d: Deal) =>
-    !query || [d.name, d.organization_name, d.contact_name ?? ''].some((text) => text.toLowerCase().includes(query))
+  const matches = useCallback(
+    (d: Deal) => !query || [d.name, d.organization_name, d.contact_name ?? ''].some((text) => text.toLowerCase().includes(query)),
+    [query],
+  )
+  // The cards on screen: all of them, or those matching the search. Dragging works on these, and a
+  // dropped card lands next to the card it was dropped on in the full column (R40).
+  const visible = useMemo(() => {
+    const shown = (ids: number[]) => ids.filter((id) => byId.has(id) && matches(byId.get(id)!))
+    return Object.fromEntries(STAGE_NAMES.map((s) => [s, shown(columns[s])])) as Columns
+  }, [columns, byId, matches])
 
   // The keyboard getter is created once by dnd-kit, so it reads the latest columns through a ref.
-  const columnsRef = useRef(columns)
-  columnsRef.current = columns
+  const columnsRef = useRef(visible)
+  columnsRef.current = visible
 
   /**
    * R41: arrow keys follow the board, not pixel geometry. Left and Right go to the neighbouring
@@ -182,7 +195,10 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
     const index = final[stage].indexOf(id)
     // Pass the deal as saved (with its saved stage), not as shown mid-drag, so the move knows what changed.
     const saved = deals.find((d) => d.id === id)
-    if (saved && (stage !== start.stage || index !== start.index)) onMove(saved, stage, index)
+    if (saved && (stage !== start.stage || index !== start.index)) {
+      droppedOn.current = deals
+      onMove(saved, stage, index)
+    }
   }
 
   function onDragCancel() {
@@ -200,7 +216,7 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
     const from = containerOf(id)
     const to = (overId != null ? containerOf(overId) : undefined) ?? from
     if (!to) return ''
-    const list = columns[to]
+    const list = visible[to]
     if (to !== from) {
       // Moving into another column: it takes the place of the card it's over, or goes at the end.
       const at = overId == null || isStage(overId) ? list.length : list.indexOf(Number(overId))
@@ -249,10 +265,9 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
           <Column
             key={stage}
             stage={stage}
-            ids={columns[stage]}
+            ids={visible[stage]}
             deals={placed}
             byId={byId}
-            matches={matches}
             searching={!!query}
             onAdd={onAdd}
             onMoveTo={moveTo}
@@ -272,20 +287,20 @@ export function Board({ deals, search, probabilityOf, onMove, onAdd, onPlacedCha
 
 type ColumnProps = {
   stage: StageName
+  /** The ids shown in this column, in order. */
   ids: number[]
   deals: Deal[]
   byId: Map<number, Deal>
-  matches: (d: Deal) => boolean
   searching: boolean
   onAdd: (stage: StageName) => void
   onMoveTo: (deal: Deal, stage: StageName) => void
 }
 
-function Column({ stage, ids, deals, byId, matches, searching, onAdd, onMoveTo }: ColumnProps) {
+function Column({ stage, ids, deals, byId, searching, onAdd, onMoveTo }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage })
   const t = columnTotals(deals, stage)
   const open = isOpenStage(stage)
-  const shown = ids.map((id) => byId.get(id)).filter((d): d is Deal => !!d && matches(d))
+  const shown = ids.map((id) => byId.get(id)!)
   const headingId = `column-${stage}`
 
   return (
@@ -330,7 +345,7 @@ function Column({ stage, ids, deals, byId, matches, searching, onAdd, onMoveTo }
       <SortableContext id={stage} items={ids} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className={`${styles.cards} ${isOver ? styles.over : ''}`} data-stage={stage}>
           {shown.map((deal) => (
-            <DealCard key={deal.id} deal={deal} dragDisabled={searching} onMoveTo={onMoveTo} />
+            <DealCard key={deal.id} deal={deal} onMoveTo={onMoveTo} />
           ))}
           {shown.length === 0 && <p className={styles.emptyColumn}>{searching ? 'No matching deals' : 'No deals'}</p>}
         </div>

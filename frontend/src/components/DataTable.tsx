@@ -27,7 +27,9 @@ export const tableSetup = tableFeatures({
   filteredRowModel: createFilteredRowModel(),
   sortedRowModel: createSortedRowModel(),
   filterFns: { includesString: filterFn_includesString },
-  // `text` (case-insensitive) is what automatic sorting picks for string columns.
+  // `text` (case-insensitive) is what automatic sorting picks for string columns. Columns that can be
+  // empty name it themselves: automatic sorting looks only at the first rows, and if those are all empty
+  // it falls back to `basic`, which doesn't order empty values consistently.
   sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic, text: sortFn_text },
 })
 

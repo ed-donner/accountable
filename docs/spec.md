@@ -156,7 +156,7 @@ frontend/
     format.ts           money and date formatting
     styles/             tokens.css, global.css
     components/         UI shared by two or more features: AppShell, DataTable, Drawer, ConfirmDialog,
-                        Toast, StageBadge
+                        Toast, StageBadge, Field, PageHeader, RecordLayout, RowMenu, useReturnFocus
     features/
       overview/         the Overview page and its panels and charts
       pipeline/         the board, its cards and the optimistic move

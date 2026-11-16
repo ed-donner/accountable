@@ -1,3 +1,4 @@
+import { todayISO } from '../../format'
 import { isOpenStage, STAGE_NAMES, type Deal, type StageName } from '../deals/api'
 
 export type Columns = Record<StageName, number[]>
@@ -14,9 +15,10 @@ export function groupByStage(deals: Deal[]): Columns {
 
 /**
  * The deals as the board shows them: each in the column it sits in now (which may differ from
- * its saved stage while it's being dragged), with the probability that stage gives it (R15).
+ * its saved stage while it's being dragged), with what that stage gives it, as the server will:
+ * its probability (R15), today's close date if it closes (R16) and whether it's late (R17).
  */
-export function placeDeals(deals: Deal[], columns: Columns, probabilityOf: (s: StageName) => number): Deal[] {
+export function placeDeals(deals: Deal[], columns: Columns, probabilityOf: (s: StageName) => number, today = todayISO()): Deal[] {
   const byId = new Map(deals.map((d) => [d.id, d]))
   const placed: Deal[] = []
   for (const stage of STAGE_NAMES) {
@@ -29,13 +31,16 @@ export function placeDeals(deals: Deal[], columns: Columns, probabilityOf: (s: S
         return
       }
       const probability = probabilityOf(stage)
+      const open = isOpenStage(stage)
+      const closeDate = open ? deal.close_date : today
       placed.push({
         ...deal,
         stage,
         position,
         probability,
         expected_cents: expectedCents(deal.value_cents, probability),
-        is_late: isOpenStage(stage) ? deal.is_late : false,
+        close_date: closeDate,
+        is_late: open && closeDate < today,
       })
     })
   }
@@ -43,12 +48,19 @@ export function placeDeals(deals: Deal[], columns: Columns, probabilityOf: (s: S
 }
 
 /** D12: the deals after moving one to `index` in `stage`, for the optimistic update. */
-export function applyMove(deals: Deal[], id: number, stage: StageName, index: number, probabilityOf: (s: StageName) => number): Deal[] {
+export function applyMove(
+  deals: Deal[],
+  id: number,
+  stage: StageName,
+  index: number,
+  probabilityOf: (s: StageName) => number,
+  today = todayISO(),
+): Deal[] {
   const columns = groupByStage(deals)
   for (const s of STAGE_NAMES) columns[s] = columns[s].filter((x) => x !== id)
   const target = columns[stage]
   target.splice(Math.min(index, target.length), 0, id)
-  return placeDeals(deals, columns, probabilityOf)
+  return placeDeals(deals, columns, probabilityOf, today)
 }
 
 export type Totals = { count: number; valueCents: number; expectedCents: number }

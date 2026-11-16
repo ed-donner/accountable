@@ -5,7 +5,8 @@ import type { Activity } from '../activities/api'
 export const STAGE_NAMES = ['New', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'] as const
 export type StageName = (typeof STAGE_NAMES)[number]
 
-export type Stage = { name: StageName; probability: number; open: boolean }
+/** R13: a stage as `GET /stages` gives it (the backend's `StageInfo`). */
+export type StageInfo = { name: StageName; probability: number; open: boolean }
 
 export type Deal = {
   id: number
@@ -38,7 +39,7 @@ export type DealInput = {
 export const isOpenStage = (stage: StageName) => stage !== 'Won' && stage !== 'Lost'
 
 export function useStages() {
-  return useQuery({ queryKey: ['stages'], queryFn: () => api<Stage[]>('/stages'), staleTime: Infinity })
+  return useQuery({ queryKey: ['stages'], queryFn: () => api<StageInfo[]>('/stages'), staleTime: Infinity })
 }
 
 export function useDeals() {

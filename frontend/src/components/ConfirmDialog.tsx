@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { api, ApiError } from '../api'
+import { api, errorMessage, GENERIC_ERROR } from '../api'
 import styles from './Dialogs.module.css'
 import { useReturnFocus } from './useReturnFocus'
 
@@ -44,7 +44,7 @@ export function ConfirmDialog({ open, onOpenChange, title, previewPath, message,
       await onConfirm()
       onOpenChange(false)
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong. Try again.')
+      setError(errorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -68,7 +68,7 @@ export function ConfirmDialog({ open, onOpenChange, title, previewPath, message,
           </div>
           <div className={styles.body}>
             <Dialog.Description className={styles.message}>
-              {loading ? 'Checking what this affects…' : preview.error ? 'Something went wrong. Try again.' : text}
+              {loading ? 'Checking what this affects…' : preview.error ? GENERIC_ERROR : text}
             </Dialog.Description>
             {error && (
               <p className={styles.error} role="alert">

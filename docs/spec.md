@@ -27,7 +27,7 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 - **G1** The app runs with `npm run dev` on Mac, Linux and Windows, opens at `http://localhost:5173` and lands on the dashboard.
 - **G2** It works with no internet connection once installed. Nothing is loaded from a CDN or a font service at run time.
 - **G3** Every change is saved to the SQLite database at once. It's still there after a refresh and after a restart.
-- **G4** When the database file doesn't exist, the backend creates it and fills it with the sample data.
+- **G4** When the database file doesn't exist, the backend creates it by running the migrations and fills it with the sample data.
 - **G5** `npm run seed` deletes all data and loads the sample data again.
 - **G6** The app is a single-user app with no sign-in.
 - **G7** Lists, search, sort and screen changes respond in under 200 ms at 2,000 contacts, 1,000 deals and 10,000 activities on a typical laptop.
@@ -35,6 +35,7 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 - **G9** Money is in US dollars, shown as `$48,200` in tables and cards and `$1.2M` only where space is short, such as chart axes. Amounts are whole dollars.
 - **G10** Dates are shown as `16 Nov 2026`. The app uses the computer's local date for "today".
 - **G11** No errors appear in the browser console during normal use.
+- **G12** Each time it starts, the backend applies any new database migrations, keeping all existing data.
 
 ### Tables (organizations, contacts and deals)
 
@@ -140,28 +141,49 @@ SQLite file: data/accountable.db
 
 ### Repository layout
 
+The frontend and backend are both grouped by section, and each frontend section folder matches one backend module. A new section, such as invoices when ERP arrives, gets its own backend module and frontend folder without touching the others.
+
 ```
-package.json            npm scripts and workspaces
-pyproject.toml, uv.lock backend dependencies
+package.json              npm scripts and workspaces
+pyproject.toml, uv.lock   backend dependencies
+alembic.ini               migration settings
+scripts/dev.mjs           starts both servers, explains a missing tool, opens the browser
 backend/
   app/
-    main.py             FastAPI app, routers, error handlers
-    db.py               engine, metadata, tables
-    schemas.py          Pydantic request and response models
-    rules.py            stage probabilities and deal rules
-    routers/            organizations, contacts, deals, activities, dashboard, timeline
-    seed.py             sample data generator
-  tests/                pytest
+    main.py               FastAPI app, routers, error handlers, startup
+    config.py             settings from environment variables
+    deps.py               per-request dependencies: database connection, today's date
+    db.py                 engine, metadata, tables
+    schemas.py            Pydantic request and response models
+    rules.py              stage probabilities and deal rules
+    routers/              one module per section, holding its endpoints and their queries:
+                          organizations, contacts, deals (with board positions), activities,
+                          timeline, dashboard, health
+    seed.py               sample data generator
+  migrations/             Alembic migrations, starting with the first schema
+  tests/                  pytest
 frontend/
   src/
-    api/                typed fetch client and TanStack Query hooks
-    components/         shared UI: DataTable, SidePanel, ConfirmDialog, Timeline, StageBadge, Money
-    pages/              Dashboard, Organizations, Contacts, Deals, Pipeline and record pages
-    theme/              tokens.css, fonts
-  tests/                Vitest
-e2e/                    Playwright Test
-data/                   SQLite file (git-ignored)
+    shared/               used by every section: layout, DataTable, SidePanel, ConfirmDialog,
+                          toasts, small display pieces, format and stage helpers, API client,
+                          generated API types, theme and fonts
+    organizations/        tables, record page, form, Query hooks and tests for one section
+    contacts/
+    deals/
+    activities/           timeline and Log activity form, used by contacts and deals
+    pipeline/
+    dashboard/
+e2e/                      Playwright Test
+data/                     SQLite file (git-ignored)
 ```
+
+Frontend unit tests sit next to the code they test. The rules for adding to this layout:
+
+- A new section gets a backend module in `routers/` and a frontend folder. Its endpoints, queries, pages, form and hooks live there.
+- Code moves to `shared/` only when a second section needs it.
+- Business rules stay in `rules.py` and the backend modules, never in the frontend.
+- Every schema change is an Alembic migration, so existing data is upgraded safely.
+- The frontend's API types are generated from the backend with `npm run types`, never written by hand.
 
 ### Libraries
 
@@ -177,6 +199,8 @@ data/                   SQLite file (git-ignored)
 | Icons | Lucide |
 | Running both servers | concurrently |
 | Backend | FastAPI, SQLAlchemy Core, Pydantic, Uvicorn |
+| Database migrations | Alembic |
+| API types for the frontend | openapi-typescript, generated from the backend's OpenAPI schema |
 | Sample data | Faker, with a fixed seed |
 
 ### Data model

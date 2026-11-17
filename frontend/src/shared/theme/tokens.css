@@ -1,0 +1,43 @@
+/* Brand tokens (docs/spec.md, Brand). Light mode only for the MVP. */
+:root {
+  --page: #f0f4f5;
+  --panel: #ffffff;
+  --ink: #073b4c;
+  --ink-muted: #5b7a84;
+  --line: #e3eaec;
+  --hover: #f5f8f9;
+
+  --sea-green: #06d6a0;
+  --marigold: #ffc145;
+  --coral: #f78c6b;
+  --cerulean: #118ab2;
+  --raspberry: #ef476f;
+
+  /* Darker shades for small text on light backgrounds (Concern 3). */
+  --sea-green-text: #047a5c;
+  --marigold-text: #8a5d00;
+  --coral-text: #b5452a;
+  --cerulean-text: #0e7596;
+  --raspberry-text: #c42350;
+  --sea-mist: #cdd8db;
+
+  /* Stage colors (Concern 2): a Cerulean scale for open stages, then Won and Lost. */
+  --stage-new: #acd6e4;
+  --stage-qualified: #70b9d1;
+  --stage-proposal: #41a1c1;
+  --stage-negotiation: #118ab2;
+  --stage-won: #06d6a0;
+  --stage-lost: #ef476f;
+
+  --tint-sea-green: #e1f8f1;
+  --tint-raspberry: #fde6ec;
+  --tint-cerulean: #e1f1f7;
+
+  --shadow: 0 1px 2px rgba(7, 59, 76, 0.06), 0 4px 16px rgba(7, 59, 76, 0.06);
+  --shadow-lifted: 0 12px 32px rgba(7, 59, 76, 0.22);
+  --radius: 12px;
+
+  --sans: "Instrument Sans", system-ui, sans-serif;
+  --serif: "Instrument Serif", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}

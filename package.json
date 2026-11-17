@@ -1,0 +1,28 @@
+{
+  "name": "accountable",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "seed": "uv run python -m app.seed",
+    "types": "node scripts/types.mjs",
+    "test": "npm run test:backend && npm run test:frontend && npm run test:e2e",
+    "test:backend": "uv run pytest",
+    "test:frontend": "npm run test --workspace frontend",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "concurrently": "^10.0.7",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "5.9"
+  }
+}

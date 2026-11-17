@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mockup B: Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/b.css">
+<script src="shared/data.js"></script>
+<script src="shared/b.js"></script>
+</head>
+<body>
+<header class="top" id="nav"></header>
+<main>
+  <div class="page-head">
+    <div>
+      <h1>Pipeline</h1>
+      <div class="muted" id="sub"></div>
+    </div>
+    <div class="totals" id="totals"></div>
+  </div>
+  <section class="board" id="board"></section>
+</main>
+<script>
+renderNav("Pipeline");
+document.getElementById("sub").textContent = OPEN.length + " open deals across 4 stages";
+document.getElementById("totals").innerHTML = `
+  <div class="total"><div class="lbl">Open pipeline</div><div class="v">${money(sum(OPEN, (d) => d.value))}</div></div>
+  <div class="total"><div class="lbl">Expected revenue</div><div class="v">${money(sum(OPEN, expected))}</div></div>`;
+
+const initials = (n) => n.split(" ").map((p) => p[0]).join("").slice(0, 2);
+const maxCol = Math.max(...STAGES.map((s) => sum(dealsIn(s.key), (d) => d.value)));
+document.getElementById("board").innerHTML = STAGES.map((s) => {
+  const ds = dealsIn(s.key), v = sum(ds, (d) => d.value), closed = s.key === "won" || s.key === "lost";
+  const cards = ds.map((d) => {
+    return (d.name === "Security review" ? `<div class="card ghost">Drop here</div>` : "") + `<div class="card ${d.name === "Clinic scheduling" ? "lift" : ""}">
+      <div class="r" style="align-items:flex-start;gap:8px"><div><div class="t">${d.name}</div><div class="o">${d.org}</div></div>
+      ${closed ? "" : `<span class="ring" style="--p:${d.prob};--c:${s.color}">${d.prob}%</span>`}</div>
+      <div class="v">${money(d.value)}</div>
+      <div class="f"><span class="who"><span class="ini">${initials(d.contact)}</span>${d.contact}</span>
+      ${isLate(d) ? '<span class="late">Late</span>' : `<span class="mono">${shortDate(d.close)}</span>`}</div>
+    </div>`;
+  }).join("");
+  return `<div class="${closed ? "closed" : ""}">
+    <div class="col-head" style="--c:${s.color}">
+      <div class="row1"><span>${s.name}</span><span class="count">${ds.length}</span></div>
+      <div class="row2"><span>${money(v)}</span><span>${closed ? (s.key === "won" ? "Closed won" : "Closed lost") : "exp. " + money(sum(ds, expected))}</span></div>
+      <div class="meter"><i style="width:${(100 * v) / maxCol}%"></i></div>
+    </div>
+    ${cards}
+    <div class="addline">${icon("plus", 14)}Add deal</div>
+  </div>`;
+}).join("");
+</script>
+</body>
+</html>

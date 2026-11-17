@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Final mockup: Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/a.css">
+<script src="shared/data.js"></script>
+<script src="shared/a.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside id="nav"></aside>
+  <main>
+    <header class="page-head">
+      <div>
+        <h1>Dashboard</h1>
+        <div class="muted">Monday 16 November 2026</div>
+      </div>
+      <button class="btn ghost" id="log"></button>
+    </header>
+
+    <section class="tiles" id="tiles"></section>
+
+    <section class="grid">
+      <div class="panel span-8">
+        <div class="panel-head"><h2>Revenue won</h2><span class="muted">Last 12 months</span></div>
+        <div id="line"></div>
+      </div>
+      <div class="panel span-4 fill">
+        <div class="panel-head"><h2>Sales funnel</h2><span class="muted">Last 12 months</span></div>
+        <div id="funnel" class="steps"></div>
+      </div>
+      <div class="panel span-6">
+        <div class="panel-head"><h2>Open pipeline by stage</h2><a href="final-pipeline.html">View board</a></div>
+        <div id="stages" class="stagebars"></div>
+      </div>
+      <div class="panel span-6">
+        <div class="panel-head"><h2>Deals won and lost</h2>
+          <span class="legend"><i style="background:var(--sea-green)"></i>Won <i style="background:var(--coral)"></i>Lost</span></div>
+        <div id="bars"></div>
+      </div>
+      <div class="panel span-6">
+        <div class="panel-head"><h2>Follow-ups</h2><span class="muted">Overdue and next 7 days</span></div>
+        <ul id="follow" class="list"></ul>
+      </div>
+      <div class="panel span-6">
+        <div class="panel-head"><h2>Recent activity</h2></div>
+        <ul id="recent" class="list"></ul>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+renderNav("Dashboard", "final");
+document.getElementById("log").innerHTML = icon("plus", 16) + "Log activity";
+
+const openValue = sum(OPEN, (d) => d.value);
+const openExp = sum(OPEN, expected);
+const due = FOLLOW_UPS.filter((f) => f.due <= TODAY).length;
+const tiles = [
+  ["Open pipeline", money(openValue), OPEN.length + " open deals", "pipe"],
+  ["Expected revenue", money(openExp), "Value times probability", "deal"],
+  ["Won this month", money(REVENUE_WON[11]), DEALS_WON[11] + " deals, " + "down 23% on October", "check"],
+  ["Follow-ups due", due, "3 overdue, 1 due today", "call"],
+];
+document.getElementById("tiles").innerHTML = tiles
+  .map(([l, v, n, ic], i) => `<a class="tile ${i === 3 ? "alert" : ""}" href="#"><div class="tile-label"><span class="tile-icon">${icon(ic, 16)}</span>${l}</div>
+  <div class="tile-value mono">${v}</div><div class="muted">${n}</div></a>`).join("");
+
+document.getElementById("line").innerHTML = lineChart({ values: REVENUE_WON, labels: MONTHS, w: 780, h: 330 });
+document.getElementById("bars").innerHTML = barChart({
+  series: [{ values: DEALS_WON, color: "var(--sea-green)" }, { values: DEALS_LOST, color: "var(--coral)" }],
+  labels: MONTHS, w: 560, h: 210,
+});
+
+const fmax = FUNNEL[0].value;
+const fc = ["var(--stage-new)", "var(--stage-qualified)", "var(--stage-proposal)", "var(--stage-negotiation)", "var(--stage-won)"];
+document.getElementById("funnel").innerHTML = FUNNEL.map((f, i) => `
+  <div class="step"><span class="name">${f.name}<span class="muted">${f.count} deals</span></span>
+  <div style="margin-left:${(50 * (1 - f.value / fmax)).toFixed(1)}%;width:${((100 * f.value) / fmax).toFixed(1)}%"><div class="bar2" style="background:${fc[i]}"></div></div>
+  <span class="pct"><b>${shortMoney(f.value)}</b>${i ? Math.round((100 * f.count) / FUNNEL[i - 1].count) + "% of previous" : "&nbsp;"}</span></div>`).join("");
+
+const smax = Math.max(...STAGES.slice(0, 4).map((s) => sum(dealsIn(s.key), (d) => d.value)));
+document.getElementById("stages").innerHTML = STAGES.slice(0, 4).map((s) => {
+  const ds = dealsIn(s.key), v = sum(ds, (d) => d.value), e = sum(ds, expected);
+  return `<div class="s-row"><div class="s-name"><span class="dot" style="background:${s.color}"></span>${s.name}<span class="muted">${ds.length}</span></div>
+  <div class="s-track"><div class="s-bar" style="width:${(100 * v) / smax}%;background:${s.color}"><div class="s-exp" style="width:${(100 * e) / v}%"></div></div></div>
+  <div class="s-val mono">${money(v)}<span class="muted"> / ${money(e)}</span></div></div>`;
+}).join("") + `<div class="s-key muted"><span><i class="k-total"></i>Total value</span><span><i class="k-exp"></i>Expected revenue</span></div>`;
+
+document.getElementById("follow").innerHTML = FOLLOW_UPS.map((f) => `
+  <li><span class="li-icon">${icon(f.type, 16)}</span><div class="li-main"><div>${f.label}</div><a href="#">${f.who}</a></div>
+  <span class="chip ${f.overdue ? "overdue" : "upcoming"}">${f.due === TODAY ? "Today" : shortDate(f.due)}</span>
+  <button class="mini">${icon("check", 14)}Mark done</button></li>`).join("");
+
+document.getElementById("recent").innerHTML = RECENT.map((r) => `
+  <li><span class="li-icon ${r.type === "stage" ? "stage" : ""}">${icon(r.type, 16)}</span><div class="li-main"><div>${r.text}</div><a href="#">${r.what}</a></div>
+  <span class="muted when">${r.when}</span></li>`).join("");
+</script>
+</body>
+</html>

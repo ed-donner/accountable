@@ -78,7 +78,7 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 ### Pipeline
 
 - **P1** The board has six columns in order: New, Qualified, Proposal, Negotiation, Won, Lost.
-- **P2** Each card shows the deal name, organization, value, probability and close date, and the Late badge when it applies. Clicking a card opens the deal.
+- **P2** Each card shows the deal name, organization, main contact, value, close date and the Late badge when it applies. Open deals show their probability as a ring (see [Screens](#screens)). Clicking a card opens the deal.
 - **P3** Dragging a card to another column changes the deal's stage, following D3 to D6. Dragging into Won or Lost closes the deal.
 - **P4** A card can be dropped anywhere in a column, including higher or lower in its own column, and stays exactly there after a refresh.
 - **P5** Each column header shows its stage, number of deals, total value and expected revenue. The board header shows the total value and expected revenue of open deals only.
@@ -101,7 +101,7 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 - **H2** A line chart of revenue won per month for the last 12 months, ending with the current month.
 - **H3** A bar chart of deals won per month over the same 12 months, with deals lost alongside in a second series.
 - **H4** A pipeline visual: a horizontal bar for each open stage showing its value and expected revenue, in stage colors, each bar linking to the board.
-- **H5** A sales funnel from New to Won as described in Concern 6, with the value and number of deals at each step.
+- **H5** A sales funnel from New to Won as described in Concern 6, drawn as centered bars that narrow, with the value, the number of deals and the share carried on from the previous stage at each step.
 - **H6** Recent activity: the 10 latest activities and stage changes across everything, each linking to its record.
 - **H7** Follow-ups: overdue first, oldest first, then upcoming, soonest first, each linking to its contact or deal (A6).
 - **H8** Every figure matches the data. Marking a deal won or logging a follow-up shows on the dashboard the next time it's opened, with no refresh needed.
@@ -267,6 +267,8 @@ The `today` date comes from the browser in an `X-Local-Date` header, so "late", 
 
 ### Screens
 
+The chosen look is in `docs/mockups/final-dashboard.html` and `docs/mockups/final-pipeline.html`, with a screenshot of each beside it. It's mockup A with the funnel from mockup C and the probability ring from mockup B. Where this section and the mockups differ, this section wins.
+
 **Layout.** A fixed left sidebar on Midnight with the Accountable wordmark and five links: Dashboard, Pipeline, Deals, Contacts, Organizations. The active link has a Sea Green pill behind it. Content sits on the light page background in white panels with 12 px rounded corners, no outlines and a soft shadow. The minimum supported width is 1280 px.
 
 **Page header.** Each page has its title in Instrument Sans 28 px semibold, a short count or summary under it, and the main action (such as "Add contact") on the right as a Sea Green button with Midnight text.
@@ -279,12 +281,12 @@ The `today` date comes from the browser in an `X-Local-Date` header, so "late", 
 
 **Timeline.** A vertical list with a small icon per type (note, call, email, stage change), the description, the date, and for deal entries on a contact the deal name as a link. Follow-ups show a date chip: Raspberry when overdue, Cerulean when upcoming, grey with a check when done.
 
-**Pipeline.** Six columns side by side filling the width, each 1/6 wide with a minimum of 220 px and the board scrolling sideways below that. Each column header has a stage-colored dot, the stage name, the count, and the total and expected revenue in JetBrains Mono. Cards are white, compact and lift with a stronger shadow while dragged. Won and Lost columns have a faint tint of their stage color so they read as closed.
+**Pipeline.** Six columns side by side filling the width, each 1/6 wide with a minimum of 196 px and the board scrolling sideways below that. Each column header has a stage-colored dot, the stage name, the count, and the total and expected revenue in JetBrains Mono. Cards are white, compact and lift with a stronger shadow while dragged. A card shows the deal name, then the organization and main contact, then the value with the probability ring on the right, then the close date and any Late badge. The probability ring is a small circle (30 px) with the percentage in its center and an arc filled to that percentage in the stage's color. Cards in Won and Lost show no ring and say "Closed" before the date. While a card is dragged, a Sea Green line shows where it will land. Won and Lost columns have a faint tint of their stage color so they read as closed.
 
 **Dashboard.** A 12-column grid:
 
 1. Row 1: four headline figure tiles. The value in JetBrains Mono 32 px, the label above in 14 px, a small note under it such as "12 open deals".
-2. Row 2: the revenue won line chart (8 columns) and the funnel (4 columns).
+2. Row 2: the revenue won line chart (8 columns) and the funnel (4 columns). The funnel has one row per stage from New to Won. Each row has the stage name with its deal count under it on the left, a centered bar in the stage's color in the middle, and the value with the share carried on from the previous stage ("85% of previous") on the right. Each bar's width is in proportion to its value and centered, so the bars narrow like a funnel. The rows spread out to fill the panel's height.
 3. Row 3: the pipeline by stage bars (6 columns) and the won and lost bar chart (6 columns).
 4. Row 4: follow-ups (6 columns) and recent activity (6 columns).
 

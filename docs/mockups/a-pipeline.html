@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mockup A: Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/a.css">
+<script src="shared/data.js"></script>
+<script src="shared/a.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside id="nav"></aside>
+  <main>
+    <header class="page-head">
+      <div>
+        <h1>Pipeline</h1>
+        <div class="muted" id="sub"></div>
+      </div>
+      <div class="board-sum" id="sum"></div>
+    </header>
+    <div class="toolbar">
+      <div class="search" id="search"></div>
+      <button class="btn" id="add"></button>
+    </div>
+    <section class="board" id="board"></section>
+  </main>
+</div>
+<script>
+renderNav("Pipeline");
+document.getElementById("sub").textContent = OPEN.length + " open deals. Drag a card to change its stage.";
+document.getElementById("sum").innerHTML = `
+  <div><div class="lbl">Open pipeline</div><div class="v mono">${money(sum(OPEN, (d) => d.value))}</div></div>
+  <div><div class="lbl">Expected revenue</div><div class="v mono">${money(sum(OPEN, expected))}</div></div>`;
+document.getElementById("search").innerHTML = icon("search", 16) + "Search deals";
+document.getElementById("add").innerHTML = icon("plus", 16) + "Add deal";
+
+document.getElementById("board").innerHTML = STAGES.map((s) => {
+  const ds = dealsIn(s.key);
+  const closed = s.key === "won" ? "closed-won" : s.key === "lost" ? "closed-lost" : "";
+  const cards = ds.map((d, i) => {
+    const drag = d.name === "Mobile app";
+    return (s.key === "negotiation" && i === 0 ? '<div class="drop-slot"></div>' : "") + `
+    <div class="card ${drag ? "dragging" : ""}">
+      <div class="t">${d.name}</div>
+      <div class="o">${d.org} · ${d.contact}</div>
+      <div class="r"><span class="v">${money(d.value)}</span><span class="muted mono">${d.prob}%</span></div>
+      <div class="r" style="margin-top:6px"><span class="muted">${s.key === "won" || s.key === "lost" ? "Closed " : "Close "}${fmtDate(d.close)}</span>${isLate(d) ? '<span class="late">Late</span>' : ""}</div>
+    </div>`;
+  }).join("");
+  return `<div class="col ${closed}">
+    <div class="col-head">
+      <div class="col-title"><span class="dot" style="background:${s.color}"></span>${s.name}<span class="count">${ds.length}</span></div>
+      <div class="col-sums"><span class="mono">${money(sum(ds, (d) => d.value))}</span><span class="muted mono">${closed ? "" : "exp. " + money(sum(ds, expected))}</span></div>
+    </div>
+    ${cards}
+    <button class="add-card">${icon("plus", 14)}Add deal</button>
+  </div>`;
+}).join("");
+</script>
+</body>
+</html>

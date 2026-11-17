@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mockup B: Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/b.css">
+<script src="shared/data.js"></script>
+<script src="shared/b.js"></script>
+</head>
+<body>
+<header class="top" id="nav"></header>
+<main>
+  <div class="page-head">
+    <div>
+      <div class="eyebrow">Good morning, Jo</div>
+      <h1>Here's how sales are going</h1>
+    </div>
+    <div class="muted">Monday 16 November 2026</div>
+  </div>
+
+  <section class="grid">
+    <div class="panel span-12 hero">
+      <div class="figs" id="figs"></div>
+      <div>
+        <div class="panel-head"><h2>Revenue won, last 12 months</h2><span class="mono muted" id="total12"></span></div>
+        <div id="line"></div>
+      </div>
+    </div>
+
+    <div class="panel span-12">
+      <div class="panel-head"><h2>Open pipeline</h2><a href="b-pipeline.html">Open the board</a></div>
+      <div class="strip" id="strip"></div>
+      <div class="strip-key" id="stripkey"></div>
+    </div>
+
+    <div class="panel span-7">
+      <div class="panel-head"><h2>Sales funnel</h2><span class="muted">Deals that reached each stage, last 12 months</span></div>
+      <div id="funnel"></div>
+    </div>
+    <div class="panel span-5">
+      <div class="panel-head"><h2>Deals won and lost</h2>
+        <span class="legend"><i style="background:var(--sea-green)"></i>Won <i style="background:var(--coral)"></i>Lost</span></div>
+      <div id="bars"></div>
+    </div>
+
+    <div class="panel span-7">
+      <div class="panel-head"><h2>Follow-ups</h2><a href="#">See all</a></div>
+      <div class="split" id="follow"></div>
+    </div>
+    <div class="panel span-5">
+      <div class="panel-head"><h2>Recent activity</h2></div>
+      <ul class="feed" id="recent"></ul>
+    </div>
+  </section>
+</main>
+<script>
+renderNav("Dashboard");
+const openValue = sum(OPEN, (d) => d.value), openExp = sum(OPEN, expected);
+document.getElementById("figs").innerHTML = `
+  <div class="fig"><div class="lbl">Won this month</div><div class="v">${money(REVENUE_WON[11])}</div><div class="n muted"><span class="down">23% lower</span> than October</div></div>
+  <div class="fig"><div class="lbl">Open pipeline</div><div class="v">${money(openValue)}</div><div class="n muted">${OPEN.length} open deals</div></div>
+  <div class="fig"><div class="lbl">Expected revenue</div><div class="v">${money(openExp)}</div><div class="n muted">Value times probability of close</div></div>
+  <div class="fig alert"><div class="lbl">Follow-ups due</div><div class="v">4</div><div class="n muted">3 overdue, 1 due today</div></div>`;
+document.getElementById("total12").textContent = money(sum(REVENUE_WON, (x) => x)) + " in total";
+document.getElementById("line").innerHTML = lineChart({ values: REVENUE_WON, labels: MONTHS, w: 1000, h: 360, pad: { l: 52, r: 16, t: 16, b: 28 } });
+
+const open4 = STAGES.slice(0, 4);
+document.getElementById("strip").innerHTML = open4.map((s) => {
+  const v = sum(dealsIn(s.key), (d) => d.value);
+  return `<div style="flex:${v};background:${s.color}"></div>`;
+}).join("");
+document.getElementById("stripkey").innerHTML = open4.map((s) => {
+  const ds = dealsIn(s.key);
+  return `<div class="k"><div class="h"><span class="dot" style="background:${s.color}"></span>${s.name}</div>
+    <div class="mono" style="font-size:18px;font-weight:600">${money(sum(ds, (d) => d.value))}</div>
+    <div class="s">${ds.length} deals, expected ${money(sum(ds, expected))}</div></div>`;
+}).join("");
+
+// Tapered funnel drawn as SVG trapezoids.
+(function () {
+  const w = 700, rowH = 52, gap = 6, max = FUNNEL[0].value, cx = 230;
+  const colors = ["var(--stage-new)", "var(--stage-qualified)", "var(--stage-proposal)", "var(--stage-negotiation)", "var(--stage-won)"];
+  let g = "";
+  FUNNEL.forEach((f, i) => {
+    const top = (420 * f.value) / max, next = FUNNEL[i + 1] ? (420 * FUNNEL[i + 1].value) / max : top * 0.92;
+    const y = i * (rowH + gap);
+    g += `<path d="M${cx - top / 2} ${y} L${cx + top / 2} ${y} L${cx + next / 2} ${y + rowH} L${cx - next / 2} ${y + rowH} Z" fill="${colors[i]}" rx="4"/>`;
+    g += `<text x="470" y="${y + 22}" font-size="14" font-weight="600" fill="var(--ink)">${f.name}</text>`;
+    g += `<text x="470" y="${y + 40}" font-size="12" fill="var(--ink-muted)">${f.count} deals${i ? ", " + Math.round((100 * f.count) / FUNNEL[i - 1].count) + "% carried on" : ""}</text>`;
+    g += `<text x="${w}" y="${y + 31}" text-anchor="end" font-size="15" font-weight="600" font-family="JetBrains Mono" fill="var(--ink)">${shortMoney(f.value)}</text>`;
+  });
+  document.getElementById("funnel").innerHTML = `<svg viewBox="0 0 ${w} ${5 * (rowH + gap)}" width="100%">${g}</svg>`;
+})();
+
+document.getElementById("bars").innerHTML = barChart({
+  series: [{ values: DEALS_WON, color: "var(--sea-green)" }, { values: DEALS_LOST, color: "var(--coral)" }],
+  labels: MONTHS.map((m) => m[0]), w: 480, h: 290,
+});
+
+const over = FOLLOW_UPS.filter((f) => f.overdue), up = FOLLOW_UPS.filter((f) => !f.overdue);
+const task = (f) => `<div class="task"><span class="box"></span><div class="m"><div>${f.label}</div><a href="#">${f.who}</a></div>
+  <span class="d ${f.overdue ? "over" : ""}">${f.due === TODAY ? "Today" : shortDate(f.due)}</span></div>`;
+document.getElementById("follow").innerHTML = `
+  <div><h3><span class="chip overdue">${over.length}</span>Overdue</h3>${over.map(task).join("")}</div>
+  <div><h3><span class="chip upcoming">${up.length}</span>Today and next 7 days</h3>${up.map(task).join("")}</div>`;
+
+document.getElementById("recent").innerHTML = RECENT.map((r) => `
+  <li><span class="ic ${r.type === "stage" ? "stage" : ""}">${icon(r.type, 14)}</span>
+  <div class="t"><a href="#">${r.what}</a><div class="muted">${r.text}</div></div><span class="w">${r.when}</span></li>`).join("");
+</script>
+</body>
+</html>

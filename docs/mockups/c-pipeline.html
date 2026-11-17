@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mockup C: Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/c.css">
+<script src="shared/data.js"></script>
+<script src="shared/c.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="nav"></aside>
+  <main>
+    <div class="bar">
+      <h1>Pipeline</h1>
+      <span class="sp"></span>
+      <div class="sums" id="sums"></div>
+      <div class="search" id="search" style="width:240px"></div>
+      <button class="btn" id="add"></button>
+    </div>
+    <section class="board" id="board"></section>
+  </main>
+</div>
+<script>
+renderNav("Pipeline");
+document.getElementById("sums").innerHTML = `
+  <div><div class="lbl">Open pipeline</div><div class="v">${money(sum(OPEN, (d) => d.value))}</div></div>
+  <div><div class="lbl">Expected revenue</div><div class="v">${money(sum(OPEN, expected))}</div></div>`;
+document.getElementById("search").innerHTML = icon("search", 16) + "Search deals";
+document.getElementById("add").innerHTML = icon("plus", 16) + "Add deal";
+
+const card = (d, s) => `<div class="card ${d.name === "Annual licence" ? "moving" : ""}">
+  <div class="row"><span class="t">${d.name}</span><span class="v">${money(d.value)}</span></div>
+  <div class="o">${d.org} · ${d.contact}</div>
+  <div class="meta" style="--c:${s.color}"><span class="pbar"><i style="width:${d.prob}%"></i></span><span class="mono">${d.prob}%</span>
+  ${isLate(d) ? '<span class="late">Late</span>' : `<span class="mono">${shortDate(d.close)}</span>`}</div></div>`;
+
+const open = STAGES.slice(0, 4).map((s) => {
+  const ds = dealsIn(s.key), v = sum(ds, (d) => d.value), e = sum(ds, expected);
+  const cards = ds.map((d, i) => (s.key === "qualified" && i === 2 ? '<div class="slot"></div>' : "") + card(d, s)).join("");
+  return `<div class="col"><div class="col-head">
+    <div class="t"><span class="dot" style="background:${s.color}"></span>${s.name}<span class="c">${ds.length}</span><span class="plus">${icon("plus", 14)}</span></div>
+    <div class="s"><span>${money(v)}</span><span class="muted">expected ${money(e)}</span></div>
+    <div class="ratio"><i style="width:${(100 * e) / v}%;background:${s.color}"></i></div></div>${cards}</div>`;
+}).join("");
+
+const zone = (key, label, hint) => {
+  const s = STAGES.find((x) => x.key === key), ds = dealsIn(key);
+  return `<div class="zone ${key}"><div class="t"><span class="dot" style="background:${s.color}"></span>${label}<span class="c">${ds.length}</span></div>
+    <div class="v">${money(sum(ds, (d) => d.value))}</div><div class="hint">${hint}</div>
+    <div class="target">Drop a deal here to mark it ${label.toLowerCase()}</div>
+    ${ds.map((d) => `<div class="mini"><span>${d.name}<div class="muted" style="font-size:11.5px">${shortDate(d.close)}</div></span><span class="mono">${money(d.value)}</span></div>`).join("")}
+  </div>`;
+};
+document.getElementById("board").innerHTML = open +
+  `<div class="close-zones">${zone("won", "Won", "Closed in the last 30 days")}${zone("lost", "Lost", "Closed in the last 30 days")}</div>`;
+</script>
+</body>
+</html>

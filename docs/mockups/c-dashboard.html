@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mockup C: Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/c.css">
+<script src="shared/data.js"></script>
+<script src="shared/c.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="nav"></aside>
+  <main>
+    <div class="bar">
+      <h1>Dashboard</h1>
+      <span class="sp"></span>
+      <div class="search" id="search"></div>
+      <button class="btn" id="log"></button>
+    </div>
+
+    <section class="grid">
+      <div class="hero span-12">
+        <div class="greet">Good morning, Jo. <span>$50,500</span> won so far this month.</div>
+        <div class="figs" id="figs"></div>
+        <div class="chart-head"><b>Revenue won by month</b><span id="tot"></span></div>
+        <div id="line"></div>
+      </div>
+
+      <div class="span-12 grid" id="stagetiles" style="grid-template-columns:repeat(4,1fr)"></div>
+
+      <div class="panel span-6">
+        <div class="panel-head"><h2>Deals won and lost</h2>
+          <span class="legend"><i style="background:var(--sea-green)"></i>Won <i style="background:var(--coral)"></i>Lost</span></div>
+        <div id="bars"></div>
+      </div>
+      <div class="panel span-6">
+        <div class="panel-head"><h2>Sales funnel</h2><span class="muted">Last 12 months</span></div>
+        <div class="steps" id="funnel"></div>
+      </div>
+
+      <div class="panel span-6">
+        <div class="panel-head"><h2>Follow-ups</h2><span class="muted">3 overdue, 3 in the next 7 days</span></div>
+        <table class="table" id="follow"></table>
+      </div>
+      <div class="panel span-6">
+        <div class="panel-head"><h2>Recent activity</h2></div>
+        <table class="table" id="recent"></table>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+renderNav("Dashboard");
+document.getElementById("search").innerHTML = icon("search", 16) + "Search deals, contacts, organizations";
+document.getElementById("log").innerHTML = icon("plus", 16) + "Log activity";
+const openValue = sum(OPEN, (d) => d.value), openExp = sum(OPEN, expected);
+document.getElementById("figs").innerHTML = [
+  ["Open pipeline", money(openValue), OPEN.length + " open deals"],
+  ["Expected revenue", money(openExp), "Value times probability"],
+  ["Won in the last 12 months", money(sum(REVENUE_WON, (x) => x)), sum(DEALS_WON, (x) => x) + " deals won"],
+  ["Follow-ups due", "4", "3 overdue, 1 due today", "alert"],
+].map(([l, v, n, c]) => `<div class="fig ${c || ""}"><div class="lbl">${l}</div><div class="v">${v}</div><div class="n">${n}</div></div>`).join("");
+document.getElementById("tot").textContent = "Dec 2025 to Nov 2026";
+document.getElementById("line").innerHTML = lineChart({
+  values: REVENUE_WON, labels: MONTHS, w: 1400, h: 230, color: "#06D6A0", stroke: "#06D6A0",
+  grid: "rgba(205,216,219,.14)", text: "#9FB4BA", pad: { l: 50, r: 14, t: 14, b: 26 },
+}).replaceAll('fill="#fff"', 'fill="#073B4C"');
+
+const open4 = STAGES.slice(0, 4), maxV = Math.max(...open4.map((s) => sum(dealsIn(s.key), (d) => d.value)));
+document.getElementById("stagetiles").innerHTML = open4.map((s) => {
+  const ds = dealsIn(s.key), v = sum(ds, (d) => d.value), e = sum(ds, expected);
+  return `<a class="stage-tile" href="c-pipeline.html" style="color:inherit"><div class="h"><span class="dot" style="background:${s.color}"></span>${s.name}<span class="c">${ds.length} deals</span></div>
+    <div class="v">${money(v)}</div><div class="track"><i style="width:${(100 * v) / maxV}%;background:${s.color}"></i></div>
+    <div class="n">Expected <span class="mono">${money(e)}</span>${ds.some(isLate) ? ` · <span style="color:var(--raspberry-text);font-weight:600">${ds.filter(isLate).length} late</span>` : ""}</div></a>`;
+}).join("");
+
+document.getElementById("bars").innerHTML = barChart({
+  series: [{ values: DEALS_WON, color: "var(--sea-green)" }, { values: DEALS_LOST, color: "var(--coral)" }],
+  labels: MONTHS, w: 640, h: 230,
+});
+
+const fmax = FUNNEL[0].value, fc = ["var(--stage-new)", "var(--stage-qualified)", "var(--stage-proposal)", "var(--stage-negotiation)", "var(--stage-won)"];
+document.getElementById("funnel").innerHTML = FUNNEL.map((f, i) => `
+  <div class="step"><span><b style="font-weight:600">${f.name}</b><br><span class="muted" style="font-size:12px">${f.count} deals</span></span>
+  <div style="margin-left:${(50 * (1 - f.value / fmax)).toFixed(1)}%;width:${((100 * f.value) / fmax).toFixed(1)}%"><div class="bar2" style="background:${fc[i]}"></div></div>
+  <span class="pct"><b style="color:var(--ink);font-weight:600">${shortMoney(f.value)}</b><br>${i ? Math.round((100 * f.count) / FUNNEL[i - 1].count) + "% of previous" : "&nbsp;"}</span></div>`).join("");
+
+document.getElementById("follow").innerHTML = FOLLOW_UPS.map((f) => `
+  <tr><td style="width:36px"><span class="ic">${icon(f.type, 14)}</span></td>
+  <td>${f.label}<div class="sub"><a href="#">${f.who}</a></div></td>
+  <td class="r"><span class="chip ${f.overdue ? "overdue" : "upcoming"}">${f.due === TODAY ? "Today" : shortDate(f.due)}</span></td>
+  <td class="r" style="width:96px"><button class="done">Mark done</button></td></tr>`).join("");
+
+document.getElementById("recent").innerHTML = RECENT.slice(0, 6).map((r) => `
+  <tr><td style="width:36px"><span class="ic ${r.type === "stage" ? "stage" : ""}">${icon(r.type, 14)}</span></td>
+  <td>${r.text}<div class="sub"><a href="#">${r.what}</a></div></td>
+  <td class="r muted" style="font-size:12px">${r.when}</td></tr>`).join("");
+</script>
+</body>
+</html>

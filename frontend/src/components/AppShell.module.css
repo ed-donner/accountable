@@ -1,0 +1,86 @@
+.shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: 100vh;
+}
+.sideColumn {
+  background: var(--midnight);
+}
+.side {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  height: 100vh;
+  padding: 24px 16px;
+  background: var(--midnight);
+  color: var(--sea-mist);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+.mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--sea-green);
+  color: var(--midnight);
+  font-weight: 700;
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  color: var(--sea-mist);
+  font-weight: 500;
+  text-decoration: none;
+}
+.nav a:hover {
+  background: rgba(205, 216, 219, 0.08);
+  color: #fff;
+}
+.nav a.on {
+  background: rgba(6, 214, 160, 0.14);
+  color: #fff;
+}
+.nav a.on svg {
+  color: var(--sea-green);
+}
+.nav a:focus-visible {
+  outline-color: var(--sea-green);
+}
+.count {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 99px;
+  background: rgba(205, 216, 219, 0.14);
+  color: var(--sea-mist);
+  font: 600 11px var(--mono);
+}
+.on .count {
+  background: var(--sea-green);
+  color: var(--midnight);
+}
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  padding: 28px 32px 32px;
+}

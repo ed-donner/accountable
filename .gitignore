@@ -77,3 +77,7 @@ Thumbs.db
 logs/
 *.log
 tmp/
+
+# Accountable data (D2) and test databases (R6)
+backend/data/
+e2e/.data/

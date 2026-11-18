@@ -1,0 +1,196 @@
+/* Row 1: the one Midnight panel (D17) */
+.hero {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 48px;
+  padding: 28px 32px;
+  border-radius: 16px;
+  background: var(--midnight);
+  color: var(--sea-mist);
+}
+.heroLabel {
+  font-size: 13px;
+  font-weight: 500;
+}
+.big {
+  margin-top: 4px;
+  color: #fff;
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.green {
+  color: var(--sea-green);
+}
+.heroNote {
+  margin-top: 14px;
+  font-size: 13px;
+}
+.minis {
+  display: flex;
+  gap: 28px;
+  margin-top: 14px;
+  font-size: 13px;
+}
+.minis b {
+  display: block;
+  color: #fff;
+  font-size: 18px;
+}
+.byStage .heroLabel {
+  margin-bottom: 10px;
+}
+.stackBar {
+  display: flex;
+  gap: 3px;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+.legend {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+.legend b {
+  display: block;
+  margin-top: 2px;
+  color: #fff;
+  font-size: 15px;
+}
+.legendKey {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+/* Rows 2 and 3 */
+.row2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 20px;
+}
+.row3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: 20px;
+  align-items: start;
+}
+.card {
+  padding: 22px 24px;
+  min-width: 0;
+}
+.total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 8px;
+  font-size: 26px;
+  font-weight: 600;
+}
+.chip {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--sea-green-tint);
+  color: var(--sea-green-text);
+  font: 600 12px var(--mono);
+}
+
+/* Follow-ups and recent activity */
+.group + .group {
+  margin-top: 12px;
+}
+.groupTitle {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 9px 0;
+}
+.item + .item {
+  box-shadow: inset 0 1px 0 #edf2f3;
+}
+.check {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--sea-green-text);
+  cursor: pointer;
+}
+.badge {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+.itemText {
+  flex: 1;
+  min-width: 0;
+}
+.itemTitle {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.itemSub {
+  color: var(--muted);
+  font-size: 13px;
+}
+.itemSub a {
+  font-weight: 500;
+}
+.when {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.stages {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.quiet {
+  color: var(--muted);
+}
+
+/* 1024–1279 px (R60): the stage bar drops below the figures, charts go full width with a height
+   cap, and Follow-ups sits beside Recent activity. */
+@media (max-width: 1279px) {
+  .hero {
+    grid-template-columns: auto auto;
+    gap: 24px 40px;
+  }
+  .byStage {
+    grid-column: 1 / -1;
+  }
+  .row2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .row3 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .row3 > :first-child {
+    grid-column: 1 / -1;
+  }
+}

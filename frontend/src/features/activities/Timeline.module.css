@@ -1,0 +1,74 @@
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 10px 0;
+}
+.entry:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 44px;
+  bottom: -6px;
+  left: 14.5px;
+  width: 1.5px;
+  background: var(--line);
+}
+.icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+.body {
+  min-width: 0;
+}
+.text {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.stages {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.followUp {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+.followUp input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sea-green-text);
+}
+.chip {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--page);
+  font: 500 12px var(--mono);
+}
+.overdue {
+  background: var(--raspberry-tint);
+  color: var(--raspberry-text);
+  font-weight: 600;
+}
+.done {
+  color: var(--muted);
+  text-decoration: line-through;
+}

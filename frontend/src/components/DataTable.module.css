@@ -1,0 +1,70 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+.toolbar :global(.search) {
+  width: 300px;
+}
+.add {
+  margin-left: auto;
+}
+.scroll {
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0 16px;
+  height: 40px;
+  background: #f7f9fa;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.table td {
+  height: 48px;
+  padding: 0 16px;
+  box-shadow: inset 0 1px 0 #edf2f3;
+  white-space: nowrap;
+}
+.table tbody tr:hover td {
+  background: #f5f8f9;
+}
+.right {
+  text-align: right !important;
+}
+.right .sort {
+  margin-left: auto;
+}
+.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sort:hover {
+  color: var(--midnight);
+}
+.idle {
+  opacity: 0.45;
+}

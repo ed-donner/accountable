@@ -1,0 +1,31 @@
+.menu {
+  z-index: 45;
+  min-width: 176px;
+  padding: 6px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(7, 59, 76, 0.2);
+}
+.heading {
+  padding: 6px 10px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+}
+.item[data-highlighted] {
+  background: var(--tint);
+  box-shadow: inset 0 0 0 2px var(--cerulean);
+}
+.danger {
+  color: var(--raspberry-text);
+}

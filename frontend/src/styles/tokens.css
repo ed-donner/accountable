@@ -1,0 +1,37 @@
+/* Brand tokens (spec 2.8). Light mode only for the MVP; dark mode can redefine these later. */
+:root {
+  --sea-green: #06d6a0;
+  --sea-green-text: #05795b;
+  --sea-green-tint: #e6fbf5;
+  --marigold: #ffc145;
+  --marigold-text: #8a5a00;
+  --marigold-tint: #fff4dc;
+  --coral: #f78c6b;
+  --coral-text: #b4472a;
+  --coral-tint: #fdebe5;
+  --cerulean: #118ab2;
+  --cerulean-solid: #0d6c8c; /* fill behind small white text: white on --cerulean is only 4.0:1 */
+  --cerulean-tint: #e1f4fa;
+  --raspberry: #ef476f;
+  --raspberry-solid: #c8264f; /* fill behind small white text: white on --raspberry is only 3.6:1 */
+  --raspberry-text: #c8264f;
+  --raspberry-tint: #fde4ea;
+  --midnight: #073b4c;
+  --sea-mist: #cdd8db;
+  --page: #f0f4f5;
+  --panel: #ffffff;
+
+  --muted: #4f6e78; /* secondary text, 5.5:1 on white */
+  --faint: #567480; /* placeholder and quiet text, 4.5:1 on the page colour */
+  --tint: #e8eef0;
+  --line: #e3eaec;
+  --shadow: 0 1px 2px rgba(7, 59, 76, 0.06), 0 6px 20px rgba(7, 59, 76, 0.06);
+  --shadow-lift: 0 18px 40px rgba(7, 59, 76, 0.22);
+
+  --sans: 'Instrument Sans', system-ui, sans-serif;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --radius-panel: 12px;
+  --radius-card: 10px;
+}

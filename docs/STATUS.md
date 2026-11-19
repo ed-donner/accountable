@@ -4,3 +4,4 @@ No code yet.
 - `docs/spec.md` has the requirements and the design for the MVP, following the brand skill. Its 10 concerns are decided and recorded at the top.
 - `docs/mockups/` has three mockups of the dashboard and pipeline, each an HTML file with a screenshot beside it: `1-clear-desk`, `2-midnight-deck` and `3-work-first`. They share their sample data and chart drawing in `shared.js`.
 - Mockup 2, Midnight deck, is the chosen look. `docs/spec.md` records the choice and its reasons, and its layout, colors, type and charts now match the mockup.
+- `docs/plan.md` has the build plan: the files that change, the order of work in ten phases (0 to 9), the risks, and the unit and end-to-end tests that prove the MVP works. The build hasn't started.

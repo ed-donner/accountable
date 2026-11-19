@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 3: Work first</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #F0F4F5; --panel: #FFFFFF; --ink: #073B4C; --muted: #46636D; --subtle: #56747E;
+    --line: #E4ECEE; --control: #7D949C; --mist: #CDD8DB;
+    --sea: #06D6A0; --sea-text: #037A5C; --sea-tint: #DCF9F2;
+    --rasp-text: #C42A50; --rasp-tint: #FDE5EB;
+    --shadow: 0 1px 2px rgba(7, 59, 76, 0.06), 0 2px 8px rgba(7, 59, 76, 0.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 40px; background: #D3DDE0; color: var(--ink); font: 14px/20px 'Instrument Sans', sans-serif; }
+  .sheet-label { width: 1440px; margin: 0 auto 14px; font-size: 15px; font-weight: 600; }
+  .sheet-label span { font-weight: 400; color: var(--muted); }
+  .screen { width: 1440px; margin: 0 auto 56px; background: var(--page); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 40px rgba(7, 59, 76, 0.18); padding-top: 16px; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  a { color: #0D6E8E; text-decoration: none; }
+
+  /* A rounded Midnight bar that sits inside the page instead of across its edge. */
+  .topbar { height: 60px; margin: 0 16px; border-radius: 16px; background: var(--ink); display: flex; align-items: center; gap: 44px; padding: 0 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: #FFFFFF; font-size: 18px; font-weight: 600; }
+  .mark { width: 24px; height: 24px; border-radius: 7px; background: var(--sea); display: grid; place-items: center; }
+  .mark::after { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--ink); }
+  nav { display: flex; gap: 4px; }
+  nav a { color: var(--mist); font-size: 14px; font-weight: 500; padding: 7px 16px; border-radius: 10px; }
+  nav a.on { background: var(--sea); color: var(--ink); font-weight: 600; }
+
+  main { padding: 28px 32px 32px; }
+  .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+  h1 { margin: 0; font-size: 28px; line-height: 36px; font-weight: 600; }
+  .date { margin: 0; font: italic 30px/36px 'Instrument Serif', serif; color: var(--ink); }
+  .sub { margin: 4px 0 0; color: var(--muted); }
+
+  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+  .stack { display: flex; flex-direction: column; gap: 24px; }
+  .panel { background: var(--panel); border-radius: 16px; box-shadow: var(--shadow); padding: 24px; }
+  .panel-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+  h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; }
+  .hint { font-size: 13px; color: var(--subtle); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; flex: none; }
+
+  /* Rail */
+  .rail-count { display: flex; gap: 20px; margin: -4px 0 18px; }
+  .rail-count div { display: flex; flex-direction: column; }
+  .rail-count .mono { font-size: 30px; line-height: 38px; font-weight: 500; }
+  .rail-count .over { color: var(--rasp-text); }
+  .rail-count span:last-child { font-size: 13px; color: var(--muted); }
+  .fu-group { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--muted); margin: 8px 0 4px; }
+  .fu-list, .ra-list { list-style: none; margin: 0 0 8px; padding: 0; }
+  .fu { display: grid; grid-template-columns: 28px 1fr auto; gap: 6px; padding: 10px 0; }
+  .fu.is-overdue { background: var(--rasp-tint); border-radius: 10px; padding: 10px 10px; margin: 0 -10px 6px; }
+  .fu:not(.is-overdue) + .fu { box-shadow: 0 -1px 0 var(--line); }
+  .tick { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--control); background: #FFFFFF; margin-top: 1px; }
+  .fu-text { font-weight: 500; }
+  .fu-meta { display: flex; gap: 10px; font-size: 13px; color: var(--subtle); margin-top: 2px; }
+  .fu-type { display: inline-flex; align-items: center; gap: 5px; }
+  .is-overdue .fu-meta { color: var(--muted); }
+  .fu-date { display: flex; flex-direction: column; align-items: flex-end; font-size: 13px; color: var(--muted); }
+  .late-text { color: var(--rasp-text); font-weight: 600; white-space: nowrap; }
+  .rail-sep { height: 8px; }
+  .ra { display: grid; grid-template-columns: 36px 1fr; padding: 10px 0; }
+  .ra + .ra { box-shadow: 0 -1px 0 var(--line); }
+  .ra-icon { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #EAF0F2; color: var(--muted); }
+  .ra-stage .ra-icon { background: var(--sea-tint); color: var(--sea-text); }
+  .ra-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-top: 2px; }
+  .ra-when { color: var(--subtle); white-space: nowrap; }
+
+  /* Figures */
+  .figs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .fig-l { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .fig-v { font-size: 32px; line-height: 42px; font-weight: 500; margin: 4px 0 2px; letter-spacing: -0.02em; }
+  .fig-s { font-size: 13px; color: var(--muted); }
+
+  /* Funnel as columns stepping down */
+  .funnel-cols { display: flex; align-items: flex-end; height: 330px; padding-top: 8px; }
+  .fc-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
+  .fc-fig { display: flex; flex-direction: column; margin-bottom: 10px; }
+  .fc-fig .mono { font-size: 18px; font-weight: 500; }
+  .fc-count { font-size: 13px; color: var(--muted); }
+  .fc-bar { border-radius: 10px 10px 4px 4px; }
+  .fc-name { display: flex; align-items: center; margin-top: 12px; font-weight: 600; }
+  .fc-share { width: 64px; flex: none; align-self: flex-end; margin-bottom: 70px; display: flex; justify-content: center; }
+  .fc-share .mono { font-size: 12px; font-weight: 500; color: var(--muted); background: #EAF0F2; border-radius: 999px; padding: 3px 9px; }
+
+  .sub-chart { display: flex; justify-content: space-between; align-items: baseline; margin: 6px 0 2px; }
+  .sub-chart h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .sub-chart span { font-size: 13px; color: var(--muted); }
+  .chart svg { display: block; }
+  .ax { font: 12px 'JetBrains Mono', monospace; fill: var(--subtle); }
+  .bar-l { font: 500 12px 'JetBrains Mono', monospace; fill: var(--ink); }
+
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -2px; }
+  .sr-row { display: grid; grid-template-columns: 160px 1fr 200px; align-items: center; gap: 16px; height: 56px; }
+  .sr-name { display: flex; align-items: center; font-weight: 500; }
+  .sr-count { margin-left: 8px; font: 12px 'JetBrains Mono', monospace; color: var(--subtle); }
+  .sr-track { position: relative; height: 24px; }
+  .sr-total, .sr-exp { position: absolute; left: 0; top: 0; height: 100%; border-radius: 6px; }
+  .sr-exp { box-shadow: 2px 0 0 #FFFFFF; }
+  .sr-fig { display: flex; justify-content: flex-end; align-items: baseline; gap: 12px; }
+  .sr-exp-l { font-size: 12px; color: var(--subtle); }
+
+  /* Pipeline */
+  .figline { display: flex; align-items: center; gap: 28px; }
+  .fl { display: flex; align-items: baseline; gap: 8px; }
+  .fl-l { font-size: 13px; color: var(--muted); }
+  .fl-v { font-size: 20px; font-weight: 500; }
+  .fl-v.late { color: var(--rasp-text); }
+  .btn { font: 600 14px 'Instrument Sans', sans-serif; border: 0; border-radius: 8px; padding: 10px 16px; display: inline-flex; align-items: center; gap: 6px; background: var(--sea); color: var(--ink); }
+  .board { display: grid; grid-template-columns: repeat(4, 1fr) 196px 196px; column-gap: 14px; align-items: start; }
+  .board .closed-first { margin-left: 14px; }
+  .bh { border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+  .bh-t { display: flex; align-items: center; justify-content: space-between; }
+  .bh-name { font-weight: 600; font-size: 15px; }
+  .bh-add { width: 28px; height: 28px; border-radius: 8px; border: 0; background: rgba(255, 255, 255, 0.7); color: var(--ink); display: grid; place-items: center; }
+  .bh-figs { display: flex; align-items: baseline; justify-content: space-between; margin-top: 6px; font-size: 13px; }
+  .bh-figs .v { font-weight: 500; }
+  .bh-figs .e { color: var(--muted); font-size: 12px; }
+  .bh-note { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .cards { display: flex; flex-direction: column; gap: 10px; }
+  .card { background: #FFFFFF; border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; }
+  .card-org { font-size: 12px; color: var(--muted); }
+  .card-name { font-weight: 600; line-height: 19px; margin-top: 1px; }
+  .card-vrow { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .card-value.big { font-size: 18px; font-weight: 500; }
+  .card-date { white-space: nowrap; }
+  .card-contact { overflow: hidden; text-overflow: ellipsis; }
+  .bh-figs.stacked { flex-direction: column; align-items: flex-start; gap: 0; }
+  .card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--muted); min-height: 22px; gap: 6px; }
+  .card-who { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+  .card-when { display: inline-flex; align-items: center; gap: 6px; }
+  .card-date { color: var(--muted); }
+  .is-late .card-date { color: var(--rasp-text); font-weight: 500; }
+  .card-contact.none { color: var(--subtle); font-style: italic; }
+  .avatar { width: 22px; height: 22px; border-radius: 50%; background: #E3EBED; color: var(--ink); font-size: 10px; font-weight: 600; display: grid; place-items: center; flex: none; }
+  .badge-late { display: inline-flex; align-items: center; gap: 4px; background: var(--rasp-text); color: #FFFFFF; font-size: 11px; font-weight: 600; line-height: 16px; padding: 2px 7px 2px 5px; border-radius: 999px; }
+  .card.compact { padding: 10px 12px; box-shadow: none; background: rgba(255, 255, 255, 0.7); }
+  .card.compact .card-name { font-size: 13px; }
+  .card.compact .card-org { margin-top: 1px; }
+  .card-nums { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; }
+  .card.focus { outline: 2px solid #118AB2; outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<div class="sheet-label">Mockup 3: Work first <span>&nbsp; Dashboard</span></div>
+<div class="screen">
+  <header class="topbar">
+    <div class="brand"><span class="mark"></span>Accountable</div>
+    <nav><a class="on" href="#">Dashboard</a><a href="#">Organizations</a><a href="#">Contacts</a><a href="#">Deals</a><a href="#">Pipeline</a></nav>
+  </header>
+  <main>
+    <div class="ph"><h1>Dashboard</h1><p class="date">Thursday, November 19</p></div>
+    <div class="layout">
+      <aside class="panel">
+        <div class="panel-h"><h2>Follow-ups</h2></div>
+        <div class="rail-count">
+          <div><span class="mono over">3</span><span>overdue</span></div>
+          <div><span class="mono">4</span><span>due in the next 7 days</span></div>
+        </div>
+        <div id="fu"></div>
+        <div class="rail-sep"></div>
+        <div class="panel-h"><h2>Recent activity</h2></div>
+        <div id="ra"></div>
+      </aside>
+      <div class="stack">
+        <div class="panel figs">
+          <div><div class="fig-l">Open pipeline</div><div class="fig-v mono">$1,011,000</div><div class="fig-s">19 open deals</div></div>
+          <div><div class="fig-l">Expected revenue</div><div class="fig-v mono">$502,300</div><div class="fig-s">Value times probability of close</div></div>
+          <div><div class="fig-l">Won this month</div><div class="fig-v mono">$54,000</div><div class="fig-s">1 deal. Last month <span class="mono">$8,500</span></div></div>
+        </div>
+        <div class="panel"><div class="panel-h"><h2>Sales funnel</h2><span class="hint">Value of the deals created in the last 12 months that reached each stage</span></div>
+          <div class="funnel-cols" id="funnel"></div></div>
+        <div class="panel"><div class="panel-h"><h2>Won in the last 12 months</h2><span class="hint">By the month each deal closed</span></div>
+          <div class="sub-chart"><h3>Revenue won</h3><span><span class="mono">$511,000</span> in total</span></div>
+          <div class="chart" id="line"></div>
+          <div class="sub-chart"><h3>Deals won</h3><span><span class="mono">10</span> in total</span></div>
+          <div class="chart" id="bars"></div></div>
+        <div class="panel"><div class="panel-h"><h2>Open pipeline by stage</h2><div class="legend"><span><i style="background:#C8D5D9"></i>Total value</span><span><i style="background:#7D949C"></i>Expected revenue</span></div></div>
+          <div id="stages"></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="sheet-label">Mockup 3: Work first <span>&nbsp; Pipeline, with one card focused from the keyboard</span></div>
+<div class="screen">
+  <header class="topbar">
+    <div class="brand"><span class="mark"></span>Accountable</div>
+    <nav><a href="#">Dashboard</a><a href="#">Organizations</a><a href="#">Contacts</a><a href="#">Deals</a><a class="on" href="#">Pipeline</a></nav>
+  </header>
+  <main>
+    <div class="ph">
+      <div><h1>Pipeline</h1>
+        <div class="figline" style="margin-top:8px">
+          <div class="fl"><span class="fl-l">Open pipeline</span><span class="mono fl-v">$1,011,000</span></div>
+          <div class="fl"><span class="fl-l">Expected revenue</span><span class="mono fl-v">$502,300</span></div>
+          <div class="fl"><span class="fl-l">Open deals</span><span class="mono fl-v">19</span></div>
+          <div class="fl"><span class="fl-l">Late</span><span class="mono fl-v late">3</span></div>
+        </div>
+      </div>
+      <button class="btn" id="add"></button>
+    </div>
+    <div class="board" id="board"></div>
+  </main>
+</div>
+
+<script src="shared.js"></script>
+<script>
+  const { STAGES, BOARD, money, totals, icon } = M;
+  const width = (id) => document.getElementById(id).clientWidth;
+  document.getElementById('fu').innerHTML = M.followUps({ groups: true });
+  document.getElementById('ra').innerHTML = M.recent({ limit: 5 });
+  document.getElementById('funnel').innerHTML = M.funnelColumns({ height: 220 });
+  // The two won charts share one month axis, so a month lines up from the line to its bar.
+  const margin = { l: 60, r: 16 };
+  document.getElementById('line').innerHTML = M.lineChart({ w: width('line'), h: 210, stroke: '#05A87E', fill: '#06D6A0', hideMonths: true, margin: Object.assign({ b: 8 }, margin) });
+  document.getElementById('bars').innerHTML = M.barChart({ w: width('bars'), h: 150, fill: '#FFC145', labels: true, margin: Object.assign({ t: 18 }, margin) });
+  document.getElementById('stages').innerHTML = M.stageRows();
+  document.getElementById('add').innerHTML = icon('plus', 16) + 'Add deal';
+
+  document.getElementById('board').innerHTML = STAGES.map((s) => {
+    const t = totals(s.key), closed = s.key === 'won' || s.key === 'lost';
+    const cards = BOARD[s.key].map((d) => M.card(d, closed ? { compact: true } : { valueFirst: true, cls: d.name === 'Website redesign' ? 'focus' : '' }));
+    return `<section class="${s.key === 'won' ? 'closed-first' : ''}">
+      <div class="bh" style="background:${s.tint}">
+        <div class="bh-t"><span class="bh-name" style="color:${s.text}">${s.name} <span class="mono" style="font-weight:500">${t.count}</span></span>
+        <button class="bh-add" aria-label="Add deal at ${s.name}">${icon('plus', 15)}</button></div>
+        <div class="bh-figs ${closed ? 'stacked' : ''}"><span class="mono v">${money(t.value)}</span><span class="e">Expected <span class="mono">${money(t.expected)}</span></span></div>
+        ${closed ? '<div class="bh-note">Closed in the last 30 days</div>' : ''}
+      </div>
+      <div class="cards">${cards.join('')}</div></section>`;
+  }).join('');
+</script>
+</body>
+</html>

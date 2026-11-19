@@ -57,7 +57,7 @@ These concerns came up while the spec was being written. Each one has been decid
 
 - **GEN-1** A top bar on every page links to the five sections: Dashboard, Organizations, Contacts, Deals and Pipeline. The app opens on the Dashboard.
 - **GEN-2** Every change is saved to the database as soon as it's made. There's no separate save step for the app as a whole, and a refresh or a restart shows every change.
-- **GEN-3** Money is in whole US dollars, shown with the dollar sign and thousands separators: `$48,500`. Charts and figure tiles may shorten large amounts to `$1.2M` or `$48.5k`, with the full amount on hover. Cents never appear.
+- **GEN-3** Money is in whole US dollars, shown with the dollar sign and thousands separators: `$48,500`. Chart axes may shorten large amounts to `$1.2M` or `$48.5k`, and the chart's tooltips show the full amount. Cents never appear.
 - **GEN-4** Dates are shown as `Nov 19, 2026`, and a date with a time as `Nov 19, 2026, 2:30 PM`. "Today" is the computer's local date, and the backend is the app's one clock (2.4).
 - **GEN-5** Each page has its own browser tab title, such as `Contacts · Accountable`, and its own address, so the back button and a refresh work.
 - **GEN-6** If a save fails, a short message says so and the form stays open with what was typed. Problems with a field show under that field.
@@ -176,7 +176,7 @@ The Organizations, Contacts and Deals pages each show a table.
 ## 1.9 Dashboard
 
 - **DASH-1** The heading shows today's date, such as "Thursday, November 19".
-- **DASH-2** Four figure tiles:
+- **DASH-2** Four headline figures:
   - **Open pipeline**: the total value of the open deals, and how many there are.
   - **Expected revenue**: the total expected revenue of the open deals.
   - **Won this month**: the revenue won this calendar month and the number of deals, with last month's revenue beside it.
@@ -435,28 +435,40 @@ An unknown address shows "Page not found" with a link to the dashboard. A delete
 
 ### Layout
 
-A Midnight top bar, 64px tall, runs the full width: the Accountable wordmark on the left, then the five sections in Sea Mist. The current section is a Sea Green pill with Midnight text. The top bar has no line under it.
+The layout follows the chosen mockup, Midnight deck (`docs/mockups/2-midnight-deck.html`).
 
-Below it, pages sit on the page background with 32px padding, up to 1440px wide and centered. The pipeline uses the full width, because six columns need it. That's also why the sections go in a top bar rather than a sidebar.
-
-Each page opens with a title, a short line under it (such as "40 contacts" or "19 open deals"), and its main button on the right.
+- **Top bar:** Midnight, 64px tall and the full width. The Accountable wordmark is on the left, then the five sections in Sea Mist. The current section is a Sea Green pill with Midnight text.
+- **The Midnight band:** the top bar runs straight into a band of the same color, with no line between them. The band holds the page's title, a short line under it (such as "40 contacts" or "19 open deals"), the page's headline figures and its main button on the right. Text in the band is white or Sea Mist.
+- **Below the band:** the page's content sits on the light page background with 32px padding, up to 1440px wide and centered.
+- **Width:** the pipeline uses the full width, because six columns need it. That's also why the sections go in a top bar rather than a sidebar.
 
 ### Dashboard
 
 ```
- Dashboard                                             Thursday, November 19
- [ Open pipeline ] [ Expected revenue ] [ Won this month ] [ Follow-ups ]
- [ Revenue won, last 12 months: line         ] [ Deals won: bars         ]
- [ Sales funnel                    ] [ Open pipeline by stage            ]
- [ Follow-ups                      ] [ Recent activity                   ]
+ ===== Midnight band ===========================================================
+ Dashboard
+ Thursday, November 19
+ Open pipeline        Expected revenue     Won this month       Follow-ups
+ $1,011,000           $502,300             $54,000              3 overdue
+ Open pipeline by stage
+ [ New ][ Qualified      ][ Proposal         ][ Negotiation                ]
+ ===== light page ==============================================================
+ [ Revenue won, last 12 months: line       ] [ Deals won: bars             ]
+ [ Sales funnel          ] [ Follow-ups            ] [ Recent activity     ]
 ```
 
-- Four tiles, then three rows of panels on a 12-column grid: 8 + 4, then 6 + 6, then 6 + 6. The date line is set in Instrument Serif.
-- The dashboard should be the best-looking page in the app. Big figures in JetBrains Mono, generous space, and color used for meaning, so the eye goes to the numbers.
+- **In the band:**
+  - The title, with the date under it in Instrument Serif, italic.
+  - The four headline figures (DASH-2) in a row, in JetBrains Mono at 40px with no tiles around them. Expected revenue is in Sea Green, and the overdue count in light Raspberry.
+  - **Open pipeline by stage** (DASH-6) as one strip across the band. Each open stage is a segment as wide as its total value, and the colored part of each segment is its expected revenue (2.6). Under each segment are its stage name, count, total value and expected revenue.
+- **Below the band,** two rows of white panels:
+  - Revenue won (7 columns of 12) and Deals won (5 columns). Each panel shows its 12-month total above the chart.
+  - Sales funnel, Follow-ups and Recent activity, a third each.
+- The dashboard should be the best-looking page in the app. Big figures, generous space, and color used for meaning, so the eye goes to the numbers.
 
 ### Tables
 
-- Each table is a white panel. Above it: the search box (320px) on the left, then any filters, and the Add button on the right.
+- Each table is a white panel below the band. Above it are the search box (320px) and any filters. The Add button is the page's main button, in the band.
 - Headings sort, with an arrow on the sorted column. Rows are 52px tall with a light line between them, and turn a light tint on hover.
 - Money, percentages and dates are right-aligned in JetBrains Mono.
 - Edit and Delete are icon buttons at the end of each row, always visible. Each has a tooltip and a name for screen readers.
@@ -481,7 +493,7 @@ Each page opens with a title, a short line under it (such as "40 contacts" or "1
                              +--------------------------------------------+
 ```
 
-- A link back to the table sits at the top. The record's name has its badges beside it, and Edit and Delete are on the right.
+- The band holds a link back to the table, the record's name with its badges beside it, its links (such as organization and main contact), and Edit and Delete on the right. A deal's stage bar sits in the band too, where the stage colors show up well against Midnight.
 - Below that, two columns: details and linked records on the left (one third), the timeline on the right (two thirds). The organization page puts its contacts and deals lists in the wider column, since it has no timeline.
 - The stage bar shows the open stages as joined steps, with Won and Lost as two separate buttons at the end. Past stages are filled in with a tint, and the current one in its full stage color.
 - Timeline entries show a small round icon for each type: a note, a phone, an envelope, and an arrow for stage changes. A stage change is a single quieter line with no buttons.
@@ -489,19 +501,25 @@ Each page opens with a title, a short line under it (such as "40 contacts" or "1
 ### Pipeline
 
 ```
- Pipeline          Open pipeline $1,240,000   Expected $512,300   19 open deals
- +-------------+-------------+-------------+-------------+-------------+-------------+
- | o New     5 | o Qualified | o Proposal  | o Negotiat. | o Won     2 | o Lost    2 |
- | $210,000    | ...         | ...         | ...         | $96,000     | $41,000     |
- | exp $21,000 |             |             |             | Closed in the last 30 days|
- | [+ Add deal]|             |             |             |             |             |
- | +---------+ |             |             |             |             |             |
- | | card    | |             |             |             |             |             |
+ ===== Midnight band ================================================================
+ Pipeline                              Open pipeline  Expected revenue
+ 19 open deals, 3 of them late           $1,011,000          $502,300   [+ Add deal]
+ +-----------+ +-----------+ +-----------+ +-----------+ +-----------+ +-----------+
+ | o New   5 | | o Qualif. | | o Propos. | | o Negot.  | | o Won   2 | | o Lost  2 |
+ | $100,500  | | $243,000  | | $276,500  | | $391,000  | | $62,500   | | $40,000   |
+ | Expected  | | Expected  | | Expected  | | Expected  | | Closed in | | Closed in |
+ | [+ Add]   | | [+ Add]   | | [+ Add]   | | [+ Add]   | | [+ Add]   | | [+ Add]   |
+ +-----------+ +-----------+ +-----------+ +-----------+ +-----------+ +-----------+
+ ===== light page ===================================================================
+ [ card    ]   [ card    ]   [ card    ]   [ card    ]   [ card    ]   [ card    ]
+ [ card    ]   [ card    ]   ...
 ```
 
-- Each column is a panel on the page background, with a stage-colored dot in its heading. Cards are white, with rounded corners and a soft shadow.
-- A card shows the deal's name (semibold) and organization, then its value and close date in JetBrains Mono, then its main contact and any Late badge.
-- A card being dragged lifts with a stronger shadow. The column under it gets a tinted background, and a gap opens where the card will land.
+- **In the band:** the title and the board's figures (PIPE-3), with Expected revenue in Sea Green, and the Add deal button.
+- **Column headings** also sit in the band, one block per column, as tinted Midnight panels. Each shows a stage-colored dot, the stage name and count, the total value and the expected revenue (PIPE-1). Won and Lost add "Closed in the last 30 days". Each block has its own Add deal button at the bottom, and all six line up.
+- **Cards** sit on the light page below their headings. They're white, with rounded corners and a soft shadow.
+- A card shows the deal's name (semibold) and organization, then its value and close date in JetBrains Mono, then its main contact and any Late badge. The main contact's initials sit in a small Midnight circle with Sea Mist text.
+- A card being dragged lifts with a stronger shadow. The column under it gets a light tint, and a gap opens where the card will land.
 - A column with more cards than fit scrolls on its own, and its heading stays in place.
 
 ### Forms and dialogs
@@ -527,7 +545,12 @@ The brand's colors as CSS variables. Light mode is the only mode in the MVP, but
 | `--line` | `#E4ECEE` | Lines between table rows, and chart grid lines |
 | `--control-border` | `#7D949C` | Full border around inputs (3.2:1 on white, enough for a control) |
 | `--focus` | `#118AB2` (Cerulean) | 2px focus outline, 2px out from the control |
-| `--topbar` | `#073B4C` with `#CDD8DB` (Sea Mist) text | Top bar |
+| `--band` | `#073B4C` (Midnight) | Top bar and the band under it |
+| `--band-ink` | `#FFFFFF` and `#CDD8DB` (Sea Mist) | Titles and figures (12.1:1), and other text (8.3:1) in the band |
+| `--band-muted` | `#A7BCC2` | Labels and secondary text in the band (6.1:1) |
+| `--band-alert` | `#FF8DA5` | Overdue counts in the band, a lighter Raspberry (5.5:1) |
+| `--band-panel` | Sea Mist at 8% over Midnight | Pipeline column headings in the band |
+| `--band-rest` | Sea Mist at 16% over Midnight | The part of the pipeline strip beyond expected revenue |
 
 Each brand color has three uses: the color itself for fills, dots, chart marks and icons; a darker text shade (at least 4.5:1 on white and on its tint); and a light tint for badge and hover backgrounds.
 
@@ -569,8 +592,10 @@ Badges are pills: the tint behind, the text shade for the words, 12px medium. Th
 | Panel title | Instrument Sans | 16 / 24 | 600 |
 | Body and table text | Instrument Sans | 14 / 20 | 400 |
 | Labels and badges | Instrument Sans | 12 / 16 | 500 |
-| Dashboard date line | Instrument Serif, italic | 20 / 28 | 400 |
-| Figure tiles | JetBrains Mono | 28 / 36 | 500 |
+| Dashboard date line | Instrument Serif, italic | 22 / 30 | 400 |
+| Dashboard headline figures, in the band | JetBrains Mono | 40 / 50 | 500 |
+| Pipeline figures, in the band | JetBrains Mono | 26 / 34 | 400 |
+| Chart totals above a chart | JetBrains Mono | 22 / 30 | 500 |
 | Money, percentages and dates in tables and cards | JetBrains Mono, tabular figures | 13 / 20 | 400 |
 
 ### Space, shape and depth
@@ -582,10 +607,14 @@ Badges are pills: the tint behind, the text shade for the words, 12px medium. Th
 
 ### Charts
 
-- **Revenue won:** a 2.5px Sea Green line with a flat 12% Sea Green fill under it (no gradient), and a dot on the hovered month.
-- **Deals won:** Marigold bars with rounded tops.
-- **Sales funnel:** centered horizontal bars that narrow step by step, each in its stage color. The stage name sits on the left, the value and count on the right, and the share carried to the next step between bars.
-- **Open pipeline by stage:** one horizontal bar per open stage. Total value is shown in the stage's tint and expected revenue in its full color on top, with a small legend.
+- **Revenue won:** a 2.5px line in a deeper Sea Green (`#05A87E`, 3.0:1 on white, so it holds up against white), with a flat 14% Sea Green fill under it (no gradient) and a dot on the latest month. Hovering shows a dot and a tooltip for that month.
+- **Deals won:** Marigold bars with rounded tops, each labeled with its count.
+- **Sales funnel:** horizontal bars from the left, one per step, with the stage name on the left, the value and count on the right, and the share carried to the next step under each bar.
+  - The funnel shows one measure, so it uses one color: Cerulean's text shade (`#0D6E8E`) for New to Negotiation. Won is in Sea Green, because it means success.
+- **Open pipeline by stage:** the strip in the dashboard's band, with segments split by 6px gaps.
+  - The colored part of each segment is its expected revenue, in the stage's color. The rest of its value is `--band-rest`.
+  - A small key says so: "Colored part: expected revenue" and "Rest of the value".
+- **Stage colors in charts:** the brand's stage colors fail a chart color check on their own. Marigold and Coral are close to each other, and Marigold, Sea Green and the slate are faint on white. So every stage-colored mark carries its stage name beside it, and color never identifies a stage by itself.
 - Horizontal grid lines only, in `--line`. Axis text is 12px in `--ink-subtle`, with figures in JetBrains Mono and money shortened (`$50k`).
 - Tooltips are white panels with a soft shadow, showing full figures such as `$48,500` and `3 deals`.
 - A chart with one series uses one color, and color is only used where it means something.
@@ -674,4 +703,13 @@ The tests never touch `data/accountable.db`.
 
 ## Chosen mockup
 
-The look will be chosen from the three mockups in `docs/mockups/`, and the choice and the reasons will be recorded here.
+**Mockup 2, Midnight deck** (`docs/mockups/2-midnight-deck.html`, with its screenshot `2-midnight-deck.png`) was chosen from the three in `docs/mockups/`. The build should match it, and the Test stage compares the app with it.
+
+What it brings:
+
+- **The figures come first.** The Midnight band puts each page's headline figures in large type the moment the page opens, which suits a salesperson checking how things stand.
+- **The brand colors work hardest on Midnight.** Sea Green, Marigold and Coral are too faint on white for small marks, but they're clear on the band. So the pipeline strip and the column headings carry the stage colors there, and the light page below stays calm.
+- **The pipeline at a glance.** The strip shows each open stage's value and how much of it is expected revenue in one picture, without a separate chart.
+- **It looks like a product.** The top bar and band read as one block, which looks sharp and professional, with no lines or gradients.
+
+The other two stay in `docs/mockups/` for reference. Mockup 1, Clear desk, was the closest to the first draft of this spec. Mockup 3, Work first, put follow-ups in a rail and the funnel at the center.

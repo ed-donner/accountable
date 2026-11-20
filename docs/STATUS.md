@@ -207,7 +207,7 @@ On Windows, `npm run check:quick` failed Prettier on 84 files nobody had changed
 
 ## Dark mode (in progress, Nov 20, 2026)
 
-On the `dark-mode` branch. `docs/changes/dark-mode/intent.md` is written, and `docs/spec.md` now describes the app with dark mode: GEN-9 to GEN-11, concerns 13 to 16, and the light and dark colors in 2.6, each dark text color checked for contrast. Nothing is built yet. The plan is next.
+On the `dark-mode` branch. `docs/changes/dark-mode/intent.md` is written, and `docs/spec.md` now describes the app with dark mode: GEN-9 to GEN-11, concerns 13 to 16, and the light and dark colors in 2.6, each dark text color checked for contrast. `docs/changes/dark-mode/plan.md` sets out the build in seven phases, from a steady light-mode pixel check (Phase 0) to the wrap-up. Nothing is built yet. Phase 0 is next.
 
 ## Choices the build made (please check)
 

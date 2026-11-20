@@ -199,6 +199,12 @@ Versions, looked up on Nov 20, 2026: `actions/checkout@v7`, `actions/setup-node@
 
 `docs/IMPROVE.md` is a four-step checklist for Deploy, run after the review fixes and before the merge. It looks back at what went wrong on the change, writes down the fix for any mistake that has happened twice (or adds a check if a tool can catch it), removes what's out of date, and ends by improving itself. `AGENTS.md` now says when to run it.
 
+## Line endings (Nov 20, 2026)
+
+On Windows, `npm run check:quick` failed Prettier on 84 files nobody had changed. Git for Windows sets `core.autocrlf=true` system-wide, so files came out of git with CRLF line endings, while Prettier expects LF. Prettier with `--end-of-line auto` passed every file, so line endings were the only problem. CI runs on Ubuntu, so it never saw this.
+
+`.gitattributes` now sets `* text=auto eol=lf`, so git checks out text files with LF on every system. `npm run format` turned the files Prettier covers back to LF, and each one still hashes the same as in the last commit. Other files, such as the docs and the Python, keep CRLF until git next checks them out. That doesn't fail any check.
+
 ## Choices the build made (please check)
 
 These fill gaps in the spec or follow library changes since the plan was written. `docs/spec.md` now describes the ones that change what the app does.

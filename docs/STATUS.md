@@ -173,6 +173,22 @@ The `gitleaks` step in `npm run check` now prints each finding's file, line and 
   - The real index was untouched each time.
 - **`.env`:** fed 20 cases: edits and writes to `.env` in any folder, and shell commands that write, copy, delete or open it, were refused. `.env.example`, `.envrc` and other commands were let through. In this session, real Write and shell calls aimed at a `.env` in a scratch folder were refused, and ordinary edits and commands still ran.
 
+## CI (Nov 20, 2026)
+
+`.github/workflows/ci.yml` runs on every push to any branch, in one job named `check` (see `docs/spec.md` 2.8). gitleaks scans every commit and file first. Then Node 26 and uv are installed and `npm run check` runs, with the runner's own Google Chrome. If that fails, the Playwright report is uploaded. It uses no secrets.
+
+Versions, looked up on Nov 20, 2026: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-artifact@v7`, `astral-sh/setup-uv@v10.3.3` (its latest release; it has no `v10` tag) and gitleaks 8.30.1.
+
+**How it was tested.** It hasn't run on GitHub yet; the first push to a GitHub repo of yours will be its first real run.
+
+- actionlint (with shellcheck) found no problems. With quotes taken off two variables in a copy, it reported both, so shellcheck was running.
+- zizmor found only that the actions are named by version rather than by commit hash.
+- The two gitleaks steps were run word for word in WSL Ubuntu, in a throwaway clone with the workflow committed:
+  - With a wrong checksum, the install stopped and added nothing to the path.
+  - As written, it installed gitleaks and put it on the next step's path, and the scan found no leaks.
+  - With a fake GitHub token committed and then deleted in the next commit, the scan failed and showed the file, commit and rule.
+- Not tried: `npm run check` on Linux. The app has only run on Windows so far, so the first run on GitHub may turn up something that only shows on Linux.
+
 ## Choices the build made (please check)
 
 These fill gaps in the spec or follow library changes since the plan was written. `docs/spec.md` now describes the ones that change what the app does.

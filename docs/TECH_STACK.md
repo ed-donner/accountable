@@ -17,7 +17,7 @@ Commands are npm scripts in a `package.json` at the repo root, with `frontend/` 
 - `npm run format` fixes the formatting
 - `npm run seed` resets the database to the sample data
 
-The checks use Prettier and ESLint (with typescript-eslint, React Hooks and jsx-a11y) and `tsc` for the frontend, ruff and ty for the backend, and gitleaks for secrets. lefthook runs the git pre-commit hook, and `.claude/settings.json` holds Claude Code's hooks.
+The checks use Prettier and ESLint (with typescript-eslint, React Hooks and jsx-a11y) and `tsc` for the frontend, ruff and ty for the backend, and gitleaks for secrets. lefthook runs the git pre-commit hook, and `.claude/settings.json` holds Claude Code's hooks. GitHub Actions runs `npm run check` on every push.
 
 `docs/STATUS.md` says how to run the app. `README.md` is the course's own guide, so leave it as it is.
 

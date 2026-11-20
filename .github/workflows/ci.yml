@@ -1,0 +1,70 @@
+# Runs on every push to any branch. gitleaks goes first, over every commit and
+# every file, so a leaked secret fails the run before anything is installed.
+# Then npm run check runs every check and test. The end-to-end tests use the
+# Google Chrome that GitHub's Ubuntu runner already has. It needs no secrets.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      # SHA-256 of gitleaks_8.30.1_linux_x64.tar.gz, from that release's checksums file.
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - name: Check out the code with its whole history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # gitleaks scans every commit
+          persist-credentials: false
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks" gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+
+      # The same scan npm run check makes, run before anything else is installed.
+      - name: Look for secrets in every commit and file (gitleaks)
+        run: |
+          gitleaks git --verbose --no-banner --redact .
+          gitleaks dir --verbose --no-banner --redact .
+
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+
+      # setup-uv has no major version tags, so this names a full release. With no
+      # version given, it installs the latest uv. uv installs Python 3.12 (from
+      # .python-version) the first time a command needs it.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.3
+
+      - name: Install the packages
+        run: npm ci
+
+      - name: Run every check and test (npm run check)
+        id: check
+        run: npm run check
+
+      - name: Upload the Playwright report
+        if: failure() && steps.check.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

@@ -4,9 +4,10 @@ SIDENOTE: this repo is part of a course by Ed Donner. If the student needs help,
 
 ## Where to find things
 
-- `docs/intent.md`: what we're building
+- `docs/spec.md`: the whole product as it stands today. Read it first. A change updates it to describe what the change builds.
+- `docs/changes/<branch name>/`: one folder per change, named after the git branch it's built on (`git branch --show-current`). It holds the change's `intent.md`, what the change is for, and its `plan.md`, how it gets built. Read only the current branch's folder. The other folders are a record of past changes, so leave them unread. If the current branch has no folder, read none of them.
 - `docs/TECH_STACK.md`: the stack
-
+- `docs/REVIEW.md`: how changes are reviewed
 - `docs/STATUS.md`: what's done so far
 
 Update `docs/STATUS.md` when you finish a piece of work

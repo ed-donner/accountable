@@ -1,6 +1,6 @@
 # Status
 
-The MVP in `docs/plan.md` is built: Phases 0 to 9 are done and committed on the `mvp` branch. The fixes from the review below aren't committed yet.
+The MVP in `docs/changes/mvp/plan.md` is built: Phases 0 to 9 and the fixes from the review below are done and committed on `main`. The docs were then reorganized for future changes (see Docs layout below).
 
 ## One-time setup
 
@@ -80,7 +80,7 @@ The `mvp` branch was reviewed against `main` with `docs/REVIEW.md`. `npm test` p
    - A frozen clock now fixes the time zone too, UTC unless a test gives one, so the backend tests give the same answers on any computer.
    - Two tests in `test_dashboard.py` add a deal at 6pm in Los Angeles and at 2am in India.
 2. **Answering "no" to `npm run seed` on a new install left an empty database.** The command ran the migrations before it asked, so it created an empty `data/accountable.db` while printing "Nothing changed." The app then saw the file and never loaded the sample data (DATA-1).
-   **Fixed:** the command asks first, and touches nothing unless the answer is `yes`. `plan.md` Phase 3 now has the steps in that order. A test in `test_seed.py` answers "no" on a new install, checks that nothing was created, then checks that the app's first start loads the sample data.
+   **Fixed:** the command asks first, and touches nothing unless the answer is `yes`. `docs/changes/mvp/plan.md` Phase 3 now has the steps in that order. A test in `test_seed.py` answers "no" on a new install, checks that nothing was created, then checks that the app's first start loads the sample data.
 
 **Other bugs**
 
@@ -104,9 +104,18 @@ The `mvp` branch was reviewed against `main` with `docs/REVIEW.md`. `npm test` p
    - Tests in `test_meta.py` cover both cases.
    - The backend tests' clients now call it at `127.0.0.1`, since FastAPI's test client calls itself `testserver` by default.
 
+## Docs layout (Nov 20, 2026)
+
+The docs are set up for changes after the MVP. No code changed.
+
+- `docs/intent.md` and `docs/plan.md` moved to `docs/changes/mvp/`. Each later change gets its own `docs/changes/<branch name>/` with its `intent.md` and `plan.md`, and agents read only the current branch's folder (AGENTS.md).
+- `docs/spec.md` now describes the whole product as it stands today. It opens with the problem from the MVP's intent, no longer points to the intent as its source, and takes in what the build and the review settled: the choices below, the plan's decisions that change what the app does, and the review fixes. Its section numbers, requirement IDs and concerns 1 to 10 are unchanged, since code comments cite them. Concerns 11 (local dates) and 12 (the host check) and RUN-6 are new.
+- `docs/REVIEW.md` has a new pass that flags code `docs/spec.md` doesn't describe, and points to the change's own `plan.md`.
+- **Left as they were:** some code comments cite the MVP plan ("plan, decision 11", "risk 9", "Phase 7") or its intent ("success criterion 2"). Those now live in `docs/changes/mvp/`, which agents on other branches don't read. Most of what they point to is in `docs/spec.md` now, so a later change could make them cite the spec instead.
+
 ## Choices the build made (please check)
 
-These fill gaps in the spec or follow library changes since the plan was written.
+These fill gaps in the spec or follow library changes since the plan was written. `docs/spec.md` now describes the ones that change what the app does.
 
 1. **Newer library versions.** The plan named React Router 7, Recharts 3, Zod 4 and Tailwind 4. The current stable versions installed are React Router 8, TanStack Table 9, TypeScript 7, Vite 8, Vitest 5, Recharts 3.11 and `@hookform/resolvers` 7. React Router 8 drops the `react-router-dom` package; the app imports from `react-router`.
 2. **`httpx2` instead of `httpx`** for FastAPI's test client. Starlette 1.10 warns that `httpx` support is going away.

@@ -333,12 +333,12 @@ The frontend relies on these answer shapes. A deal looks as it does in spec 2.3.
 3. **The seed command** (`seed.py`):
    - **`load_sample_data(conn, today, now)`** deletes the activities, deals, contacts and organizations, in that order, then loads the sample data.
    - **`npm run seed`:**
-     1. Runs the migrations.
-     2. Asks "This replaces all your data with the sample data. Type yes to continue:".
+     1. Asks "This replaces all your data with the sample data. Type yes to continue:".
+     2. Runs the migrations.
      3. Loads everything in one transaction.
      4. Prints "Sample data loaded: 15 organizations, 40 contacts, 35 deals, 80 activities."
 
-     Any answer other than `yes` prints "Nothing changed." and stops.
+     Any answer other than `yes` prints "Nothing changed." and stops before touching the database. Otherwise, on a new install, it would leave an empty database, and the app's first start would never load the sample data into it.
 4. Turn on seeding when the app starts with a new database.
 
 **Done when** `test_dashboard.py`, `test_seed.py` and the rest of `test_startup.py` pass. Running `npm run seed` while `npm run dev` runs works, and a browser refresh then shows the sample data.

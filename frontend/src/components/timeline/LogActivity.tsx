@@ -1,4 +1,5 @@
-import { useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useLogActivity, type ActivityTarget } from "@/api/activities";
@@ -18,13 +19,29 @@ function fresh(type: LoggableType = "note"): ActivityValues {
   return { type, description: "", occurred_at: nowLocalInput(), follow_up_date: "" };
 }
 
+/** How often an untouched "When" catches up with the clock. */
+const WHEN_REFRESH_MS = 5_000;
+
 /** The "Log activity" box at the top of a timeline (ACT-1). */
 export function LogActivity({ target, idPrefix }: { target: ActivityTarget; idPrefix: string }) {
   const log = useLogActivity();
   const form = useForm<ActivityValues>({ resolver: zodResolver(activitySchema), defaultValues: fresh() });
-  const { register, handleSubmit, reset, setError, setValue, watch, formState } = form;
+  const { register, handleSubmit, reset, setError, setValue, getValues, control, formState } = form;
   const errors = formState.errors;
-  const type = watch("type") as LoggableType;
+  const type = useWatch({ control, name: "type" }) as LoggableType;
+
+  // "When" starts as now and keeps up with the clock until it's changed by
+  // hand, so a page left open through a call doesn't log the call at the time
+  // the page was opened (ACT-1).
+  const [whenChanged, setWhenChanged] = useState(false);
+  useEffect(() => {
+    if (whenChanged) return;
+    const timer = setInterval(() => {
+      const now = nowLocalInput();
+      if (getValues("occurred_at") !== now) setValue("occurred_at", now);
+    }, WHEN_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [whenChanged, getValues, setValue]);
 
   const onSubmit = handleSubmit((values) => {
     log.mutate(
@@ -40,6 +57,7 @@ export function LogActivity({ target, idPrefix }: { target: ActivityTarget; idPr
       {
         onSuccess: () => {
           toast.success(messages.logged);
+          setWhenChanged(false);
           reset(fresh(values.type as LoggableType));
         },
         onError: (error) => showSaveError(error, setError, FIELDS),
@@ -64,7 +82,9 @@ export function LogActivity({ target, idPrefix }: { target: ActivityTarget; idPr
             {...fieldAria(`${idPrefix}-when`, errors.occurred_at?.message)}
             type="datetime-local"
             className="w-[210px]"
-            {...register("occurred_at")}
+            {...register("occurred_at", {
+              onChange: () => setWhenChanged(true),
+            })}
           />
         </Field>
         <Field id={`${idPrefix}-follow-up`} label="Follow-up date" error={errors.follow_up_date?.message}>

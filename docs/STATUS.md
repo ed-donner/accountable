@@ -1,6 +1,6 @@
 # Status
 
-The MVP in `docs/plan.md` is built: Phases 0 to 9 are done. Nothing is committed yet.
+The MVP in `docs/plan.md` is built: Phases 0 to 9 are done and committed on the `mvp` branch. The fixes from the review below aren't committed yet.
 
 ## One-time setup
 
@@ -45,7 +45,7 @@ The end-to-end tests use the Chrome installed on the computer, so they need Chro
 
 ## Tests
 
-`npm test` passes, with every test running and none skipped: backend 225, frontend 96 and end-to-end 41. It also passes while `npm run dev` is running.
+`npm test` passes, with every test running and none skipped: backend 235, frontend 98 and end-to-end 41 (after the review fixes). It also passes while `npm run dev` is running.
 
 It exits with an error if any test fails. To check, a failing test was added to each suite: all three were reported FAILED and the exit code was 1. A test left marked `.only` is refused as well, since it would otherwise run alone and skip the rest. Vitest and Playwright only refuse `.only` on CI by default, so both configs now refuse it everywhere. AGENTS.md tells agents to run `npm test` before calling work finished.
 
@@ -67,6 +67,42 @@ It exits with an error if any test fails. To check, a failing test was added to 
   - Recent activity's 10 entries stretched the bottom row 200px past the mockup.
   - A handful of smaller gaps in the column headings and cards.
 - **Not yet checked by a person:** Microsoft Edge, dragging cards by hand to judge the feel, and moving a deal through the pipeline by keyboard alone while watching the focus outline. The end-to-end tests drag with the mouse and the keyboard, but how it feels needs a person.
+
+## Review against main (Nov 20, 2026)
+
+The `mvp` branch was reviewed against `main` with `docs/REVIEW.md`. `npm test` passed before any fixes. These are what it found, and how each was fixed. Each fix has a test that fails without it.
+
+**Important**
+
+1. **The sales funnel left out deals added in the evening, west of UTC.** It compared each deal's creation date in UTC with today's local date. In Los Angeles, a deal added after about 4pm was missing from the funnel until midnight (DASH-5, DASH-9). East of UTC, a deal added just after local midnight at the start of the 12-month window was dropped.
+   **Fixed:** the funnel turns each creation time into a local date first (`clock.local_date`).
+   - The sample data's times use the same clock (`clock.local_time`).
+   - A frozen clock now fixes the time zone too, UTC unless a test gives one, so the backend tests give the same answers on any computer.
+   - Two tests in `test_dashboard.py` add a deal at 6pm in Los Angeles and at 2am in India.
+2. **Answering "no" to `npm run seed` on a new install left an empty database.** The command ran the migrations before it asked, so it created an empty `data/accountable.db` while printing "Nothing changed." The app then saw the file and never loaded the sample data (DATA-1).
+   **Fixed:** the command asks first, and touches nothing unless the answer is `yes`. `plan.md` Phase 3 now has the steps in that order. A test in `test_seed.py` answers "no" on a new install, checks that nothing was created, then checks that the app's first start loads the sample data.
+
+**Other bugs**
+
+3. **Log activity's "When" kept the time the page was opened.** Logging a call 40 minutes after opening the page saved it 40 minutes early, so it also sorted below entries logged in between (ACT-1, ACT-2).
+   **Fixed:** "When" keeps up with the clock, checked every 5 seconds, until it's changed by hand, and starts again after each log. `LogActivity.test.tsx` checks all three.
+
+**Nits**
+
+4. The Note, Call and Email picker was marked up as radio buttons, but the arrow keys didn't move between them.
+   **Fixed:** it's built on the shadcn toggle group, which is a single Tab stop, with the arrow keys moving between the types.
+5. `ui/select`, `ui/skeleton`, `ui/toggle-group` and `ui/toggle` were installed but unused, and Stage and Status used the browser's own select where spec 2.1 names shadcn/ui.
+   **Fixed:** all four are used now.
+   - Stage (deal form) and Status (contact form) use the shadcn Select.
+   - The grey placeholders are built on Skeleton.
+   - The type picker uses the toggle group.
+   - The select's and toggle's own focus rings were taken out, so they show the brand's focus outline like every other control.
+6. This file still said "Nothing is committed yet."
+   **Fixed:** the top of this file now says what's committed.
+7. The API didn't check the Host header, so a DNS-rebinding page could in principle reach it.
+   **Fixed:** the API answers only requests addressed to `127.0.0.1` or `localhost`, and refuses any other host with a 400.
+   - Tests in `test_meta.py` cover both cases.
+   - The backend tests' clients now call it at `127.0.0.1`, since FastAPI's test client calls itself `testserver` by default.
 
 ## Choices the build made (please check)
 

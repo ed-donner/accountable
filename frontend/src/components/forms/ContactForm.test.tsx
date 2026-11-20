@@ -36,6 +36,6 @@ describe("ContactForm", () => {
   it("starts a new contact as Lead", async () => {
     fakeApi({ "GET /api/meta": META, "GET /api/organizations": ORGS });
     renderWithApp(<ContactForm open onOpenChange={() => {}} />);
-    expect(screen.getByLabelText(/Status/)).toHaveValue("lead");
+    expect(screen.getByLabelText(/^Status/)).toHaveTextContent("Lead");
   });
 });

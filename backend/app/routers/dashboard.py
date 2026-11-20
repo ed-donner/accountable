@@ -29,8 +29,13 @@ def _funnel(conn: Connection, today) -> list[dict]:
         )
     ):
         changes[change.deal_id].append((change.from_stage, change.to_stage))
-    # rules.funnel leaves out the deals created before the 12 months.
-    funnel_deals = [rules.FunnelDeal(row.created_at.date(), row.stage, row.value, changes[row.id]) for row in rows]
+    # rules.funnel leaves out the deals created before the 12 months. created_at
+    # is stored in UTC, so it's turned into a local date to compare with today,
+    # which is local. Otherwise a deal added in the evening west of UTC would be
+    # dated tomorrow and left out.
+    funnel_deals = [
+        rules.FunnelDeal(clock.local_date(row.created_at), row.stage, row.value, changes[row.id]) for row in rows
+    ]
     return rules.funnel(funnel_deals, today)
 
 

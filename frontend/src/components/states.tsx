@@ -2,16 +2,17 @@ import type { ComponentProps, ReactNode } from "react";
 import { Link } from "react-router";
 import { Band } from "@/components/layout/Band";
 import { PageBody } from "@/components/layout/PageBody";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 /** A grey placeholder block, the size of the content it stands in for (spec 2.10). */
 export function Placeholder({ className }: { className?: string }) {
-  return <div aria-hidden className={cn("animate-pulse rounded-lg bg-[#E4ECEE]", className)} />;
+  return <Skeleton aria-hidden className={cn("rounded-lg bg-[#E4ECEE]", className)} />;
 }
 
 /** A placeholder block on the Midnight band. */
 export function BandPlaceholder({ className }: { className?: string }) {
-  return <div aria-hidden className={cn("animate-pulse rounded-lg bg-band-panel", className)} />;
+  return <Skeleton aria-hidden className={cn("rounded-lg bg-band-panel", className)} />;
 }
 
 /** A white panel: 16px corners, a soft shadow and no outline (spec 2.6). */

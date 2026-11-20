@@ -1,4 +1,4 @@
-import { apiGet, apiPost, choose, expect, test, uniqueName } from "../fixtures";
+import { apiGet, apiPost, choose, expect, pick, test, uniqueName } from "../fixtures";
 
 type Contact = { id: number; name: string; status: string };
 
@@ -12,7 +12,7 @@ test.describe("Contacts", () => {
     const dialog = page.getByRole("dialog", { name: "Add contact" });
     await dialog.getByLabel("Name").fill(name);
     await dialog.getByLabel("Email").fill("e2e.lead@test.example");
-    await expect(dialog.getByLabel("Status")).toHaveValue("lead");
+    await expect(dialog.getByLabel("Status")).toHaveText("Lead");
     await dialog.getByRole("button", { name: "Add contact" }).click();
     await expect(page.getByText("Contact added")).toBeVisible();
 
@@ -53,7 +53,7 @@ test.describe("Contacts", () => {
     await page.getByRole("searchbox", { name: "Search contacts" }).fill(name);
     await page.getByRole("button", { name: `Edit ${name}` }).click();
     const edit = page.getByRole("dialog", { name: `Edit ${name}` });
-    await edit.getByLabel("Status").selectOption("customer");
+    await pick(page, edit.getByLabel("Status"), "Customer");
     await edit.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByText("Changes saved")).toBeVisible();
 

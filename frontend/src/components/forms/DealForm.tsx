@@ -6,6 +6,7 @@ import { useSaveDeal } from "@/api/deals";
 import { useToday } from "@/api/meta";
 import type { Deal } from "@/api/types";
 import { Input, fieldClasses } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addDaysTo } from "@/lib/dates";
 import { isClosed, STAGES, STAGE_NAMES, USUAL_PROBABILITY, type Stage } from "@/lib/rules";
 import { messages } from "@/lib/words";
@@ -71,13 +72,10 @@ export function DealForm({ open, onOpenChange, deal, defaultStage, defaultOrgani
   }, [open, today, deal, defaultStage, defaultOrganizationId, reset]);
 
   // Choosing a stage fills in its probability; Won or Lost also fills in today (STG-2).
-  const stageField = register("stage", {
-    onChange: (event) => {
-      const next = event.target.value as Stage;
-      setValue("probability", String(USUAL_PROBABILITY[next]), { shouldValidate: true });
-      if (isClosed(next) && today) setValue("close_date", today, { shouldValidate: true });
-    },
-  });
+  function fillForStage(next: Stage) {
+    setValue("probability", String(USUAL_PROBABILITY[next]), { shouldValidate: true });
+    if (isClosed(next) && today) setValue("close_date", today, { shouldValidate: true });
+  }
 
   const onSubmit = handleSubmit((values) => {
     const input = {
@@ -155,13 +153,34 @@ export function DealForm({ open, onOpenChange, deal, defaultStage, defaultOrgani
       </div>
       <div className="grid grid-cols-2 gap-4">
         <Field id="deal-stage" label="Stage" required error={errors.stage?.message}>
-          <select {...fieldAria("deal-stage", errors.stage?.message)} className={cn(fieldClasses, "h-10")} {...stageField}>
-            {STAGES.map((value) => (
-              <option key={value} value={value}>
-                {STAGE_NAMES[value]}
-              </option>
-            ))}
-          </select>
+          <Controller
+            control={control}
+            name="stage"
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onValueChange={(next) => {
+                  field.onChange(next);
+                  fillForStage(next as Stage);
+                }}
+              >
+                <SelectTrigger
+                  {...fieldAria("deal-stage", errors.stage?.message)}
+                  onBlur={field.onBlur}
+                  className={cn(fieldClasses, "h-10 w-full")}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STAGES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {STAGE_NAMES[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
         </Field>
         <Field id="deal-value" label="Value" required error={errors.value?.message}>
           <div className="relative">

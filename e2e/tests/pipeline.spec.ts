@@ -277,7 +277,7 @@ test.describe("Pipeline", () => {
     await page.goto("/pipeline");
     await page.getByRole("button", { name: "Add deal in Qualified" }).click();
     const dialog = page.getByRole("dialog", { name: "Add deal" });
-    await expect(dialog.getByLabel("Stage")).toHaveValue("qualified");
+    await expect(dialog.getByLabel("Stage")).toHaveText("Qualified");
     await expect(dialog.getByLabel("Probability")).toHaveValue("25");
     await dialog.getByLabel("Name").fill(name);
     await choose(page, dialog.getByLabel("Organization"), "Bluefin Logistics");

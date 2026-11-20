@@ -22,7 +22,8 @@ describe("DealForm", () => {
     await waitFor(() => expect(screen.getByLabelText(/Expected close date/)).toHaveValue("2026-12-19"));
     expect(screen.getByLabelText("Probability")).toHaveValue("10");
 
-    await user.selectOptions(screen.getByLabelText(/Stage/), "proposal");
+    await chooseOption(user, "Stage", "Proposal");
+    expect(screen.getByLabelText(/^Stage/)).toHaveTextContent("Proposal");
     expect(screen.getByLabelText("Probability")).toHaveValue("50");
     expect(screen.getByLabelText("Probability")).not.toHaveAttribute("readonly");
   });
@@ -31,13 +32,13 @@ describe("DealForm", () => {
     fakeApi(ROUTES);
     const { user } = renderWithApp(<DealForm open onOpenChange={() => {}} />);
     await waitFor(() => expect(screen.getByLabelText(/close date/i)).toHaveValue("2026-12-19"));
-    await user.selectOptions(screen.getByLabelText(/Stage/), "won");
+    await chooseOption(user, "Stage", "Won");
     expect(screen.getByLabelText(/Close date/)).toHaveValue("2026-11-19");
     expect(screen.getByLabelText("Probability")).toHaveValue("100");
     expect(screen.getByLabelText("Probability")).toHaveAttribute("readonly");
     expect(screen.getByText("Won is always 100%.")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText(/Stage/), "lost");
+    await chooseOption(user, "Stage", "Lost");
     expect(screen.getByLabelText("Probability")).toHaveValue("0");
   });
 

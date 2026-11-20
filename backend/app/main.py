@@ -7,6 +7,7 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import Engine
 
 from backend.app import clock
@@ -15,6 +16,8 @@ from backend.app.db import make_engine
 from backend.app.routers import activities, contacts, dashboard, deals, meta, organizations, pipeline
 
 ROOT = Path(__file__).resolve().parents[2]
+# The names this computer answers to. The port is ignored.
+LOCAL_HOSTS = ["127.0.0.1", "localhost"]
 
 
 def run_migrations(engine: Engine) -> None:
@@ -56,6 +59,10 @@ def create_app(settings: Settings | None = None, seed_new: bool = True) -> FastA
             engine.dispose()
 
     app = FastAPI(title="Accountable", lifespan=lifespan)
+    # Only answer requests addressed to this computer. A web page that points its
+    # own domain name at 127.0.0.1 (DNS rebinding) sends that name as the host,
+    # so it's refused with a 400.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=LOCAL_HOSTS)
     for module in (meta, organizations, contacts, deals, activities, pipeline, dashboard):
         app.include_router(module.router)
     return app

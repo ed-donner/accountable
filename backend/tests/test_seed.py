@@ -2,14 +2,13 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from backend.app import clock, rules, seed
 from backend.app.config import Settings
 from backend.app.db import activities, deals
 from backend.app.main import create_app
-from backend.tests.conftest import add_org, ok
+from backend.tests.conftest import add_org, local_client, ok
 
 SEED_DAYS = ["2026-11-19", "2026-12-31", "2027-01-01", "2027-01-31", "2027-03-01", "2028-02-29"]
 
@@ -110,7 +109,7 @@ def test_the_rules_hold_on_awkward_seed_days(tmp_path, day):
     now = datetime.combine(today, time(15), tzinfo=timezone.utc)
     clock.freeze(today, now)
     app = create_app(Settings(tmp_path / f"{day}.db", 8000, 5173))
-    with TestClient(app) as client:
+    with local_client(app) as client:
         check_sample_rules(client, today)
         check_stage_paths_and_times(app.state.engine, today, now)
 
@@ -121,14 +120,14 @@ def test_times_are_never_in_the_future_at_any_hour(tmp_path, hour):
     now = datetime.combine(today, time(hour, 5), tzinfo=timezone.utc)
     clock.freeze(today, now)
     app = create_app(Settings(tmp_path / "hours.db", 8000, 5173))
-    with TestClient(app):
+    with local_client(app):
         check_stage_paths_and_times(app.state.engine, today, now)
 
 
 def test_two_seeds_give_the_same_content(tmp_path):
     def snapshot(path):
         app = create_app(Settings(path, 8000, 5173))
-        with TestClient(app) as client:
+        with local_client(app) as client:
             return [
                 ok(client.get(url))
                 for url in ("/api/organizations", "/api/contacts", "/api/deals", "/api/dashboard", "/api/pipeline")
@@ -165,6 +164,18 @@ def test_any_answer_but_yes_changes_nothing(db_env, monkeypatch, capsys, answer)
     assert capsys.readouterr().out.strip() == "Nothing changed."
 
 
+def test_saying_no_on_a_new_install_leaves_nothing_behind(tmp_path, monkeypatch, capsys):
+    path = tmp_path / "data" / "accountable.db"
+    monkeypatch.setenv("ACCOUNTABLE_DB_PATH", str(path))
+    monkeypatch.setattr("builtins.input", lambda prompt: "no")
+    assert seed.main([]) == 0
+    assert capsys.readouterr().out.strip().endswith("Nothing changed.")
+    assert not path.parent.exists()
+    # So the app's first start still finds no database, and loads the sample data (DATA-1).
+    with local_client(create_app(Settings(path, 8000, 5173))) as client:
+        assert len(ok(client.get("/api/organizations"))) == 15
+
+
 def test_typing_yes_loads_the_data(db_env, monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda prompt: "yes")
     assert seed.main([]) == 0
@@ -173,7 +184,7 @@ def test_typing_yes_loads_the_data(db_env, monkeypatch, capsys):
 
 def test_reseeding_works_while_the_app_is_running(db_env):
     app = create_app(db_env, seed_new=True)
-    with TestClient(app) as client:
+    with local_client(app) as client:
         add_org(client, "Added before the reset")
         assert len(ok(client.get("/api/organizations"))) == 16
         # Another connection holds a read open while the seed runs.

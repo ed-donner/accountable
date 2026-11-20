@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 import pytest
 
@@ -125,6 +125,30 @@ def test_the_funnel(client, org):
         "negotiation": (2, 11000),
         "won": (1, 1000),
     }
+
+
+PACIFIC = timezone(timedelta(hours=-8))
+INDIA = timezone(timedelta(hours=5, minutes=30))
+
+
+def funnel_new_count(client) -> int:
+    return dashboard(client)["funnel"][0]["count"]
+
+
+def test_a_deal_added_in_the_evening_west_of_utc_counts_in_the_funnel(client, org):
+    # 6pm on Nov 19 in Los Angeles is already Nov 20 in UTC.
+    clock.freeze(TODAY, datetime(2026, 11, 20, 2, 0, tzinfo=timezone.utc), zone=PACIFIC)
+    add_deal(client, org["id"], "Added at 6pm", stage="new")
+    assert funnel_new_count(client) == 1
+
+
+def test_a_deal_added_just_after_midnight_east_of_utc_counts_from_its_local_day(client, org):
+    # 2am on Dec 1, 2025 in India, the first day of the funnel's 12 months, is
+    # still Nov 30 in UTC.
+    clock.freeze(date(2025, 12, 1), datetime(2025, 11, 30, 20, 30, tzinfo=timezone.utc), zone=INDIA)
+    add_deal(client, org["id"], "Added at 2am", stage="new", close_date="2026-12-12")
+    clock.freeze(TODAY, NOW, zone=INDIA)
+    assert funnel_new_count(client) == 1
 
 
 def test_open_pipeline_by_stage(client, org):

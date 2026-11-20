@@ -25,6 +25,12 @@ def frozen_clock():
     clock.unfreeze()
 
 
+def local_client(app) -> TestClient:
+    """A test client that calls the app at 127.0.0.1, as the browser does. The
+    app refuses any other host, including TestClient's own "testserver"."""
+    return TestClient(app, base_url="http://127.0.0.1")
+
+
 @pytest.fixture
 def settings(tmp_path) -> Settings:
     return Settings(db_path=tmp_path / "test.db", api_port=8000, web_port=5173)
@@ -34,7 +40,7 @@ def settings(tmp_path) -> Settings:
 def client(settings):
     """A test client for an empty database."""
     app = create_app(settings, seed_new=False)
-    with TestClient(app) as test_client:
+    with local_client(app) as test_client:
         yield test_client
 
 
@@ -42,7 +48,7 @@ def client(settings):
 def seeded_client(settings):
     """A test client for a database with the sample data."""
     app = create_app(settings, seed_new=True)
-    with TestClient(app) as test_client:
+    with local_client(app) as test_client:
         yield test_client
 
 

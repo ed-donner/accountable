@@ -1,4 +1,4 @@
-import { apiGet, apiPost, choose, expect, test, uniqueName } from "../fixtures";
+import { apiGet, apiPost, choose, expect, pick, test, uniqueName } from "../fixtures";
 
 type Deal = { id: number; name: string; value: number; close_date: string; is_late: boolean; stage: string };
 
@@ -12,7 +12,7 @@ test.describe("Deals", () => {
     await dialog.getByLabel("Name").fill(name);
     await choose(page, dialog.getByLabel("Organization"), "Bluefin Logistics");
     await choose(page, dialog.getByLabel("Main contact"), "Sarah Chen");
-    await dialog.getByLabel("Stage").selectOption("qualified");
+    await pick(page, dialog.getByLabel("Stage"), "Qualified");
     await expect(dialog.getByLabel("Probability")).toHaveValue("25");
     await dialog.getByLabel("Value").fill("12,500");
     await dialog.getByRole("button", { name: "Add deal" }).click();
@@ -57,9 +57,9 @@ test.describe("Deals", () => {
     await page.getByRole("button", { name: "Edit Data dashboard build" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit Data dashboard build" });
     await expect(dialog.getByLabel("Probability")).toHaveValue("25");
-    await dialog.getByLabel("Stage").selectOption("proposal");
+    await pick(page, dialog.getByLabel("Stage"), "Proposal");
     await expect(dialog.getByLabel("Probability")).toHaveValue("50");
-    await dialog.getByLabel("Stage").selectOption("won");
+    await pick(page, dialog.getByLabel("Stage"), "Won");
     await expect(dialog.getByLabel("Probability")).toHaveValue("100");
     await expect(dialog.getByLabel("Probability")).toHaveAttribute("readonly", "");
     await dialog.getByRole("button", { name: "Cancel" }).click();

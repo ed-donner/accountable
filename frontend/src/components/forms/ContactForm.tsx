@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { STATUSES, STATUS_NAMES, type Status } from "@/lib/rules";
 import { messages } from "@/lib/words";
 import { fieldClasses } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Field, FormDialog, fieldAria, showSaveError } from "./FormDialog";
 import { OrganizationPicker } from "./OrganizationPicker";
@@ -138,17 +139,28 @@ export function ContactForm({ open, onOpenChange, contact, defaultOrganizationId
           />
         </Field>
         <Field id="contact-status" label="Status" required error={errors.status?.message}>
-          <select
-            {...fieldAria("contact-status", errors.status?.message)}
-            className={cn(fieldClasses, "h-10")}
-            {...register("status")}
-          >
-            {STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {STATUS_NAMES[status]}
-              </option>
-            ))}
-          </select>
+          <Controller
+            control={control}
+            name="status"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  {...fieldAria("contact-status", errors.status?.message)}
+                  onBlur={field.onBlur}
+                  className={cn(fieldClasses, "h-10 w-full")}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {STATUS_NAMES[status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
         </Field>
       </div>
     </FormDialog>

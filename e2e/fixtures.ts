@@ -99,6 +99,14 @@ export async function choose(page: Page, trigger: Locator, name: string) {
   await page.getByRole("option", { name: new RegExp(`^${escaped}`) }).first().click();
 }
 
+/** Choose an option in one of the app's selects, such as Stage or Status. */
+export async function pick(page: Page, trigger: Locator, option: string) {
+  await trigger.click();
+  // The options open in a layer of their own, outside the dialog.
+  await page.getByRole("option", { name: option, exact: true }).click();
+  await expect(trigger).toHaveText(option);
+}
+
 /** Add records through the API, through the same Vite server the browser uses. */
 export async function apiPost<T = unknown>(request: APIRequestContext, path: string, data: unknown): Promise<T> {
   const response = await request.post(path, { data });

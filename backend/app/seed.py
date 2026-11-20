@@ -34,7 +34,7 @@ def at(day: date, hhmm: str, now: datetime) -> datetime:
     """A local time on a day, in UTC. A time later than now moves to just before
     now, keeping the order of the day's times."""
     hours, minutes = (int(part) for part in hhmm.split(":"))
-    moment = datetime.combine(day, time(hours, minutes)).astimezone().astimezone(timezone.utc)
+    moment = clock.local_time(day, time(hours, minutes)).astimezone(timezone.utc)
     if moment > now:
         minutes_left_in_day = 24 * 60 - (hours * 60 + minutes)
         moment = now - timedelta(minutes=1 + minutes_left_in_day / 10)
@@ -174,19 +174,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--yes", action="store_true", help="don't ask first")
     args = parser.parse_args(argv)
 
+    # Ask before touching anything. Running the migrations first would create
+    # an empty database on a new install, and the app would then never load the
+    # sample data into it (DATA-1).
+    if not args.yes:
+        try:
+            answer = input("This replaces all your data with the sample data. Type yes to continue: ")
+        except EOFError:
+            answer = ""
+        if answer.strip().lower() != "yes":
+            print("Nothing changed.")
+            return 0
+
     settings = Settings.from_env()
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     engine = make_engine(settings.db_path)
     try:
         run_migrations(engine)
-        if not args.yes:
-            try:
-                answer = input("This replaces all your data with the sample data. Type yes to continue: ")
-            except EOFError:
-                answer = ""
-            if answer.strip().lower() != "yes":
-                print("Nothing changed.")
-                return 0
         # One transaction, so a running app keeps working (RUN-3).
         with engine.connect() as conn:
             conn.info["write"] = True

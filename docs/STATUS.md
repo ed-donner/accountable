@@ -179,7 +179,7 @@ The `gitleaks` step in `npm run check` now prints each finding's file, line and 
 
 Versions, looked up on Nov 20, 2026: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-artifact@v7`, `astral-sh/setup-uv@v10.3.3` (its latest release; it has no `v10` tag) and gitleaks 8.30.1.
 
-**How it was tested.** It hasn't run on GitHub yet; the first push to a GitHub repo of yours will be its first real run.
+**How it was tested.** Before the first push:
 
 - actionlint (with shellcheck) found no problems. With quotes taken off two variables in a copy, it reported both, so shellcheck was running.
 - zizmor found only that the actions are named by version rather than by commit hash.
@@ -187,7 +187,13 @@ Versions, looked up on Nov 20, 2026: `actions/checkout@v7`, `actions/setup-node@
   - With a wrong checksum, the install stopped and added nothing to the path.
   - As written, it installed gitleaks and put it on the next step's path, and the scan found no leaks.
   - With a fake GitHub token committed and then deleted in the next commit, the scan failed and showed the file, commit and rule.
-- Not tried: `npm run check` on Linux. The app has only run on Windows so far, so the first run on GitHub may turn up something that only shows on Linux.
+
+**The first run on GitHub** (the `harness` branch, on your fork) got through gitleaks, the installs and every check, and 38 of the 40 end-to-end tests passed. The reset test then didn't run, since it waits for the others to pass. The two failures were races in the tests, which the slower runner lost:
+
+- DEAL-1: `choose()` in `e2e/fixtures.ts` looked for a picker's search box across the whole page while the last picker was still fading out, so it found two. It now waits for the picker to go once an option is chosen.
+- PIPE-8: dnd-kit starts listening for the arrow keys in a timer it sets at the pick-up, and the second round pressed ArrowRight straight after Space. Both rounds now go through `pickUp()` in `pipeline.spec.ts`, which waits for "Picked up" and then for a timer of its own. Timers with no delay run in the order they were set, so dnd-kit's has run by then.
+- Shown on Windows by stretching each delay. With the picker's fade at 1 second, DEAL-1 failed 2 of 2 before the fix, and the tests that use `choose()` passed 18 of 18 after it. With zero-delay timers 300 ms late, PIPE-8 failed 2 of 2 before and passed 5 of 5 after. Waiting for "Picked up" alone wasn't enough: PIPE-8 still failed 3 of 3. Slowing Chrome's CPU 6 times over didn't bring out either race.
+- After the fix, the deals, contacts and pipeline tests passed at normal speed, and so did `npm run check:quick`. The fixed run on GitHub hasn't happened yet.
 
 ## Choices the build made (please check)
 

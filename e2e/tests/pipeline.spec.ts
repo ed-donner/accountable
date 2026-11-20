@@ -51,6 +51,18 @@ async function columnFigures(request: APIRequestContext, stage: Stage) {
   return totals(pipeline.columns.find((c) => c.stage === stage)!.deals);
 }
 
+/**
+ * Pick up the focused card with Space. dnd-kit starts listening for the arrow
+ * keys in a timer it sets at the pick-up, so an arrow key pressed before that
+ * timer runs is lost. Timers with no delay run in the order they were set, so
+ * once one set here has run, dnd-kit's has too.
+ */
+async function pickUp(page: Page, name: string) {
+  await page.keyboard.press("Space");
+  await expect(page.getByText(`Picked up ${name}.`)).toBeAttached();
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve)));
+}
+
 async function makeDeals(request: APIRequestContext, prefix: string, stage: Stage, names: string[], value = 10_000) {
   const org = await apiPost<{ id: number }>(request, "/api/organizations", { name: `${prefix} Org` });
   const made: Deal[] = [];
@@ -239,8 +251,7 @@ test.describe("Pipeline", () => {
     await page.goto("/pipeline");
 
     await cardNamed(page, name).focus();
-    await page.keyboard.press("Space");
-    await expect(page.getByText(`Picked up ${name}.`)).toBeAttached();
+    await pickUp(page, name);
     await page.keyboard.press("ArrowRight");
     await expect(page.getByText(new RegExp(`${name} is over Qualified`))).toBeAttached();
     await page.keyboard.press("Space");
@@ -254,7 +265,7 @@ test.describe("Pipeline", () => {
       if (r.url().includes("/move")) moves += 1;
     });
     await cardNamed(page, name).focus();
-    await page.keyboard.press("Space");
+    await pickUp(page, name);
     await page.keyboard.press("ArrowRight");
     await expect(page.getByText(new RegExp(`${name} is over Proposal`))).toBeAttached();
     await page.keyboard.press("Escape");

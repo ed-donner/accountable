@@ -94,12 +94,16 @@ export async function settle(page: Page) {
 /** Pick an option in one of the app's searchable pickers. */
 export async function choose(page: Page, trigger: Locator, name: string) {
   await trigger.click();
-  await page.getByPlaceholder(/^Search (organizations|contacts)$/).fill(name);
+  const search = page.getByPlaceholder(/^Search (organizations|contacts)$/);
+  await search.fill(name);
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   await page
     .getByRole("option", { name: new RegExp(`^${escaped}`) })
     .first()
     .click();
+  // The picker fades out before it leaves the page. Wait until it has gone, or
+  // the next picker's search would find two search boxes.
+  await expect(search).toHaveCount(0);
 }
 
 /** Choose an option in one of the app's selects, such as Stage or Status. */

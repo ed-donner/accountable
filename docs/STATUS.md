@@ -111,6 +111,7 @@ The docs are set up for changes after the MVP. No code changed.
 - `docs/intent.md` and `docs/plan.md` moved to `docs/changes/mvp/`. Each later change gets its own `docs/changes/<branch name>/` with its `intent.md` and `plan.md`, and agents read only the current branch's folder (AGENTS.md).
 - `docs/spec.md` now describes the whole product as it stands today. It opens with the problem from the MVP's intent, no longer points to the intent as its source, and takes in what the build and the review settled: the choices below, the plan's decisions that change what the app does, and the review fixes. Its section numbers, requirement IDs and concerns 1 to 10 are unchanged, since code comments cite them. Concerns 11 (local dates) and 12 (the host check) and RUN-6 are new.
 - `docs/REVIEW.md` has a new pass that flags code `docs/spec.md` doesn't describe, and points to the change's own `plan.md`.
+- `AGENTS.md` points to `docs/STANDARDS.md`, the coding standards, and `docs/REVIEW.md` has a pass that checks each change against them. A standards finding is a nit unless it also breaks behavior or leaks data.
 - **Left as they were:** some code comments cite the MVP plan ("plan, decision 11", "risk 9", "Phase 7") or its intent ("success criterion 2"). Those now live in `docs/changes/mvp/`, which agents on other branches don't read. Most of what they point to is in `docs/spec.md` now, so a later change could make them cite the spec instead.
 
 ## Choices the build made (please check)

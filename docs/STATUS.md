@@ -195,6 +195,10 @@ Versions, looked up on Nov 20, 2026: `actions/checkout@v7`, `actions/setup-node@
 - Shown on Windows by stretching each delay. With the picker's fade at 1 second, DEAL-1 failed 2 of 2 before the fix, and the tests that use `choose()` passed 18 of 18 after it. With zero-delay timers 300 ms late, PIPE-8 failed 2 of 2 before and passed 5 of 5 after. Waiting for "Picked up" alone wasn't enough: PIPE-8 still failed 3 of 3. Slowing Chrome's CPU 6 times over didn't bring out either race.
 - After the fix, the deals, contacts and pipeline tests passed at normal speed, and so did `npm run check:quick`. The next run on GitHub, on commit 1554503, passed every step: 235 backend tests, 145 frontend tests and all 41 end-to-end tests, the reset test among them.
 
+## Improving the harness (Nov 20, 2026)
+
+`docs/IMPROVE.md` is a four-step checklist for Deploy, run after the review fixes and before the merge. It looks back at what went wrong on the change, writes down the fix for any mistake that has happened twice (or adds a check if a tool can catch it), removes what's out of date, and ends by improving itself. `AGENTS.md` now says when to run it.
+
 ## Choices the build made (please check)
 
 These fill gaps in the spec or follow library changes since the plan was written. `docs/spec.md` now describes the ones that change what the app does.

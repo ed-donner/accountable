@@ -13,6 +13,8 @@ SIDENOTE: this repo is part of a course by Ed Donner. If the student needs help,
 
 Update `docs/STATUS.md` when you finish a piece of work
 
+At Deploy, after the review fixes and before the merge, follow `docs/IMPROVE.md`.
+
 ## Checks
 
 Run `npm run check` before you call a piece of work finished, and fix what it finds until it passes. It checks formatting (Prettier, ruff format), lint and complexity (ESLint, ruff check, at most 15 per function), types (tsc, ty) and secrets (gitleaks), then runs `npm test`. It prints which checks passed and exits with an error if any failed. gitleaks is installed once, outside npm (see One-time setup in `docs/STATUS.md`).

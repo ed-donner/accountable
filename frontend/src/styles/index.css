@@ -172,6 +172,36 @@
   }
 }
 
+/*
+  A 4px scrollbar with its room always kept, for the board's columns and the
+  dashboard's lists. On the board it fits in the 12px between two columns,
+  next to the 4px each card needs for its focus outline, so the cards stay as
+  wide as their headings. Chrome and Edge only draw ::-webkit-scrollbar when
+  scrollbar-width isn't set, so that is left for other browsers.
+*/
+@layer components {
+  .scroll-thin {
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+  .scroll-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: #b9c9ce;
+    border-radius: 999px;
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    .scroll-thin {
+      scrollbar-width: thin;
+      scrollbar-color: #b9c9ce transparent;
+    }
+  }
+}
+
 /* Movement is turned off when the computer asks for reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,

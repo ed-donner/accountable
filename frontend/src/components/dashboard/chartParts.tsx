@@ -18,7 +18,9 @@ export function MonthTooltip({ active, payload, figure }: Partial<TooltipContent
 /** The 12-month total above a chart, such as "$511,000 won in the last 12 months". */
 export function ChartTotal({ value, children }: { value: string; children: ReactNode }) {
   return (
-    <div className="-mt-1.5 mb-2.5 flex items-baseline gap-2.5">
+    // The total keeps the spec's 30px line height; the margins put the figure
+    // and the chart below it where the mockup has them.
+    <div className="-mt-2.5 mb-[7px] flex items-baseline gap-2.5">
       <span className="font-mono text-[22px] leading-[30px] font-medium text-ink" data-figure="total">
         {value}
       </span>

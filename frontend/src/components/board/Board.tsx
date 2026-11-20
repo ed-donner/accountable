@@ -323,8 +323,14 @@ function BoardLayout({ subtitle, figures, onAdd, headings, columns }: LayoutProp
           <div className="on-band shrink-0 bg-band px-8 pt-7 pb-9">
             <div className="grid grid-cols-6 gap-3">{headings}</div>
           </div>
-          <div className="min-h-0 flex-1 px-[26px] pt-2.5 pb-4">
-            <div className="grid h-full grid-cols-6 grid-rows-[minmax(0,1fr)] gap-3 [&>*]:min-h-0">{columns}</div>
+          {/*
+            No gap between the columns: each takes 12px more than its heading
+            (4px on the left, 4px on the right and the 4px scrollbar), which is
+            the 12px gap between the headings. So the cards sit exactly under
+            their headings.
+          */}
+          <div className="min-h-0 flex-1 pt-3 pr-6 pb-4 pl-7">
+            <div className="grid h-full grid-cols-6 grid-rows-[minmax(0,1fr)] [&>*]:min-h-0">{columns}</div>
           </div>
         </div>
       </div>
@@ -344,12 +350,12 @@ export function BoardPlaceholder() {
         </>
       }
       headings={STAGES.map((stage) => (
-        <BandPlaceholder key={stage} className="h-[150px] rounded-[14px]" />
+        <BandPlaceholder key={stage} className="h-[162px] rounded-[14px]" />
       ))}
       columns={STAGES.map((stage) => (
-        <div key={stage} className="flex flex-col gap-2.5 p-1.5">
-          <Placeholder className="h-[112px] rounded-xl" />
-          <Placeholder className="h-[112px] rounded-xl" />
+        <div key={stage} className="flex flex-col gap-2.5 py-1 pr-2 pl-1">
+          <Placeholder className="h-[127px] rounded-xl" />
+          <Placeholder className="h-[127px] rounded-xl" />
         </div>
       ))}
     />

@@ -12,9 +12,15 @@ import { BandPlaceholder, LoadFailed, Panel, Placeholder } from "@/components/st
 import { monthLabel } from "@/lib/dashboard";
 import { dashboardDate } from "@/lib/format";
 
+// The panels in two rows, as in the mockup: Revenue won and Deals won split 7 to 5,
+// then the funnel, follow-ups and recent activity a third each.
+const TOP_ROW = "mb-6 grid grid-cols-[7fr_5fr] gap-6";
+const BOTTOM_ROW = "grid grid-cols-3 gap-6";
+
 /** The date under the title, in Instrument Serif italic (DASH-1). */
 function DateLine({ children }: { children: string }) {
-  return <p className="font-serif text-[22px] leading-[30px] text-band-ink-soft italic">{children}</p>;
+  // 2px under the title, as in the mockup; the band's usual subtitle sits 4px under it.
+  return <p className="-mt-0.5 font-serif text-[22px] leading-[30px] text-band-ink-soft italic">{children}</p>;
 }
 
 export default function DashboardPage() {
@@ -45,16 +51,18 @@ export default function DashboardPage() {
           <BandPlaceholder className="h-[140px]" />
         </Band>
         <PageBody>
-          <div className="grid grid-cols-12 gap-6">
-            <Panel className="col-span-7">
-              <Placeholder className="h-[316px]" />
+          <div className={TOP_ROW}>
+            <Panel>
+              <Placeholder className="h-[317px]" />
             </Panel>
-            <Panel className="col-span-5">
-              <Placeholder className="h-[316px]" />
+            <Panel>
+              <Placeholder className="h-[317px]" />
             </Panel>
+          </div>
+          <div className={BOTTOM_ROW}>
             {[0, 1, 2].map((i) => (
-              <Panel key={i} className="col-span-4">
-                <Placeholder className="h-[340px]" />
+              <Panel key={i}>
+                <Placeholder className="h-[474px]" />
               </Panel>
             ))}
           </div>
@@ -72,9 +80,11 @@ export default function DashboardPage() {
         <PipelineStrip stages={data.open_by_stage} />
       </Band>
       <PageBody>
-        <div className="grid grid-cols-12 gap-6">
+        <div className={TOP_ROW}>
           <RevenueChart months={months} />
           <DealsWonChart months={months} />
+        </div>
+        <div className={BOTTOM_ROW}>
           <Funnel steps={data.funnel} />
           <FollowUps items={data.follow_ups} today={data.today} />
           <RecentActivity entries={data.recent} today={data.today} />

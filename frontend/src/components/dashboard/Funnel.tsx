@@ -19,7 +19,7 @@ export function Funnel({ steps }: { steps: Dashboard["funnel"] }) {
   const shares = funnelShares(steps);
 
   return (
-    <Panel className="col-span-4" aria-labelledby="funnel-title">
+    <Panel aria-labelledby="funnel-title">
       <PanelTitle hint="Created in the last 12 months" id="funnel-title">
         Sales funnel
       </PanelTitle>

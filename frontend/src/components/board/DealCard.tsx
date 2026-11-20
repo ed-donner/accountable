@@ -15,7 +15,7 @@ export function DealCard({ deal, lifted, className }: { deal: Deal; lifted?: boo
   return (
     <article
       className={cn(
-        "rounded-xl bg-panel px-3.5 py-3 text-left shadow-soft",
+        "rounded-xl bg-panel px-3.5 py-[13px] text-left shadow-soft",
         lifted && "shadow-lifted",
         className,
       )}

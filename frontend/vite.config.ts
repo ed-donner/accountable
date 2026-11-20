@@ -34,5 +34,7 @@ export default defineConfig({
     // With npm run dev and the end-to-end servers busy at the same time, one
     // passed Vitest's default 5 seconds, so the limit leaves room for that.
     testTimeout: 15_000,
+    // A test left as .only would quietly skip the rest, so npm test refuses it.
+    allowOnly: false,
   },
 });

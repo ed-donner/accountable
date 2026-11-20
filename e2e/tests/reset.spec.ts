@@ -19,7 +19,6 @@ test("npm run seed resets the data while the app is running (RUN-3, success crit
     cwd: root,
     env: { ...process.env, ACCOUNTABLE_DB_PATH: "e2e/.data/test.db" },
     encoding: "utf8",
-    shell: process.platform === "win32",
   });
   expect(output).toContain("Sample data loaded: 15 organizations, 40 contacts, 35 deals, 80 activities");
 

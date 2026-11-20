@@ -4,16 +4,17 @@ import { Panel, PanelTitle } from "@/components/states";
 import { ACTIVITY_ICONS } from "@/components/timeline/activityTypes";
 import { recentWhen } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
+import { LIST_SCROLL } from "./listStyle";
 
 /** The latest 10 entries, stage changes included, each linking to its contact or deal (DASH-8). */
 export function RecentActivity({ entries, today }: { entries: TimelineEntry[]; today: string }) {
   return (
-    <Panel className="col-span-4" aria-labelledby="recent-title">
+    <Panel aria-labelledby="recent-title">
       <PanelTitle id="recent-title">Recent activity</PanelTitle>
       {entries.length === 0 ? (
         <p className="py-6 text-center text-ink-subtle">Nothing logged yet.</p>
       ) : (
-        <ul aria-label="Recent activity" className="-my-2.5">
+        <ul aria-label="Recent activity" className={LIST_SCROLL}>
           {entries.map((entry) => {
             const Icon = ACTIVITY_ICONS[entry.type];
             const stage = entry.type === "stage_change";

@@ -47,6 +47,8 @@ The end-to-end tests use the Chrome installed on the computer, so they need Chro
 
 `npm test` passes, with every test running and none skipped: backend 225, frontend 96 and end-to-end 41. It also passes while `npm run dev` is running.
 
+It exits with an error if any test fails. To check, a failing test was added to each suite: all three were reported FAILED and the exit code was 1. A test left marked `.only` is refused as well, since it would otherwise run alone and skip the rest. Vitest and Playwright only refuse `.only` on CI by default, so both configs now refuse it everywhere. AGENTS.md tells agents to run `npm test` before calling work finished.
+
 - **Backend (pytest):** the files listed in the plan's Proof, from `test_meta.py` to `test_seed.py`.
 - **Frontend (Vitest):** formatting, dates, rules (the shared cases), the board logic, the dashboard helpers, wording, the table, the forms and the delete dialog. They run in the America/Los_Angeles time zone.
 - **End to end (Playwright, in Chrome):** smoke, organizations, contacts, deals, deletes, activities, pipeline, dashboard, and reset last. A shared guard fails any test on a console error, an API error it didn't expect, or a request that leaves the computer.
@@ -56,7 +58,14 @@ The end-to-end tests use the Chrome installed on the computer, so they need Chro
 - **First run:** with `node_modules`, `frontend/node_modules`, `.venv` and `data/` removed, `npm run dev` installed everything, created and seeded a new database, and the dashboard showed the sample data ($1,011,000 open pipeline, $502,300 expected revenue). Your own `data/` was moved aside for this and put back afterwards. In Phase 0 the same check also confirmed the printed address and the browser opening.
 - **Stopping:** a real Ctrl+C left nothing on ports 8000 or 5173 (Phase 0).
 - **Resetting:** `npm run seed` worked while the app was running (Phase 0, and `reset.spec.ts` every run).
-- **A look at every screen** in Chrome at 1280px, and the pipeline at 1024px, where it scrolls sideways. No console errors. The dashboard and the pipeline match the chosen mockup closely. With reduced motion on, the charts draw without animating.
+- **A look at every screen** in Chrome at 1280px, and the pipeline at 1024px, where it scrolls sideways. No console errors. With reduced motion on, the charts draw without animating.
+- **Against the chosen mockup:** Playwright opened `docs/mockups/2-midnight-deck.html` next to the running app, both 1440px wide, and compared the position, size and font of each part. The dashboard and the pipeline now match it to within 1px; only the sample data differs. Fixed along the way:
+  - The pipeline's cards were 20px narrower than their headings.
+  - The dashboard's band was 10px too tall, because the word "overdue" took the figures' 50px line height.
+  - The revenue chart's points ran edge to edge instead of sitting mid-month under the bars.
+  - The two chart panels were 4px off the mockup's 7 to 5 split.
+  - Recent activity's 10 entries stretched the bottom row 200px past the mockup.
+  - A handful of smaller gaps in the column headings and cards.
 - **Not yet checked by a person:** Microsoft Edge, dragging cards by hand to judge the feel, and moving a deal through the pipeline by keyboard alone while watching the focus outline. The end-to-end tests drag with the mouse and the keyboard, but how it feels needs a person.
 
 ## Choices the build made (please check)
@@ -84,5 +93,7 @@ These fill gaps in the spec or follow library changes since the plan was written
 14. **Card dates stay in full** ("Dec 11, 2026", GEN-4). On a narrow column the date moves under the value rather than breaking in two.
 15. **Charts draw in 400ms** rather than Recharts' default 1.5 seconds, since spec 2.6 keeps movement short. With reduced motion they don't animate.
 16. **The revenue axis uses round steps** ($0, $50k, $100k, $150k). Recharts' own steps came out as $35k, $70k, $105k.
-17. **The follow-ups list scrolls** once it's taller than the panels beside it, so a long list doesn't stretch the dashboard.
+17. **The follow-ups and recent activity lists scroll** once they're taller than seven follow-ups, the height in the mockup, so the bottom row keeps the mockup's height. Recent activity holds 10 entries (DASH-8) where the mockup shows 6, so the last few are a scroll away.
 18. **Frontend tests may take up to 15 seconds each** (Vitest's default is 5). A form test that opens a picker three times takes about 2 seconds, and passed 5 while `npm run dev` and the end-to-end servers were busy at the same time.
+19. **Board columns have a 4px scrollbar.** The 12px between two columns has to hold both cards' focus outlines (4px each) and the scrollbar, so the cards can be as wide as their headings, as in the mockup. Chrome and Edge draw it at 4px. Other browsers use their own thin scrollbar, which makes the cards a few pixels narrower there.
+20. **Two places keep the spec rather than the mockup.** The chart totals keep the spec's 30px line height (the mockup's comes out at 20px); their margins put the charts where the mockup has them. The main Add deal button stays 40px tall like the inputs on other pages (the mockup's is 37px).

@@ -14,7 +14,7 @@ export function DealsWonChart({ months }: { months: MonthRow[] }) {
   const total = months.reduce((sum, m) => sum + m.deals, 0);
 
   return (
-    <Panel className="col-span-5" aria-labelledby="deals-won-title">
+    <Panel aria-labelledby="deals-won-title">
       <PanelTitle hint="Last 12 months" id="deals-won-title">
         Deals won
       </PanelTitle>
@@ -22,14 +22,14 @@ export function DealsWonChart({ months }: { months: MonthRow[] }) {
       <p className="sr-only">{dealsWonSummary(months)}</p>
       <div className="h-[250px]" data-chart="deals-won">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={months} margin={{ top: 18, right: 4, bottom: 0, left: 0 }}>
+          <BarChart data={months} margin={{ top: 22, right: 16, bottom: 4, left: 0 }}>
             <CartesianGrid vertical={false} stroke={GRID} />
             <XAxis dataKey="label" interval={0} tickLine={false} axisLine={false} tick={AXIS_TICK} tickMargin={10} />
             <YAxis
               allowDecimals={false}
               // Room above the tallest bar for its count.
               domain={[0, (max: number) => Math.max(1, max + 1)]}
-              width={32}
+              width={36}
               tickLine={false}
               axisLine={false}
               tick={AXIS_TICK}

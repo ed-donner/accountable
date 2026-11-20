@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { shortDay } from "@/lib/dashboard";
 import { dueLabel } from "@/lib/format";
 import { messages } from "@/lib/words";
+import { LIST_SCROLL } from "./listStyle";
 
 function FollowUpItem({ item, today }: { item: FollowUp; today: string }) {
   const change = useChangeActivity();
@@ -76,14 +77,14 @@ function FollowUpItem({ item, today }: { item: FollowUp; today: string }) {
 /** Open follow-ups that are overdue or due in the next 7 days, earliest first (DASH-7). */
 export function FollowUps({ items, today }: { items: FollowUp[]; today: string }) {
   return (
-    <Panel className="col-span-4" aria-labelledby="follow-ups-title">
+    <Panel aria-labelledby="follow-ups-title">
       <PanelTitle hint="Overdue and next 7 days" id="follow-ups-title">
         Follow-ups
       </PanelTitle>
       {items.length === 0 ? (
         <p className="py-6 text-center text-ink-subtle">Nothing due in the next 7 days.</p>
       ) : (
-        <ul aria-label="Follow-ups" className="-my-2.5 max-h-[460px] overflow-y-auto [scrollbar-width:thin]">
+        <ul aria-label="Follow-ups" className={LIST_SCROLL}>
           {items.map((item) => (
             <FollowUpItem key={item.id} item={item} today={today} />
           ))}

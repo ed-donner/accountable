@@ -23,18 +23,18 @@ export function ColumnHeading({ stage, totals, onAdd }: { stage: Stage; totals: 
           <span className="sr-only"> {pluralNoun(totals.count, "deal")}</span>
         </span>
       </div>
-      <div className="tabular mt-2.5 font-mono text-[18px] leading-6 text-band-ink" data-figure="value">
+      <div className="tabular mt-2.5 font-mono text-[18px] leading-5 text-band-ink" data-figure="value">
         {money(totals.value)}
       </div>
-      <div className="text-[12px] text-band-muted">
+      <div className="mb-3 text-[12px] text-band-muted">
         Expected{" "}
         <span className="tabular font-mono" data-figure="expected">
           {money(totals.expected)}
         </span>
       </div>
       {isClosed(stage) && <div className="mt-1 text-[12px] text-band-muted">Closed in the last 30 days</div>}
-      <div className="mt-auto pt-3">
-        <Button variant="band" size="sm" className="w-full" onClick={() => onAdd(stage)} aria-label={`Add deal in ${name}`}>
+      <div className="mt-auto">
+        <Button variant="band" size="sm" className="h-[30px] w-full" onClick={() => onAdd(stage)} aria-label={`Add deal in ${name}`}>
           <Plus className="size-3.5" /> Add deal
         </Button>
       </div>

@@ -13,7 +13,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  forbidOnly: !!process.env.CI,
+  // A test left as .only would quietly skip the rest, so npm test refuses it.
+  forbidOnly: true,
   timeout: 30_000,
   expect: { timeout: 7_000 },
   reporter: [["list"], ["html", { outputFolder: "../playwright-report", open: "never" }]],

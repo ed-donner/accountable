@@ -29,8 +29,9 @@ export function BoardColumn({
         ref={setNodeRef}
         aria-label={`${name} deals`}
         className={cn(
-          // A thin scrollbar, with room kept for it in every column so the cards line up.
-          "flex min-h-0 flex-col gap-2.5 overflow-y-auto rounded-2xl p-1.5 transition-colors duration-150 [scrollbar-color:#B9C9CE_transparent] [scrollbar-gutter:stable] [scrollbar-width:thin]",
+          // 4px around the cards for their focus outlines, then the 4px scrollbar
+          // on the right, so each card is exactly as wide as its heading.
+          "scroll-thin flex min-h-0 flex-col gap-2.5 rounded-2xl p-1 transition-colors duration-150",
           highlighted && "bg-[#E1E9EB]",
         )}
       >

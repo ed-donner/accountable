@@ -47,8 +47,12 @@ export function HeadlineFigures({ dashboard }: { dashboard: Dashboard }) {
         value={
           <span className={cn(overdue > 0 ? "text-band-alert" : "text-band-ink")}>
             {overdue}
-            {/* The space sits in the smaller type, so it stays narrow. */}
-            <span className="ml-1.5 font-sans text-[18px] font-medium tracking-normal">{" "}overdue</span>
+            {/*
+              The space sits in the smaller type, so it stays narrow. leading-none
+              keeps the word from taking the figure's 50px line height, which
+              made this figure 8px taller than the other three.
+            */}
+            <span className="ml-1.5 font-sans text-[18px] leading-none font-medium tracking-normal">{" "}overdue</span>
           </span>
         }
         note={

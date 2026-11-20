@@ -21,7 +21,7 @@ export function RevenueChart({ months }: { months: MonthRow[] }) {
   const ticks = niceTicks(Math.max(...months.map((m) => m.revenue), 40_000));
 
   return (
-    <Panel className="col-span-7" aria-labelledby="revenue-title">
+    <Panel aria-labelledby="revenue-title">
       <PanelTitle hint="Last 12 months" id="revenue-title">
         Revenue won
       </PanelTitle>
@@ -30,10 +30,11 @@ export function RevenueChart({ months }: { months: MonthRow[] }) {
       {/* A fixed height, so the chart never measures zero. */}
       <div className="h-[250px]" data-chart="revenue">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={months} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+          <AreaChart data={months} margin={{ top: 20, right: 16, bottom: 4, left: 0 }}>
             <CartesianGrid vertical={false} stroke={GRID} />
-            <XAxis dataKey="label" interval={0} tickLine={false} axisLine={false} tick={AXIS_TICK} tickMargin={10} />
-            <YAxis ticks={ticks} domain={[0, ticks[ticks.length - 1]]} tickFormatter={shortMoney} width={56} tickLine={false} axisLine={false} tick={AXIS_TICK} tickMargin={6} />
+            {/* A band scale puts each month's point in the middle of its month, in line with the bars beside it. */}
+            <XAxis dataKey="label" scale="band" interval={0} tickLine={false} axisLine={false} tick={AXIS_TICK} tickMargin={10} />
+            <YAxis ticks={ticks} domain={[0, ticks[ticks.length - 1]]} tickFormatter={shortMoney} width={60} tickLine={false} axisLine={false} tick={AXIS_TICK} tickMargin={6} />
             <Tooltip
               content={(props) => <MonthTooltip {...props} figure={(row) => `${money(row.revenue)} won`} />}
               cursor={{ stroke: "#B9C9CE", strokeWidth: 1 }}

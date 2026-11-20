@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 1: Clear desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #F0F4F5; --panel: #FFFFFF; --ink: #073B4C; --muted: #46636D; --subtle: #56747E;
+    --line: #E4ECEE; --control: #7D949C; --mist: #CDD8DB;
+    --sea: #06D6A0; --sea-text: #037A5C; --sea-tint: #DCF9F2;
+    --rasp-text: #C42A50; --cer-tint: #DEEFF4; --cer: #118AB2;
+    --shadow: 0 1px 2px rgba(7, 59, 76, 0.06), 0 2px 8px rgba(7, 59, 76, 0.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 40px; background: #D3DDE0; color: var(--ink); font: 14px/20px 'Instrument Sans', sans-serif; }
+  .sheet-label { width: 1440px; margin: 0 auto 14px; font-size: 15px; font-weight: 600; color: var(--ink); }
+  .sheet-label span { font-weight: 400; color: var(--muted); }
+  .screen { width: 1440px; margin: 0 auto 56px; background: var(--page); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 40px rgba(7, 59, 76, 0.18); }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  a { color: #0D6E8E; text-decoration: none; }
+
+  .topbar { height: 64px; background: var(--ink); display: flex; align-items: center; gap: 44px; padding: 0 32px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: #FFFFFF; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .mark { width: 24px; height: 24px; border-radius: 7px; background: var(--sea); display: grid; place-items: center; }
+  .mark::after { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--ink); }
+  nav { display: flex; gap: 4px; }
+  nav a { color: var(--mist); font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 999px; }
+  nav a.on { background: var(--sea); color: var(--ink); font-weight: 600; }
+
+  main { padding: 32px; }
+  .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+  h1 { margin: 0; font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -0.01em; }
+  .date { margin: 2px 0 0; font: italic 20px/28px 'Instrument Serif', serif; color: var(--muted); }
+  .sub { margin: 4px 0 0; color: var(--muted); }
+
+  .panel { background: var(--panel); border-radius: 16px; box-shadow: var(--shadow); padding: 24px; }
+  .panel-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+  h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; }
+  .hint { font-size: 13px; color: var(--subtle); }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 24px; }
+  .kpi-l { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .kpi-v { font-size: 30px; line-height: 40px; font-weight: 500; margin: 6px 0 4px; }
+  .kpi-v .alert { color: var(--rasp-text); }
+  .kpi-unit { font-size: 16px; font-weight: 500; color: var(--rasp-text); }
+  .kpi-s { font-size: 13px; color: var(--muted); }
+
+  .row { display: grid; gap: 24px; margin-bottom: 24px; }
+  .r84 { grid-template-columns: 2fr 1fr; }
+  .r66 { grid-template-columns: 1fr 1fr; }
+  .chart svg { display: block; }
+  .ax { font: 12px 'JetBrains Mono', monospace; fill: var(--subtle); }
+  .tip-l { font: 12px 'Instrument Sans', sans-serif; fill: var(--muted); }
+  .tip-v { font: 600 16px 'JetBrains Mono', monospace; fill: var(--ink); }
+  .bar-l { font: 500 12px 'JetBrains Mono', monospace; fill: var(--ink); }
+
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; flex: none; }
+  .fn-row { display: grid; grid-template-columns: 112px 1fr 150px; column-gap: 16px; align-items: center; height: 34px; }
+  .fn-name { display: flex; align-items: center; font-weight: 500; }
+  .fn-track { height: 28px; display: flex; }
+  .fn-track.centered { justify-content: center; }
+  .fn-bar { height: 100%; border-radius: 6px; }
+  .fn-fig { display: flex; justify-content: flex-end; gap: 10px; align-items: baseline; }
+  .fn-count { font-size: 12px; color: var(--subtle); width: 54px; text-align: right; }
+  .fn-share { margin-left: 128px; margin-right: 166px; text-align: center; font-size: 12px; line-height: 18px; color: var(--subtle); }
+
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -2px; }
+  .sr-row { display: grid; grid-template-columns: 150px 1fr 190px; align-items: center; gap: 12px; height: 62px; }
+  .sr-name { display: flex; align-items: center; font-weight: 500; }
+  .sr-count { margin-left: 8px; font: 12px 'JetBrains Mono', monospace; color: var(--subtle); }
+  .sr-track { position: relative; height: 28px; }
+  .sr-total, .sr-exp { position: absolute; left: 0; top: 0; height: 100%; border-radius: 6px; }
+  .sr-exp { box-shadow: 2px 0 0 #FFFFFF; }
+  .sr-fig { display: flex; flex-direction: column; align-items: flex-end; }
+  .sr-exp-l { font-size: 12px; color: var(--subtle); }
+
+  .fu-group { font-size: 13px; font-weight: 600; color: var(--muted); margin: 4px 0 6px; }
+  .fu-group .mono { font-weight: 500; margin-left: 4px; }
+  .fu-list, .ra-list { list-style: none; margin: 0 0 12px; padding: 0; }
+  .fu { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; padding: 10px 0; align-items: start; }
+  .fu + .fu, .ra + .ra { box-shadow: 0 -1px 0 var(--line); }
+  .tick { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--control); margin-top: 1px; }
+  .fu-text { font-weight: 500; }
+  .fu-meta { display: flex; gap: 12px; font-size: 13px; color: var(--subtle); margin-top: 2px; }
+  .fu-type { display: inline-flex; align-items: center; gap: 5px; }
+  .fu-date { display: flex; flex-direction: column; align-items: flex-end; font-size: 13px; color: var(--muted); }
+  .late-text { color: var(--rasp-text); font-weight: 600; }
+  .fu-day { color: var(--muted); }
+  .ra { display: grid; grid-template-columns: 40px 1fr; padding: 11px 0; }
+  .ra-icon { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #EAF0F2; color: var(--muted); }
+  .ra-stage .ra-icon { background: var(--sea-tint); color: var(--sea-text); }
+  .ra-meta { display: flex; justify-content: space-between; font-size: 13px; margin-top: 2px; }
+  .ra-when { color: var(--subtle); }
+
+  /* Pipeline */
+  main.wide { padding: 32px 32px 40px; }
+  .ph-right { display: flex; align-items: center; gap: 32px; }
+  .fig { display: flex; flex-direction: column; align-items: flex-end; }
+  .fig-l { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .fig-v { font-size: 22px; line-height: 30px; font-weight: 500; }
+  .btn { font: 600 14px 'Instrument Sans', sans-serif; border: 0; border-radius: 8px; padding: 10px 16px; display: inline-flex; align-items: center; gap: 6px; }
+  .btn.primary { background: var(--sea); color: var(--ink); }
+  .board { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; align-items: start; }
+  .col { background: #E5ECEE; border-radius: 16px; padding: 12px 10px 10px; min-height: 760px; }
+  .col.drop-target { background: var(--cer-tint); }
+  .col-h { padding: 2px 6px 12px; }
+  .col-t { display: flex; align-items: center; font-weight: 600; font-size: 15px; }
+  .col-count { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted); background: #FFFFFF; border-radius: 999px; padding: 1px 8px; }
+  .col-figs { display: flex; flex-direction: column; margin-top: 8px; }
+  .col-v { font-size: 16px; font-weight: 500; }
+  .col-e { font-size: 12px; color: var(--muted); }
+  .col-note { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .col-add { width: 100%; margin-bottom: 10px; font: 500 13px 'Instrument Sans', sans-serif; color: var(--muted); background: rgba(255, 255, 255, 0.55); border: 0; border-radius: 10px; padding: 8px; display: flex; justify-content: center; align-items: center; gap: 6px; }
+  .col-cards { display: flex; flex-direction: column; gap: 8px; }
+  .card { background: #FFFFFF; border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; }
+  .card-name { font-weight: 600; line-height: 19px; }
+  .card-org { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .card-nums { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px; }
+  .card-value { font-weight: 500; }
+  .card-date { color: var(--muted); }
+  .is-late .card-date { color: var(--rasp-text); }
+  .card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--muted); min-height: 22px; }
+  .card-who { display: inline-flex; align-items: center; gap: 6px; }
+  .card-contact.none { color: var(--subtle); font-style: italic; }
+  .avatar { width: 22px; height: 22px; border-radius: 50%; background: #E3EBED; color: var(--ink); font-size: 10px; font-weight: 600; display: grid; place-items: center; }
+  .badge-late { display: inline-flex; align-items: center; gap: 4px; background: var(--rasp-text); color: #FFFFFF; font-size: 11px; font-weight: 600; line-height: 16px; padding: 2px 8px 2px 6px; border-radius: 999px; }
+  .card.ghost { opacity: 0.35; }
+  .slot { position: relative; height: 112px; border-radius: 12px; background: rgba(255, 255, 255, 0.6); outline: 2px dashed var(--cer); outline-offset: -2px; }
+  .slot .card { position: absolute; left: 10px; top: -12px; width: 100%; transform: rotate(2.5deg); box-shadow: 0 12px 24px rgba(7, 59, 76, 0.18); }
+</style>
+</head>
+<body>
+
+<div class="sheet-label">Mockup 1: Clear desk <span>&nbsp; Dashboard</span></div>
+<div class="screen">
+  <header class="topbar">
+    <div class="brand"><span class="mark"></span>Accountable</div>
+    <nav><a class="on" href="#">Dashboard</a><a href="#">Organizations</a><a href="#">Contacts</a><a href="#">Deals</a><a href="#">Pipeline</a></nav>
+  </header>
+  <main>
+    <div class="ph"><div><h1>Dashboard</h1><p class="date">Thursday, November 19</p></div></div>
+    <section class="kpis">
+      <div class="panel"><div class="kpi-l">Open pipeline</div><div class="kpi-v mono">$1,011,000</div><div class="kpi-s">19 open deals</div></div>
+      <div class="panel"><div class="kpi-l">Expected revenue</div><div class="kpi-v mono">$502,300</div><div class="kpi-s">Value times probability of close</div></div>
+      <div class="panel"><div class="kpi-l">Won this month</div><div class="kpi-v mono">$54,000</div><div class="kpi-s">1 deal. Last month <span class="mono">$8,500</span></div></div>
+      <div class="panel"><div class="kpi-l">Follow-ups</div><div class="kpi-v"><span class="mono alert">3</span> <span class="kpi-unit">overdue</span></div><div class="kpi-s"><span class="mono">4</span> due in the next 7 days</div></div>
+    </section>
+    <section class="row r84">
+      <div class="panel"><div class="panel-h"><h2>Revenue won</h2><span class="hint">Last 12 months</span></div><div class="chart" id="line"></div></div>
+      <div class="panel"><div class="panel-h"><h2>Deals won</h2><span class="hint">Last 12 months</span></div><div class="chart" id="bars"></div></div>
+    </section>
+    <section class="row r66">
+      <div class="panel"><div class="panel-h"><h2>Sales funnel</h2><span class="hint">Deals created in the last 12 months</span></div><div id="funnel"></div></div>
+      <div class="panel"><div class="panel-h"><h2>Open pipeline by stage</h2><div class="legend"><span><i style="background:#C8D5D9"></i>Total value</span><span><i style="background:#7D949C"></i>Expected revenue</span></div></div><div id="stages"></div></div>
+    </section>
+    <section class="row r66">
+      <div class="panel"><div class="panel-h"><h2>Follow-ups</h2><span class="hint">Overdue and due in the next 7 days</span></div><div id="fu"></div></div>
+      <div class="panel"><div class="panel-h"><h2>Recent activity</h2></div><div id="ra"></div></div>
+    </section>
+  </main>
+</div>
+
+<div class="sheet-label">Mockup 1: Clear desk <span>&nbsp; Pipeline, with a card being dragged from Proposal to Negotiation</span></div>
+<div class="screen">
+  <header class="topbar">
+    <div class="brand"><span class="mark"></span>Accountable</div>
+    <nav><a href="#">Dashboard</a><a href="#">Organizations</a><a href="#">Contacts</a><a href="#">Deals</a><a class="on" href="#">Pipeline</a></nav>
+  </header>
+  <main class="wide">
+    <div class="ph">
+      <div><h1>Pipeline</h1><p class="sub">19 open deals, 3 of them late</p></div>
+      <div class="ph-right">
+        <div class="fig"><span class="fig-l">Open pipeline</span><span class="mono fig-v">$1,011,000</span></div>
+        <div class="fig"><span class="fig-l">Expected revenue</span><span class="mono fig-v">$502,300</span></div>
+        <button class="btn primary" id="add"></button>
+      </div>
+    </div>
+    <div class="board" id="board"></div>
+  </main>
+</div>
+
+<script src="shared.js"></script>
+<script>
+  const { STAGES, BOARD, money, totals, icon } = M;
+  const width = (id) => document.getElementById(id).clientWidth;
+  document.getElementById('line').innerHTML = M.lineChart({ w: width('line'), h: 270, stroke: '#05A87E', fill: '#06D6A0', highlight: 8 });
+  document.getElementById('bars').innerHTML = M.barChart({ w: width('bars'), h: 270, fill: '#FFC145', labels: true, margin: { l: 36 } });
+  document.getElementById('funnel').innerHTML = M.funnelRows({ centered: true });
+  document.getElementById('stages').innerHTML = M.stageRows();
+  document.getElementById('fu').innerHTML = M.followUps({ groups: true });
+  document.getElementById('ra').innerHTML = M.recent();
+  document.getElementById('add').innerHTML = icon('plus', 16) + 'Add deal';
+
+  const dragged = BOARD.proposal[2];
+  document.getElementById('board').innerHTML = STAGES.map((s) => {
+    const t = totals(s.key), closed = s.key === 'won' || s.key === 'lost';
+    let cards = BOARD[s.key].map((d) => M.card(d, { cls: d === dragged ? 'ghost' : '' }));
+    if (s.key === 'negotiation') cards.splice(2, 0, `<div class="slot">${M.card(dragged)}</div>`);
+    return `<section class="col ${s.key === 'negotiation' ? 'drop-target' : ''}">
+      <div class="col-h"><div class="col-t"><span class="dot" style="background:${s.color}"></span>${s.name}<span class="col-count mono">${t.count}</span></div>
+      <div class="col-figs"><span class="mono col-v">${money(t.value)}</span><span class="col-e">Expected <span class="mono">${money(t.expected)}</span></span></div>
+      ${closed ? '<div class="col-note">Closed in the last 30 days</div>' : ''}</div>
+      <button class="col-add">${icon('plus', 14)}Add deal</button>
+      <div class="col-cards">${cards.join('')}</div></section>`;
+  }).join('');
+</script>
+</body>
+</html>

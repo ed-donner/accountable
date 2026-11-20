@@ -1,0 +1,215 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+  Brand tokens (spec 2.6). Light mode only for the MVP. The variables are named
+  by role, so a dark set can be added later from the brand's dark surfaces.
+*/
+:root {
+  --page: #f0f4f5;
+  --panel: #ffffff;
+  --ink: #073b4c;
+  --ink-muted: #46636d;
+  --ink-subtle: #56747e;
+  --line: #e4ecee;
+  --control-border: #7d949c;
+  --focus: #118ab2;
+
+  --band: #073b4c;
+  --band-ink: #ffffff;
+  --band-ink-soft: #cdd8db;
+  --band-muted: #a7bcc2;
+  --band-alert: #ff8da5;
+  --band-panel: color-mix(in srgb, #cdd8db 8%, #073b4c);
+  --band-rest: color-mix(in srgb, #cdd8db 16%, #073b4c);
+
+  --shadow-soft: 0 1px 2px rgba(7, 59, 76, 0.06), 0 2px 8px rgba(7, 59, 76, 0.04);
+  --shadow-lifted: 0 12px 24px rgba(7, 59, 76, 0.18);
+
+  /* shadcn/ui's variables, pointed at the brand */
+  --background: var(--page);
+  --foreground: var(--ink);
+  --card: var(--panel);
+  --card-foreground: var(--ink);
+  --popover: var(--panel);
+  --popover-foreground: var(--ink);
+  --primary: #06d6a0;
+  --primary-foreground: var(--ink);
+  --secondary: var(--panel);
+  --secondary-foreground: var(--ink);
+  --muted: #f0f4f5;
+  --muted-foreground: var(--ink-muted);
+  --accent: #e8eff1;
+  --accent-foreground: var(--ink);
+  --destructive: #c42a50;
+  --border: var(--line);
+  --input: var(--control-border);
+  --ring: var(--focus);
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-page: var(--page);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-line: var(--line);
+  --color-control-border: var(--control-border);
+  --color-focus: var(--focus);
+  --color-band: var(--band);
+  --color-band-ink: var(--band-ink);
+  --color-band-ink-soft: var(--band-ink-soft);
+  --color-band-muted: var(--band-muted);
+  --color-band-alert: var(--band-alert);
+  --color-band-panel: var(--band-panel);
+  --color-band-rest: var(--band-rest);
+
+  /* Each brand color: the color itself, a darker text shade, and a light tint */
+  --color-sea-green: #06d6a0;
+  --color-sea-green-text: #037a5c;
+  --color-sea-green-tint: #dcf9f2;
+  --color-sea-green-hover: #06c396;
+  --color-sea-green-line: #05a87e;
+  --color-marigold: #ffc145;
+  --color-marigold-text: #8a5a00;
+  --color-marigold-tint: #fff6e5;
+  --color-coral: #f78c6b;
+  --color-coral-text: #b4472a;
+  --color-coral-tint: #feefea;
+  --color-cerulean: #118ab2;
+  --color-cerulean-text: #0d6e8e;
+  --color-cerulean-tint: #deeff4;
+  --color-raspberry: #ef476f;
+  --color-raspberry-text: #c42a50;
+  --color-raspberry-tint: #fde5eb;
+  --color-slate: #8aa3ab;
+  --color-slate-text: #46636d;
+  --color-slate-tint: #dce4e6;
+  --color-sea-mist: #cdd8db;
+  --color-midnight: #073b4c;
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lifted: var(--shadow-lifted);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 20px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* A 2px Cerulean focus outline, 2px out from the control (spec 2.6) */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  /* Cerulean is too dark to see on Midnight, so the band uses Sea Mist */
+  .on-band :focus-visible {
+    outline-color: var(--band-ink-soft);
+  }
+  /* Native date inputs, styled to the brand */
+  input[type="date"],
+  input[type="datetime-local"] {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.7;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/*
+  A 4px scrollbar with its room always kept, for the board's columns and the
+  dashboard's lists. On the board it fits in the 12px between two columns,
+  next to the 4px each card needs for its focus outline, so the cards stay as
+  wide as their headings. Chrome and Edge only draw ::-webkit-scrollbar when
+  scrollbar-width isn't set, so that is left for other browsers.
+*/
+@layer components {
+  .scroll-thin {
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+  .scroll-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: #b9c9ce;
+    border-radius: 999px;
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    .scroll-thin {
+      scrollbar-width: thin;
+      scrollbar-color: #b9c9ce transparent;
+    }
+  }
+}
+
+/* Movement is turned off when the computer asks for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

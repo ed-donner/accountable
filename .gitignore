@@ -13,6 +13,7 @@ build/
 .vite/
 .cache/
 *.tsbuildinfo
+.vitest/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -77,3 +78,7 @@ Thumbs.db
 logs/
 *.log
 tmp/
+
+# Accountable data and end-to-end test data
+data/
+e2e/.data/

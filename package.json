@@ -1,0 +1,22 @@
+{
+  "name": "accountable",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "seed": "uv run python -m backend.app.seed",
+    "test": "node scripts/test.mjs",
+    "test:backend": "uv run pytest",
+    "test:frontend": "npm run test -w frontend",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  }
+}

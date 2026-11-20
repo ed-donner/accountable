@@ -1,0 +1,62 @@
+{
+  "today": "2026-11-19",
+  "expected_value": [
+    { "value": 48500, "probability": 50, "expected": 24250 },
+    { "value": 1, "probability": 50, "expected": 1 },
+    { "value": 3, "probability": 50, "expected": 2 },
+    { "value": 10, "probability": 5, "expected": 1 },
+    { "value": 1, "probability": 49, "expected": 0 },
+    { "value": 101, "probability": 50, "expected": 51 },
+    { "value": 99, "probability": 25, "expected": 25 },
+    { "value": 0, "probability": 75, "expected": 0 },
+    { "value": 100000000, "probability": 75, "expected": 75000000 }
+  ],
+  "late": [
+    { "stage": "proposal", "close_date": "2026-11-18", "late": true },
+    { "stage": "new", "close_date": "2026-11-18", "late": true },
+    { "stage": "negotiation", "close_date": "2026-11-19", "late": false },
+    { "stage": "qualified", "close_date": "2026-11-20", "late": false },
+    { "stage": "won", "close_date": "2026-11-18", "late": false },
+    { "stage": "lost", "close_date": "2026-11-18", "late": false }
+  ],
+  "closed_window": [
+    { "close_date": "2026-10-20", "in": true },
+    { "close_date": "2026-10-19", "in": false },
+    { "close_date": "2026-11-19", "in": true },
+    { "close_date": "2026-12-05", "in": true }
+  ],
+  "usual_probability": {
+    "new": 10,
+    "qualified": 25,
+    "proposal": 50,
+    "negotiation": 75,
+    "won": 100,
+    "lost": 0
+  },
+  "furthest_stage": [
+    { "name": "New with no changes", "current": "new", "changes": [], "expected": "new" },
+    {
+      "name": "Lost after New to Qualified, then Qualified to Lost",
+      "current": "lost",
+      "changes": [["new", "qualified"], ["qualified", "lost"]],
+      "expected": "qualified"
+    },
+    { "name": "Lost with no changes", "current": "lost", "changes": [], "expected": "new" },
+    {
+      "name": "New straight to Negotiation",
+      "current": "negotiation",
+      "changes": [["new", "negotiation"]],
+      "expected": "negotiation"
+    },
+    {
+      "name": "Won, then reopened to Proposal",
+      "current": "proposal",
+      "changes": [["new", "won"], ["won", "proposal"]],
+      "expected": "won"
+    }
+  ],
+  "months": [
+    { "today": "2026-11-19", "first": "2025-12", "last": "2026-11" },
+    { "today": "2027-01-01", "first": "2026-02", "last": "2027-01" }
+  ]
+}

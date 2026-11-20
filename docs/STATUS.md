@@ -205,6 +205,10 @@ On Windows, `npm run check:quick` failed Prettier on 84 files nobody had changed
 
 `.gitattributes` now sets `* text=auto eol=lf`, so git checks out text files with LF on every system. `npm run format` turned the files Prettier covers back to LF, and each one still hashes the same as in the last commit. Other files, such as the docs and the Python, keep CRLF until git next checks them out. That doesn't fail any check.
 
+## Dark mode (in progress, Nov 20, 2026)
+
+On the `dark-mode` branch. `docs/changes/dark-mode/intent.md` is written, and `docs/spec.md` now describes the app with dark mode: GEN-9 to GEN-11, concerns 13 to 16, and the light and dark colors in 2.6, each dark text color checked for contrast. Nothing is built yet. The plan is next.
+
 ## Choices the build made (please check)
 
 These fill gaps in the spec or follow library changes since the plan was written. `docs/spec.md` now describes the ones that change what the app does.

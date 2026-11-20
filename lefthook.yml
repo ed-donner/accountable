@@ -1,0 +1,48 @@
+# Git hooks. npm install installs them (lefthook's own install step).
+#
+# pre-commit formats the staged files and stages the result, then lints them,
+# checks the types and looks for secrets in the staged changes. It leaves the
+# tests to npm run check, so a commit stays quick. Each job runs only when a
+# staged file is one it covers. If a file is only partly staged, lefthook sets
+# the unstaged part aside while the hook runs and puts it back after.
+
+glob_matcher: doublestar
+
+pre-commit:
+  piped: true # format first, and stop if formatting fails
+  jobs:
+    - name: format (Prettier)
+      glob: ["frontend/**", "e2e/**", "scripts/**", "eslint.config.js"]
+      run: npx prettier --write --ignore-unknown {staged_files}
+      stage_fixed: true
+
+    - name: format (ruff format)
+      glob: "backend/**/*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+
+    - name: lint, types and secrets
+      group:
+        parallel: true
+        jobs:
+          - name: lint and complexity (ESLint)
+            glob: ["{frontend,e2e,scripts}/**/*.{js,mjs,ts,tsx}", "eslint.config.js"]
+            run: npx eslint --max-warnings 0 --no-warn-ignored {staged_files}
+
+          - name: lint and complexity (ruff check)
+            glob: "backend/**/*.py"
+            run: uv run ruff check {staged_files}
+
+          # Types are checked across the whole project, since a change in one
+          # file can break another.
+          - name: types (tsc)
+            glob: ["frontend/**", "package.json", "package-lock.json"]
+            run: npm run typecheck -w frontend
+
+          - name: types (ty)
+            glob: ["backend/**/*.py", "pyproject.toml", "uv.lock"]
+            run: uv run ty check
+
+          - name: secrets (gitleaks)
+            run: gitleaks git --pre-commit --staged --verbose --no-banner --redact .
+            fail_text: "gitleaks found a secret in the staged changes, or it isn't installed (see One-time setup in docs/STATUS.md)."

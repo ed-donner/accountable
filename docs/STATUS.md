@@ -11,9 +11,9 @@ You need three things. The first `npm run dev` needs the internet, because it do
 | **Node.js 24 or later** | `winget install OpenJS.NodeJS.LTS` | `brew install node` | The installer from nodejs.org |
 | **uv** (Python's package manager) | `winget install astral-sh.uv` | `brew install uv` | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | **Browser** | Chrome or Edge | Chrome or Edge | Chrome or Edge |
-| **gitleaks**, for `npm run check` only | `winget install Gitleaks.Gitleaks` | `brew install gitleaks` | The release for Linux from github.com/gitleaks/gitleaks |
+| **gitleaks**, for `npm run check` and the commit hook | `winget install Gitleaks.Gitleaks` | `brew install gitleaks` | The release for Linux from github.com/gitleaks/gitleaks |
 
-The end-to-end tests use the Chrome installed on the computer, so they need Chrome itself. After installing gitleaks, open a new terminal so it's on the path.
+The end-to-end tests use the Chrome installed on the computer, so they need Chrome itself. After installing gitleaks, open a new terminal so it's on the path, and start Claude Code from a new terminal too, since its end-of-turn check uses the path it started with. `npm install` also installs the git pre-commit hook.
 
 **Platforms:** the app has only been tried on Windows so far. The start and stop scripts use each system's documented approach, but Mac and Linux haven't been run.
 
@@ -148,6 +148,30 @@ The docs are set up for changes after the MVP. No code changed.
 **Last run:** two checks failed, and the rest passed, end-to-end tests included. Prettier failed on four test files written after `npm run format`, and on Vitest's generated `frontend/.vitest/`. The files are formatted now, and `.vitest/` is git-ignored. gitleaks also failed, but it passes when started the way `npm run check` starts it, from a terminal with today's path. The likely cause is a terminal that doesn't have gitleaks on its path, so the message for that now says to open a new terminal.
 
 **Left alone:** `npm audit` reports 4 moderate issues, all in the shadcn CLI's dependencies (`ts-morph`, `minimatch`). They were there before; the fix is a major shadcn upgrade.
+
+## Hooks (Nov 20, 2026)
+
+Three hooks, described in `docs/spec.md` 2.8:
+
+- **Git pre-commit** (lefthook 2.2, `lefthook.yml`): formats the staged files and stages the result, then lints them and checks types and secrets. No tests. A frontend file takes about 8 seconds, docs alone under 1.
+- **Claude Code, end of a turn** (`scripts/claude-hooks/check-on-stop.mjs`): runs `npm run check:quick`, about 2 minutes, and sends any failure back to Claude once a turn. It skips the run when no file has changed since the checks last passed.
+- **Claude Code, `.env`** (`scripts/claude-hooks/protect-env.mjs`): refuses any change to `.env`.
+
+The `gitleaks` step in `npm run check` now prints each finding's file, line and rule (`--verbose`), with the secret still hidden. Before, it said only how many it found.
+
+**How they were tested**
+
+- **Pre-commit:** each case staged a scratch file and ran `git commit -m ""`. Git runs the hook first and then stops at the empty message, so no commit was made either way. Results:
+  - Badly formatted TypeScript, partly staged: it was formatted and staged again, and the unstaged line was back afterwards.
+  - An ESLint error (`prefer-const`), a type error, and Python with an unused import and a type error: each stopped the commit, with the error shown. The Python file was formatted first.
+  - A fake GitHub token in a docs file was stopped, with the file, line and rule shown. With gitleaks off the path, the commit was stopped with a message saying so.
+  - A clean docs file passed with only gitleaks run.
+- **End of a turn:** fed the JSON Claude Code sends:
+  - As a second stop: it let Claude stop at once.
+  - With an ESLint error in a new file: it ran `check:quick` and blocked, sending back only the ESLint output (470 characters).
+  - With the file removed: it passed silently, and a second run with nothing changed was skipped in 0.3 seconds.
+  - The real index was untouched each time.
+- **`.env`:** fed 20 cases: edits and writes to `.env` in any folder, and shell commands that write, copy, delete or open it, were refused. `.env.example`, `.envrc` and other commands were let through. In this session, real Write and shell calls aimed at a `.env` in a scratch folder were refused, and ordinary edits and commands still ran.
 
 ## Choices the build made (please check)
 

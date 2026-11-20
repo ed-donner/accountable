@@ -19,6 +19,8 @@ Run `npm run check` before you call a piece of work finished, and fix what it fi
 
 `npm run check:quick` skips the end-to-end tests, for quicker rounds while you work. `npm run format` fixes the formatting.
 
+Hooks run some of this for you. A git pre-commit hook (lefthook, `lefthook.yml`) formats the staged files, then lints them and checks types and secrets. Don't skip it with `--no-verify`. In Claude Code, `npm run check:quick` runs when you finish a turn; if it fails, you get what failed and carry on, once a turn. Another Claude Code hook refuses any change to `.env`, along with any shell command that names it.
+
 Don't loosen a rule, leave a file out or lower a threshold to make a check pass. Ask first.
 
 ## Tests

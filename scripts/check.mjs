@@ -28,7 +28,7 @@ const checks = [
   ["Backend types (ty)", "uv run ty check"],
   [
     "Secrets in history and files (gitleaks)",
-    "gitleaks git --no-banner --redact . && gitleaks dir --no-banner --redact .",
+    "gitleaks git --verbose --no-banner --redact . && gitleaks dir --verbose --no-banner --redact .",
   ],
   ...tests,
 ];

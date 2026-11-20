@@ -748,6 +748,10 @@ Recharts draws the line chart and the bar chart. The funnel and the pipeline str
 
   Like `npm test`, it runs every check even if one fails, says which failed, and exits with an error if any did. `npm run check:quick` runs the same checks with the backend and frontend tests but not the end-to-end tests.
 - **`npm run format`** fixes the formatting with Prettier and `ruff format`.
+- **Hooks:**
+  - **Git pre-commit** (lefthook, configured in `lefthook.yml`; `npm install` installs it): formats the staged files with Prettier and `ruff format` and stages the result, then runs ESLint and `ruff check` on the staged files, `tsc` and `ty check` when a staged file is one they cover, and `gitleaks git --pre-commit --staged` over the staged changes. Each step runs only when a staged file is one it covers, and there are no tests, so a commit stays quick. If a file is only partly staged, the unstaged part is set aside while the hook runs and put back after. A failure stops the commit.
+  - **Claude Code, end of a turn** (`scripts/claude-hooks/check-on-stop.mjs`): runs `npm run check:quick`. If a check fails, Claude isn't allowed to finish and gets the end of each failed check's output to fix. That happens once a turn: the next time Claude stops, it's let through. If no file has changed since every check last passed, the run is skipped; the hash of the files is kept in `.git/check-on-stop-passed`.
+  - **Claude Code, `.env`** (`scripts/claude-hooks/protect-env.mjs`): refuses Edit and Write on any file named `.env`, and any shell command that names one, reads included. If the hook itself fails, the action is refused.
 - **Settings:**
   - `ACCOUNTABLE_DB_PATH` (default `data/accountable.db`)
   - `ACCOUNTABLE_API_PORT` (default 8000)

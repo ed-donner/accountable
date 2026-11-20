@@ -4,7 +4,9 @@ from backend.tests.conftest import add_contact, add_deal, add_org, field_errors,
 
 
 def test_add_list_and_get(client):
-    org = add_org(client, "Bluefin Logistics", website="bluefin.example", industry="Logistics", notes="Line one\nLine two")
+    org = add_org(
+        client, "Bluefin Logistics", website="bluefin.example", industry="Logistics", notes="Line one\nLine two"
+    )
     assert org["name"] == "Bluefin Logistics"
     assert org["website"] == "bluefin.example"
     assert org["notes"] == "Line one\nLine two"
@@ -71,7 +73,10 @@ def test_names_are_unique_ignoring_capitals_on_rename(client):
 
 def test_renaming_to_the_same_name_in_other_capitals_is_fine(client):
     org = add_org(client, "Bluefin Logistics")
-    assert ok(client.patch(f"/api/organizations/{org['id']}", json={"name": "BlueFin Logistics"}))["name"] == "BlueFin Logistics"
+    assert (
+        ok(client.patch(f"/api/organizations/{org['id']}", json={"name": "BlueFin Logistics"}))["name"]
+        == "BlueFin Logistics"
+    )
 
 
 @pytest.mark.parametrize(("field", "limit"), [("website", 200), ("industry", 60), ("notes", 5000)])

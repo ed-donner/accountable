@@ -7,7 +7,9 @@ function Figure({ label, value, note, id }: { label: string; value: ReactNode; n
   return (
     <div data-figure={id}>
       <div className="text-[13px] font-medium text-band-muted">{label}</div>
-      <div className="mt-1 mb-0.5 font-mono text-[40px] leading-[50px] font-medium tracking-[-0.02em] text-band-ink">{value}</div>
+      <div className="mt-1 mb-0.5 font-mono text-[40px] leading-[50px] font-medium tracking-[-0.02em] text-band-ink">
+        {value}
+      </div>
       <div className="text-[13px] text-band-muted">{note}</div>
     </div>
   );
@@ -37,7 +39,8 @@ export function HeadlineFigures({ dashboard }: { dashboard: Dashboard }) {
         value={money(won_this_month.value)}
         note={
           <>
-            {plural(won_this_month.count, "deal")}. Last month <span className="font-mono">{money(won_this_month.last_month_value)}</span>
+            {plural(won_this_month.count, "deal")}. Last month{" "}
+            <span className="font-mono">{money(won_this_month.last_month_value)}</span>
           </>
         }
       />
@@ -52,7 +55,7 @@ export function HeadlineFigures({ dashboard }: { dashboard: Dashboard }) {
               keeps the word from taking the figure's 50px line height, which
               made this figure 8px taller than the other three.
             */}
-            <span className="ml-1.5 font-sans text-[18px] leading-none font-medium tracking-normal">{" "}overdue</span>
+            <span className="ml-1.5 font-sans text-[18px] leading-none font-medium tracking-normal"> overdue</span>
           </span>
         }
         note={

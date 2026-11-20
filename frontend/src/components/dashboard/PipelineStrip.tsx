@@ -28,7 +28,12 @@ export function PipelineStrip({ stages }: { stages: Dashboard["open_by_stage"] }
         {stages.map((stage) => {
           const share = stage.value > 0 ? (stage.expected / stage.value) * 100 : 0;
           return (
-            <li key={stage.stage} className="min-w-[132px]" style={{ flex: `${Math.max(stage.value, 1)} 1 0` }} data-stage={stage.stage}>
+            <li
+              key={stage.stage}
+              className="min-w-[132px]"
+              style={{ flex: `${Math.max(stage.value, 1)} 1 0` }}
+              data-stage={stage.stage}
+            >
               <div className="h-10 overflow-hidden rounded-lg bg-band-rest" aria-hidden>
                 <div
                   className="h-full shadow-[2px_0_0_var(--band)]"

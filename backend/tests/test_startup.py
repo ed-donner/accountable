@@ -1,4 +1,3 @@
-
 from backend.app.main import create_app
 from backend.tests.conftest import add_org, local_client, ok
 

@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from backend.app.db import activities, contacts, deals, make_engine, metadata, organizations
 from backend.app.main import run_migrations
 
-NOW = datetime(2026, 11, 19, 15, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 11, 19, 15, 0, tzinfo=UTC)
 TIMES = {"created_at": NOW, "updated_at": NOW}
 
 
@@ -149,4 +149,4 @@ def test_date_times_come_back_in_utc(migrated):
         org_id = _org(conn)
         stored = conn.execute(select(organizations.c.created_at).where(organizations.c.id == org_id)).scalar_one()
     assert stored == NOW
-    assert stored.tzinfo == timezone.utc
+    assert stored.tzinfo == UTC

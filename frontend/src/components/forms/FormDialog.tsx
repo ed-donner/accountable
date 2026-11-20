@@ -3,7 +3,14 @@ import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
 import { toast } from "sonner";
 import { ApiError } from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { messages } from "@/lib/words";
 import { cn } from "@/lib/utils";
@@ -107,7 +114,11 @@ export function fieldAria(id: string, error?: string) {
  * Show a failed save: problems with a field go under that field, anything else
  * becomes a short message. The dialog stays open with what was typed (GEN-6).
  */
-export function showSaveError<T extends FieldValues>(error: unknown, setError: UseFormSetError<T>, fields: readonly string[]) {
+export function showSaveError<T extends FieldValues>(
+  error: unknown,
+  setError: UseFormSetError<T>,
+  fields: readonly string[],
+) {
   if (error instanceof ApiError) {
     const known = Object.entries(error.fieldErrors).filter(([field]) => fields.includes(field));
     for (const [field, message] of known) {

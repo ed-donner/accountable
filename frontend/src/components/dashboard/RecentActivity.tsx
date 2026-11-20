@@ -24,7 +24,11 @@ export function RecentActivity({ entries, today }: { entries: TimelineEntry[]; t
                 ? { to: `/contacts/${entry.contact.id}`, name: entry.contact.name }
                 : null;
             return (
-              <li key={entry.id} className="grid grid-cols-[38px_1fr] py-2.5 [&+&]:shadow-[0_-1px_0_var(--line)]" data-entry-type={entry.type}>
+              <li
+                key={entry.id}
+                className="grid grid-cols-[38px_1fr] py-2.5 [&+&]:shadow-[0_-1px_0_var(--line)]"
+                data-entry-type={entry.type}
+              >
                 <span
                   aria-hidden
                   className={cn(

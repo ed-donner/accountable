@@ -286,7 +286,6 @@ export function Board({ board, today, onAdd }: Props) {
   );
 }
 
-
 type LayoutProps = {
   subtitle: string;
   figures: ReactNode;

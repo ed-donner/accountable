@@ -36,5 +36,13 @@ export default defineConfig({
     testTimeout: 15_000,
     // A test left as .only would quietly skip the rest, so npm test refuses it.
     allowOnly: false,
+    coverage: {
+      provider: "v8",
+      // Every source file counts, including ones no unit test loads.
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/test/**", "src/main.tsx"],
+      reporter: ["text-summary"],
+      thresholds: { lines: 80 },
+    },
   },
 });

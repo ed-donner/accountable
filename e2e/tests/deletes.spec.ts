@@ -10,7 +10,9 @@ test.describe("Deletes", () => {
     const org = await apiPost<Ref>(request, "/api/organizations", { name });
     const contacts = [];
     for (const person of ["One", "Two"]) {
-      contacts.push(await apiPost<Contact>(request, "/api/contacts", { name: `${name} ${person}`, organization_id: org.id }));
+      contacts.push(
+        await apiPost<Contact>(request, "/api/contacts", { name: `${name} ${person}`, organization_id: org.id }),
+      );
     }
 
     await page.goto("/organizations");
@@ -140,7 +142,10 @@ test.describe("Deletes", () => {
 
     await page.goto(`/deals/${deal.id}`);
     await page.getByRole("button", { name: "Delete deal" }).click();
-    await page.getByRole("alertdialog", { name: `Delete ${name}?` }).getByRole("button", { name: "Delete deal" }).click();
+    await page
+      .getByRole("alertdialog", { name: `Delete ${name}?` })
+      .getByRole("button", { name: "Delete deal" })
+      .click();
     await expect(page).toHaveURL("/deals");
     await expect(page.getByText("Deal deleted")).toBeVisible();
 

@@ -40,7 +40,15 @@ export function DealsWonChart({ months }: { months: MonthRow[] }) {
               cursor={{ fill: "#F0F4F5" }}
               isAnimationActive={false}
             />
-            <Bar dataKey="deals" name="Deals won" fill={MARIGOLD} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={!reducedMotion} animationDuration={400}>
+            <Bar
+              dataKey="deals"
+              name="Deals won"
+              fill={MARIGOLD}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={24}
+              isAnimationActive={!reducedMotion}
+              animationDuration={400}
+            >
               <LabelList
                 dataKey="deals"
                 position="top"

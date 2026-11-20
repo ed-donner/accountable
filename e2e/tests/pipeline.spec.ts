@@ -56,7 +56,13 @@ async function makeDeals(request: APIRequestContext, prefix: string, stage: Stag
   const made: Deal[] = [];
   for (const name of names) {
     made.push(
-      await apiPost<Deal>(request, "/api/deals", { name, organization_id: org.id, stage, value, close_date: "2030-01-01" }),
+      await apiPost<Deal>(request, "/api/deals", {
+        name,
+        organization_id: org.id,
+        stage,
+        value,
+        close_date: "2030-01-01",
+      }),
     );
   }
   return made;
@@ -76,7 +82,9 @@ test.describe("Pipeline", () => {
       const note = heading(page, stage).getByText("Closed in the last 30 days");
       await expect(note).toHaveCount(OPEN.includes(stage) ? 0 : 1);
       // The cards, in the order the server keeps.
-      await expect(cards(page, stage)).toHaveText(deals.map((deal) => new RegExp(deal.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+      await expect(cards(page, stage)).toHaveText(
+        deals.map((deal) => new RegExp(deal.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))),
+      );
     }
 
     const open = pipeline.columns.filter((c) => OPEN.includes(c.stage)).flatMap((c) => c.deals);
@@ -117,7 +125,11 @@ test.describe("Pipeline", () => {
       value: negotiationBefore.value + 40_000,
       expected: negotiationBefore.expected + 30_000,
     });
-    await expectHeading(page, "new", { count: newBefore.count - 1, value: newBefore.value - 40_000, expected: newBefore.expected - 4_000 });
+    await expectHeading(page, "new", {
+      count: newBefore.count - 1,
+      value: newBefore.value - 40_000,
+      expected: newBefore.expected - 4_000,
+    });
     const band = page.locator("section.on-band").first();
     await expect(band.getByText(money(totals(open).expected - 4_000 + 30_000), { exact: true })).toBeVisible();
 
@@ -134,7 +146,9 @@ test.describe("Pipeline", () => {
 
     // The deal's page shows the stage change.
     await page.goto(`/deals/${deal.id}`);
-    await expect(page.locator('[data-entry-type="stage_change"]').first()).toContainText("Moved from New to Negotiation");
+    await expect(page.locator('[data-entry-type="stage_change"]').first()).toContainText(
+      "Moved from New to Negotiation",
+    );
 
     // A refresh keeps it.
     await page.goto("/pipeline");
@@ -259,7 +273,11 @@ test.describe("Pipeline", () => {
 
     allowApiError({ status: 500, url: "/move" });
     await page.route("**/api/deals/*/move", (route) =>
-      route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Made to fail by the test" }) }),
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Made to fail by the test" }),
+      }),
     );
     await page.goto("/pipeline");
     await dragCard(page, cardNamed(page, name), column(page, "proposal"), "above");

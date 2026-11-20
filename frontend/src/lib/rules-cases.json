@@ -38,7 +38,10 @@
     {
       "name": "Lost after New to Qualified, then Qualified to Lost",
       "current": "lost",
-      "changes": [["new", "qualified"], ["qualified", "lost"]],
+      "changes": [
+        ["new", "qualified"],
+        ["qualified", "lost"]
+      ],
       "expected": "qualified"
     },
     { "name": "Lost with no changes", "current": "lost", "changes": [], "expected": "new" },
@@ -51,7 +54,10 @@
     {
       "name": "Won, then reopened to Proposal",
       "current": "proposal",
-      "changes": [["new", "won"], ["won", "proposal"]],
+      "changes": [
+        ["new", "won"],
+        ["won", "proposal"]
+      ],
       "expected": "won"
     }
   ],

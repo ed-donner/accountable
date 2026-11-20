@@ -4,14 +4,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  checkPortFree,
-  openBrowser,
-  runCommand,
-  startProcess,
-  stopProcess,
-  waitForUrl,
-} from "./lib/proc.mjs";
+import { checkPortFree, openBrowser, runCommand, startProcess, stopProcess, waitForUrl } from "./lib/proc.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const apiPort = Number(process.env.ACCOUNTABLE_API_PORT ?? 8000);

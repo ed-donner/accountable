@@ -38,7 +38,10 @@ const figure = (page: Page, id: string) => page.locator(`[data-figure="${id}"]`)
 /** Hover over the last month of a chart, where its x-axis label sits. */
 async function hoverLastMonth(page: Page, chart: string) {
   const box = page.locator(`[data-chart="${chart}"]`);
-  const label = (await box.locator(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value").last().boundingBox())!;
+  const label = (await box
+    .locator(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value")
+    .last()
+    .boundingBox())!;
   const area = (await box.boundingBox())!;
   await page.mouse.move(label.x + label.width / 2, area.y + area.height / 2, { steps: 4 });
   return box.locator(".recharts-tooltip-wrapper");
@@ -134,9 +137,13 @@ test.describe("Dashboard", () => {
     const late = data.follow_ups.find((f) => f.days_late > 0);
     if (late) {
       const text = `${late.days_late} ${late.days_late === 1 ? "day" : "days"} late`;
-      await expect(followUps.getByRole("listitem").filter({ hasText: late.description.slice(0, 30) })).toContainText(text);
+      await expect(followUps.getByRole("listitem").filter({ hasText: late.description.slice(0, 30) })).toContainText(
+        text,
+      );
     }
-    const target = first.deal ? { path: `/deals/${first.deal.id}`, name: first.deal.name } : { path: `/contacts/${first.contact!.id}`, name: first.contact!.name };
+    const target = first.deal
+      ? { path: `/deals/${first.deal.id}`, name: first.deal.name }
+      : { path: `/contacts/${first.contact!.id}`, name: first.contact!.name };
     await followUps.getByRole("listitem").first().getByRole("link", { name: target.name }).click();
     await expect(page).toHaveURL(target.path);
 
@@ -144,7 +151,9 @@ test.describe("Dashboard", () => {
     const recent = page.getByRole("list", { name: "Recent activity" });
     await expect(recent.getByRole("listitem")).toHaveCount(Math.min(10, data.recent.length));
     const entry = data.recent[0];
-    const link = entry.deal ? { path: `/deals/${entry.deal.id}`, name: entry.deal.name } : { path: `/contacts/${entry.contact!.id}`, name: entry.contact!.name };
+    const link = entry.deal
+      ? { path: `/deals/${entry.deal.id}`, name: entry.deal.name }
+      : { path: `/contacts/${entry.contact!.id}`, name: entry.contact!.name };
     await expect(recent.getByRole("listitem").first()).toContainText(entry.description);
     await recent.getByRole("listitem").first().getByRole("link", { name: link.name }).click();
     await expect(page).toHaveURL(link.path);

@@ -7,6 +7,7 @@ checked against frontend/src/lib/rules-cases.json.
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, timedelta
+from typing import TypedDict
 
 STAGES = ("new", "qualified", "proposal", "negotiation", "won", "lost")
 OPEN_STAGES = ("new", "qualified", "proposal", "negotiation")
@@ -108,12 +109,18 @@ class FunnelDeal:
     changes: list[tuple[str | None, str | None]] = field(default_factory=list)
 
 
-def funnel(deals: Iterable[FunnelDeal], today: date) -> list[dict]:
+class FunnelStep(TypedDict):
+    stage: str
+    count: int
+    value: int
+
+
+def funnel(deals: Iterable[FunnelDeal], today: date) -> list[FunnelStep]:
     """For New to Won, the count and value of the deals created in the last 12
     months that reached each stage. A deal counts at its furthest stage and at
     every stage before it (DASH-5)."""
     start = months_start(today)
-    steps = {stage: {"stage": stage, "count": 0, "value": 0} for stage in FUNNEL_STAGES}
+    steps: dict[str, FunnelStep] = {stage: {"stage": stage, "count": 0, "value": 0} for stage in FUNNEL_STAGES}
     for deal in deals:
         if deal.created_on < start or deal.created_on > today:
             continue

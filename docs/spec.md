@@ -738,7 +738,16 @@ Recharts draws the line chart and the bar chart. The funnel and the pipeline str
   5. Once both answer, it prints `Accountable is running at http://localhost:5173` and opens the browser.
   6. Ctrl+C stops both. If either server stops by itself, the other is stopped too.
 - **`npm run seed`** runs `uv run python -m backend.app.seed`. It asks "This replaces all your data with the sample data. Type yes to continue:" before touching anything. Any other answer prints "Nothing changed." and leaves everything as it was, with no database created. After `yes`, it runs the migrations, empties every table and loads the sample data in one transaction, so a running app keeps working, then prints "Sample data loaded: 15 organizations, 40 contacts, 35 deals, 80 activities (plus 64 stage changes)." `--yes` skips the question, for the tests.
-- **`npm test`** runs `scripts/test.mjs`, which runs the backend tests, the frontend tests and then the end-to-end tests. It runs all three even if one fails, says which failed, and exits with an error if any did. It also fails if a test is left marked `.only`. `npm run test:backend`, `npm run test:frontend` and `npm run test:e2e` run one suite each.
+- **`npm test`** runs `scripts/test.mjs`, which runs the backend tests, the frontend tests and then the end-to-end tests. It runs all three even if one fails, says which failed, and exits with an error if any did. It also fails if a test is left marked `.only`, or if unit-test coverage falls below 80% of lines: pytest-cov over `backend/app`, and Vitest's V8 coverage over every file in `frontend/src` except the test helpers and `main.tsx`. `npm run test:backend`, `npm run test:frontend` and `npm run test:e2e` run one suite each.
+- **`npm run check`** runs `scripts/check.mjs`, which runs each of these, then `npm test`:
+  - Prettier and ESLint over `frontend/`, `e2e/` and `scripts/`, with ESLint's recommended JavaScript rules and the recommended typescript-eslint, React Hooks and jsx-a11y rules, and warnings counted as failures
+  - `tsc` for the frontend
+  - `ruff format --check`, `ruff check` and `ty check` for `backend/`
+  - at most 15 cyclomatic complexity per function: ESLint's `complexity` and ruff's `C901`
+  - gitleaks over every commit and every file, allowing the git-ignored `.env` and the installed packages in `.venv/` and `node_modules/`
+
+  Like `npm test`, it runs every check even if one fails, says which failed, and exits with an error if any did. `npm run check:quick` runs the same checks with the backend and frontend tests but not the end-to-end tests.
+- **`npm run format`** fixes the formatting with Prettier and `ruff format`.
 - **Settings:**
   - `ACCOUNTABLE_DB_PATH` (default `data/accountable.db`)
   - `ACCOUNTABLE_API_PORT` (default 8000)
@@ -770,6 +779,7 @@ The tests never touch `data/accountable.db`.
   - the delete dialog's wording
   - the deal form filling in probability and close date when the stage changes
   - the Log activity box's "When" keeping up with the clock
+  - each page against a fake API: the tables with their row actions and status filter, the record pages with their timelines, the stage bar, the dashboard's panels, and the board's columns, cards, Add deal and keyboard pick-up
 - **End to end (Playwright Test, installed Chrome, `channel: "chrome"`, 1440 by 900):**
   - Setup: the run starts its own backend (port 8100, database `e2e/.data/test.db`, freshly seeded) and frontend (port 5273), so it works beside `npm run dev`. Tests that change data make their own records, so they don't depend on each other.
   - Errors: a shared fixture fails any test that logs a console error, gets an API error it didn't declare, or sends a request that leaves the computer.

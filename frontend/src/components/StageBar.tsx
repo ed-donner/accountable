@@ -36,7 +36,8 @@ export function StageBar({ deal }: { deal: Deal }) {
   function step(stage: Stage, index: number, shape: string) {
     const current = stage === deal.stage;
     // Past stages are filled in with a tint of their color.
-    const past = deal.stage === "won" || deal.stage === "lost" ? stage !== "lost" && stage !== "won" : index < currentIndex;
+    const past =
+      deal.stage === "won" || deal.stage === "lost" ? stage !== "lost" && stage !== "won" : index < currentIndex;
     return (
       <button
         key={stage}
@@ -54,10 +55,18 @@ export function StageBar({ deal }: { deal: Deal }) {
               ? "text-band-ink hover:brightness-110"
               : "bg-band-panel text-band-muted hover:bg-band-rest hover:text-band-ink",
         )}
-        style={!current && past ? { background: `color-mix(in srgb, ${TONE_COLOR[STAGE_TONE[stage]]} 28%, #073B4C)` } : undefined}
+        style={
+          !current && past
+            ? { background: `color-mix(in srgb, ${TONE_COLOR[STAGE_TONE[stage]]} 28%, #073B4C)` }
+            : undefined
+        }
       >
         {!current && (
-          <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: TONE_COLOR[STAGE_TONE[stage]] }} />
+          <span
+            aria-hidden
+            className="size-2 shrink-0 rounded-full"
+            style={{ background: TONE_COLOR[STAGE_TONE[stage]] }}
+          />
         )}
         {STAGE_NAMES[stage]}
       </button>

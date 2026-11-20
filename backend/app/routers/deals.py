@@ -119,7 +119,8 @@ def add_deal(body: DealCreate, conn: Conn):
     _make_room_at_top(conn, body.stage)
     now = clock.now()
     new_id = conn.execute(
-        insert(deals).values(
+        insert(deals)
+        .values(
             name=body.name,
             organization_id=body.organization_id,
             main_contact_id=body.main_contact_id,
@@ -130,7 +131,8 @@ def add_deal(body: DealCreate, conn: Conn):
             updated_at=now,
             **values,
         )
-    ).inserted_primary_key[0]
+        .returning(deals.c.id)
+    ).scalar_one()
     return get_deal(conn, new_id, clock.today())
 
 
@@ -227,4 +229,3 @@ def delete_deal(deal_id: int, conn: Conn):
     conn.execute(delete(deals).where(deals.c.id == deal_id))
     _number(conn, _column_ids(conn, deal.stage))
     return Response(status_code=204)
-

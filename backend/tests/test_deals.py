@@ -74,7 +74,8 @@ def test_the_organization_is_required_and_must_exist(client):
     )
     errors = field_errors(
         client.post(
-            "/api/deals", json={"name": "X", "organization_id": 999, "stage": "new", "value": 1, "close_date": "2026-12-01"}
+            "/api/deals",
+            json={"name": "X", "organization_id": 999, "stage": "new", "value": 1, "close_date": "2026-12-01"},
         )
     )
     assert errors == {"organization_id": "Choose an organization from the list."}

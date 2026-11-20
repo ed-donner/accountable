@@ -54,7 +54,11 @@ export function Funnel({ steps }: { steps: Dashboard["funnel"] }) {
       <p className="sr-only">
         {steps
           .slice(1)
-          .map((step, i) => (shares[i] === null ? null : `${shares[i]}% carried on from ${STAGE_NAMES[steps[i].stage]} to ${STAGE_NAMES[step.stage]}.`))
+          .map((step, i) =>
+            shares[i] === null
+              ? null
+              : `${shares[i]}% carried on from ${STAGE_NAMES[steps[i].stage]} to ${STAGE_NAMES[step.stage]}.`,
+          )
           .filter(Boolean)
           .join(" ")}
       </p>

@@ -53,6 +53,11 @@ export function useDeleteDeal() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api<void>(`/deals/${id}`, { method: "DELETE" }),
-    onSuccess: (_data, id) => refreshAll(queryClient, [["deal", id], ["deal-timeline", id], ["deal-impact", id]]),
+    onSuccess: (_data, id) =>
+      refreshAll(queryClient, [
+        ["deal", id],
+        ["deal-timeline", id],
+        ["deal-impact", id],
+      ]),
   });
 }

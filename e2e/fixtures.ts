@@ -96,7 +96,10 @@ export async function choose(page: Page, trigger: Locator, name: string) {
   await trigger.click();
   await page.getByPlaceholder(/^Search (organizations|contacts)$/).fill(name);
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  await page.getByRole("option", { name: new RegExp(`^${escaped}`) }).first().click();
+  await page
+    .getByRole("option", { name: new RegExp(`^${escaped}`) })
+    .first()
+    .click();
 }
 
 /** Choose an option in one of the app's selects, such as Stage or Status. */

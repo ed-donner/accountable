@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { ArrowRight, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useChangeActivity } from "@/api/activities";
@@ -11,7 +12,6 @@ import { messages } from "@/lib/words";
 import { cn } from "@/lib/utils";
 import { ACTIVITY_ICONS as ICONS, ACTIVITY_NAMES as TYPE_NAMES } from "./activityTypes";
 
-
 type Props = {
   entry: Entry;
   today: string | undefined;
@@ -23,6 +23,7 @@ type Props = {
 
 export function TimelineEntry({ entry, today, showDeal, onEdit, onDelete }: Props) {
   const change = useChangeActivity();
+  const doneId = useId();
   const Icon = ICONS[entry.type];
   const dealLink =
     showDeal && entry.deal ? (
@@ -52,15 +53,15 @@ export function TimelineEntry({ entry, today, showDeal, onEdit, onDelete }: Prop
   const overdue = !!(entry.follow_up_date && !entry.done && today && entry.follow_up_date < today);
 
   function toggleDone(done: boolean) {
-    change.mutate(
-      { id: entry.id, changes: { done } },
-      { onError: () => toast.error(messages.saveFailed) },
-    );
+    change.mutate({ id: entry.id, changes: { done } }, { onError: () => toast.error(messages.saveFailed) });
   }
 
   return (
     <li className="flex gap-3 py-3.5" data-entry-type={entry.type}>
-      <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-[#EAF0F2] text-ink-muted" aria-hidden>
+      <span
+        className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-[#EAF0F2] text-ink-muted"
+        aria-hidden
+      >
         <Icon className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
@@ -87,8 +88,9 @@ export function TimelineEntry({ entry, today, showDeal, onEdit, onDelete }: Prop
               Follow up {formatDate(entry.follow_up_date)}
               {overdue && " (overdue)"}
             </span>
-            <label className="flex items-center gap-2 text-ink-muted">
+            <label htmlFor={doneId} className="flex items-center gap-2 text-ink-muted">
               <Checkbox
+                id={doneId}
                 checked={entry.done}
                 onCheckedChange={(checked) => toggleDone(checked === true)}
                 disabled={change.isPending}

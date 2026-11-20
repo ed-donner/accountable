@@ -24,7 +24,17 @@ export function Panel({ children, className, ...rest }: ComponentProps<"section"
   );
 }
 
-export function PanelTitle({ children, hint, className, id }: { children: ReactNode; hint?: ReactNode; className?: string; id?: string }) {
+export function PanelTitle({
+  children,
+  hint,
+  className,
+  id,
+}: {
+  children: ReactNode;
+  hint?: ReactNode;
+  className?: string;
+  id?: string;
+}) {
   return (
     <div className={cn("mb-4 flex items-baseline justify-between gap-4", className)}>
       <h2 id={id} className="text-[16px] leading-6 font-semibold text-ink">
@@ -35,7 +45,15 @@ export function PanelTitle({ children, hint, className, id }: { children: ReactN
   );
 }
 
-export function EmptyState({ title, children, className }: { title: string; children?: ReactNode; className?: string }) {
+export function EmptyState({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children?: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn("flex flex-col items-center justify-center gap-3 px-6 py-12 text-center", className)}>
       <p className="text-[15px] font-medium text-ink">{title}</p>

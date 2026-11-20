@@ -85,7 +85,9 @@ test.describe("Deals", () => {
     await expect(page.getByText("Deal moved to Negotiation")).toBeVisible();
     await expect(details.getByText("75%")).toBeVisible();
     await expect(page.getByRole("button", { name: "Negotiation, the current stage" })).toBeVisible();
-    await expect(page.locator('[data-entry-type="stage_change"]').first()).toContainText("Moved from Proposal to Negotiation");
+    await expect(page.locator('[data-entry-type="stage_change"]').first()).toContainText(
+      "Moved from Proposal to Negotiation",
+    );
 
     await page.reload();
     await expect(page.getByRole("button", { name: "Negotiation, the current stage" })).toBeVisible();

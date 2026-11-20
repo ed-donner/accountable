@@ -21,7 +21,8 @@ export default function ContactPage() {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState<DeleteTarget | null>(null);
 
-  if (isNotFound(contact.error) || !Number.isFinite(id)) return <Gone kind="contact" to="/contacts" section="contacts" />;
+  if (isNotFound(contact.error) || !Number.isFinite(id))
+    return <Gone kind="contact" to="/contacts" section="contacts" />;
   if (contact.error) return <LoadFailed message={contact.error.message} />;
   if (!contact.data) {
     return (

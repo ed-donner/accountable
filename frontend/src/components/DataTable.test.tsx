@@ -8,7 +8,12 @@ import { DataTable, NameLink, type TableColumn } from "./DataTable";
 type Thing = { id: number; name: string; city: string; value: number };
 
 const columns: TableColumn<Thing>[] = [
-  { id: "name", header: "Name", cell: (t) => <NameLink to={`/things/${t.id}`}>{t.name}</NameLink>, sortValue: (t) => t.name },
+  {
+    id: "name",
+    header: "Name",
+    cell: (t) => <NameLink to={`/things/${t.id}`}>{t.name}</NameLink>,
+    sortValue: (t) => t.name,
+  },
   { id: "city", header: "City", cell: (t) => t.city, sortValue: (t) => t.city },
   { id: "value", header: "Value", cell: (t) => `$${t.value}`, sortValue: (t) => t.value, numeric: true },
 ];

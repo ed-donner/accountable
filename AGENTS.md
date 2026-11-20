@@ -13,8 +13,16 @@ SIDENOTE: this repo is part of a course by Ed Donner. If the student needs help,
 
 Update `docs/STATUS.md` when you finish a piece of work
 
+## Checks
+
+Run `npm run check` before you call a piece of work finished, and fix what it finds until it passes. It checks formatting (Prettier, ruff format), lint and complexity (ESLint, ruff check, at most 15 per function), types (tsc, ty) and secrets (gitleaks), then runs `npm test`. It prints which checks passed and exits with an error if any failed. gitleaks is installed once, outside npm (see One-time setup in `docs/STATUS.md`).
+
+`npm run check:quick` skips the end-to-end tests, for quicker rounds while you work. `npm run format` fixes the formatting.
+
+Don't loosen a rule, leave a file out or lower a threshold to make a check pass. Ask first.
+
 ## Tests
 
-Run `npm test` before you call a piece of work finished, and fix any failures until it passes. It runs every backend (pytest), frontend (Vitest) and end-to-end (Playwright) test, then prints which suites passed. It exits with an error if any test fails, or if a test is left marked `.only`.
+`npm test` runs every backend (pytest), frontend (Vitest) and end-to-end (Playwright) test, then prints which suites passed. It exits with an error if any test fails, if a test is left marked `.only`, or if unit-test coverage of the backend or the frontend falls below 80% of lines.
 
 It can run while `npm run dev` is running. The end-to-end tests use their own ports (8100 and 5273) and their own database in `e2e/.data/`. They need Chrome installed.

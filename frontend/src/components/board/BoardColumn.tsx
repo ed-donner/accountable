@@ -24,7 +24,11 @@ export function BoardColumn({
   const name = STAGE_NAMES[column.stage];
 
   return (
-    <SortableContext id={column.stage} items={column.deals.map((deal) => deal.id)} strategy={verticalListSortingStrategy}>
+    <SortableContext
+      id={column.stage}
+      items={column.deals.map((deal) => deal.id)}
+      strategy={verticalListSortingStrategy}
+    >
       <ul
         ref={setNodeRef}
         aria-label={`${name} deals`}

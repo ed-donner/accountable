@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import timedelta
+from typing import TypedDict
 
 from fastapi import APIRouter
 from sqlalchemy import Connection, and_, select
@@ -12,6 +13,19 @@ from backend.app.schemas import Dashboard
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
 
+class StageFigures(TypedDict):
+    stage: str
+    count: int
+    value: int
+    expected: int
+
+
+class MonthFigures(TypedDict):
+    month: str
+    revenue: int
+    deals: int
+
+
 def _previous_month(key: str) -> str:
     year, month = int(key[:4]), int(key[5:7])
     month -= 1
@@ -20,7 +34,7 @@ def _previous_month(key: str) -> str:
     return f"{year:04d}-{month:02d}"
 
 
-def _funnel(conn: Connection, today) -> list[dict]:
+def _funnel(conn: Connection, today) -> list[rules.FunnelStep]:
     rows = conn.execute(select(deals.c.id, deals.c.stage, deals.c.value, deals.c.created_at)).all()
     changes = defaultdict(list)
     for change in conn.execute(
@@ -48,7 +62,9 @@ def get_dashboard(conn: Conn):
 
     # Open pipeline, and by stage (DASH-2, DASH-6). Expected revenue adds up each
     # deal's rounded figure, so it matches the Deals table.
-    by_stage = {stage: {"stage": stage, "count": 0, "value": 0, "expected": 0} for stage in rules.OPEN_STAGES}
+    by_stage: dict[str, StageFigures] = {
+        stage: {"stage": stage, "count": 0, "value": 0, "expected": 0} for stage in rules.OPEN_STAGES
+    }
     for deal in all_deals:
         if rules.is_open(deal.stage):
             figures = by_stage[deal.stage]
@@ -59,7 +75,7 @@ def get_dashboard(conn: Conn):
 
     # Revenue and deals won in each of the 12 months (DASH-3, DASH-4).
     month_keys = rules.months(today)
-    months = {key: {"month": key, "revenue": 0, "deals": 0} for key in month_keys}
+    months: dict[str, MonthFigures] = {key: {"month": key, "revenue": 0, "deals": 0} for key in month_keys}
     this_month = month_keys[-1]
     last_month = _previous_month(this_month)
     last_month_value = 0
@@ -82,7 +98,9 @@ def get_dashboard(conn: Conn):
     )
     follow_ups = []
     for row in conn.execute(
-        entry_select().where(open_follow_up).order_by(activities.c.follow_up_date, activities.c.occurred_at, activities.c.id)
+        entry_select()
+        .where(open_follow_up)
+        .order_by(activities.c.follow_up_date, activities.c.occurred_at, activities.c.id)
     ):
         entry = entry_out(row)
         entry["days_late"] = max(0, (today - row.follow_up_date).days)

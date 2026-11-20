@@ -68,7 +68,13 @@ export function LogActivity({ target, idPrefix }: { target: ActivityTarget; idPr
   return (
     <form noValidate onSubmit={onSubmit} aria-label="Log activity" className="grid gap-3 rounded-xl bg-page p-4">
       <TypePicker value={type} onChange={(next) => setValue("type", next)} />
-      <Field id={`${idPrefix}-description`} label="What happened?" required error={errors.description?.message} hideLabel>
+      <Field
+        id={`${idPrefix}-description`}
+        label="What happened?"
+        required
+        error={errors.description?.message}
+        hideLabel
+      >
         <Textarea
           {...fieldAria(`${idPrefix}-description`, errors.description?.message)}
           placeholder="What happened?"
@@ -88,7 +94,12 @@ export function LogActivity({ target, idPrefix }: { target: ActivityTarget; idPr
           />
         </Field>
         <Field id={`${idPrefix}-follow-up`} label="Follow-up date" error={errors.follow_up_date?.message}>
-          <Input {...fieldAria(`${idPrefix}-follow-up`, errors.follow_up_date?.message)} type="date" className="w-[170px]" {...register("follow_up_date")} />
+          <Input
+            {...fieldAria(`${idPrefix}-follow-up`, errors.follow_up_date?.message)}
+            type="date"
+            className="w-[170px]"
+            {...register("follow_up_date")}
+          />
         </Field>
         <Button type="submit" className="ml-auto" disabled={log.isPending}>
           Log activity

@@ -11,8 +11,9 @@ You need three things. The first `npm run dev` needs the internet, because it do
 | **Node.js 24 or later** | `winget install OpenJS.NodeJS.LTS` | `brew install node` | The installer from nodejs.org |
 | **uv** (Python's package manager) | `winget install astral-sh.uv` | `brew install uv` | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | **Browser** | Chrome or Edge | Chrome or Edge | Chrome or Edge |
+| **gitleaks**, for `npm run check` only | `winget install Gitleaks.Gitleaks` | `brew install gitleaks` | The release for Linux from github.com/gitleaks/gitleaks |
 
-The end-to-end tests use the Chrome installed on the computer, so they need Chrome itself.
+The end-to-end tests use the Chrome installed on the computer, so they need Chrome itself. After installing gitleaks, open a new terminal so it's on the path.
 
 **Platforms:** the app has only been tried on Windows so far. The start and stop scripts use each system's documented approach, but Mac and Linux haven't been run.
 
@@ -24,6 +25,9 @@ The end-to-end tests use the Chrome installed on the computer, so they need Chro
 | `npm run seed` | Replaces all the data with the sample data, after you type `yes`. It works while the app is running; refresh the page afterwards. `npm run seed -- --yes` skips the question. |
 | `npm test` | Runs the backend, frontend and end-to-end tests in turn, and says which failed. |
 | `npm run test:backend`, `npm run test:frontend`, `npm run test:e2e` | One suite at a time. |
+| `npm run check` | Formatting, lint, complexity, types, secrets, then `npm test`. Says which checks failed. |
+| `npm run check:quick` | The same without the end-to-end tests. |
+| `npm run format` | Fixes the formatting (Prettier and ruff). |
 
 - **Your data** lives in `data/accountable.db`, a single SQLite file. A new file is filled with the sample data the first time the app starts. To back it up, copy the file while the app is stopped.
 - **Ports:** the app uses 8000 (backend) and 5173 (the page). The end-to-end tests use 8100 and 5273, with their own database in `e2e/.data/`, so they can run while `npm run dev` is running. If a port is taken, the scripts say which one.
@@ -113,6 +117,37 @@ The docs are set up for changes after the MVP. No code changed.
 - `docs/REVIEW.md` has a new pass that flags code `docs/spec.md` doesn't describe, and points to the change's own `plan.md`.
 - `AGENTS.md` points to `docs/STANDARDS.md`, the coding standards, and `docs/REVIEW.md` has a pass that checks each change against them. A standards finding is a nit unless it also breaks behavior or leaks data.
 - **Left as they were:** some code comments cite the MVP plan ("plan, decision 11", "risk 9", "Phase 7") or its intent ("success criterion 2"). Those now live in `docs/changes/mvp/`, which agents on other branches don't read. Most of what they point to is in `docs/spec.md` now, so a later change could make them cite the spec instead.
+
+## Code checks (Nov 20, 2026)
+
+`npm run check` runs every check in `scripts/check.mjs`, then `npm test`, and says which failed. `npm run check:quick` leaves out the end-to-end tests, and `npm run format` fixes the formatting. AGENTS.md tells agents to run `npm run check` before calling work finished.
+
+**How it's set up**
+
+- ESLint replaces oxlint. Its config, `eslint.config.js`, is at the root and covers `frontend/`, `e2e/` and `scripts/`, as Prettier does. Prettier and ruff wrap at 120 characters, the width the code already used.
+- typescript-eslint doesn't support TypeScript 7 (the Go compiler) yet. So the root has TypeScript 6.0 for ESLint's parser only, and `frontend/` keeps 7.0 for `tsc`. Once typescript-eslint supports 7, the root's copy can go.
+- ESLint is version 10, since 9 is out of support. eslint-plugin-jsx-a11y still names ESLint 9 as its peer but uses nothing 10 removed, so `package.json` has an `overrides` entry for that peer.
+- Coverage counts lines. The backend measures `backend/app`. The frontend measures every file in `src/`, not only the ones a test imports, apart from the test helpers and `main.tsx`.
+- gitleaks scans every commit and every file with its default rules. `.gitleaks.toml` allows `.env` and the installed packages in `.venv/` and `node_modules/`, where it found 2 false positives inside SQLAlchemy. In a scratch folder, a token in `.env`, `.venv/` or `node_modules/` passed, and the same token in `backend/` failed.
+
+**What the checks found, and the fixes**
+
+- **Complexity:** `DeleteDialog` (41), `ContactForm` (25) and `DealForm` (20). The dialog now loads the impact, chooses the words and runs the delete in separate pieces. Each form keeps its logic apart from its fields.
+- **React Hooks:** the table reset its page in an effect after a new search. It now resets while rendering, the pattern React suggests.
+- **Accessibility:** the two Done tickboxes' labels point at their tickbox, and the picker names the list it opens (`aria-controls`). A pipeline card spells out the `role="button"` and `tabIndex` that dnd-kit already gave it, so the linter can see them. The magnifier in a picker's search box no longer focuses the box when clicked, because that was a click handler on a non-interactive element. The box already has focus when the picker opens.
+- **ty:** the update models declared fields like `name: str = None` with mypy ignores, which ty doesn't accept. They're now `Change[...]`: `None` when left out, and still refusing a null that's sent, now with "This can't be empty." instead of the field's own message. New ids come back with `RETURNING`, the dashboard's counters are TypedDicts, and Pydantic errors use a literal template.
+- **ruff:** its defaults now include pyupgrade, isort and simplify rules: `datetime.UTC`, `X | None`, import order, two nested `if`s and a list index.
+- **Formatting:** Prettier reformatted 125 files and ruff 12. The one-line records in `seed_data.py` now wrap.
+
+**Agreed before changing**
+
+- Frontend unit coverage was 48% of lines. New Vitest tests render each page against the fake API (`App.test.tsx` and `pages/*.test.tsx`), which brought it to 83%. The backend is at 98%. The board's drag handlers need real layout, so Playwright still covers dragging.
+- `no-empty-pattern` allows `({}, use)` as a parameter in `e2e/` only, since that's how Playwright writes a fixture with no dependencies.
+- gitleaks allows `.venv/` and `node_modules/` as well as `.env`.
+
+**Last run:** two checks failed, and the rest passed, end-to-end tests included. Prettier failed on four test files written after `npm run format`, and on Vitest's generated `frontend/.vitest/`. The files are formatted now, and `.vitest/` is git-ignored. gitleaks also failed, but it passes when started the way `npm run check` starts it, from a terminal with today's path. The likely cause is a terminal that doesn't have gitleaks on its path, so the message for that now says to open a new terminal.
+
+**Left alone:** `npm audit` reports 4 moderate issues, all in the shadcn CLI's dependencies (`ts-morph`, `minimatch`). They were there before; the fix is a major shadcn upgrade.
 
 ## Choices the build made (please check)
 

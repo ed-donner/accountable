@@ -39,6 +39,10 @@ export function useDeleteOrganization() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api<void>(`/organizations/${id}`, { method: "DELETE" }),
-    onSuccess: (_data, id) => refreshAll(queryClient, [["organization", id], ["organization-impact", id]]),
+    onSuccess: (_data, id) =>
+      refreshAll(queryClient, [
+        ["organization", id],
+        ["organization-impact", id],
+      ]),
   });
 }

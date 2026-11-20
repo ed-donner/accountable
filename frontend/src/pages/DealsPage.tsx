@@ -14,7 +14,12 @@ import { formatDate, money, percent, plural } from "@/lib/format";
 import { STAGES, STAGE_NAMES } from "@/lib/rules";
 
 const columns: TableColumn<Deal>[] = [
-  { id: "name", header: "Name", cell: (deal) => <NameLink to={`/deals/${deal.id}`}>{deal.name}</NameLink>, sortValue: (deal) => deal.name },
+  {
+    id: "name",
+    header: "Name",
+    cell: (deal) => <NameLink to={`/deals/${deal.id}`}>{deal.name}</NameLink>,
+    sortValue: (deal) => deal.name,
+  },
   {
     id: "organization",
     header: "Organization",
@@ -28,9 +33,20 @@ const columns: TableColumn<Deal>[] = [
       deal.main_contact && <RecordLink to={`/contacts/${deal.main_contact.id}`}>{deal.main_contact.name}</RecordLink>,
     sortValue: (deal) => deal.main_contact?.name ?? null,
   },
-  { id: "stage", header: "Stage", cell: (deal) => <StageBadge stage={deal.stage} />, sortValue: (deal) => STAGES.indexOf(deal.stage) },
+  {
+    id: "stage",
+    header: "Stage",
+    cell: (deal) => <StageBadge stage={deal.stage} />,
+    sortValue: (deal) => STAGES.indexOf(deal.stage),
+  },
   { id: "value", header: "Value", cell: (deal) => money(deal.value), sortValue: (deal) => deal.value, numeric: true },
-  { id: "probability", header: "Probability", cell: (deal) => percent(deal.probability), sortValue: (deal) => deal.probability, numeric: true },
+  {
+    id: "probability",
+    header: "Probability",
+    cell: (deal) => percent(deal.probability),
+    sortValue: (deal) => deal.probability,
+    numeric: true,
+  },
   {
     id: "expected",
     header: "Expected revenue",

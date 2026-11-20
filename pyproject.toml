@@ -17,8 +17,32 @@ package = false
 pythonpath = ["."]
 testpaths = ["backend/tests"]
 
+[tool.coverage.run]
+source = ["backend/app"]
+
+[tool.coverage.report]
+fail_under = 80
+skip_covered = true
+show_missing = true
+
+[tool.ruff]
+line-length = 120
+include = ["backend/**/*.py"]
+
+[tool.ruff.lint]
+extend-select = ["C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ty.src]
+include = ["backend"]
+
 [dependency-groups]
 dev = [
     "httpx2>=2.16.2",
     "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.6",
+    "ty>=0.0.107",
 ]

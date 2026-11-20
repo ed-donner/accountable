@@ -23,7 +23,9 @@ test("/ lands on the dashboard with data (success criterion 1)", async ({ page, 
   expect(dashboard.open_pipeline.value).toBeGreaterThan(0);
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
-  await expect(page.locator('[data-figure="open-pipeline"]')).toContainText(`$${dashboard.open_pipeline.value.toLocaleString("en-US")}`);
+  await expect(page.locator('[data-figure="open-pipeline"]')).toContainText(
+    `$${dashboard.open_pipeline.value.toLocaleString("en-US")}`,
+  );
   await expect(page.locator('[data-chart="revenue"] svg').first()).toBeVisible();
   await expect(page.getByRole("list", { name: "Recent activity" }).getByRole("listitem").first()).toBeVisible();
 });

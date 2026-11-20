@@ -26,7 +26,11 @@ describe("DeleteDialog", () => {
     ).toBeInTheDocument();
     expect(within(dialog).getByRole("link", { name: /Website redesign/ })).toHaveAttribute("href", "/deals/5");
     expect(within(dialog).getByRole("link", { name: /Data dashboard build/ })).toHaveAttribute("href", "/deals/6");
-    expect(within(dialog).getAllByRole("button").map((button) => button.textContent)).toEqual(["Close"]);
+    expect(
+      within(dialog)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Close"]);
     expect(calls.some((call) => call.method === "DELETE")).toBe(false);
   });
 
@@ -40,7 +44,9 @@ describe("DeleteDialog", () => {
       <DeleteDialog target={{ kind: "deal", id: 7, name: "Website redesign" }} onOpenChange={onOpenChange} />,
     );
     const dialog = await screen.findByRole("alertdialog", { name: "Delete Website redesign?" });
-    expect(await within(dialog).findByText("Its 5 activities, including its stage changes, will be deleted.")).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText("Its 5 activities, including its stage changes, will be deleted."),
+    ).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(calls.some((call) => call.method === "DELETE")).toBe(false);
@@ -49,12 +55,22 @@ describe("DeleteDialog", () => {
   it("confirming deletes, then says so (DEL-1, DEL-7)", async () => {
     const { calls } = fakeApi({
       "GET /api/meta": META,
-      "GET /api/contacts/8/delete-impact": { activities: 6, deals: [{ id: 5, name: "Website redesign" }, { id: 9, name: "Q1 SEO retainer" }] },
+      "GET /api/contacts/8/delete-impact": {
+        activities: 6,
+        deals: [
+          { id: 5, name: "Website redesign" },
+          { id: 9, name: "Q1 SEO retainer" },
+        ],
+      },
       "DELETE /api/contacts/8": reply(204),
     });
     const onDeleted = vi.fn();
     const { user } = renderWithApp(
-      <DeleteDialog target={{ kind: "contact", id: 8, name: "Sarah Chen" }} onOpenChange={() => {}} onDeleted={onDeleted} />,
+      <DeleteDialog
+        target={{ kind: "contact", id: 8, name: "Sarah Chen" }}
+        onOpenChange={() => {}}
+        onDeleted={onDeleted}
+      />,
     );
     const dialog = await screen.findByRole("alertdialog", { name: "Delete Sarah Chen?" });
     expect(await within(dialog).findByText("Sarah Chen's 6 activities will be deleted.")).toBeInTheDocument();

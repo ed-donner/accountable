@@ -35,7 +35,13 @@ function withStage(deal: Deal, stage: Stage, today: string): Deal {
  * rules: the usual probability, today for Won and Lost, and the close date
  * kept when a deal is reopened. The board it's given is left alone.
  */
-export function moveCard(board: Pipeline, dealId: number, toStage: Stage, beforeId: number | null, today: string): Pipeline {
+export function moveCard(
+  board: Pipeline,
+  dealId: number,
+  toStage: Stage,
+  beforeId: number | null,
+  today: string,
+): Pipeline {
   const card = board.columns.flatMap((column) => column.deals).find((deal) => deal.id === dealId);
   if (!card) return board;
   const moved = withStage(card, toStage, today);

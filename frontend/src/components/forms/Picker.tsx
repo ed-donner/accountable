@@ -47,16 +47,21 @@ export function Picker({
             type="button"
             role="combobox"
             aria-expanded={open}
+            aria-controls={`${id}-options`}
             aria-invalid={invalid || undefined}
             aria-describedby={describedBy}
             disabled={disabled}
-            className={cn(fieldClasses, "flex h-10 items-center justify-between gap-2 text-left", !chosen && "text-ink-subtle")}
+            className={cn(
+              fieldClasses,
+              "flex h-10 items-center justify-between gap-2 text-left",
+              !chosen && "text-ink-subtle",
+            )}
           >
             <span className="truncate">{chosen ? chosen.name : placeholder}</span>
             <ChevronsUpDown className="size-4 shrink-0 text-ink-subtle" aria-hidden />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+        <PopoverContent id={`${id}-options`} className="w-(--radix-popover-trigger-width) p-0" align="start">
           <Command>
             <CommandInput placeholder={searchPlaceholder} />
             <CommandList>

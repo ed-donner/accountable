@@ -29,7 +29,13 @@ function valuesOf(entry: TimelineEntry | null): EditValues {
 }
 
 /** Edits a note, call or email: type, description, when, follow-up date and done (ACT-4). */
-export function ActivityForm({ entry, onOpenChange }: { entry: TimelineEntry | null; onOpenChange: (open: boolean) => void }) {
+export function ActivityForm({
+  entry,
+  onOpenChange,
+}: {
+  entry: TimelineEntry | null;
+  onOpenChange: (open: boolean) => void;
+}) {
   const change = useChangeActivity();
   const form = useForm<EditValues>({ resolver: zodResolver(editSchema), defaultValues: valuesOf(entry) });
   const { register, handleSubmit, reset, setError, setValue, control, formState } = form;
@@ -75,14 +81,26 @@ export function ActivityForm({ entry, onOpenChange }: { entry: TimelineEntry | n
     >
       <TypePicker value={type} onChange={(next) => setValue("type", next)} />
       <Field id="activity-description" label="Description" required error={errors.description?.message}>
-        <Textarea {...fieldAria("activity-description", errors.description?.message)} rows={4} {...register("description")} />
+        <Textarea
+          {...fieldAria("activity-description", errors.description?.message)}
+          rows={4}
+          {...register("description")}
+        />
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field id="activity-when" label="When" required error={errors.occurred_at?.message}>
-          <Input {...fieldAria("activity-when", errors.occurred_at?.message)} type="datetime-local" {...register("occurred_at")} />
+          <Input
+            {...fieldAria("activity-when", errors.occurred_at?.message)}
+            type="datetime-local"
+            {...register("occurred_at")}
+          />
         </Field>
         <Field id="activity-follow-up" label="Follow-up date" error={errors.follow_up_date?.message}>
-          <Input {...fieldAria("activity-follow-up", errors.follow_up_date?.message)} type="date" {...register("follow_up_date")} />
+          <Input
+            {...fieldAria("activity-follow-up", errors.follow_up_date?.message)}
+            type="date"
+            {...register("follow_up_date")}
+          />
         </Field>
       </div>
       {followUp && (
@@ -90,8 +108,12 @@ export function ActivityForm({ entry, onOpenChange }: { entry: TimelineEntry | n
           control={control}
           name="done"
           render={({ field }) => (
-            <label className="flex items-center gap-2 text-[14px] text-ink">
-              <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(checked === true)} />
+            <label htmlFor="activity-done" className="flex items-center gap-2 text-[14px] text-ink">
+              <Checkbox
+                id="activity-done"
+                checked={field.value}
+                onCheckedChange={(checked) => field.onChange(checked === true)}
+              />
               Follow-up done
             </label>
           )}

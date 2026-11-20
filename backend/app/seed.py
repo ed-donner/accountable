@@ -1,14 +1,14 @@
 """The sample data loader, and the npm run seed command (RUN-3).
 
-    uv run python -m backend.app.seed         asks first
-    uv run python -m backend.app.seed --yes   doesn't ask, for the tests
+uv run python -m backend.app.seed         asks first
+uv run python -m backend.app.seed --yes   doesn't ask, for the tests
 """
 
 import argparse
 import calendar
 import sys
 from collections import Counter
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy import Connection, delete, insert
 
@@ -34,7 +34,7 @@ def at(day: date, hhmm: str, now: datetime) -> datetime:
     """A local time on a day, in UTC. A time later than now moves to just before
     now, keeping the order of the day's times."""
     hours, minutes = (int(part) for part in hhmm.split(":"))
-    moment = clock.local_time(day, time(hours, minutes)).astimezone(timezone.utc)
+    moment = clock.local_time(day, time(hours, minutes)).astimezone(UTC)
     if moment > now:
         minutes_left_in_day = 24 * 60 - (hours * 60 + minutes)
         moment = now - timedelta(minutes=1 + minutes_left_in_day / 10)
@@ -51,7 +51,8 @@ def load_sample_data(conn: Connection, today: date, now: datetime) -> dict[str, 
     for index, org in enumerate(ORGANIZATIONS):
         created = at(today - timedelta(days=600 - 20 * index), "09:00", now)
         org_ids[org.key] = conn.execute(
-            insert(organizations).values(
+            insert(organizations)
+            .values(
                 name=org.name,
                 website=org.domain,
                 industry=org.industry,
@@ -59,7 +60,8 @@ def load_sample_data(conn: Connection, today: date, now: datetime) -> dict[str, 
                 created_at=created,
                 updated_at=created,
             )
-        ).inserted_primary_key[0]
+            .returning(organizations.c.id)
+        ).scalar_one()
         domains[org.key] = org.domain
 
     contact_ids: dict[str, int] = {}
@@ -68,7 +70,8 @@ def load_sample_data(conn: Connection, today: date, now: datetime) -> dict[str, 
         local_part = person.name.lower().replace(" ", ".")
         domain = domains[person.org] if person.org else "mail.example"
         contact_ids[person.key] = conn.execute(
-            insert(contacts).values(
+            insert(contacts)
+            .values(
                 name=person.name,
                 email=f"{local_part}@{domain}",
                 phone=person.phone,
@@ -78,7 +81,8 @@ def load_sample_data(conn: Connection, today: date, now: datetime) -> dict[str, 
                 created_at=created,
                 updated_at=created,
             )
-        ).inserted_primary_key[0]
+            .returning(contacts.c.id)
+        ).scalar_one()
 
     deal_ids: dict[str, int] = {}
     close_dates: dict[str, date] = {}
@@ -92,7 +96,8 @@ def load_sample_data(conn: Connection, today: date, now: datetime) -> dict[str, 
         changes = list(zip(deal.path, deal.path[1:]))
         assert len(changes) == len(deal.steps), deal.key
         deal_ids[deal.key] = deal_id = conn.execute(
-            insert(deals).values(
+            insert(deals)
+            .values(
                 name=deal.name,
                 organization_id=org_ids[deal.org],
                 main_contact_id=contact_ids[deal.contact] if deal.contact else None,
@@ -104,7 +109,8 @@ def load_sample_data(conn: Connection, today: date, now: datetime) -> dict[str, 
                 created_at=created,
                 updated_at=created,
             )
-        ).inserted_primary_key[0]
+            .returning(deals.c.id)
+        ).scalar_one()
         positions[stage] += 1
         close_dates[deal.key] = close
         for index, ((from_stage, to_stage), offset) in enumerate(zip(changes, deal.steps)):
@@ -200,7 +206,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     finally:
         engine.dispose()
-
 
 
 if __name__ == "__main__":

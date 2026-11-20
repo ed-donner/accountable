@@ -36,9 +36,24 @@ const columns: TableColumn<Contact>[] = [
       ),
     sortValue: (contact) => contact.organization?.name ?? null,
   },
-  { id: "job_title", header: "Job title", cell: (contact) => contact.job_title, sortValue: (contact) => contact.job_title },
-  { id: "email", header: "Email", cell: (contact) => <EmailLink email={contact.email} />, sortValue: (contact) => contact.email },
-  { id: "phone", header: "Phone", cell: (contact) => <PhoneLink phone={contact.phone} />, sortValue: (contact) => contact.phone },
+  {
+    id: "job_title",
+    header: "Job title",
+    cell: (contact) => contact.job_title,
+    sortValue: (contact) => contact.job_title,
+  },
+  {
+    id: "email",
+    header: "Email",
+    cell: (contact) => <EmailLink email={contact.email} />,
+    sortValue: (contact) => contact.email,
+  },
+  {
+    id: "phone",
+    header: "Phone",
+    cell: (contact) => <PhoneLink phone={contact.phone} />,
+    sortValue: (contact) => contact.phone,
+  },
 ];
 
 const FILTERS: { value: Status | "all"; label: string }[] = [
@@ -82,7 +97,12 @@ export default function ContactsPage() {
           )}
         >
           {option.label}
-          <span className={cn("font-mono text-[12px] tabular", status === option.value ? "text-band-muted" : "text-ink-subtle")}>
+          <span
+            className={cn(
+              "font-mono text-[12px] tabular",
+              status === option.value ? "text-band-muted" : "text-ink-subtle",
+            )}
+          >
             {counts[option.value] ?? 0}
           </span>
         </button>
@@ -93,7 +113,11 @@ export default function ContactsPage() {
   return (
     <>
       <title>Contacts · Accountable</title>
-      <Band title="Contacts" subtitle={contacts.data ? plural(contacts.data.length, "contact") : " "} right={addButton} />
+      <Band
+        title="Contacts"
+        subtitle={contacts.data ? plural(contacts.data.length, "contact") : " "}
+        right={addButton}
+      />
       <PageBody>
         <DataTable
           rows={contacts.data}

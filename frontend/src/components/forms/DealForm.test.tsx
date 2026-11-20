@@ -77,7 +77,9 @@ describe("DealForm", () => {
     const { calls } = fakeApi({
       ...ROUTES,
       "POST /api/deals": reply(422, {
-        detail: [{ loc: ["body", "main_contact_id"], msg: "Choose a contact from Bluefin Logistics.", type: "value_error" }],
+        detail: [
+          { loc: ["body", "main_contact_id"], msg: "Choose a contact from Bluefin Logistics.", type: "value_error" },
+        ],
       }),
     });
     let closed = false;
@@ -92,6 +94,12 @@ describe("DealForm", () => {
     expect(closed).toBe(false);
     expect(screen.getByLabelText(/Name/)).toHaveValue("New deal");
     const post = calls.find((call) => call.method === "POST");
-    expect(post?.body).toMatchObject({ name: "New deal", organization_id: 1, value: 12500, probability: 10, stage: "new" });
+    expect(post?.body).toMatchObject({
+      name: "New deal",
+      organization_id: 1,
+      value: 12500,
+      probability: 10,
+      stage: "new",
+    });
   });
 });

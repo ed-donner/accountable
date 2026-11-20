@@ -51,6 +51,10 @@ export function useDeleteContact() {
   return useMutation({
     mutationFn: (id: number) => api<void>(`/contacts/${id}`, { method: "DELETE" }),
     onSuccess: (_data, id) =>
-      refreshAll(queryClient, [["contact", id], ["contact-timeline", id], ["contact-impact", id]]),
+      refreshAll(queryClient, [
+        ["contact", id],
+        ["contact-timeline", id],
+        ["contact-impact", id],
+      ]),
   });
 }

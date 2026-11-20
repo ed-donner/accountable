@@ -13,7 +13,11 @@ Commands are npm scripts in a `package.json` at the repo root, with `frontend/` 
 
 - `npm run dev` starts the backend and the frontend together
 - `npm test` runs all the tests and fails if any test fails
+- `npm run check` runs the formatters, linters, type checkers, the secret scan and all the tests, and fails if any of them fails; `npm run check:quick` does the same without the end-to-end tests
+- `npm run format` fixes the formatting
 - `npm run seed` resets the database to the sample data
+
+The checks use Prettier and ESLint (with typescript-eslint, React Hooks and jsx-a11y) and `tsc` for the frontend, ruff and ty for the backend, and gitleaks for secrets.
 
 `docs/STATUS.md` says how to run the app. `README.md` is the course's own guide, so leave it as it is.
 

@@ -27,7 +27,9 @@ def test_good_emails(client, email):
 
 @pytest.mark.parametrize("email", ["sarah", "sarah@bluefin", "@bluefin.example", "sarah chen@bluefin.example"])
 def test_bad_emails(client, email):
-    assert field_errors(client.post("/api/contacts", json={"name": "Sarah", "email": email})) == {"email": EMAIL_MESSAGE}
+    assert field_errors(client.post("/api/contacts", json={"name": "Sarah", "email": email})) == {
+        "email": EMAIL_MESSAGE
+    }
 
 
 def test_an_empty_email_is_nothing(client):

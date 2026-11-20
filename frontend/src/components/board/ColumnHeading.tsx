@@ -10,7 +10,15 @@ import { isClosed, STAGE_NAMES, type Stage } from "@/lib/rules";
  * A column's heading, in the band: the stage, how many cards, their total value
  * and expected revenue (PIPE-1), and its own Add deal button (PIPE-7).
  */
-export function ColumnHeading({ stage, totals, onAdd }: { stage: Stage; totals: Totals; onAdd: (stage: Stage) => void }) {
+export function ColumnHeading({
+  stage,
+  totals,
+  onAdd,
+}: {
+  stage: Stage;
+  totals: Totals;
+  onAdd: (stage: Stage) => void;
+}) {
   const titleId = useId();
   const name = STAGE_NAMES[stage];
   return (
@@ -34,7 +42,13 @@ export function ColumnHeading({ stage, totals, onAdd }: { stage: Stage; totals: 
       </div>
       {isClosed(stage) && <div className="mt-1 text-[12px] text-band-muted">Closed in the last 30 days</div>}
       <div className="mt-auto">
-        <Button variant="band" size="sm" className="h-[30px] w-full" onClick={() => onAdd(stage)} aria-label={`Add deal in ${name}`}>
+        <Button
+          variant="band"
+          size="sm"
+          className="h-[30px] w-full"
+          onClick={() => onAdd(stage)}
+          aria-label={`Add deal in ${name}`}
+        >
           <Plus className="size-3.5" /> Add deal
         </Button>
       </div>

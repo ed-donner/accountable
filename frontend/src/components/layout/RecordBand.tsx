@@ -57,7 +57,13 @@ export function RecordFigure({ label, value, tone }: { label: string; value: Rea
   return (
     <div className="flex flex-col items-end">
       <span className="text-[13px] font-medium text-band-muted">{label}</span>
-      <span className={tone === "sea" ? "font-mono text-[26px] leading-[34px] text-sea-green tabular" : "font-mono text-[26px] leading-[34px] text-band-ink tabular"}>
+      <span
+        className={
+          tone === "sea"
+            ? "font-mono text-[26px] leading-[34px] text-sea-green tabular"
+            : "font-mono text-[26px] leading-[34px] text-band-ink tabular"
+        }
+      >
         {value}
       </span>
     </div>

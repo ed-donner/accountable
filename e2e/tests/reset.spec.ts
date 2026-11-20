@@ -7,7 +7,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 
 // Runs last, as the "reset" project, because it replaces every record the
 // other journeys made.
-test("npm run seed resets the data while the app is running (RUN-3, success criterion 2)", async ({ page, request }) => {
+test("npm run seed resets the data while the app is running (RUN-3, success criterion 2)", async ({
+  page,
+  request,
+}) => {
   const name = uniqueName("E2E Before reset");
   await apiPost(request, "/api/organizations", { name });
   await page.goto("/organizations");

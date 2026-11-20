@@ -5,7 +5,7 @@ so a problem reads the same whichever side finds it.
 """
 
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, BeforeValidator, ConfigDict, PlainSerializer, model_validator
@@ -22,7 +22,7 @@ MAX_VALUE = 100_000_000
 
 
 def _utc_text(value: datetime) -> str:
-    return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # A UTC date-time that is always written with a Z, such as 2026-11-10T15:15:00Z.
@@ -30,7 +30,18 @@ UtcDateTime = Annotated[datetime, PlainSerializer(_utc_text, return_type=str)]
 
 
 def _error(message: str):
-    return PydanticCustomError("value_error", message)
+    return PydanticCustomError("value_error", "{message}", {"message": message})
+
+
+def _refuse_null(value):
+    if value is None:
+        raise _error("This can't be empty.")
+    return value
+
+
+# In an update, a field that's left out keeps its value, so it reads as None
+# here. A field that can't be empty still refuses a null that's sent.
+type Change[T] = Annotated[T | None, BeforeValidator(_refuse_null)]
 
 
 def _required_text(max_length: int, missing: str):
@@ -125,7 +136,7 @@ class OrganizationCreate(Request):
 
 
 class OrganizationUpdate(Request):
-    name: Name = None  # type: ignore[assignment]
+    name: Change[Name] = None
     website: Website = None
     industry: Industry = None
     notes: LongText = None
@@ -144,12 +155,12 @@ class ContactCreate(Request):
 
 
 class ContactUpdate(Request):
-    name: Name = None  # type: ignore[assignment]
+    name: Change[Name] = None
     email: Email = None
     phone: Phone = None
     job_title: JobTitle = None
     organization_id: int | None = None
-    status: Status = None  # type: ignore[assignment]
+    status: Change[Status] = None
 
 
 # Deals
@@ -166,13 +177,13 @@ class DealCreate(Request):
 
 
 class DealUpdate(Request):
-    name: Name = None  # type: ignore[assignment]
-    organization_id: int = None  # type: ignore[assignment]
+    name: Change[Name] = None
+    organization_id: Change[int] = None
     main_contact_id: int | None = None
-    stage: Stage = None  # type: ignore[assignment]
-    value: Value = None  # type: ignore[assignment]
+    stage: Change[Stage] = None
+    value: Change[Value] = None
     probability: Probability = None
-    close_date: date = None  # type: ignore[assignment]
+    close_date: Change[date] = None
 
 
 class DealMove(Request):
@@ -199,11 +210,11 @@ class ActivityCreate(Request):
 
 
 class ActivityUpdate(Request):
-    type: LoggableType = None  # type: ignore[assignment]
-    description: Description = None  # type: ignore[assignment]
-    occurred_at: AwareDatetime = None  # type: ignore[assignment]
+    type: Change[LoggableType] = None
+    description: Change[Description] = None
+    occurred_at: Change[AwareDatetime] = None
     follow_up_date: date | None = None
-    done: bool = None  # type: ignore[assignment]
+    done: Change[bool] = None
 
 
 # Answers
@@ -380,4 +391,3 @@ def bad_field(field: str, message: str, value=None):
     from fastapi.exceptions import RequestValidationError
 
     return RequestValidationError([{"type": "value_error", "loc": ("body", field), "msg": message, "input": value}])
-

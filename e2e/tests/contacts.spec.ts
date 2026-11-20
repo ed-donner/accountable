@@ -74,7 +74,10 @@ test.describe("Contacts", () => {
     await expect(page).toHaveURL(`/organizations/${sarah.organization.id}`);
   });
 
-  test("changing the organization of a main contact lists the deal, then unlinks it (CON-5)", async ({ page, request }) => {
+  test("changing the organization of a main contact lists the deal, then unlinks it (CON-5)", async ({
+    page,
+    request,
+  }) => {
     const name = uniqueName("E2E Mover");
     const from = await apiPost<{ id: number; name: string }>(request, "/api/organizations", { name: `${name} From` });
     await apiPost(request, "/api/organizations", { name: `${name} To` });

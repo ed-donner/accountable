@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useSaveDeal } from "@/api/deals";
@@ -62,20 +62,11 @@ export function DealForm({ open, onOpenChange, deal, defaultStage, defaultOrgani
     defaultValues: valuesOf(today ?? "", deal, defaultStage, defaultOrganizationId),
     mode: "onTouched",
   });
-  const { register, handleSubmit, reset, setError, setValue, control, formState } = form;
-  const errors = formState.errors;
-  const stage = useWatch({ control, name: "stage" }) as Stage;
-  const organizationId = useWatch({ control, name: "organization_id" });
+  const { handleSubmit, reset, setError } = form;
 
   useEffect(() => {
     if (open && today) reset(valuesOf(today, deal, defaultStage, defaultOrganizationId));
   }, [open, today, deal, defaultStage, defaultOrganizationId, reset]);
-
-  // Choosing a stage fills in its probability; Won or Lost also fills in today (STG-2).
-  function fillForStage(next: Stage) {
-    setValue("probability", String(USUAL_PROBABILITY[next]), { shouldValidate: true });
-    if (isClosed(next) && today) setValue("close_date", today, { shouldValidate: true });
-  }
 
   const onSubmit = handleSubmit((values) => {
     const input = {
@@ -100,8 +91,6 @@ export function DealForm({ open, onOpenChange, deal, defaultStage, defaultOrgani
     );
   });
 
-  const locked = isClosed(stage);
-
   return (
     <FormDialog
       open={open}
@@ -111,6 +100,29 @@ export function DealForm({ open, onOpenChange, deal, defaultStage, defaultOrgani
       pending={save.isPending || !today}
       onSubmit={onSubmit}
     >
+      <DealFields form={form} today={today} />
+    </FormDialog>
+  );
+}
+
+function DealFields({ form, today }: { form: UseFormReturn<DealValues>; today: string | undefined }) {
+  const {
+    register,
+    setValue,
+    control,
+    formState: { errors },
+  } = form;
+  const stage = useWatch({ control, name: "stage" }) as Stage;
+  const organizationId = useWatch({ control, name: "organization_id" });
+
+  // Choosing a stage fills in its probability; Won or Lost also fills in today (STG-2).
+  function fillForStage(next: Stage) {
+    setValue("probability", String(USUAL_PROBABILITY[next]), { shouldValidate: true });
+    if (isClosed(next) && today) setValue("close_date", today, { shouldValidate: true });
+  }
+
+  return (
+    <>
       <Field id="deal-name" label="Name" required error={errors.name?.message}>
         <Input {...fieldAria("deal-name", errors.name?.message)} autoComplete="off" {...register("name")} />
       </Field>
@@ -197,32 +209,50 @@ export function DealForm({ open, onOpenChange, deal, defaultStage, defaultOrgani
           </div>
         </Field>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Field
-          id="deal-probability"
-          label="Probability"
-          error={errors.probability?.message}
-          hint={locked ? `${STAGE_NAMES[stage]} is always ${USUAL_PROBABILITY[stage]}%.` : undefined}
-        >
-          <div className="relative">
-            <Input
-              {...fieldAria("deal-probability", errors.probability?.message)}
-              inputMode="numeric"
-              autoComplete="off"
-              readOnly={locked}
-              aria-readonly={locked || undefined}
-              className={cn("pr-8 font-mono text-[13px]", locked && "bg-page text-ink-muted")}
-              {...register("probability")}
-            />
-            <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 font-mono text-[13px] text-ink-subtle">
-              %
-            </span>
-          </div>
-        </Field>
-        <Field id="deal-close" label={locked ? "Close date" : "Expected close date"} required error={errors.close_date?.message}>
-          <Input {...fieldAria("deal-close", errors.close_date?.message)} type="date" {...register("close_date")} />
-        </Field>
-      </div>
-    </FormDialog>
+      <ProbabilityAndCloseDate form={form} stage={stage} />
+    </>
+  );
+}
+
+/** Won and Lost fix the probability, and the close date becomes the day it closed. */
+function ProbabilityAndCloseDate({ form, stage }: { form: UseFormReturn<DealValues>; stage: Stage }) {
+  const {
+    register,
+    formState: { errors },
+  } = form;
+  const locked = isClosed(stage);
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <Field
+        id="deal-probability"
+        label="Probability"
+        error={errors.probability?.message}
+        hint={locked ? `${STAGE_NAMES[stage]} is always ${USUAL_PROBABILITY[stage]}%.` : undefined}
+      >
+        <div className="relative">
+          <Input
+            {...fieldAria("deal-probability", errors.probability?.message)}
+            inputMode="numeric"
+            autoComplete="off"
+            readOnly={locked}
+            aria-readonly={locked || undefined}
+            className={cn("pr-8 font-mono text-[13px]", locked && "bg-page text-ink-muted")}
+            {...register("probability")}
+          />
+          <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 font-mono text-[13px] text-ink-subtle">
+            %
+          </span>
+        </div>
+      </Field>
+      <Field
+        id="deal-close"
+        label={locked ? "Close date" : "Expected close date"}
+        required
+        error={errors.close_date?.message}
+      >
+        <Input {...fieldAria("deal-close", errors.close_date?.message)} type="date" {...register("close_date")} />
+      </Field>
+    </div>
   );
 }

@@ -9,7 +9,8 @@ let nextId = 1;
 function deal(stage: Stage, fields: Partial<Deal> = {}): Deal {
   const id = fields.id ?? nextId++;
   const value = fields.value ?? 10_000;
-  const probability = fields.probability ?? { new: 10, qualified: 25, proposal: 50, negotiation: 75, won: 100, lost: 0 }[stage];
+  const probability =
+    fields.probability ?? { new: 10, qualified: 25, proposal: 50, negotiation: 75, won: 100, lost: 0 }[stage];
   return {
     id,
     name: `Deal ${id}`,
@@ -42,7 +43,9 @@ function find(b: Pipeline, id: number) {
 
 describe("moveCard", () => {
   it("moves a card up and down within a column, keeping its figures", () => {
-    const start = board({ proposal: [deal("proposal", { id: 1 }), deal("proposal", { id: 2 }), deal("proposal", { id: 3 })] });
+    const start = board({
+      proposal: [deal("proposal", { id: 1 }), deal("proposal", { id: 2 }), deal("proposal", { id: 3 })],
+    });
     const up = moveCard(start, 3, "proposal", 1, TODAY);
     expect(ids(up, "proposal")).toEqual([3, 1, 2]);
     const down = moveCard(start, 1, "proposal", 3, TODAY);
@@ -51,7 +54,10 @@ describe("moveCard", () => {
   });
 
   it("null moves the card to the bottom of the column", () => {
-    const start = board({ new: [deal("new", { id: 1 }), deal("new", { id: 2 })], qualified: [deal("qualified", { id: 3 })] });
+    const start = board({
+      new: [deal("new", { id: 1 }), deal("new", { id: 2 })],
+      qualified: [deal("qualified", { id: 3 })],
+    });
     expect(ids(moveCard(start, 1, "new", null, TODAY), "new")).toEqual([2, 1]);
     expect(ids(moveCard(start, 1, "qualified", null, TODAY), "qualified")).toEqual([3, 1]);
   });
@@ -71,11 +77,21 @@ describe("moveCard", () => {
     const moved = moveCard(start, 1, "negotiation", 3, TODAY);
     expect(ids(moved, "proposal")).toEqual([]);
     expect(ids(moved, "negotiation")).toEqual([2, 1, 3]);
-    expect(find(moved, 1)).toMatchObject({ stage: "negotiation", probability: 75, expected_value: 36_375, close_date: "2026-12-12" });
+    expect(find(moved, 1)).toMatchObject({
+      stage: "negotiation",
+      probability: 75,
+      expected_value: 36_375,
+      close_date: "2026-12-12",
+    });
   });
 
   it("to Won: 100% and today; to Lost: 0% and today (STG-2.2, STG-4)", () => {
-    const start = board({ negotiation: [deal("negotiation", { id: 1, value: 20_000, close_date: "2026-12-30" }), deal("negotiation", { id: 2 })] });
+    const start = board({
+      negotiation: [
+        deal("negotiation", { id: 1, value: 20_000, close_date: "2026-12-30" }),
+        deal("negotiation", { id: 2 }),
+      ],
+    });
     expect(find(moveCard(start, 1, "won", null, TODAY), 1)).toMatchObject({
       stage: "won",
       probability: 100,
@@ -94,7 +110,12 @@ describe("moveCard", () => {
   it("reopening keeps the close date, and a past date makes the deal late (STG-5)", () => {
     const start = board({ won: [deal("won", { id: 1, close_date: "2026-11-02" })] });
     const reopened = moveCard(start, 1, "proposal", null, TODAY);
-    expect(find(reopened, 1)).toMatchObject({ stage: "proposal", probability: 50, close_date: "2026-11-02", is_late: true });
+    expect(find(reopened, 1)).toMatchObject({
+      stage: "proposal",
+      probability: 50,
+      close_date: "2026-11-02",
+      is_late: true,
+    });
   });
 
   it("works out is_late again: a late deal moved to Lost is no longer late", () => {
@@ -117,7 +138,10 @@ describe("moveCard", () => {
 
 describe("columnTotals and boardTotals", () => {
   const start = board({
-    new: [deal("new", { id: 1, value: 10_000 }), deal("new", { id: 2, value: 5_000, close_date: "2026-11-01", is_late: true })],
+    new: [
+      deal("new", { id: 1, value: 10_000 }),
+      deal("new", { id: 2, value: 5_000, close_date: "2026-11-01", is_late: true }),
+    ],
     proposal: [deal("proposal", { id: 3, value: 48_500 })],
     negotiation: [deal("negotiation", { id: 4, value: 101 })],
     won: [deal("won", { id: 5, value: 30_000 })],
@@ -148,7 +172,10 @@ describe("columnTotals and boardTotals", () => {
 });
 
 describe("beforeIdAfterDrop", () => {
-  const column = { stage: "proposal" as const, deals: [deal("proposal", { id: 7 }), deal("proposal", { id: 8 }), deal("proposal", { id: 9 })] };
+  const column = {
+    stage: "proposal" as const,
+    deals: [deal("proposal", { id: 7 }), deal("proposal", { id: 8 }), deal("proposal", { id: 9 })],
+  };
 
   it("is the card just below the dropped one", () => {
     expect(beforeIdAfterDrop(column, 7)).toBe(8);

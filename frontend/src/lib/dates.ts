@@ -31,7 +31,9 @@ export function daysLate(followUp: string, today: string): number {
 
 /** A datetime-local input's value ("2026-11-19T14:30", local time) as UTC with a Z. */
 export function localInputToUtc(value: string): string {
-  return parseISO(value).toISOString().replace(/\.\d{3}Z$/, "Z");
+  return parseISO(value)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z");
 }
 
 /** A UTC date-time as a datetime-local input's value, in local time. */

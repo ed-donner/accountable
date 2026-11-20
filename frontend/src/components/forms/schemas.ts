@@ -36,7 +36,11 @@ export function organizationSchema(existing: { id: number; name: string }[], cur
         (org) => org.id !== currentId && org.name.trim().toLowerCase() === values.name.trim().toLowerCase(),
       );
       if (taken) {
-        ctx.addIssue({ code: "custom", path: ["name"], message: `An organization called ${taken.name} already exists.` });
+        ctx.addIssue({
+          code: "custom",
+          path: ["name"],
+          message: `An organization called ${taken.name} already exists.`,
+        });
       }
     });
 }
@@ -75,7 +79,11 @@ const wholeNumberText = (min: number, max: number, message: string) =>
 
 export const dealSchema = z.object({
   name: requiredText(120, "Enter a name."),
-  organization_id: z.number({ error: "Choose an organization." }).int().nullable().refine((id) => id !== null, "Choose an organization."),
+  organization_id: z
+    .number({ error: "Choose an organization." })
+    .int()
+    .nullable()
+    .refine((id) => id !== null, "Choose an organization."),
   main_contact_id: z.number().int().nullable(),
   stage: z.enum(STAGES),
   value: wholeNumberText(0, 100_000_000, VALUE_MESSAGE),

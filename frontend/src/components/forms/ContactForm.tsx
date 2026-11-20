@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useContact, useSaveContact } from "@/api/contacts";
-import type { Contact, ContactSaved } from "@/api/types";
+import type { Contact, ContactSaved, Deal } from "@/api/types";
 import { Input } from "@/components/ui/input";
 import { STATUSES, STATUS_NAMES, type Status } from "@/lib/rules";
 import { messages } from "@/lib/words";
@@ -48,19 +48,14 @@ export function ContactForm({ open, onOpenChange, contact, defaultOrganizationId
     defaultValues: valuesOf(contact, defaultOrganizationId),
     mode: "onTouched",
   });
-  const { register, handleSubmit, reset, setError, control, formState } = form;
-  const errors = formState.errors;
+  const { handleSubmit, reset, setError, control } = form;
   const organizationId = useWatch({ control, name: "organization_id" });
 
   useEffect(() => {
     if (open) reset(valuesOf(contact, defaultOrganizationId));
   }, [open, contact, defaultOrganizationId, reset]);
 
-  const oldOrganizationId = contact?.organization?.id ?? null;
-  const losing =
-    contact && oldOrganizationId !== null && organizationId !== oldOrganizationId
-      ? (detail.data?.deals ?? []).filter((deal) => deal.organization.id === oldOrganizationId)
-      : [];
+  const losing = dealsLosingMainContact(contact, organizationId, detail.data?.deals);
 
   const onSubmit = handleSubmit((values) => {
     const input = {
@@ -84,20 +79,6 @@ export function ContactForm({ open, onOpenChange, contact, defaultOrganizationId
     );
   });
 
-  const notice =
-    losing.length > 0 ? (
-      <div role="status" className="rounded-lg bg-marigold-tint px-4 py-3 text-[13px] leading-5 text-ink">
-        <p className="font-medium">
-          {contact!.name} will stop being the main contact on {losing.length === 1 ? "this deal" : "these deals"}:
-        </p>
-        <ul className="mt-1 list-disc pl-5">
-          {losing.map((deal) => (
-            <li key={deal.id}>{deal.name}</li>
-          ))}
-        </ul>
-      </div>
-    ) : null;
-
   return (
     <FormDialog
       open={open}
@@ -106,21 +87,70 @@ export function ContactForm({ open, onOpenChange, contact, defaultOrganizationId
       submitLabel={contact ? "Save changes" : "Add contact"}
       pending={save.isPending}
       onSubmit={onSubmit}
-      notice={notice}
+      notice={contact && losing.length > 0 ? <MainContactNotice name={contact.name} deals={losing} /> : null}
     >
+      <ContactFields form={form} />
+    </FormDialog>
+  );
+}
+
+/** The deals they stop being the main contact on when they move to another organization (CON-5). */
+function dealsLosingMainContact(contact: Contact | undefined, organizationId: number | null, deals: Deal[] = []) {
+  const oldOrganizationId = contact?.organization?.id ?? null;
+  if (oldOrganizationId === null || organizationId === oldOrganizationId) return [];
+  return deals.filter((deal) => deal.organization.id === oldOrganizationId);
+}
+
+function MainContactNotice({ name, deals }: { name: string; deals: Deal[] }) {
+  return (
+    <div role="status" className="rounded-lg bg-marigold-tint px-4 py-3 text-[13px] leading-5 text-ink">
+      <p className="font-medium">
+        {name} will stop being the main contact on {deals.length === 1 ? "this deal" : "these deals"}:
+      </p>
+      <ul className="mt-1 list-disc pl-5">
+        {deals.map((deal) => (
+          <li key={deal.id}>{deal.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ContactFields({ form }: { form: UseFormReturn<ContactValues> }) {
+  const {
+    register,
+    control,
+    formState: { errors },
+  } = form;
+  return (
+    <>
       <Field id="contact-name" label="Name" required error={errors.name?.message}>
         <Input {...fieldAria("contact-name", errors.name?.message)} autoComplete="off" {...register("name")} />
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field id="contact-email" label="Email" error={errors.email?.message}>
-          <Input {...fieldAria("contact-email", errors.email?.message)} type="email" autoComplete="off" {...register("email")} />
+          <Input
+            {...fieldAria("contact-email", errors.email?.message)}
+            type="email"
+            autoComplete="off"
+            {...register("email")}
+          />
         </Field>
         <Field id="contact-phone" label="Phone" error={errors.phone?.message}>
-          <Input {...fieldAria("contact-phone", errors.phone?.message)} type="tel" autoComplete="off" {...register("phone")} />
+          <Input
+            {...fieldAria("contact-phone", errors.phone?.message)}
+            type="tel"
+            autoComplete="off"
+            {...register("phone")}
+          />
         </Field>
       </div>
       <Field id="contact-job-title" label="Job title" error={errors.job_title?.message}>
-        <Input {...fieldAria("contact-job-title", errors.job_title?.message)} autoComplete="off" {...register("job_title")} />
+        <Input
+          {...fieldAria("contact-job-title", errors.job_title?.message)}
+          autoComplete="off"
+          {...register("job_title")}
+        />
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field id="contact-organization" label="Organization" error={errors.organization_id?.message}>
@@ -163,6 +193,6 @@ export function ContactForm({ open, onOpenChange, contact, defaultOrganizationId
           />
         </Field>
       </div>
-    </FormDialog>
+    </>
   );
 }

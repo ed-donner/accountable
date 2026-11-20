@@ -76,7 +76,13 @@ export default function OrganizationPage() {
               </div>
               <div className="grid gap-0.5">
                 <dt className="text-[12px] font-medium text-ink-muted">Website</dt>
-                <dd>{data.website ? <WebsiteLink website={data.website} /> : <span className="text-ink-subtle">Not given</span>}</dd>
+                <dd>
+                  {data.website ? (
+                    <WebsiteLink website={data.website} />
+                  ) : (
+                    <span className="text-ink-subtle">Not given</span>
+                  )}
+                </dd>
               </div>
               <div className="grid gap-0.5">
                 <dt className="text-[12px] font-medium text-ink-muted">Notes</dt>
@@ -91,7 +97,8 @@ export default function OrganizationPage() {
             <Panel>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-[16px] leading-6 font-semibold">
-                  Contacts <span className="font-mono text-[13px] font-normal text-ink-subtle">{data.contacts.length}</span>
+                  Contacts{" "}
+                  <span className="font-mono text-[13px] font-normal text-ink-subtle">{data.contacts.length}</span>
                 </h2>
                 <Button variant="second" size="sm" onClick={() => setAddingContact(true)}>
                   <Plus /> Add contact
@@ -103,7 +110,10 @@ export default function OrganizationPage() {
                 <ul aria-label="Contacts" className="divide-y divide-line">
                   {data.contacts.map((contact) => (
                     <li key={contact.id}>
-                      <Link to={`/contacts/${contact.id}`} className="flex items-center gap-3 px-2 py-2.5 hover:bg-[#F5F8F9]">
+                      <Link
+                        to={`/contacts/${contact.id}`}
+                        className="flex items-center gap-3 px-2 py-2.5 hover:bg-[#F5F8F9]"
+                      >
                         <span className="font-medium text-ink">{contact.name}</span>
                         <StatusBadge status={contact.status} />
                         <span className="ml-auto text-[13px] text-ink-muted">{contact.job_title}</span>
@@ -132,7 +142,9 @@ export default function OrganizationPage() {
                       <Link to={`/deals/${deal.id}`} className="flex items-center gap-3 px-2 py-2.5 hover:bg-[#F5F8F9]">
                         <span className="min-w-0 flex-1 truncate font-medium text-ink">{deal.name}</span>
                         <StageBadge stage={deal.stage} />
-                        <span className="w-24 text-right font-mono text-[13px] text-ink tabular">{money(deal.value)}</span>
+                        <span className="w-24 text-right font-mono text-[13px] text-ink tabular">
+                          {money(deal.value)}
+                        </span>
                         <span className="flex w-40 items-center justify-end gap-2 font-mono text-[13px] text-ink-muted tabular">
                           {deal.is_late && <LateBadge />}
                           {formatDate(deal.close_date)}

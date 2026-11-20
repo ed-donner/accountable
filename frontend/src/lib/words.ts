@@ -34,8 +34,7 @@ export function contactDelete(name: string, activities: number, dealNames: strin
 /** DEL-5: a deal. "including its stage changes" appears only when it has some. */
 export function dealDelete(name: string, activities: number, stageChanges: number): DeleteWords {
   if (activities === 0) return { title: `Delete ${name}?`, lines: [] };
-  const including =
-    stageChanges > 0 ? `, including its ${pluralNoun(stageChanges, "stage change")},` : "";
+  const including = stageChanges > 0 ? `, including its ${pluralNoun(stageChanges, "stage change")},` : "";
   return { title: `Delete ${name}?`, lines: [`Its ${plural(activities, "activity")}${including} will be deleted.`] };
 }
 

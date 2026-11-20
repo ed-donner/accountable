@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { dealsWonSummary, funnelShares, monthLabel, monthName, niceTicks, recentWhen, revenueSummary, shortDay } from "./dashboard";
+import {
+  dealsWonSummary,
+  funnelShares,
+  monthLabel,
+  monthName,
+  niceTicks,
+  recentWhen,
+  revenueSummary,
+  shortDay,
+} from "./dashboard";
 
 const months = [
   { month: "2025-12", revenue: 140_000, deals: 1 },

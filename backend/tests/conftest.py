@@ -2,7 +2,7 @@
 today is Thursday 2026-11-19, and now is 2026-11-19T15:00:00Z."""
 
 import json
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -14,7 +14,7 @@ from backend.app.main import create_app
 
 ROOT = Path(__file__).resolve().parents[2]
 TODAY = date(2026, 11, 19)
-NOW = datetime(2026, 11, 19, 15, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 11, 19, 15, 0, 0, tzinfo=UTC)
 RULE_CASES = json.loads((ROOT / "frontend" / "src" / "lib" / "rules-cases.json").read_text(encoding="utf-8"))
 
 

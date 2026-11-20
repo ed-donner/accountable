@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   createPaginatedRowModel,
@@ -102,10 +102,13 @@ export function DataTable<T extends { id: number }>({
     [all, filter, needle, searchFields],
   );
 
-  // A new search or filter starts again from the first page.
-  useEffect(() => {
+  // A new search or filter starts again from the first page. Resetting while
+  // rendering, rather than in an effect, saves a render of the old page.
+  const [pagedFor, setPagedFor] = useState({ needle, filter });
+  if (pagedFor.needle !== needle || pagedFor.filter !== filter) {
+    setPagedFor({ needle, filter });
     setPagination((current) => (current.pageIndex === 0 ? current : { ...current, pageIndex: 0 }));
-  }, [needle, filter]);
+  }
 
   const columnDefs = useMemo<ColumnDef<typeof features, T, unknown>[]>(
     () =>
@@ -125,8 +128,7 @@ export function DataTable<T extends { id: number }>({
     data: shown,
     state: { sorting, pagination },
     onSortingChange: (updater) => setSorting((old) => (typeof updater === "function" ? updater(old) : updater)),
-    onPaginationChange: (updater) =>
-      setPagination((old) => (typeof updater === "function" ? updater(old) : updater)),
+    onPaginationChange: (updater) => setPagination((old) => (typeof updater === "function" ? updater(old) : updater)),
     // A heading click sorts by that column; a second click reverses it (TBL-2).
     enableSortingRemoval: false,
     sortDescFirst: false,
@@ -146,7 +148,10 @@ export function DataTable<T extends { id: number }>({
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-4">
         <div className="relative w-[320px]">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-subtle" aria-hidden />
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-subtle"
+            aria-hidden
+          />
           <Input
             type="search"
             aria-label={searchLabel}
@@ -174,7 +179,10 @@ export function DataTable<T extends { id: number }>({
                     <th
                       key={header.id}
                       aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"}
-                      className={cn("h-12 px-4 text-[12px] font-medium text-ink-muted", column.numeric ? "text-right" : "text-left")}
+                      className={cn(
+                        "h-12 px-4 text-[12px] font-medium text-ink-muted",
+                        column.numeric ? "text-right" : "text-left",
+                      )}
                     >
                       <button
                         type="button"
@@ -246,12 +254,14 @@ export function DataTable<T extends { id: number }>({
           </tbody>
         </table>
 
-        {!loading && all.length === 0 && (
-          <EmptyState title={`No ${pluralNoun(2, noun)} yet`}>{emptyAction}</EmptyState>
-        )}
+        {!loading && all.length === 0 && <EmptyState title={`No ${pluralNoun(2, noun)} yet`}>{emptyAction}</EmptyState>}
         {!loading && all.length > 0 && shown.length === 0 && (
           <EmptyState
-            title={needle ? `No ${pluralNoun(2, noun)} match "${search.trim()}"` : `No ${pluralNoun(2, noun)} match this filter`}
+            title={
+              needle
+                ? `No ${pluralNoun(2, noun)} match "${search.trim()}"`
+                : `No ${pluralNoun(2, noun)} match this filter`
+            }
           />
         )}
       </div>
@@ -261,7 +271,12 @@ export function DataTable<T extends { id: number }>({
           <span>
             Page {pagination.pageIndex + 1} of {pageCount}
           </span>
-          <Button variant="second" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+          <Button
+            variant="second"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
             <ChevronLeft /> Previous
           </Button>
           <Button variant="second" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>

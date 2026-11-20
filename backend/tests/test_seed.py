@@ -1,5 +1,5 @@
 from collections import Counter, defaultdict
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -99,14 +99,14 @@ def logged_count(engine) -> int:
 def test_the_sample_data_meets_the_rules(seeded_client):
     check_sample_rules(seeded_client, date(2026, 11, 19))
     engine = seeded_client.app.state.engine
-    check_stage_paths_and_times(engine, date(2026, 11, 19), datetime(2026, 11, 19, 15, tzinfo=timezone.utc))
+    check_stage_paths_and_times(engine, date(2026, 11, 19), datetime(2026, 11, 19, 15, tzinfo=UTC))
     assert logged_count(engine) == 80
 
 
 @pytest.mark.parametrize("day", SEED_DAYS)
 def test_the_rules_hold_on_awkward_seed_days(tmp_path, day):
     today = date.fromisoformat(day)
-    now = datetime.combine(today, time(15), tzinfo=timezone.utc)
+    now = datetime.combine(today, time(15), tzinfo=UTC)
     clock.freeze(today, now)
     app = create_app(Settings(tmp_path / f"{day}.db", 8000, 5173))
     with local_client(app) as client:
@@ -117,7 +117,7 @@ def test_the_rules_hold_on_awkward_seed_days(tmp_path, day):
 @pytest.mark.parametrize("hour", [0, 3, 23])
 def test_times_are_never_in_the_future_at_any_hour(tmp_path, hour):
     today = date(2026, 11, 19)
-    now = datetime.combine(today, time(hour, 5), tzinfo=timezone.utc)
+    now = datetime.combine(today, time(hour, 5), tzinfo=UTC)
     clock.freeze(today, now)
     app = create_app(Settings(tmp_path / "hours.db", 8000, 5173))
     with local_client(app):
@@ -152,7 +152,9 @@ def db_env(settings, monkeypatch):
 def test_the_command_with_yes_skips_the_question(db_env, monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda prompt: pytest.fail("asked a question"))
     assert seed.main(["--yes"]) == 0
-    assert capsys.readouterr().out.startswith("Sample data loaded: 15 organizations, 40 contacts, 35 deals, 80 activities")
+    assert capsys.readouterr().out.startswith(
+        "Sample data loaded: 15 organizations, 40 contacts, 35 deals, 80 activities"
+    )
 
 
 @pytest.mark.parametrize("answer", ["no", "", "y"])

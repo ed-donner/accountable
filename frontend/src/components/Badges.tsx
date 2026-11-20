@@ -1,6 +1,15 @@
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { STAGE_NAMES, STAGE_TONE, STATUS_NAMES, STATUS_TONE, TONE_COLOR, type Stage, type Status, type Tone } from "@/lib/rules";
+import {
+  STAGE_NAMES,
+  STAGE_TONE,
+  STATUS_NAMES,
+  STATUS_TONE,
+  TONE_COLOR,
+  type Stage,
+  type Status,
+  type Tone,
+} from "@/lib/rules";
 
 // Badges are pills: the tint behind, the text shade for the words, 12px medium (spec 2.6).
 const TONE_CLASSES: Record<Tone, string> = {

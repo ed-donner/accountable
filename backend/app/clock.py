@@ -9,7 +9,7 @@ also fixes the time zone, UTC unless one is given, so the tests give the same
 answers on any computer.
 """
 
-from datetime import date, datetime, time, timezone, tzinfo
+from datetime import UTC, date, datetime, time, tzinfo
 
 _frozen_today: date | None = None
 _frozen_now: datetime | None = None
@@ -25,7 +25,7 @@ def today() -> date:
 def now() -> datetime:
     if _frozen_now is not None:
         return _frozen_now
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def local_date(moment: datetime) -> date:
@@ -41,12 +41,12 @@ def local_time(day: date, at: time) -> datetime:
     return datetime.combine(day, at).astimezone()
 
 
-def freeze(today_value: date, now_value: datetime, zone: tzinfo = timezone.utc) -> None:
+def freeze(today_value: date, now_value: datetime, zone: tzinfo = UTC) -> None:
     global _frozen_today, _frozen_now, _frozen_zone
     if now_value.tzinfo is None:
         raise ValueError("now must carry a time zone")
     _frozen_today = today_value
-    _frozen_now = now_value.astimezone(timezone.utc)
+    _frozen_now = now_value.astimezone(UTC)
     _frozen_zone = zone
 
 

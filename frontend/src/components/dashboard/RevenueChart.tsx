@@ -33,8 +33,25 @@ export function RevenueChart({ months }: { months: MonthRow[] }) {
           <AreaChart data={months} margin={{ top: 20, right: 16, bottom: 4, left: 0 }}>
             <CartesianGrid vertical={false} stroke={GRID} />
             {/* A band scale puts each month's point in the middle of its month, in line with the bars beside it. */}
-            <XAxis dataKey="label" scale="band" interval={0} tickLine={false} axisLine={false} tick={AXIS_TICK} tickMargin={10} />
-            <YAxis ticks={ticks} domain={[0, ticks[ticks.length - 1]]} tickFormatter={shortMoney} width={60} tickLine={false} axisLine={false} tick={AXIS_TICK} tickMargin={6} />
+            <XAxis
+              dataKey="label"
+              scale="band"
+              interval={0}
+              tickLine={false}
+              axisLine={false}
+              tick={AXIS_TICK}
+              tickMargin={10}
+            />
+            <YAxis
+              ticks={ticks}
+              domain={[0, ticks[ticks.length - 1]]}
+              tickFormatter={shortMoney}
+              width={60}
+              tickLine={false}
+              axisLine={false}
+              tick={AXIS_TICK}
+              tickMargin={6}
+            />
             <Tooltip
               content={(props) => <MonthTooltip {...props} figure={(row) => `${money(row.revenue)} won`} />}
               cursor={{ stroke: "#B9C9CE", strokeWidth: 1 }}
@@ -52,7 +69,15 @@ export function RevenueChart({ months }: { months: MonthRow[] }) {
               animationDuration={400}
               dot={(props) =>
                 props.index === last ? (
-                  <circle key="latest" cx={props.cx} cy={props.cy} r={4.5} fill={LINE} stroke="#FFFFFF" strokeWidth={2} />
+                  <circle
+                    key="latest"
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={4.5}
+                    fill={LINE}
+                    stroke="#FFFFFF"
+                    strokeWidth={2}
+                  />
                 ) : (
                   <g key={props.index} />
                 )

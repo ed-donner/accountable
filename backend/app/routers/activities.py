@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Response
-from sqlalchemy import Connection, delete, insert, select, update
+from sqlalchemy import Connection, Table, delete, insert, select, update
 
 from backend.app import clock
 from backend.app.db import Conn, activities, contacts, deals
@@ -18,23 +18,27 @@ def _row(conn: Connection, activity_id: int):
     return row
 
 
+def _exists(conn: Connection, table: Table, record_id: int) -> bool:
+    return conn.execute(select(table.c.id).where(table.c.id == record_id)).first() is not None
+
+
 @router.post("", response_model=TimelineEntry, status_code=201)
 def log_activity(body: ActivityCreate, conn: Conn):
-    if body.contact_id is not None:
-        if conn.execute(select(contacts.c.id).where(contacts.c.id == body.contact_id)).first() is None:
-            raise bad_field("contact_id", "That contact no longer exists.", body.contact_id)
-    if body.deal_id is not None:
-        if conn.execute(select(deals.c.id).where(deals.c.id == body.deal_id)).first() is None:
-            raise bad_field("deal_id", "That deal no longer exists.", body.deal_id)
+    if body.contact_id is not None and not _exists(conn, contacts, body.contact_id):
+        raise bad_field("contact_id", "That contact no longer exists.", body.contact_id)
+    if body.deal_id is not None and not _exists(conn, deals, body.deal_id):
+        raise bad_field("deal_id", "That deal no longer exists.", body.deal_id)
     now = clock.now()
     new_id = conn.execute(
-        insert(activities).values(
+        insert(activities)
+        .values(
             **body.model_dump(),
             done=False,
             created_at=now,
             updated_at=now,
         )
-    ).inserted_primary_key[0]
+        .returning(activities.c.id)
+    ).scalar_one()
     return get_entry(conn, new_id)
 
 

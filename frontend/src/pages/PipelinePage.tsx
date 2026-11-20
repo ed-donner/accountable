@@ -31,7 +31,11 @@ export default function PipelinePage() {
     <>
       <title>Pipeline · Accountable</title>
       {content}
-      <DealForm open={adding !== null} onOpenChange={(open) => !open && setAdding(null)} defaultStage={adding ?? "new"} />
+      <DealForm
+        open={adding !== null}
+        onOpenChange={(open) => !open && setAdding(null)}
+        defaultStage={adding ?? "new"}
+      />
     </>
   );
 }

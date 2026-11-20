@@ -12,11 +12,28 @@
     "dev": "node scripts/dev.mjs",
     "seed": "uv run python -m backend.app.seed",
     "test": "node scripts/test.mjs",
-    "test:backend": "uv run pytest",
+    "test:backend": "uv run pytest --cov",
     "test:frontend": "npm run test -w frontend",
-    "test:e2e": "playwright test -c e2e/playwright.config.ts"
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
+    "check": "node scripts/check.mjs",
+    "check:quick": "node scripts/check.mjs --quick",
+    "format": "prettier --write frontend e2e scripts eslint.config.js && uv run ruff format backend"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.1"
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
+    "eslint": "^10.15.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.73.0"
+  },
+  "overrides": {
+    "eslint-plugin-jsx-a11y": {
+      "eslint": "$eslint"
+    }
   }
 }

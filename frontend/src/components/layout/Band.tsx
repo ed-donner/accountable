@@ -44,7 +44,12 @@ export function BandFigure({ label, value, tone }: { label: string; value: React
   return (
     <div className="flex flex-col items-end">
       <span className="text-[13px] font-medium text-band-muted">{label}</span>
-      <span className={cn("font-mono text-[26px] leading-[34px] tabular", tone === "sea" ? "text-sea-green" : "text-band-ink")}>
+      <span
+        className={cn(
+          "font-mono text-[26px] leading-[34px] tabular",
+          tone === "sea" ? "text-sea-green" : "text-band-ink",
+        )}
+      >
         {value}
       </span>
     </div>

@@ -96,8 +96,8 @@ def add_organization(body: OrganizationCreate, conn: Conn):
     _check_name_free(conn, body.name)
     now = clock.now()
     new_id = conn.execute(
-        insert(organizations).values(**body.model_dump(), created_at=now, updated_at=now)
-    ).inserted_primary_key[0]
+        insert(organizations).values(**body.model_dump(), created_at=now, updated_at=now).returning(organizations.c.id)
+    ).scalar_one()
     return get_organization(new_id, conn)
 
 
@@ -136,9 +136,7 @@ def change_organization(organization_id: int, body: OrganizationUpdate, conn: Co
         _check_name_free(conn, changes["name"], except_id=organization_id)
     if changes:
         conn.execute(
-            update(organizations)
-            .where(organizations.c.id == organization_id)
-            .values(**changes, updated_at=clock.now())
+            update(organizations).where(organizations.c.id == organization_id).values(**changes, updated_at=clock.now())
         )
     return get_organization(organization_id, conn)
 

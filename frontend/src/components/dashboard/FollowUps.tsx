@@ -64,7 +64,9 @@ function FollowUpItem({ item, today }: { item: FollowUp; today: string }) {
       </div>
       <div className="flex flex-col items-end text-[13px] text-ink-muted">
         {late ? (
-          <span className="font-semibold whitespace-nowrap text-raspberry-text">{dueLabel(item.follow_up_date!, today)}</span>
+          <span className="font-semibold whitespace-nowrap text-raspberry-text">
+            {dueLabel(item.follow_up_date!, today)}
+          </span>
         ) : (
           <span className="whitespace-nowrap">{dueLabel(item.follow_up_date!, today)}</span>
         )}

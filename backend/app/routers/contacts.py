@@ -73,8 +73,8 @@ def add_contact(body: ContactCreate, conn: Conn):
     _check_organization(conn, body.organization_id)
     now = clock.now()
     new_id = conn.execute(
-        insert(contacts).values(**body.model_dump(), created_at=now, updated_at=now)
-    ).inserted_primary_key[0]
+        insert(contacts).values(**body.model_dump(), created_at=now, updated_at=now).returning(contacts.c.id)
+    ).scalar_one()
     return _get(conn, new_id)
 
 

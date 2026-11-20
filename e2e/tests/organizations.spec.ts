@@ -77,7 +77,10 @@ test.describe("Organizations", () => {
     await expect(page).toHaveURL(/\/organizations\/\d+$/);
   });
 
-  test("the page shows its figures, contacts and deals, and Add contact fills in the organization (ORG-2, ORG-3)", async ({ page, request }) => {
+  test("the page shows its figures, contacts and deals, and Add contact fills in the organization (ORG-2, ORG-3)", async ({
+    page,
+    request,
+  }) => {
     const orgs = await apiGet<Org[]>(request, "/api/organizations");
     const bluefin = orgs.find((o) => o.name === "Bluefin Logistics")!;
     const detail = await apiGet<{ revenue_won: number; contacts: { name: string }[]; deals: { name: string }[] }>(

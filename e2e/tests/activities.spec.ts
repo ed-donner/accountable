@@ -42,13 +42,19 @@ test.describe("Activities and timelines", () => {
     // Log a call on the deal with a follow-up in 3 days.
     await page.goto(`/deals/${deal.id}`);
     await logActivity(page, "Call", description, addDays(today, 3));
-    const onDeal = page.getByRole("list", { name: "Timeline entries" }).getByRole("listitem").filter({ hasText: description });
+    const onDeal = page
+      .getByRole("list", { name: "Timeline entries" })
+      .getByRole("listitem")
+      .filter({ hasText: description });
     await expect(onDeal).toBeVisible();
     await expect(onDeal.getByRole("checkbox")).not.toBeChecked();
 
     // It shows on the main contact's timeline, naming the deal.
     await page.goto(`/contacts/${contact.id}`);
-    const onContact = page.getByRole("list", { name: "Timeline entries" }).getByRole("listitem").filter({ hasText: description });
+    const onContact = page
+      .getByRole("list", { name: "Timeline entries" })
+      .getByRole("listitem")
+      .filter({ hasText: description });
     await expect(onContact).toBeVisible();
     await expect(onContact.getByRole("link", { name: deal.name })).toBeVisible();
 
@@ -63,7 +69,11 @@ test.describe("Activities and timelines", () => {
     // It shows ticked on the timeline.
     await page.goto(`/deals/${deal.id}`);
     await expect(
-      page.getByRole("list", { name: "Timeline entries" }).getByRole("listitem").filter({ hasText: description }).getByRole("checkbox"),
+      page
+        .getByRole("list", { name: "Timeline entries" })
+        .getByRole("listitem")
+        .filter({ hasText: description })
+        .getByRole("checkbox"),
     ).toBeChecked();
   });
 
@@ -77,7 +87,10 @@ test.describe("Activities and timelines", () => {
     await expect(entry.getByText(/\(overdue\)/)).toBeVisible();
 
     await page.goto("/");
-    const item = page.getByRole("list", { name: "Follow-ups" }).getByRole("listitem").filter({ hasText: `Overdue for ${name}` });
+    const item = page
+      .getByRole("list", { name: "Follow-ups" })
+      .getByRole("listitem")
+      .filter({ hasText: `Overdue for ${name}` });
     await expect(item.getByText("1 day late")).toBeVisible();
   });
 
@@ -88,7 +101,11 @@ test.describe("Activities and timelines", () => {
     await logActivity(page, "Note", `First draft ${name}`);
     const entries = page.getByRole("list", { name: "Timeline entries" });
 
-    await entries.getByRole("listitem").filter({ hasText: `First draft ${name}` }).getByRole("button", { name: "Edit this note" }).click();
+    await entries
+      .getByRole("listitem")
+      .filter({ hasText: `First draft ${name}` })
+      .getByRole("button", { name: "Edit this note" })
+      .click();
     const dialog = page.getByRole("dialog", { name: "Edit activity" });
     await dialog.getByRole("radio", { name: "Email" }).click();
     await dialog.getByLabel("Description").fill(`Second draft ${name}\nWith a second line`);

@@ -1,7 +1,7 @@
 """The tables (spec 2.2), the engine, and one transaction per request."""
 
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -55,12 +55,12 @@ class UTCDateTime(TypeDecorator):
             return None
         if value.tzinfo is None:
             raise ValueError("Date-times must carry a time zone")
-        return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.astimezone(UTC).replace(tzinfo=None)
 
     def process_result_value(self, value: datetime | None, dialect):
         if value is None:
             return None
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
 
 
 def _times() -> list[Column]:

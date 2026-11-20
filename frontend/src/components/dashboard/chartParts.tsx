@@ -4,7 +4,11 @@ import { monthName } from "@/lib/dashboard";
 import type { MonthRow } from "./chartStyle";
 
 /** A white panel with a soft shadow, showing the month's full figure (spec 2.6). */
-export function MonthTooltip({ active, payload, figure }: Partial<TooltipContentProps> & { figure: (row: MonthRow) => string }) {
+export function MonthTooltip({
+  active,
+  payload,
+  figure,
+}: Partial<TooltipContentProps> & { figure: (row: MonthRow) => string }) {
   const row = payload?.[0]?.payload as MonthRow | undefined;
   if (!active || !row) return null;
   return (

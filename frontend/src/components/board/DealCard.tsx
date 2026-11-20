@@ -14,11 +14,7 @@ import { cn } from "@/lib/utils";
 export function DealCard({ deal, lifted, className }: { deal: Deal; lifted?: boolean; className?: string }) {
   return (
     <article
-      className={cn(
-        "rounded-xl bg-panel px-3.5 py-[13px] text-left shadow-soft",
-        lifted && "shadow-lifted",
-        className,
-      )}
+      className={cn("rounded-xl bg-panel px-3.5 py-[13px] text-left shadow-soft", lifted && "shadow-lifted", className)}
     >
       <div className="leading-[19px] font-semibold text-ink">{deal.name}</div>
       <div className="mt-0.5 text-[13px] text-ink-muted">{deal.organization.name}</div>
@@ -56,10 +52,11 @@ export function DealCard({ deal, lifted, className }: { deal: Deal; lifted?: boo
  */
 export function SortableDealCard({ deal, reducedMotion }: { deal: Deal; reducedMotion: boolean }) {
   const navigate = useNavigate();
-  const { active, attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
-    id: deal.id,
-    transition: reducedMotion ? null : { duration: 150, easing: "ease" },
-  });
+  const { active, attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({
+      id: deal.id,
+      transition: reducedMotion ? null : { duration: 150, easing: "ease" },
+    });
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     listeners?.onKeyDown?.(event);
@@ -72,6 +69,9 @@ export function SortableDealCard({ deal, reducedMotion }: { deal: Deal; reducedM
         ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
+        // dnd-kit's own values, written out so the accessibility lint can see the card is a button.
+        role="button"
+        tabIndex={0}
         aria-roledescription="draggable deal"
         onKeyDown={onKeyDown}
         onClick={() => navigate(`/deals/${deal.id}`)}
@@ -83,7 +83,9 @@ export function SortableDealCard({ deal, reducedMotion }: { deal: Deal; reducedM
       >
         <DealCard
           deal={deal}
-          className={cn(isDragging ? "invisible" : "hover:shadow-[0_2px_4px_rgba(7,59,76,0.08),0_4px_14px_rgba(7,59,76,0.08)]")}
+          className={cn(
+            isDragging ? "invisible" : "hover:shadow-[0_2px_4px_rgba(7,59,76,0.08),0_4px_14px_rgba(7,59,76,0.08)]",
+          )}
         />
       </div>
     </li>

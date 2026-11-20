@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta, timezone
 
 import pytest
 
@@ -10,7 +10,7 @@ from backend.tests.conftest import NOW, TODAY, add_contact, add_deal, add_org, l
 @contextmanager
 def on_day(day: date):
     """Run part of a test as if it were another day, then come back."""
-    clock.freeze(day, datetime.combine(day, time(15), tzinfo=timezone.utc))
+    clock.freeze(day, datetime.combine(day, time(15), tzinfo=UTC))
     try:
         yield
     finally:
@@ -90,8 +90,8 @@ def test_the_12_months(client, org):
     add_deal(client, org["id"], "13 months ago", stage="won", value=9000, close_date="2025-11-30")
     add_deal(client, org["id"], "Lost in March", stage="lost", value=5000, close_date="2026-03-15")
     months = dashboard(client)["months"]
-    assert [m["month"] for m in months][0] == "2025-12"
-    assert [m["month"] for m in months][-1] == "2026-11"
+    assert months[0]["month"] == "2025-12"
+    assert months[-1]["month"] == "2026-11"
     by_month = {m["month"]: (m["revenue"], m["deals"]) for m in months}
     assert by_month["2026-03"] == (120, 2)
     assert by_month["2025-12"] == (3, 1)
@@ -137,7 +137,7 @@ def funnel_new_count(client) -> int:
 
 def test_a_deal_added_in_the_evening_west_of_utc_counts_in_the_funnel(client, org):
     # 6pm on Nov 19 in Los Angeles is already Nov 20 in UTC.
-    clock.freeze(TODAY, datetime(2026, 11, 20, 2, 0, tzinfo=timezone.utc), zone=PACIFIC)
+    clock.freeze(TODAY, datetime(2026, 11, 20, 2, 0, tzinfo=UTC), zone=PACIFIC)
     add_deal(client, org["id"], "Added at 6pm", stage="new")
     assert funnel_new_count(client) == 1
 
@@ -145,7 +145,7 @@ def test_a_deal_added_in_the_evening_west_of_utc_counts_in_the_funnel(client, or
 def test_a_deal_added_just_after_midnight_east_of_utc_counts_from_its_local_day(client, org):
     # 2am on Dec 1, 2025 in India, the first day of the funnel's 12 months, is
     # still Nov 30 in UTC.
-    clock.freeze(date(2025, 12, 1), datetime(2025, 11, 30, 20, 30, tzinfo=timezone.utc), zone=INDIA)
+    clock.freeze(date(2025, 12, 1), datetime(2025, 11, 30, 20, 30, tzinfo=UTC), zone=INDIA)
     add_deal(client, org["id"], "Added at 2am", stage="new", close_date="2026-12-12")
     clock.freeze(TODAY, NOW, zone=INDIA)
     assert funnel_new_count(client) == 1

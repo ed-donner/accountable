@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { activityDelete, contactDelete, dealDelete, messages, organizationBlocked, organizationDelete, pipelineLine } from "./words";
+import {
+  activityDelete,
+  contactDelete,
+  dealDelete,
+  messages,
+  organizationBlocked,
+  organizationDelete,
+  pipelineLine,
+} from "./words";
 
 describe("delete dialog wording", () => {
   it("DEL-2: an organization without deals", () => {
@@ -7,7 +15,9 @@ describe("delete dialog wording", () => {
       title: "Delete Bluefin Logistics?",
       lines: ["Its 3 contacts will stay, with no organization."],
     });
-    expect(organizationDelete("Bluefin Logistics", 1).lines).toEqual(["Its 1 contact will stay, with no organization."]);
+    expect(organizationDelete("Bluefin Logistics", 1).lines).toEqual([
+      "Its 1 contact will stay, with no organization.",
+    ]);
     expect(organizationDelete("Bluefin Logistics", 0).lines).toEqual([]);
   });
 

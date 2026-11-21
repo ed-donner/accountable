@@ -57,7 +57,7 @@ export function StageBar({ deal }: { deal: Deal }) {
         )}
         style={
           !current && past
-            ? { background: `color-mix(in srgb, ${TONE_COLOR[STAGE_TONE[stage]]} 28%, #073B4C)` }
+            ? { background: `color-mix(in srgb, ${TONE_COLOR[STAGE_TONE[stage]]} 28%, var(--band))` }
             : undefined
         }
       >

@@ -99,12 +99,12 @@ export const STATUS_TONE: Record<Status, Tone> = {
   customer: "sea-green",
 };
 
-/** The color itself, for fills, dots and chart marks. */
+/** The color itself, for fills, dots and chart marks: the same in both modes (spec 2.6). */
 export const TONE_COLOR: Record<Tone, string> = {
-  slate: "#8AA3AB",
-  marigold: "#FFC145",
-  coral: "#F78C6B",
-  cerulean: "#118AB2",
-  "sea-green": "#06D6A0",
-  raspberry: "#EF476F",
+  slate: "var(--slate)",
+  marigold: "var(--marigold)",
+  coral: "var(--coral)",
+  cerulean: "var(--cerulean)",
+  "sea-green": "var(--sea-green)",
+  raspberry: "var(--raspberry)",
 };

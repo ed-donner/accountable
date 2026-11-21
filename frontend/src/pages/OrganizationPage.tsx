@@ -112,7 +112,7 @@ export default function OrganizationPage() {
                     <li key={contact.id}>
                       <Link
                         to={`/contacts/${contact.id}`}
-                        className="flex items-center gap-3 px-2 py-2.5 hover:bg-[#F5F8F9]"
+                        className="flex items-center gap-3 px-2 py-2.5 hover:bg-hover"
                       >
                         <span className="font-medium text-ink">{contact.name}</span>
                         <StatusBadge status={contact.status} />
@@ -139,7 +139,7 @@ export default function OrganizationPage() {
                 <ul aria-label="Deals" className="divide-y divide-line">
                   {data.deals.map((deal) => (
                     <li key={deal.id}>
-                      <Link to={`/deals/${deal.id}`} className="flex items-center gap-3 px-2 py-2.5 hover:bg-[#F5F8F9]">
+                      <Link to={`/deals/${deal.id}`} className="flex items-center gap-3 px-2 py-2.5 hover:bg-hover">
                         <span className="min-w-0 flex-1 truncate font-medium text-ink">{deal.name}</span>
                         <StageBadge stage={deal.stage} />
                         <span className="w-24 text-right font-mono text-[13px] text-ink tabular">

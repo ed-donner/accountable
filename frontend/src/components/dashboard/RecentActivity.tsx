@@ -33,7 +33,7 @@ export function RecentActivity({ entries, today }: { entries: TimelineEntry[]; t
                   aria-hidden
                   className={cn(
                     "grid size-7 place-items-center rounded-full",
-                    stage ? "bg-band text-sea-green" : "bg-[#EAF0F2] text-ink-muted",
+                    stage ? "bg-band text-sea-green" : "bg-icon-bg text-ink-muted",
                   )}
                 >
                   <Icon className="size-3.5" />

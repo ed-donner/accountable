@@ -12,9 +12,9 @@ const buttonVariants = cva(
       variant: {
         main: "bg-sea-green text-midnight hover:bg-sea-green-hover",
         second: "border border-control-border bg-panel text-ink hover:bg-accent",
-        delete: "bg-raspberry-text text-white hover:bg-[#a9213f]",
+        delete: "bg-destructive text-white hover:bg-destructive-hover",
         icon: "text-ink-muted hover:bg-accent hover:text-ink",
-        band: "bg-[rgba(205,216,219,0.12)] font-medium text-band-ink-soft hover:bg-[rgba(205,216,219,0.2)] hover:text-band-ink",
+        band: "bg-band-button font-medium text-band-ink-soft hover:bg-band-button-hover hover:text-band-ink",
         link: "h-auto px-0 font-medium text-cerulean-text hover:underline",
       },
       size: {

@@ -59,7 +59,7 @@ export function TimelineEntry({ entry, today, showDeal, onEdit, onDelete }: Prop
   return (
     <li className="flex gap-3 py-3.5" data-entry-type={entry.type}>
       <span
-        className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-[#EAF0F2] text-ink-muted"
+        className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-icon-bg text-ink-muted"
         aria-hidden
       >
         <Icon className="size-3.5" />

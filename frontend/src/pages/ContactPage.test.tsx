@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import App from "@/App";
 import { CONTACTS, META, deal, entry, fakeApi, renderWithApp, reply } from "@/test/render";
 
+// The page usually appears in about half a second, but with other dev servers
+// busy on the same machine the first wait passed Testing Library's default
+// 1 second, so each test's first wait for the page leaves room for that.
+const PAGE_LOAD = { timeout: 5_000 };
+
 const SARAH = {
   ...CONTACTS[0],
   email: "sarah@bluefin.example",
@@ -41,7 +46,7 @@ describe("a contact's page", () => {
     fakeApi(routes());
     renderWithApp(<App />, { route: "/contacts/10" });
 
-    expect(await screen.findByRole("heading", { name: "Sarah Chen", level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sarah Chen", level: 1 }, PAGE_LOAD)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "sarah@bluefin.example" })).toHaveAttribute(
       "href",
       "mailto:sarah@bluefin.example",
@@ -54,7 +59,7 @@ describe("a contact's page", () => {
   it("shows the timeline newest first, naming each entry's deal (ACT-3)", async () => {
     fakeApi(routes());
     renderWithApp(<App />, { route: "/contacts/10" });
-    const timeline = await screen.findByRole("list", { name: "Timeline entries" });
+    const timeline = await screen.findByRole("list", { name: "Timeline entries" }, PAGE_LOAD);
     const [call, stageChange] = within(timeline).getAllByRole("listitem");
     expect(within(call).getByText("Send the proposal")).toBeInTheDocument();
     expect(within(call).getByText("Follow up Nov 17, 2026 (overdue)")).toBeInTheDocument();
@@ -66,7 +71,7 @@ describe("a contact's page", () => {
   it("marks a follow-up done from the timeline (ACT-5)", async () => {
     const { calls } = fakeApi(routes({ "PATCH /api/activities/1": { ...TIMELINE[0], done: true } }));
     const { user } = renderWithApp(<App />, { route: "/contacts/10" });
-    await user.click(await screen.findByRole("checkbox", { name: "Done: Send the proposal" }));
+    await user.click(await screen.findByRole("checkbox", { name: "Done: Send the proposal" }, PAGE_LOAD));
     await waitFor(() =>
       expect(calls).toContainEqual({ method: "PATCH", path: "/api/activities/1", body: { done: true } }),
     );
@@ -75,7 +80,7 @@ describe("a contact's page", () => {
   it("edits an activity in a form filled with what it says (ACT-4)", async () => {
     const { calls } = fakeApi(routes({ "PATCH /api/activities/1": TIMELINE[0] }));
     const { user } = renderWithApp(<App />, { route: "/contacts/10" });
-    await user.click(await screen.findByRole("button", { name: "Edit this call" }));
+    await user.click(await screen.findByRole("button", { name: "Edit this call" }, PAGE_LOAD));
     const form = await screen.findByRole("dialog", { name: "Edit activity" });
     const description = within(form).getByRole("textbox", { name: /Description/ });
     expect(description).toHaveValue("Send the proposal");
@@ -94,26 +99,30 @@ describe("a contact's page", () => {
   it("asks before deleting an activity (DEL-5)", async () => {
     fakeApi(routes());
     const { user } = renderWithApp(<App />, { route: "/contacts/10" });
-    await user.click(await screen.findByRole("button", { name: "Delete this call" }));
+    await user.click(await screen.findByRole("button", { name: "Delete this call" }, PAGE_LOAD));
     expect(await screen.findByRole("alertdialog", { name: /Delete this call from/ })).toBeInTheDocument();
   });
 
   it("says when nothing is logged yet, and when they're no one's main contact", async () => {
     fakeApi(routes({ "GET /api/contacts/10": { ...SARAH, deals: [] }, "GET /api/contacts/10/timeline": [] }));
     renderWithApp(<App />, { route: "/contacts/10" });
-    expect(await screen.findByText("Nothing logged yet. Log a call, email or note above.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Nothing logged yet. Log a call, email or note above.", {}, PAGE_LOAD),
+    ).toBeInTheDocument();
     expect(screen.getByText("Not the main contact on any deals.")).toBeInTheDocument();
   });
 
   it("says when the contact no longer exists", async () => {
     fakeApi({ "GET /api/meta": META });
     renderWithApp(<App />, { route: "/contacts/10" });
-    expect(await screen.findByRole("heading", { name: "This contact no longer exists." })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "This contact no longer exists." }, PAGE_LOAD),
+    ).toBeInTheDocument();
   });
 
   it("says when the page couldn't load", async () => {
     fakeApi({ "GET /api/meta": META, "GET /api/contacts/10": reply(500) });
     renderWithApp(<App />, { route: "/contacts/10" });
-    expect(await screen.findByText(/Couldn't load this page/)).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn't load this page/, {}, PAGE_LOAD)).toBeInTheDocument();
   });
 });

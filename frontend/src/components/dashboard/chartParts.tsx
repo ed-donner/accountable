@@ -3,7 +3,7 @@ import type { TooltipContentProps } from "recharts";
 import { monthName } from "@/lib/dashboard";
 import type { MonthRow } from "./chartStyle";
 
-/** A white panel with a soft shadow, showing the month's full figure (spec 2.6). */
+/** A raised panel with a soft shadow, showing the month's full figure (spec 2.6). */
 export function MonthTooltip({
   active,
   payload,
@@ -12,7 +12,7 @@ export function MonthTooltip({
   const row = payload?.[0]?.payload as MonthRow | undefined;
   if (!active || !row) return null;
   return (
-    <div className="rounded-lg bg-panel px-3 py-2 text-[13px] shadow-[0_4px_16px_rgba(7,59,76,0.14)]">
+    <div className="rounded-lg bg-raised px-3 py-2 text-[13px] shadow-tooltip">
       <div className="text-ink-muted">{monthName(row.month)}</div>
       <div className="font-mono font-medium text-ink tabular">{figure(row)}</div>
     </div>

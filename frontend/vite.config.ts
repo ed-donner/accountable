@@ -29,6 +29,9 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    // Vitest empties CSS files it isn't told about, even read with ?raw, and
+    // tokens.test.ts reads the tokens from index.css.
+    css: { include: [/\/src\/styles\/index\.css/] },
     env: { TZ: "America/Los_Angeles" },
     // The form tests open Radix popovers several times and take about 2 seconds.
     // With npm run dev and the end-to-end servers busy at the same time, one

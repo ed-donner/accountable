@@ -27,7 +27,7 @@ export function TypePicker({ value, onChange }: { value: LoggableType; onChange:
           key={option}
           value={option}
           // The hover rules name the state, so they outrank the toggle's own hover color.
-          className="h-8 gap-1.5 rounded-md px-3 text-[13px] font-medium text-ink-muted transition-colors duration-150 hover:data-[state=off]:bg-accent hover:data-[state=off]:text-ink data-[state=on]:bg-band data-[state=on]:text-band-ink hover:data-[state=on]:bg-band hover:data-[state=on]:text-band-ink"
+          className="h-8 gap-1.5 rounded-md px-3 text-[13px] font-medium text-ink-muted transition-colors duration-150 hover:data-[state=off]:bg-accent hover:data-[state=off]:text-ink data-[state=on]:bg-selected data-[state=on]:text-selected-ink hover:data-[state=on]:bg-selected hover:data-[state=on]:text-selected-ink"
         >
           <Icon className="size-3.5" aria-hidden />
           {label}

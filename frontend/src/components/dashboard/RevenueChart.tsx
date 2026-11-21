@@ -6,12 +6,15 @@ import { useReducedMotion } from "@/lib/motion";
 import { ChartTotal, MonthTooltip } from "./chartParts";
 import { AXIS_TICK, GRID, type MonthRow } from "./chartStyle";
 
-const LINE = "#05A87E";
-const FILL = "#06D6A0";
+const LINE = "var(--sea-green-line)";
+const FILL = "var(--sea-green)";
+// The dot's ring is the panel's color, so the dot stands clear of the line.
+const RING = "var(--panel)";
 
 /**
  * Revenue won in each of the last 12 months (DASH-3): a 2.5px line in the
- * deeper Sea Green, a flat 14% fill under it, and a dot on the latest month.
+ * deeper Sea Green (Sea Green itself in dark mode), a flat 14% fill under it,
+ * and a dot on the latest month.
  */
 export function RevenueChart({ months }: { months: MonthRow[] }) {
   const reducedMotion = useReducedMotion();
@@ -54,7 +57,7 @@ export function RevenueChart({ months }: { months: MonthRow[] }) {
             />
             <Tooltip
               content={(props) => <MonthTooltip {...props} figure={(row) => `${money(row.revenue)} won`} />}
-              cursor={{ stroke: "#B9C9CE", strokeWidth: 1 }}
+              cursor={{ stroke: "var(--line-strong)", strokeWidth: 1 }}
               isAnimationActive={false}
             />
             <Area
@@ -69,20 +72,12 @@ export function RevenueChart({ months }: { months: MonthRow[] }) {
               animationDuration={400}
               dot={(props) =>
                 props.index === last ? (
-                  <circle
-                    key="latest"
-                    cx={props.cx}
-                    cy={props.cy}
-                    r={4.5}
-                    fill={LINE}
-                    stroke="#FFFFFF"
-                    strokeWidth={2}
-                  />
+                  <circle key="latest" cx={props.cx} cy={props.cy} r={4.5} fill={LINE} stroke={RING} strokeWidth={2} />
                 ) : (
                   <g key={props.index} />
                 )
               }
-              activeDot={{ r: 5, fill: LINE, stroke: "#FFFFFF", strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: LINE, stroke: RING, strokeWidth: 2 }}
             />
           </AreaChart>
         </ResponsiveContainer>

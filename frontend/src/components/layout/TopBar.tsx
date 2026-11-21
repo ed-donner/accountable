@@ -1,5 +1,6 @@
 import { NavLink } from "react-router";
 import { cn } from "@/lib/utils";
+import { ModeButton } from "./ModeButton";
 
 const SECTIONS = [
   { to: "/", label: "Dashboard", end: true },
@@ -41,6 +42,7 @@ export function TopBar() {
           </NavLink>
         ))}
       </nav>
+      <ModeButton className="ml-auto" />
     </header>
   );
 }

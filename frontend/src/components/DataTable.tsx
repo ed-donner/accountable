@@ -224,7 +224,7 @@ export function DataTable<T extends { id: number }>({
                 <tr
                   key={row.id}
                   onClick={(event) => openRow(event, row.original)}
-                  className="h-[52px] cursor-pointer border-b border-line transition-colors duration-150 last:border-b-0 hover:bg-[#F5F8F9]"
+                  className="h-[52px] cursor-pointer border-b border-line transition-colors duration-150 last:border-b-0 hover:bg-hover"
                 >
                   {row.getAllCells().map((cell) => {
                     const column = columns.find((c) => c.id === cell.column.id)!;

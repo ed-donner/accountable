@@ -6,7 +6,7 @@ import { useReducedMotion } from "@/lib/motion";
 import { ChartTotal, MonthTooltip } from "./chartParts";
 import { AXIS_TICK, GRID, type MonthRow } from "./chartStyle";
 
-const MARIGOLD = "#FFC145";
+const MARIGOLD = "var(--marigold)";
 
 /** The number of deals won in each of the same 12 months (DASH-4): Marigold bars with rounded tops, each labeled with its count. */
 export function DealsWonChart({ months }: { months: MonthRow[] }) {
@@ -37,7 +37,8 @@ export function DealsWonChart({ months }: { months: MonthRow[] }) {
             />
             <Tooltip
               content={(props) => <MonthTooltip {...props} figure={(row) => `${plural(row.deals, "deal")} won`} />}
-              cursor={{ fill: "#F0F4F5" }}
+              // Recharts outlines the hovered month in a grey of its own unless told otherwise.
+              cursor={{ fill: "var(--page)", stroke: "var(--line-strong)" }}
               isAnimationActive={false}
             />
             <Bar
@@ -54,7 +55,7 @@ export function DealsWonChart({ months }: { months: MonthRow[] }) {
                 position="top"
                 offset={6}
                 formatter={(value) => (Number(value) > 0 ? String(value) : "")}
-                style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, fontWeight: 500, fill: "#073B4C" }}
+                style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, fontWeight: 500, fill: "var(--ink)" }}
               />
             </Bar>
           </BarChart>

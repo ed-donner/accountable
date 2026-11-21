@@ -49,7 +49,7 @@ The end-to-end tests use the Chrome installed on the computer, so they need Chro
 
 ## Tests
 
-`npm test` passes, with every test running and none skipped: backend 235, frontend 98 and end-to-end 41 (after the review fixes). It also passes while `npm run dev` is running.
+`npm test` passes, with every test running and none skipped: backend 235, frontend 259 and end-to-end 47 (with dark mode). It also passes while `npm run dev` is running.
 
 It exits with an error if any test fails. To check, a failing test was added to each suite: all three were reported FAILED and the exit code was 1. A test left marked `.only` is refused as well, since it would otherwise run alone and skip the rest. Vitest and Playwright only refuse `.only` on CI by default, so both configs now refuse it everywhere. AGENTS.md tells agents to run `npm test` before calling work finished.
 
@@ -205,9 +205,42 @@ On Windows, `npm run check:quick` failed Prettier on 84 files nobody had changed
 
 `.gitattributes` now sets `* text=auto eol=lf`, so git checks out text files with LF on every system. `npm run format` turned the files Prettier covers back to LF, and each one still hashes the same as in the last commit. Other files, such as the docs and the Python, keep CRLF until git next checks them out. That doesn't fail any check.
 
-## Dark mode (in progress, Nov 20, 2026)
+## Dark mode (Nov 20, 2026)
 
-On the `dark-mode` branch. `docs/changes/dark-mode/intent.md` is written, and `docs/spec.md` now describes the app with dark mode: GEN-9 to GEN-11, concerns 13 to 16, and the light and dark colors in 2.6, each dark text color checked for contrast. `docs/changes/dark-mode/plan.md` sets out the build in seven phases, from a steady light-mode pixel check (Phase 0) to the wrap-up. Nothing is built yet. Phase 0 is next.
+Built on the `dark-mode` branch from `docs/changes/dark-mode/plan.md`, Phases 0 to 6. Not committed yet. `docs/spec.md` describes it: GEN-9 to GEN-11, concerns 13 to 16, and 2.6.
+
+**What's built**
+
+- A moon or sun button at the right end of the top bar switches the mode (`ModeButton.tsx`, `lib/mode.ts`). The choice is saved under `accountable-mode` in `localStorage`, and a script in `index.html` sets the `dark` class before the page draws.
+- Every color is a token in `styles/index.css`: light values under `:root, .dark .on-band`, dark values under `.dark`. The band repeats the light block, so the top bar and band look the same in both modes. Components, charts and messages use the tokens, and `dark:` follows the class.
+- Dialogs, messages and chart tooltips are Midnight in dark mode (`--raised`). Charts read the tokens in their SVG attributes. Messages follow the mode.
+- Transitions are off while the mode switches, so nothing fades.
+- **The flash check (risk 5):** with `dark` saved and the app's code held back, the page drew white with no stylesheet at all. `index.html` now links the stylesheet, and `main.tsx` no longer imports it. The same check then gave the `#04232E` page.
+
+**Tests:** `styles/tokens.test.ts` (dark values, contrast in both modes, no colors outside `index.css`), `lib/mode.test.ts` (including the `index.html` script, run in jsdom), `ModeButton.test.tsx`, and six journeys in `e2e/tests/mode.spec.ts`. Each guard was shown to fail when its fix was taken out:
+- without the transition guard, the search box was still white right after the click
+- without the band rule, the band differed between the modes
+- with the old `dark:` tint following the device, the Stage select turned grey
+- a one-step change to `--page` failed the pixel check, a stray hex in a component failed the token test, and a missing dark value was named by it
+
+**Checked by hand**
+
+- **The pixel check** (success criterion 4): `docs/changes/dark-mode/pixel-check.md`. Light mode matches the base commit on all nine pages, and with the button shown, every differing pixel is inside it.
+- **Screenshots** (success criterion 3): `dashboard-light.png`, `dashboard-dark.png`, `pipeline-light.png` and `pipeline-dark.png` in `docs/changes/dark-mode/`.
+- **By eye in Chrome, both modes:** every page; the Add deal dialog with its Stage select and Organization picker; the delete confirmation; a message; both chart tooltips; an icon button's tooltip; the mode button on hover; date inputs; the page and board scrollbars; a card being dragged over another column. No console errors.
+- **`npm run check`** passes (success criterion 1).
+
+**Choices the build made (please check)**
+
+1. **The chosen status filter on Contacts** was Midnight, like the type picker before this change, so it barely showed on a black panel. It now uses `--selected` too, with a new `--selected-muted` for its count (`#A7BCC2` light, unchanged; `#44606A` dark, 4.6:1). The plan's table didn't list it.
+2. **The Deals won hover outline** was Recharts' own `#ccc`, a bright line on black. It's now `--line-strong`. In light mode that outline moves from `#CCCCCC` to `#B9C9CE`. It only shows on hover, so the pixel check doesn't see it.
+3. **The control border in light mode** is 3.2:1 on white but 2.9:1 on the page's `#F0F4F5`, where the search boxes sit. That was so before dark mode, and light mode had to stay the same, so `tokens.test.ts` checks it on white in light mode, as 2.6 states it. Worth deciding in a later change.
+4. **`toggle.tsx`** also lost its one `dark:` class. The plan named checkbox, select and input group.
+5. **The no-fade journey** checks the Contacts search box rather than a Second button, since Contacts has none until a table passes 50 rows. It has the same 150ms color transition.
+6. **Vitest reads `index.css` as text** for the token test. Vitest empties CSS files unless they're listed, even with `?raw`, so `vite.config.ts` lists that one.
+7. **`--primary-foreground` points at `--midnight`**, the same value as before in light mode, so a ticked checkbox stays Midnight on Sea Green in dark mode.
+8. **Other open tabs** keep their mode until reloaded (plan, risk 10).
+9. **`ContactPage.test.tsx` waits up to 5 seconds for the page**, raised from Testing Library's 1 second, on your OK. Two full runs failed there while other dev servers loaded the machine: CON-2 and ACT-3, each on its first wait for the page. The page usually appears in about half a second, with or without the mode button. Only each test's first wait changed.
 
 ## Choices the build made (please check)
 

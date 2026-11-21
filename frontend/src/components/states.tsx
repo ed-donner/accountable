@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 /** A grey placeholder block, the size of the content it stands in for (spec 2.10). */
 export function Placeholder({ className }: { className?: string }) {
-  return <Skeleton aria-hidden className={cn("rounded-lg bg-[#E4ECEE]", className)} />;
+  return <Skeleton aria-hidden className={cn("rounded-lg bg-line", className)} />;
 }
 
 /** A placeholder block on the Midnight band. */

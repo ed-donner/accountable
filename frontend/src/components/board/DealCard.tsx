@@ -81,12 +81,7 @@ export function SortableDealCard({ deal, reducedMotion }: { deal: Deal; reducedM
           isDragging && "bg-slate-tint",
         )}
       >
-        <DealCard
-          deal={deal}
-          className={cn(
-            isDragging ? "invisible" : "hover:shadow-[0_2px_4px_rgba(7,59,76,0.08),0_4px_14px_rgba(7,59,76,0.08)]",
-          )}
-        />
+        <DealCard deal={deal} className={isDragging ? "invisible" : "hover:shadow-hover"} />
       </div>
     </li>
   );

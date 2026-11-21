@@ -36,7 +36,7 @@ export function BoardColumn({
           // 4px around the cards for their focus outlines, then the 4px scrollbar
           // on the right, so each card is exactly as wide as its heading.
           "scroll-thin flex min-h-0 flex-col gap-2.5 rounded-2xl p-1 transition-colors duration-150",
-          highlighted && "bg-[#E1E9EB]",
+          highlighted && "bg-drop",
         )}
       >
         {column.deals.map((deal) => (

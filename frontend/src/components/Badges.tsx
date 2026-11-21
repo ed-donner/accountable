@@ -51,12 +51,12 @@ export function StatusBadge({ status, className }: { status: Status; className?:
   );
 }
 
-/** Late stands out more than the rest: filled in, with a clock (spec 2.6). */
+/** Late stands out more than the rest: filled in, with a clock, the same in both modes (spec 2.6). */
 export function LateBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-raspberry-text py-0.5 pr-2 pl-1.5 text-[11px] leading-4 font-semibold whitespace-nowrap text-white",
+        "inline-flex items-center gap-1 rounded-full bg-destructive py-0.5 pr-2 pl-1.5 text-[11px] leading-4 font-semibold whitespace-nowrap text-white",
         className,
       )}
     >

@@ -555,6 +555,7 @@ The layout follows the chosen mockup, Midnight deck (`docs/mockups/2-midnight-de
 ### Tables
 
 - Each table is a panel below the band. Above it are the search box (320px) and any filters. The Add button is the page's main button, in the band.
+- The chosen status filter on Contacts is filled like the chosen Note, Call or Email type (`--selected`, Record pages below), with its count in `--selected-muted`.
 - Headings sort, with an arrow on the sorted column. Rows are 52px tall with a faint line between them (`--line`), and turn a tint on hover (`--hover`).
 - Money, percentages and dates are right-aligned in JetBrains Mono.
 - Edit and Delete are icon buttons at the end of each row, always visible. Each has a tooltip and a name for screen readers.
@@ -635,14 +636,15 @@ The brand's colors as CSS variables, named by role, each with a light and a dark
 | `--ink-muted` | `#46636D` | `#A7BCC2` | Secondary text and labels (light: 6.4:1 on white; dark: 6.1:1) |
 | `--ink-subtle` | `#56747E` | `#8FA8B0` | Placeholders and chart axes (light: 5.0:1 on white; dark: 4.8:1) |
 | `--line` | `#E4ECEE` | `#1C3943` | Lines between table rows, chart grid lines and loading placeholders |
-| `--line-strong` | `#B9C9CE` | `#4A626B` | Scrollbars and the revenue chart's hover line |
+| `--line-strong` | `#B9C9CE` | `#4A626B` | Scrollbars, the revenue chart's hover line and the outline of the hovered month in Deals won |
 | `--control-border` | `#7D949C` | `#7D949C` | Full border around inputs, enough for a control (light: 3.2:1 on white; dark: 3.8:1) |
 | `--focus` | `#118AB2` (Cerulean) | `#5BC3E8` | 2px focus outline, 2px out from the control (dark: 6.0:1). In the band it's Sea Mist in both modes, because Cerulean barely shows on Midnight. |
 | `--hover` | `#F5F8F9` | `#041E26` | Table and list rows on hover |
 | `--accent` | `#E8EFF1` | `#1E4B5A` | Icon buttons and menu items on hover (dark: text 6.5:1, secondary text 4.8:1) |
 | `--drop` | `#E1E9EB` | `#102E38` | The board column under a dragged card |
 | `--icon-bg` | `#EAF0F2` | `#1C3943` | Round type icons in timelines and recent activity |
-| `--selected` and `--selected-ink` | `#073B4C` and `#FFFFFF` | `#CDD8DB` and `#073B4C` | The chosen Note, Call or Email (light: 12.1:1; dark: 8.3:1) |
+| `--selected` and `--selected-ink` | `#073B4C` and `#FFFFFF` | `#CDD8DB` and `#073B4C` | The chosen Note, Call or Email, and the chosen status filter (light: 12.1:1; dark: 8.3:1) |
+| `--selected-muted` | `#A7BCC2` | `#44606A` | The chosen status filter's count (light: 6.1:1; dark: 4.6:1) |
 | `--overlay` | Midnight at 40% | Black at 60% | Behind dialogs |
 | `--band` | `#073B4C` (Midnight) | Same | Top bar and the band under it |
 | `--band-ink` | `#FFFFFF` and `#CDD8DB` (Sea Mist) | Same | Titles and figures (12.1:1), and other text (8.3:1) in the band |
@@ -650,6 +652,8 @@ The brand's colors as CSS variables, named by role, each with a light and a dark
 | `--band-alert` | `#FF8DA5` | Same | Overdue counts in the band, a lighter Raspberry (5.5:1) |
 | `--band-panel` | Sea Mist at 8% over Midnight | Same | Pipeline column headings in the band |
 | `--band-rest` | Sea Mist at 16% over Midnight | Same | The part of the pipeline strip beyond expected revenue |
+| `--band-button` and `--band-button-hover` | Sea Mist at 12% and 20% | Same | The quiet buttons in the band, such as Edit and each column's Add deal, and their hover |
+| `--destructive` and `--destructive-hover` | `#C42A50` and `#A9213F` | Same | The Late badge and the Delete button, and Delete on hover (white text 5.5:1) |
 
 Each brand color has three uses:
 
@@ -669,11 +673,12 @@ Each brand color has three uses:
 ### Light and dark mode
 
 - The mode is a `dark` class on `<html>`. A short script at the top of `index.html` reads the choice from `localStorage` (key `accountable-mode`, `light` or `dark`) and sets the class before the page draws (GEN-10). If storage can't be read, the app opens in light mode. The mode button sets the class and saves the choice.
+- `index.html` links the stylesheet itself, rather than the app's code importing it, so the browser has the colors before it draws anything. Otherwise the blank page would show white until the app's code arrived.
 - Every color is a token in `frontend/src/styles/index.css`, with its light value under `:root` and its dark value under `.dark`. Components, charts and messages use the tokens and never a color value of their own, so nothing needs a dark style of its own. shadcn/ui's variables point at the tokens in both modes.
 - Tailwind's `dark:` variant follows the `dark` class, not the device's setting (concern 16).
 - The top bar and the band keep the light values for themselves, so they look the same in both modes (concern 13).
 - `color-scheme` follows the mode, so the browser draws its date pickers, scrollbars and other controls to match.
-- Colors change at once when the mode switches, with no fade.
+- Colors change at once when the mode switches, with no fade: transitions are off while the class changes, and back on from the next frame.
 
 ### Stages and statuses (concern 1)
 
@@ -692,7 +697,7 @@ Badges are pills: the tint behind, the text shade for the words, 12px medium. Th
 
 - **Main:** Sea Green with Midnight text (6.4:1), 40px tall like the inputs. It's slightly darker on hover (`#06C396`). The same in both modes.
 - **Second:** the panel color (white, or black in dark mode), with a full `--control-border` border and `--ink` text.
-- **Delete:** `#C42A50` with white text (5.5:1), in both modes.
+- **Delete:** `#C42A50` with white text (5.5:1), and `#A9213F` on hover, in both modes.
 - **Icon buttons:** no border, with `--accent` behind them on hover.
 - **Links:** Cerulean's text shade, underlined on hover.
 
@@ -714,8 +719,8 @@ Badges are pills: the tint behind, the text shade for the words, 12px medium. Th
 
 - Spacing on a 4px grid: 32px page padding, 24px inside panels and between dashboard panels, 16px between items in a panel.
 - Corners: 16px on panels and dialogs, 12px on cards, 8px on buttons and inputs, fully round on badges.
-- Panels and cards have no outline. In light mode a soft shadow separates them from the page: `0 1px 2px rgba(7, 59, 76, 0.06), 0 2px 8px rgba(7, 59, 76, 0.04)`. A dragged card gets `0 12px 24px rgba(7, 59, 76, 0.18)`.
-- In dark mode the shadows are black, `0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4)` and `0 12px 24px rgba(0, 0, 0, 0.6)`. They show less, so each layer's own color sets it apart (concern 14).
+- Panels and cards have no outline. In light mode a soft shadow separates them from the page: `0 1px 2px rgba(7, 59, 76, 0.06), 0 2px 8px rgba(7, 59, 76, 0.04)`. A pipeline card under the pointer gets `0 2px 4px rgba(7, 59, 76, 0.08), 0 4px 14px rgba(7, 59, 76, 0.08)`, a dragged card `0 12px 24px rgba(7, 59, 76, 0.18)`, and a chart tooltip `0 4px 16px rgba(7, 59, 76, 0.14)`.
+- In dark mode the shadows are black: `0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4)` for panels, `0 2px 4px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.5)` under the pointer, `0 12px 24px rgba(0, 0, 0, 0.6)` when dragged and `0 4px 16px rgba(0, 0, 0, 0.5)` for chart tooltips. They show less, so each layer's own color sets it apart (concern 14).
 - Movement is short (150ms) and only where it helps: dialogs, hovers and cards settling after a drop. The charts draw in 400ms. When the computer asks for reduced motion, all of it is turned off.
 
 ### Charts
@@ -731,7 +736,7 @@ Recharts draws the line chart and the bar chart. The funnel and the pipeline str
   - A small key says so: "Colored part: expected revenue" and "Rest of the value".
 - **Stage colors in charts:** the brand's stage colors fail a chart color check on their own. Marigold and Coral are close to each other, and Marigold, Sea Green and the slate are faint on white. So every stage-colored mark carries its stage name beside it, and color never identifies a stage by itself.
 - Horizontal grid lines only, in `--line`. Axis text is 12px in `--ink-subtle`, with figures in JetBrains Mono and money shortened (`$50k`).
-- Tooltips are `--raised` panels with a soft shadow, showing full figures such as `$48,500` and `3 deals`. Hovering over a bar puts the page color behind it.
+- Tooltips are `--raised` panels with a soft shadow, showing full figures such as `$48,500` and `3 deals`. Hovering over a bar puts the page color behind it, outlined in `--line-strong`.
 - A chart with one series uses one color, and color is only used where it means something.
 
 ### Avoid
@@ -826,7 +831,8 @@ The tests never touch `data/accountable.db`.
   - the delete dialog's wording
   - the deal form filling in probability and close date when the stage changes
   - the Log activity box's "When" keeping up with the clock
-  - light and dark mode: light by default, the mode button switching and saving the choice, a saved choice read back, and light mode when storage can't be read
+  - light and dark mode: light by default, the mode button switching and saving the choice, a saved choice read back, and light mode when storage can't be read. The script in `index.html` is read from the file and run.
+  - the color tokens in `index.css` (Vitest reads it as text): every color has a dark value apart from those 2.6 keeps the same, the contrast figures in 2.6 hold in both modes, and no hex, `rgb()` or `hsl()` color appears anywhere else in `frontend/src`
   - each page against a fake API: the tables with their row actions and status filter, the record pages with their timelines, the stage bar, the dashboard's panels, and the board's columns, cards, Add deal and keyboard pick-up
 - **End to end (Playwright Test, installed Chrome, `channel: "chrome"`, 1440 by 900):**
   - Setup: the run starts its own backend (port 8100, database `e2e/.data/test.db`, freshly seeded) and frontend (port 5273), so it works beside `npm run dev`. Tests that change data make their own records, so they don't depend on each other. Each test gets a fresh browser profile, so each starts in light mode.
@@ -843,6 +849,11 @@ The tests never touch `data/accountable.db`.
     - logging an activity with a follow-up and seeing it on the deal, on its main contact and on the dashboard, then ticking it done
     - moving a deal to Won and seeing the dashboard change
     - switching to dark mode, seeing another section follow, reloading and finding it still dark, then switching back
+    - switching with a search typed and the page scrolled: nothing moves or reloads, and colors don't fade
+    - a saved dark mode already on, with the dark page color, before the app's code runs
+    - a computer set to dark: the app still opens in light mode, with no grey tint on selects
+    - a dialog, its select, a message and a chart tooltip in dark mode
+    - the top bar and band on a late deal, pixel for pixel the same in both modes
     - resetting the data with `npm run seed`, last
 - **By eye:** the tests can't judge how a screen looks or how dragging feels, so each screen is also used in a real browser, in both modes, and checked against this spec and the chosen mockup.
 

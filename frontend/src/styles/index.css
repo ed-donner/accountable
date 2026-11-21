@@ -2,19 +2,40 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* dark: follows the app's own mode, never the device's setting (spec 2.6, concern 16) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
-  Brand tokens (spec 2.6). Light mode only for the MVP. The variables are named
-  by role, so a dark set can be added later from the brand's dark surfaces.
+  Brand tokens (spec 2.6), named by role. Every color in the app is one of
+  these; components never carry a color of their own.
+
+  The light values. The top bar and the band repeat them (.on-band), so they
+  look the same in both modes (concern 13). A variable that points at another
+  takes its value where it's declared, which is why the band repeats the whole
+  block and not only the colors that change.
 */
-:root {
+:root,
+.dark .on-band {
+  color-scheme: light;
+
   --page: #f0f4f5;
   --panel: #ffffff;
+  --raised: #ffffff;
   --ink: #073b4c;
   --ink-muted: #46636d;
   --ink-subtle: #56747e;
   --line: #e4ecee;
+  --line-strong: #b9c9ce;
   --control-border: #7d949c;
   --focus: #118ab2;
+  --hover: #f5f8f9;
+  --accent: #e8eff1;
+  --drop: #e1e9eb;
+  --icon-bg: #eaf0f2;
+  --selected: #073b4c;
+  --selected-ink: #ffffff;
+  --selected-muted: #a7bcc2;
+  --overlay: rgba(7, 59, 76, 0.4);
 
   --band: #073b4c;
   --band-ink: #ffffff;
@@ -23,9 +44,41 @@
   --band-alert: #ff8da5;
   --band-panel: color-mix(in srgb, #cdd8db 8%, #073b4c);
   --band-rest: color-mix(in srgb, #cdd8db 16%, #073b4c);
+  --band-button: rgba(205, 216, 219, 0.12);
+  --band-button-hover: rgba(205, 216, 219, 0.2);
+
+  /* Each brand color: the color itself, a text shade and a tint */
+  --sea-green: #06d6a0;
+  --sea-green-text: #037a5c;
+  --sea-green-tint: #dcf9f2;
+  --sea-green-hover: #06c396;
+  --sea-green-line: #05a87e;
+  --marigold: #ffc145;
+  --marigold-text: #8a5a00;
+  --marigold-tint: #fff6e5;
+  --coral: #f78c6b;
+  --coral-text: #b4472a;
+  --coral-tint: #feefea;
+  --cerulean: #118ab2;
+  --cerulean-text: #0d6e8e;
+  --cerulean-tint: #deeff4;
+  --raspberry: #ef476f;
+  --raspberry-text: #c42a50;
+  --raspberry-tint: #fde5eb;
+  --slate: #8aa3ab;
+  --slate-text: #46636d;
+  --slate-tint: #dce4e6;
+  --sea-mist: #cdd8db;
+  --midnight: #073b4c;
+
+  /* Late and Delete: white text needs this fixed shade in both modes */
+  --destructive: #c42a50;
+  --destructive-hover: #a9213f;
 
   --shadow-soft: 0 1px 2px rgba(7, 59, 76, 0.06), 0 2px 8px rgba(7, 59, 76, 0.04);
   --shadow-lifted: 0 12px 24px rgba(7, 59, 76, 0.18);
+  --shadow-hover: 0 2px 4px rgba(7, 59, 76, 0.08), 0 4px 14px rgba(7, 59, 76, 0.08);
+  --shadow-tooltip: 0 4px 16px rgba(7, 59, 76, 0.14);
 
   /* shadcn/ui's variables, pointed at the brand */
   --background: var(--page);
@@ -34,18 +87,67 @@
   --card-foreground: var(--ink);
   --popover: var(--panel);
   --popover-foreground: var(--ink);
-  --primary: #06d6a0;
-  --primary-foreground: var(--ink);
+  --primary: var(--sea-green);
+  --primary-foreground: var(--midnight);
   --secondary: var(--panel);
   --secondary-foreground: var(--ink);
-  --muted: #f0f4f5;
+  --muted: var(--page);
   --muted-foreground: var(--ink-muted);
-  --accent: #e8eff1;
   --accent-foreground: var(--ink);
-  --destructive: #c42a50;
   --border: var(--line);
   --input: var(--control-border);
   --ring: var(--focus);
+}
+
+/*
+  The dark values: the brand's dark surfaces, a #04232E page with black panels
+  and Sea Mist text. Only what differs from light mode is here. Dialogs,
+  messages and chart tooltips are Midnight (--raised), so each layer is a
+  different color from the one under it (concern 14).
+*/
+.dark {
+  color-scheme: dark;
+
+  --page: #04232e;
+  --panel: #000000;
+  --raised: #073b4c;
+  --ink: #cdd8db;
+  --ink-muted: #a7bcc2;
+  --ink-subtle: #8fa8b0;
+  --line: #1c3943;
+  --line-strong: #4a626b;
+  --focus: #5bc3e8;
+  --hover: #041e26;
+  --accent: #1e4b5a;
+  --drop: #102e38;
+  --icon-bg: #1c3943;
+  --selected: #cdd8db;
+  --selected-ink: #073b4c;
+  --selected-muted: #44606a;
+  --overlay: rgba(0, 0, 0, 0.6);
+
+  /* Text shades are lighter on dark backgrounds; tints are the color at 20% over black */
+  --sea-green-text: #5de4c1;
+  --sea-green-tint: #012b20;
+  --sea-green-line: var(--sea-green);
+  --marigold-text: #ffd786;
+  --marigold-tint: #33270e;
+  --coral-text: #fab49f;
+  --coral-tint: #311c15;
+  --cerulean-text: #5bc3e8;
+  --cerulean-tint: #031c24;
+  --raspberry-text: #ff8da5;
+  --raspberry-tint: #300e16;
+  --slate-text: #a7bcc2;
+  --slate-tint: #1c2122;
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lifted: 0 12px 24px rgba(0, 0, 0, 0.6);
+  --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-tooltip: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+:root {
   --radius: 0.5rem;
 }
 
@@ -57,12 +159,21 @@
 
   --color-page: var(--page);
   --color-panel: var(--panel);
+  --color-raised: var(--raised);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-ink-subtle: var(--ink-subtle);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-control-border: var(--control-border);
   --color-focus: var(--focus);
+  --color-hover: var(--hover);
+  --color-drop: var(--drop);
+  --color-icon-bg: var(--icon-bg);
+  --color-selected: var(--selected);
+  --color-selected-ink: var(--selected-ink);
+  --color-selected-muted: var(--selected-muted);
+  --color-overlay: var(--overlay);
   --color-band: var(--band);
   --color-band-ink: var(--band-ink);
   --color-band-ink-soft: var(--band-ink-soft);
@@ -70,33 +181,36 @@
   --color-band-alert: var(--band-alert);
   --color-band-panel: var(--band-panel);
   --color-band-rest: var(--band-rest);
+  --color-band-button: var(--band-button);
+  --color-band-button-hover: var(--band-button-hover);
 
-  /* Each brand color: the color itself, a darker text shade, and a light tint */
-  --color-sea-green: #06d6a0;
-  --color-sea-green-text: #037a5c;
-  --color-sea-green-tint: #dcf9f2;
-  --color-sea-green-hover: #06c396;
-  --color-sea-green-line: #05a87e;
-  --color-marigold: #ffc145;
-  --color-marigold-text: #8a5a00;
-  --color-marigold-tint: #fff6e5;
-  --color-coral: #f78c6b;
-  --color-coral-text: #b4472a;
-  --color-coral-tint: #feefea;
-  --color-cerulean: #118ab2;
-  --color-cerulean-text: #0d6e8e;
-  --color-cerulean-tint: #deeff4;
-  --color-raspberry: #ef476f;
-  --color-raspberry-text: #c42a50;
-  --color-raspberry-tint: #fde5eb;
-  --color-slate: #8aa3ab;
-  --color-slate-text: #46636d;
-  --color-slate-tint: #dce4e6;
-  --color-sea-mist: #cdd8db;
-  --color-midnight: #073b4c;
+  --color-sea-green: var(--sea-green);
+  --color-sea-green-text: var(--sea-green-text);
+  --color-sea-green-tint: var(--sea-green-tint);
+  --color-sea-green-hover: var(--sea-green-hover);
+  --color-sea-green-line: var(--sea-green-line);
+  --color-marigold: var(--marigold);
+  --color-marigold-text: var(--marigold-text);
+  --color-marigold-tint: var(--marigold-tint);
+  --color-coral: var(--coral);
+  --color-coral-text: var(--coral-text);
+  --color-coral-tint: var(--coral-tint);
+  --color-cerulean: var(--cerulean);
+  --color-cerulean-text: var(--cerulean-text);
+  --color-cerulean-tint: var(--cerulean-tint);
+  --color-raspberry: var(--raspberry);
+  --color-raspberry-text: var(--raspberry-text);
+  --color-raspberry-tint: var(--raspberry-tint);
+  --color-slate: var(--slate);
+  --color-slate-text: var(--slate-text);
+  --color-slate-tint: var(--slate-tint);
+  --color-sea-mist: var(--sea-mist);
+  --color-midnight: var(--midnight);
 
   --shadow-soft: var(--shadow-soft);
   --shadow-lifted: var(--shadow-lifted);
+  --shadow-hover: var(--shadow-hover);
+  --shadow-tooltip: var(--shadow-tooltip);
 
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -110,6 +224,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-hover: var(--destructive-hover);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -191,15 +306,23 @@
     background: transparent;
   }
   .scroll-thin::-webkit-scrollbar-thumb {
-    background: #b9c9ce;
+    background: var(--line-strong);
     border-radius: 999px;
   }
   @supports not selector(::-webkit-scrollbar) {
     .scroll-thin {
       scrollbar-width: thin;
-      scrollbar-color: #b9c9ce transparent;
+      scrollbar-color: var(--line-strong) transparent;
     }
   }
+}
+
+/* Colors change at once when the mode switches, with no fade (spec 2.6). lib/mode.ts sets the class. */
+.mode-switching,
+.mode-switching *,
+.mode-switching *::before,
+.mode-switching *::after {
+  transition: none !important;
 }
 
 /* Movement is turned off when the computer asks for reduced motion */

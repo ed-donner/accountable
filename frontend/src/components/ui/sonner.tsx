@@ -1,11 +1,13 @@
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react";
+import { useMode } from "@/lib/mode";
 
-// Light mode only for the MVP, so there's no theme switching here.
+// Messages are raised panels that follow the mode (spec 2.6, concern 14).
 const Toaster = ({ ...props }: ToasterProps) => {
+  const mode = useMode();
   return (
     <Sonner
-      theme="light"
+      theme={mode}
       className="toaster group"
       position="bottom-right"
       icons={{
@@ -17,7 +19,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
-          "--normal-bg": "var(--panel)",
+          "--normal-bg": "var(--raised)",
           "--normal-text": "var(--ink)",
           "--normal-border": "transparent",
           "--border-radius": "12px",

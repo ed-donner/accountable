@@ -6,8 +6,8 @@ import { money, plural } from "@/lib/format";
 import { STAGE_NAMES } from "@/lib/rules";
 
 // One measure, so one color, with Won in Sea Green because it means success (spec 2.6).
-const STEP = "#0D6E8E";
-const WON = "#06D6A0";
+const STEP = "var(--cerulean-text)";
+const WON = "var(--sea-green)";
 
 /**
  * The sales funnel (DASH-5): how much value reached each stage, as bars from

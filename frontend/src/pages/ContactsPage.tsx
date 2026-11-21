@@ -93,14 +93,15 @@ export default function ContactsPage() {
           onClick={() => setStatus(option.value)}
           className={cn(
             "flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors duration-150",
-            status === option.value ? "bg-band text-band-ink" : "text-ink-muted hover:bg-accent hover:text-ink",
+            // Filled like the chosen Note, Call or Email type (spec 2.5).
+            status === option.value ? "bg-selected text-selected-ink" : "text-ink-muted hover:bg-accent hover:text-ink",
           )}
         >
           {option.label}
           <span
             className={cn(
               "font-mono text-[12px] tabular",
-              status === option.value ? "text-band-muted" : "text-ink-subtle",
+              status === option.value ? "text-selected-muted" : "text-ink-subtle",
             )}
           >
             {counts[option.value] ?? 0}

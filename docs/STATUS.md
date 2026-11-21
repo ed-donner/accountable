@@ -1,4 +1,4 @@
-The MVP is built and its automated tests pass. Before it's called done, a person still needs to do the by-hand checks listed at the end, including a full walk-through in a real browser and a start on Windows.
+The MVP is built and its automated tests pass. Accountable runs on a Mac only; Windows is future work on the roadmap in `docs/intent.md`. Two checks remain before it's called done: TM04 (how fast it feels at full size) and TM05 (code review), listed at the end.
 
 ## How to start Accountable
 
@@ -8,19 +8,17 @@ You need two free tools on your computer, installed once. After that, starting A
 
 1. **Install Node.js.** Go to [nodejs.org](https://nodejs.org), download the version marked LTS, and run the installer with its usual choices.
 2. **Install uv**, which runs the part of Accountable that keeps your data.
-   - On a Mac: open the Terminal app (in Applications, then Utilities), paste this line and press Return:
-     `curl -LsSf https://astral.sh/uv/install.sh | sh`
-   - On Windows: open PowerShell from the Start menu, paste this line and press Enter:
-     `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
-   - Then close that window. The full instructions are at [docs.astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/).
-3. **Open a terminal in the Accountable folder.** On a Mac, open Terminal, type `cd ` (with a space), drag the Accountable folder onto the window and press Return. On Windows, open the Accountable folder in File Explorer, click the address bar, type `powershell` and press Enter.
-4. **Install Accountable's parts** by typing this and pressing Return or Enter. It takes a minute or two, and needs the internet this once:
+   Open the Terminal app (in Applications, then Utilities), paste this line and press Return:
+   `curl -LsSf https://astral.sh/uv/install.sh | sh`
+   Then close that window. The full instructions are at [docs.astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/).
+3. **Open a terminal in the Accountable folder.** Open Terminal, type `cd ` (with a space), drag the Accountable folder onto the window and press Return.
+4. **Install Accountable's parts** by typing this and pressing Return. It takes a minute or two, and needs the internet this once:
    `npm install`
 
 ### Every day
 
 1. Open a terminal in the Accountable folder, as in step 3.
-2. Type `npm run dev` and press Return or Enter.
+2. Type `npm run dev` and press Return.
 3. Your browser opens Accountable at http://localhost:5173 after a few seconds. The first start takes longer while it gets ready, and fills Accountable with sample data.
 4. Leave the terminal window open while you work. To stop Accountable, click the terminal window and press Ctrl+C, or just close it.
 
@@ -126,7 +124,7 @@ Following `docs/plan.md`, phase by phase.
 - "Won this month" compares with last month ("up 78% on Oct"), as in the mockup. Charts carry their figures in an accessible label, which TE18 checks against the API.
 - Differences from the mockup, following the spec: no "Log activity" button on the dashboard (activities are logged on a contact or deal), no user name in the sidebar (single user, no sign-in), and the funnel's "% of previous" is by value (Concern 6), not count.
 
-### PH8 Finish: automated parts done, by-hand checks still to do
+### PH8 Finish: done, apart from TM04 and TM05
 
 - **W8.1 Performance (G7):** TB41 builds 2,000 contacts, 1,000 deals and 10,000 activities. Every list, page and the dashboard answers in 2 to 14 ms against a 200 ms budget. In Chrome at that size, a keystroke in the contacts search takes 15 to 50 ms, a sort 48 ms, and a full page reload in dev mode 80 to 340 ms (the pipeline with 1,000 cards is the slowest).
 - **W8.2 Copy:** no exclamation marks or dashes in UI text; buttons say what they do; every table, list and timeline has an empty state.
@@ -135,15 +133,19 @@ Following `docs/plan.md`, phase by phase.
 - **W8.6 Console (G11):** every end-to-end test fails on a console error, and TE21 walks every page, panel and dialog. The one allowed error is the browser's own 404 note when a link points to a deleted record; the page itself explains it plainly.
 - A bug found while checking the screens by eye, now fixed and covered by a test: adding a deal from an organization's page, opened directly, didn't preselect the organization, because the form drew before its list of organizations arrived.
 
-#### Still to do, by a person
+#### By-hand checks
 
 | Check | Status |
 | --- | --- |
-| TM01 Every screen against the final mockups and brand | Checked by Claude from screenshots at 1440 px: dashboard, pipeline, tables, record pages, side panel and dialog follow the mockups. Needs a person's eye, including small-text contrast. |
-| TM02 Full walk-through as a salesperson, console open (SC8) | Not done. This is the "someone has used it end to end" step in the intent. |
-| TM03 Fresh setup and `npm run dev` on Windows and Mac, following the guide | Mac: `npm run dev` checked on a machine that already had Node.js and uv. Windows: not checked (W8.5). |
-| TM04 Search, sort and screen changes feel instant at full size | Measured above; needs a person's feel. |
+| TM01 Every screen against the final mockups and brand | Done: checked by the product owner. |
+| TM02 Full walk-through as a salesperson, console open (SC8) | Done: walked through by the product owner. Known issue, accepted for now: the Call, Email and Note buttons in the Log activity form didn't work as expected. |
+| TM03 Fresh setup and `npm run dev` on a Mac, following the guide | Done: checked on a Mac by the product owner. ~~Windows (W8.5)~~: dropped for the MVP; Windows is future work on the roadmap. |
+| TM04 Search, sort and screen changes feel instant at full size | To do soon. Measured above; needs a person's feel. |
 | TM05 Code review of layout rules, rules only in the backend, API ready for paging | Not done. |
 | R12 Follow-ups tile links to the dashboard's follow-ups panel | Built as the plan proposed; needs the product owner's OK. |
 
-All eight success criteria in the intent are covered by passing automated tests, except the parts of SC1, SC7 and SC8 that need the by-hand checks above.
+All eight success criteria in the intent are met: covered by passing automated tests, with SC1, SC7 and SC8 also checked by hand (SC1 on a Mac only).
+
+## Known issues
+
+- **Log activity type buttons (from TM02):** the Call, Email and Note buttons at the top of the Log activity form on contact and deal pages didn't work as expected in the walk-through. Accepted for now; to be looked at later.

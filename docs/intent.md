@@ -52,7 +52,7 @@ The look follows Accountable's brand guidelines, which take priority over any ge
 ## Constraints
 
 - The technology in `docs/TECH_STACK.md`.
-- It runs locally with one documented command that works on Mac, Linux and Windows, and needs no internet connection to use.
+- It runs locally on a Mac with one documented command, and needs no internet connection to use. Windows and Linux are future work (see [Roadmap](#roadmap)).
 - Every change is kept: it's still there after a browser refresh, and every time the app starts it shows every change made before.
 - One documented command resets the data to the sample data, to start again from scratch.
 - It stays quick with a few thousand records: up to about 2,000 contacts, 1,000 deals and 10,000 activities.
@@ -80,3 +80,9 @@ In everyday use, the MVP has worked when:
 
 - Sign-in, several people sharing the same data, and a record of who did what are for a later intent.
 - Making Accountable available to people beyond the computer it runs on is for later too.
+
+## Roadmap
+
+### Future
+
+- Windows support: `npm run dev` and the setup guide working on Windows, checked on a real Windows computer. The npm scripts and the dev launcher are already written in plain Node so this should need little change. Linux comes with it.

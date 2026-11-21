@@ -135,7 +135,7 @@ Phases run in order. Each ends with `npm test` passing, the app checked in a bro
 | <a id="w8-2"></a>W8.2 | [PH8](#ph8) | Copy, tone and empty states pass | [G8](spec.md#general), [T7](spec.md#tables-organizations-contacts-and-deals), [DS2](spec.md#brand) | None | [TB36](#tb36), [TF07](#tf07), [TF16](#tf16), [TM01](#tm01) |
 | <a id="w8-3"></a>W8.3 | [PH8](#ph8) | Offline check | [G2](spec.md#general) | [R14](#r14) | [TE22](#te22) |
 | <a id="w8-4"></a>W8.4 | [PH8](#ph8) | Setup guide in `docs/STATUS.md` | [CN5](spec.md#concerns), [SC1](intent.md#success-criteria), [ES1](intent.md#success-criteria) | [R8](#r8) | [TE01](#te01), [TM02](#tm02), [TM03](#tm03) |
-| <a id="w8-5"></a>W8.5 | [PH8](#ph8) | Windows check | [G1](spec.md#general) | [R7](#r7) | [TE01](#te01), [TM03](#tm03) |
+| <a id="w8-5"></a>W8.5 | [PH8](#ph8) | ~~Windows check~~ Dropped: the MVP is Mac only, and Windows is future work on the roadmap in `docs/intent.md` | [G1](spec.md#general) | [R7](#r7) | [TE01](#te01), [TM03](#tm03) |
 | <a id="w8-6"></a>W8.6 | [PH8](#ph8) | Full walk-through in a real browser | [SC7](intent.md#success-criteria), [SC8](intent.md#success-criteria), [G11](spec.md#general), [ES1](intent.md#success-criteria) | None | [TE21](#te21), [TM01](#tm01), [TM02](#tm02) |
 
 ## Risks
@@ -148,7 +148,7 @@ Phases run in order. Each ends with `npm test` passing, the app checked in a bro
 | <a id="r4"></a>R4 | Sample data relative to today makes tests depend on the day they run | Tests pass today and fail next month | Fix today with `ACCOUNTABLE_TODAY` and the Playwright clock | [S1](spec.md#sample-data), [S2](spec.md#sample-data) | [W1.5](#w1-5), [W2.5](#w2-5) | [TB38](#tb38), [TE01](#te01), [TE18](#te18) |
 | <a id="r5"></a>R5 | Card positions lose precision after many moves | Cards jump after a refresh | Renumber a column when neighbors get too close | [P4](spec.md#pipeline) | [W2.4](#w2-4) | [TB08](#tb08), [TE11](#te11) |
 | <a id="r6"></a>R6 | Optimistic updates and slow saves overlap | The board shows a state the server doesn't have | One move in flight per card, refetch after each save, roll back on failure | [P6](spec.md#pipeline) | [W6.3](#w6-3) | [TF14](#tf14), [TF15](#tf15), [TE12](#te12) |
-| <a id="r7"></a>R7 | `npm run dev` behaves differently on Windows | The salesperson can't start the app | Node scripts rather than shell syntax, `uv run` for Python, a real Windows check | [G1](spec.md#general) | [W1.4](#w1-4), [W8.5](#w8-5) | [TM03](#tm03) |
+| <a id="r7"></a>R7 | `npm run dev` behaves differently on Windows (future work; the MVP is Mac only) | The salesperson can't start the app | Node scripts rather than shell syntax, `uv run` for Python, a real Windows check | [G1](spec.md#general) | [W1.4](#w1-4), [W8.5](#w8-5) | [TM03](#tm03) |
 | <a id="r8"></a>R8 | Setup needs Node.js and uv installed | First start fails for a non-technical user | Plain setup guide with installer links; the launcher explains a missing tool in plain words | [G1](spec.md#general), [SC1](intent.md#success-criteria) | [W1.4](#w1-4), [W8.4](#w8-4) | [TM03](#tm03) |
 | <a id="r9"></a>R9 | Full lists in the browser slow down at the top sizes | Search and sort lag | Measure with generated data; the API already takes limit and offset | [G7](spec.md#general), [T1](spec.md#tables-organizations-contacts-and-deals), [T2](spec.md#tables-organizations-contacts-and-deals), [T3](spec.md#tables-organizations-contacts-and-deals) | [W8.1](#w8-1) | [TB41](#tb41), [TM04](#tm04) |
 | <a id="r10"></a>R10 | Dashboard queries slow down with 10,000 activities | The landing page is slow | Indexes on dates and follow-ups, timing test at full size | [G7](spec.md#general), [H1](spec.md#dashboard) | [W2.1](#w2-1), [W3.8](#w3-8), [W8.1](#w8-1) | [TB41](#tb41) |
@@ -267,7 +267,7 @@ Phases run in order. Each ends with `npm test` passing, the app checked in a bro
 | --- | --- | --- | --- |
 | <a id="tm01"></a>TM01 | Every screen compared with the final mockups and the brand, including small-text contrast | [DS1](spec.md#screens), [DS2](spec.md#brand), [SC7](intent.md#success-criteria), [CN2](spec.md#concerns), [CN3](spec.md#concerns) | None |
 | <a id="tm02"></a>TM02 | Full walk-through as a salesperson, every section and action, console open | [SC8](intent.md#success-criteria), [G11](spec.md#general), [ES1](intent.md#success-criteria) | None |
-| <a id="tm03"></a>TM03 | Fresh setup and `npm run dev` on Windows and Mac following the setup guide | [G1](spec.md#general), [CN5](spec.md#concerns), [SC1](intent.md#success-criteria) | [R7](#r7), [R8](#r8) |
+| <a id="tm03"></a>TM03 | Fresh setup and `npm run dev` on a Mac following the setup guide | [G1](spec.md#general), [CN5](spec.md#concerns), [SC1](intent.md#success-criteria) | [R7](#r7), [R8](#r8) |
 | <a id="tm04"></a>TM04 | Search, sort and screen changes feel instant with full-size data | [G7](spec.md#general) | [R9](#r9) |
 | <a id="tm05"></a>TM05 | Code review: the layout rules in the spec are followed, business rules only in the backend, API ready for server paging, no hand-rolled widgets | [ES4](intent.md#success-criteria), [G6](spec.md#general) | None |
 

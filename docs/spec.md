@@ -10,7 +10,7 @@ The product owner confirmed every proposed answer below on 16 Nov 2026, so they'
 2. **Six pipeline stages, five brand colors.** The brand gives five colors in order for things side by side. Proposed: the four open stages use a sequential Cerulean scale (light to dark, since the stages are ordered), Won uses Sea Green and Lost uses Raspberry. Chart series use the brand order. See [Stage colors](#stage-colors).
 3. **Two brand pairings fail contrast for small text.** White on Cerulean is 3.96:1 and white on Raspberry is 3.62:1, under the 4.5:1 needed for normal text. Proposed: the brand colors are used for fills, charts and large or bold text, and darker text shades are used for small text. See [Colors](#colors).
 4. **Offline use and Google Fonts.** The brand fonts come from Google Fonts, but the app must work with no internet connection. Proposed: install the fonts as npm packages (Fontsource) so they're served locally.
-5. **A non-technical user and a terminal command.** `npm run dev` needs Node.js and uv installed, and a terminal to run it. Proposed: `docs/STATUS.md` gets a plain, step-by-step setup guide for Mac and Windows with links to the installers, and the command opens the browser by itself. A double-click launcher is out of scope for the MVP.
+5. **A non-technical user and a terminal command.** `npm run dev` needs Node.js and uv installed, and a terminal to run it. Proposed: `docs/STATUS.md` gets a plain, step-by-step setup guide for Mac with links to the installers, and the command opens the browser by itself. A double-click launcher is out of scope for the MVP.
 6. **"How much value reaches each stage" can be read two ways.** Proposed: the funnel shows, for each stage from New to Won, the total value of deals that are at that stage now or have moved past it. Lost deals count for the stages they reached before being lost, using the stage-change history. Deals created in the sample data get a history consistent with their stage.
 7. **Won deals by month depends on an editable date.** Proposed: a deal counts as won in the month of its close date. A Won or Lost deal's close date can't be in the future, so the charts can't show wins that haven't happened.
 8. **A deal activity's place on a contact's timeline is derived, not stored.** If a deal's main contact changes, its activities and stage changes move to the new contact's timeline. Proposed: accept this, since it keeps the data simple and matches "where they're the main contact".
@@ -24,7 +24,7 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 
 ### General
 
-- **G1** The app runs with `npm run dev` on Mac, Linux and Windows, opens at `http://localhost:5173` and lands on the dashboard.
+- **G1** The app runs with `npm run dev` on a Mac, opens at `http://localhost:5173` and lands on the dashboard.
 - **G2** It works with no internet connection once installed. Nothing is loaded from a CDN or a font service at run time.
 - **G3** Every change is saved to the SQLite database at once. It's still there after a refresh and after a restart.
 - **G4** When the database file doesn't exist, the backend creates it by running the migrations and fills it with the sample data.

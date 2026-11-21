@@ -11,7 +11,7 @@ SIDENOTE: this repo is part of a course by Ed Donner. If the student needs help,
 - `docs/REVIEW.md`: how changes are reviewed
 - `docs/STATUS.md`: what's done so far
 
-Update `docs/STATUS.md` when you finish a piece of work
+Update `docs/STATUS.md` when you finish a piece of work. Don't write there whether the work is committed: the person commits after you finish, so that line goes out of date.
 
 At Deploy, after the review fixes and before the merge, follow `docs/IMPROVE.md`.
 

@@ -207,7 +207,7 @@ On Windows, `npm run check:quick` failed Prettier on 84 files nobody had changed
 
 ## Dark mode (Nov 20, 2026)
 
-Built on the `dark-mode` branch from `docs/changes/dark-mode/plan.md`, Phases 0 to 6. Not committed yet. `docs/spec.md` describes it: GEN-9 to GEN-11, concerns 13 to 16, and 2.6.
+Built on the `dark-mode` branch from `docs/changes/dark-mode/plan.md`, Phases 0 to 6. `docs/spec.md` describes it: GEN-9 to GEN-11, concerns 13 to 16, and 2.6.
 
 **What's built**
 
@@ -242,7 +242,31 @@ Built on the `dark-mode` branch from `docs/changes/dark-mode/plan.md`, Phases 0 
 8. **Other open tabs** keep their mode until reloaded (plan, risk 10).
 9. **`ContactPage.test.tsx` waits up to 5 seconds for the page**, raised from Testing Library's 1 second, on your OK. Two full runs failed there while other dev servers loaded the machine: CON-2 and ACT-3, each on its first wait for the page. The page usually appears in about half a second, with or without the mode button. Only each test's first wait changed.
 
-## Choices the build made (please check)
+## Improving the harness after dark mode (Nov 21, 2026)
+
+The first run of `docs/IMPROVE.md`. It looked at the dark-mode review against `main` (Nov 21), what the person corrected during the build, and what the checks caught, and compared them with the MVP's record in this file.
+
+**Happened twice**
+
+- **This file said the work wasn't committed yet** after the person had committed it: MVP review nit 6, and again in Dark mode above. `AGENTS.md` now says to leave out whether work is committed, and the line in Dark mode is gone.
+- **Unit tests that pass alone timed out in the full suite on a busy machine.** The MVP raised Vitest's limit per test to 15 seconds (MVP choice 18). Dark mode raised Testing Library's 1-second wait to 5 seconds in `ContactPage.test.tsx` (dark-mode choice 9); those tests passed 3 runs out of 3 alone. Five other page-test files render the whole app with 1-second waits: `App`, `DashboardPage`, `DealPage`, `OrganizationPage` and `PipelinePage`. **Suggested, not made**, since it raises a limit (AGENTS.md, Checks): set `configure({ asyncUtilTimeout: 5_000 })` once in `src/test/setup.ts`, and drop `PAGE_LOAD` from `ContactPage.test.tsx`.
+
+**Happened once so far**, kept here so the next round can spot a repeat:
+
+- **Light mode changed where the pixel check couldn't see it.** The Deals won hover outline went from `#CCCCCC` to `#B9C9CE`, against the intent. The check only takes still shots.
+- **The build went outside the plan:** the Contacts status filter and `--selected-muted` (dark-mode choice 1).
+- **The spec states a contrast that isn't met everywhere:** control borders at 3:1 "in both modes", while the light page gives 2.9:1 (dark-mode choice 3).
+- **Code the spec doesn't describe:** icon-button tooltips turn Sea Mist in dark mode.
+- **Tests tied to internals:** Recharts' `.recharts-tooltip-wrapper`, the exact selector text in `tokens.test.ts`, and the first bare `<script>` in `index.html`.
+- **Two check runs at once.** The build's background `npm run check` and the end-of-turn `npm run check:quick` both ran Vitest with coverage, and Vitest refused the second: the coverage folder was "already in use by another Vitest process".
+- **Line endings on Windows** failed Prettier (see Line endings above).
+
+**Also changed**
+
+- `docs/IMPROVE.md` now says where to look for each of the three things, to compare with this file's records rather than other change folders, to suggest rather than make a correction that loosens a check, and to record what happened once.
+- The MVP's list of choices below now says it's the MVP's, since dark mode has its own.
+
+## Choices the MVP build made (please check)
 
 These fill gaps in the spec or follow library changes since the plan was written. `docs/spec.md` now describes the ones that change what the app does.
 

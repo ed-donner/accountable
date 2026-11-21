@@ -1,0 +1,13 @@
+# gitleaks scans every commit and every file in the working tree for secrets,
+# using its default rules plus the allowances below.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The git-ignored .env holds the local secrets; the installed packages aren't this repo's code"
+paths = [
+  '''(^|/)\.env$''',
+  '''^\.venv/''',
+  '''(^|/)node_modules/''',
+]

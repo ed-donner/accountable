@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accountable</title>
+    <script>
+      // Dark mode is set before the page draws, so a reload never flashes light
+      // mode (spec 2.6, GEN-10). The key is the one in src/lib/mode.ts.
+      try {
+        if (localStorage.getItem("accountable-mode") === "dark") document.documentElement.classList.add("dark");
+      } catch {
+        // Storage can't be read, so the app opens in light mode.
+      }
+    </script>
+    <!-- Linked here, not imported by the app's code, so the browser waits for it before drawing -->
+    <link rel="stylesheet" href="/src/styles/index.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

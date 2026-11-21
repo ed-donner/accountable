@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup 2: Midnight deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #F0F4F5; --panel: #FFFFFF; --ink: #073B4C; --muted: #46636D; --subtle: #56747E;
+    --line: #E4ECEE; --control: #7D949C; --mist: #CDD8DB; --mist-dim: #A7BCC2;
+    --sea: #06D6A0; --sea-text: #037A5C; --sea-tint: #DCF9F2;
+    --rasp-text: #C42A50; --rasp-on-dark: #FF8DA5;
+    --shadow: 0 1px 2px rgba(7, 59, 76, 0.06), 0 2px 8px rgba(7, 59, 76, 0.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 40px; background: #D3DDE0; color: var(--ink); font: 14px/20px 'Instrument Sans', sans-serif; }
+  .sheet-label { width: 1440px; margin: 0 auto 14px; font-size: 15px; font-weight: 600; }
+  .sheet-label span { font-weight: 400; color: var(--muted); }
+  .screen { width: 1440px; margin: 0 auto 56px; background: var(--page); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 40px rgba(7, 59, 76, 0.18); }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  a { color: #0D6E8E; text-decoration: none; }
+
+  /* The Midnight band: the top bar runs straight into each page's headline figures. */
+  .dark { background: var(--ink); color: var(--mist); }
+  .topbar { height: 64px; display: flex; align-items: center; gap: 44px; padding: 0 32px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: #FFFFFF; font-size: 18px; font-weight: 600; }
+  .mark { width: 24px; height: 24px; border-radius: 7px; background: var(--sea); display: grid; place-items: center; }
+  .mark::after { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--ink); }
+  nav { display: flex; gap: 4px; }
+  nav a { color: var(--mist); font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 999px; }
+  nav a.on { background: var(--sea); color: var(--ink); font-weight: 600; }
+  .band { padding: 28px 32px 36px; }
+  .band-head { display: flex; justify-content: space-between; align-items: flex-end; }
+  h1 { margin: 0; font-size: 28px; line-height: 36px; font-weight: 600; color: #FFFFFF; }
+  .date { margin: 2px 0 0; font: italic 22px/30px 'Instrument Serif', serif; color: var(--mist); }
+  .sub { margin: 4px 0 0; color: var(--mist-dim); }
+
+  .figs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin: 32px 0 36px; }
+  .fig-l { font-size: 13px; font-weight: 500; color: var(--mist-dim); }
+  .fig-v { font-size: 40px; line-height: 50px; font-weight: 500; color: #FFFFFF; margin: 4px 0 2px; letter-spacing: -0.02em; }
+  .fig-v.sea { color: var(--sea); }
+  .fig-v .rasp { color: var(--rasp-on-dark); }
+  .fig-v .unit { font: 500 18px 'Instrument Sans', sans-serif; color: var(--rasp-on-dark); letter-spacing: 0; }
+  .fig-s { font-size: 13px; color: var(--mist-dim); }
+
+  .strip-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .strip-title h2 { margin: 0; font-size: 16px; font-weight: 600; color: #FFFFFF; }
+  .strip { display: flex; gap: 6px; }
+  .strip-seg { min-width: 0; }
+  .strip-bar { height: 40px; border-radius: 8px; overflow: hidden; background: rgba(205, 216, 219, 0.16); }
+  .strip-exp { box-shadow: 2px 0 0 var(--ink); }
+  .strip-exp { height: 100%; }
+  .strip-name { display: flex; align-items: center; margin-top: 12px; font-weight: 600; color: #FFFFFF; }
+  .strip-count { margin-left: 8px; font: 12px 'JetBrains Mono', monospace; color: var(--mist-dim); }
+  .strip-val { font-size: 16px; color: #FFFFFF; margin-top: 2px; }
+  .strip-exp-l { font-size: 12px; color: var(--mist-dim); }
+  .strip-note { display: none; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; flex: none; }
+  .key { font-size: 12px; color: var(--mist-dim); display: flex; gap: 16px; }
+  .key i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -2px; }
+
+  main { padding: 28px 32px 32px; }
+  .row { display: grid; gap: 24px; margin-bottom: 24px; }
+  .r75 { grid-template-columns: 7fr 5fr; }
+  .r444 { grid-template-columns: 1fr 1fr 1fr; }
+  .panel { background: var(--panel); border-radius: 16px; box-shadow: var(--shadow); padding: 24px; }
+  .panel-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+  h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; }
+  .hint { font-size: 13px; color: var(--subtle); }
+  .chart svg { display: block; }
+  .ax { font: 12px 'JetBrains Mono', monospace; fill: var(--subtle); }
+  .bar-l { font: 500 12px 'JetBrains Mono', monospace; fill: var(--ink); }
+  .big-fig { display: flex; align-items: baseline; gap: 10px; margin: -6px 0 10px; }
+  .big-fig .mono { font-size: 22px; font-weight: 500; }
+  .big-fig span:last-child { font-size: 13px; color: var(--subtle); }
+
+  .fn-row { display: grid; grid-template-columns: 100px 1fr 96px; align-items: center; gap: 12px; height: 46px; }
+  .fn-name { font-weight: 500; }
+  .fn-track { height: 22px; }
+  .fn-bar { height: 100%; border-radius: 0 6px 6px 0; }
+  .fn-fig { display: flex; flex-direction: column; align-items: flex-end; font-size: 13px; }
+  .fn-count { font-size: 12px; color: var(--subtle); }
+  .fn-share { margin-left: 112px; font-size: 12px; line-height: 14px; color: var(--subtle); }
+
+  .fu-list, .ra-list { list-style: none; margin: 0; padding: 0; }
+  .fu { display: grid; grid-template-columns: 28px 1fr auto; gap: 6px; padding: 10px 0; }
+  .fu + .fu, .ra + .ra { box-shadow: 0 -1px 0 var(--line); }
+  .tick { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--control); margin-top: 1px; }
+  .fu-text { font-weight: 500; }
+  .fu-meta { display: flex; gap: 10px; font-size: 13px; color: var(--subtle); margin-top: 2px; }
+  .fu-type { display: inline-flex; align-items: center; gap: 5px; }
+  .fu-date { display: flex; flex-direction: column; align-items: flex-end; font-size: 13px; color: var(--muted); }
+  .late-text { color: var(--rasp-text); font-weight: 600; white-space: nowrap; }
+  .ra { display: grid; grid-template-columns: 38px 1fr; padding: 10px 0; }
+  .ra-icon { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #EAF0F2; color: var(--muted); }
+  .ra-stage .ra-icon { background: var(--ink); color: var(--sea); }
+  .ra-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-top: 2px; }
+  .ra-when { color: var(--subtle); white-space: nowrap; }
+
+  /* Pipeline */
+  .figs-inline { display: flex; align-items: center; gap: 36px; }
+  .fi { display: flex; flex-direction: column; align-items: flex-end; }
+  .fi-l { font-size: 13px; color: var(--mist-dim); font-weight: 500; }
+  .fi-v { font-size: 26px; line-height: 34px; color: #FFFFFF; }
+  .fi-v.sea { color: var(--sea); }
+  .btn { font: 600 14px 'Instrument Sans', sans-serif; border: 0; border-radius: 8px; padding: 10px 16px; display: inline-flex; align-items: center; gap: 6px; background: var(--sea); color: var(--ink); }
+  .grid6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .heads { margin-top: 28px; }
+  .head { background: rgba(205, 216, 219, 0.08); border-radius: 14px; padding: 14px 14px 12px; display: flex; flex-direction: column; }
+  .head-add { margin-top: auto !important; }
+  .head-e { margin-bottom: 12px; }
+  .head-t { display: flex; align-items: center; font-weight: 600; color: #FFFFFF; font-size: 15px; }
+  .head-c { margin-left: auto; font: 500 12px 'JetBrains Mono', monospace; color: var(--mist-dim); }
+  .head-v { font-size: 18px; color: #FFFFFF; margin-top: 10px; }
+  .head-e { font-size: 12px; color: var(--mist-dim); }
+  .head-note { font-size: 12px; color: var(--mist-dim); margin-top: 4px; }
+  .head-add { margin-top: 12px; width: 100%; border: 0; border-radius: 8px; padding: 7px; background: rgba(205, 216, 219, 0.12); color: var(--mist); font: 500 13px 'Instrument Sans', sans-serif; display: flex; justify-content: center; align-items: center; gap: 6px; }
+  .board-area { padding: 16px 32px 40px; }
+  .col { display: flex; flex-direction: column; gap: 10px; min-height: 640px; }
+  .card { background: #FFFFFF; border-radius: 12px; box-shadow: var(--shadow); padding: 13px 14px; }
+  .card-name { font-weight: 600; line-height: 19px; }
+  .card-org { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .card-nums { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px; }
+  .card-value { font-weight: 500; }
+  .card-date { color: var(--muted); }
+  .is-late .card-date { color: var(--rasp-text); }
+  .card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--muted); min-height: 22px; }
+  .card-who { display: inline-flex; align-items: center; gap: 6px; }
+  .card-contact.none { color: var(--subtle); font-style: italic; }
+  .avatar { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--mist); font-size: 10px; font-weight: 600; display: grid; place-items: center; }
+  .badge-late { display: inline-flex; align-items: center; gap: 4px; background: var(--rasp-text); color: #FFFFFF; font-size: 11px; font-weight: 600; line-height: 16px; padding: 2px 8px 2px 6px; border-radius: 999px; }
+</style>
+</head>
+<body>
+
+<div class="sheet-label">Mockup 2: Midnight deck <span>&nbsp; Dashboard</span></div>
+<div class="screen">
+  <div class="dark">
+    <header class="topbar">
+      <div class="brand"><span class="mark"></span>Accountable</div>
+      <nav><a class="on" href="#">Dashboard</a><a href="#">Organizations</a><a href="#">Contacts</a><a href="#">Deals</a><a href="#">Pipeline</a></nav>
+    </header>
+    <div class="band">
+      <div class="band-head"><div><h1>Dashboard</h1><p class="date">Thursday, November 19</p></div></div>
+      <div class="figs">
+        <div><div class="fig-l">Open pipeline</div><div class="fig-v mono">$1,011,000</div><div class="fig-s">19 open deals</div></div>
+        <div><div class="fig-l">Expected revenue</div><div class="fig-v mono sea">$502,300</div><div class="fig-s">Value times probability of close</div></div>
+        <div><div class="fig-l">Won this month</div><div class="fig-v mono">$54,000</div><div class="fig-s">1 deal. Last month <span class="mono">$8,500</span></div></div>
+        <div><div class="fig-l">Follow-ups</div><div class="fig-v"><span class="mono rasp">3</span> <span class="unit">overdue</span></div><div class="fig-s"><span class="mono">4</span> due in the next 7 days</div></div>
+      </div>
+      <div class="strip-title"><h2>Open pipeline by stage</h2><div class="key"><span>Colored part: expected revenue</span><span><i style="background:rgba(205,216,219,0.16)"></i>Rest of the value</span></div></div>
+      <div id="strip"></div>
+    </div>
+  </div>
+  <main>
+    <section class="row r75">
+      <div class="panel"><div class="panel-h"><h2>Revenue won</h2><span class="hint">Last 12 months</span></div>
+        <div class="big-fig"><span class="mono">$511,000</span><span>won in the last 12 months</span></div><div class="chart" id="line"></div></div>
+      <div class="panel"><div class="panel-h"><h2>Deals won</h2><span class="hint">Last 12 months</span></div>
+        <div class="big-fig"><span class="mono">10</span><span>deals won in the last 12 months</span></div><div class="chart" id="bars"></div></div>
+    </section>
+    <section class="row r444">
+      <div class="panel"><div class="panel-h"><h2>Sales funnel</h2><span class="hint">Created in the last 12 months</span></div><div id="funnel"></div></div>
+      <div class="panel"><div class="panel-h"><h2>Follow-ups</h2><span class="hint">Overdue and next 7 days</span></div><div id="fu"></div></div>
+      <div class="panel"><div class="panel-h"><h2>Recent activity</h2></div><div id="ra"></div></div>
+    </section>
+  </main>
+</div>
+
+<div class="sheet-label">Mockup 2: Midnight deck <span>&nbsp; Pipeline</span></div>
+<div class="screen">
+  <div class="dark">
+    <header class="topbar">
+      <div class="brand"><span class="mark"></span>Accountable</div>
+      <nav><a href="#">Dashboard</a><a href="#">Organizations</a><a href="#">Contacts</a><a href="#">Deals</a><a class="on" href="#">Pipeline</a></nav>
+    </header>
+    <div class="band">
+      <div class="band-head">
+        <div><h1>Pipeline</h1><p class="sub">19 open deals, 3 of them late</p></div>
+        <div class="figs-inline">
+          <div class="fi"><span class="fi-l">Open pipeline</span><span class="mono fi-v">$1,011,000</span></div>
+          <div class="fi"><span class="fi-l">Expected revenue</span><span class="mono fi-v sea">$502,300</span></div>
+          <button class="btn" id="add"></button>
+        </div>
+      </div>
+      <div class="grid6 heads" id="heads"></div>
+    </div>
+  </div>
+  <main class="board-area"><div class="grid6" id="board"></div></main>
+</div>
+
+<script src="shared.js"></script>
+<script>
+  const { STAGES, BOARD, money, totals, icon } = M;
+  const width = (id) => document.getElementById(id).clientWidth;
+  document.getElementById('strip').innerHTML = M.stageStrip();
+  document.getElementById('line').innerHTML = M.lineChart({ w: width('line'), h: 250, stroke: '#05A87E', fill: '#06D6A0' });
+  document.getElementById('bars').innerHTML = M.barChart({ w: width('bars'), h: 250, fill: '#FFC145', labels: true, margin: { l: 36 } });
+  // One measure, so one color for the steps, with Won in Sea Green because it means success.
+  document.getElementById('funnel').innerHTML = M.funnelRows({ colorFor: (s) => (s.key === 'won' ? '#06D6A0' : '#0D6E8E'), dots: false });
+  document.getElementById('fu').innerHTML = M.followUps();
+  document.getElementById('ra').innerHTML = M.recent({ limit: 6 });
+  document.getElementById('add').innerHTML = icon('plus', 16) + 'Add deal';
+
+  document.getElementById('heads').innerHTML = STAGES.map((s) => {
+    const t = totals(s.key), closed = s.key === 'won' || s.key === 'lost';
+    return `<div class="head"><div class="head-t"><span class="dot" style="background:${s.color}"></span>${s.name}<span class="head-c">${t.count}</span></div>
+      <div class="mono head-v">${money(t.value)}</div><div class="head-e">Expected <span class="mono">${money(t.expected)}</span></div>
+      ${closed ? '<div class="head-note">Closed in the last 30 days</div>' : ''}
+      <button class="head-add">${icon('plus', 14)}Add deal</button></div>`;
+  }).join('');
+  document.getElementById('board').innerHTML = STAGES.map((s) =>
+    `<div class="col">${BOARD[s.key].map((d) => M.card(d)).join('')}</div>`).join('');
+</script>
+</body>
+</html>

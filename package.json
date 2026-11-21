@@ -13,7 +13,7 @@
     "dev": "node scripts/dev.mjs",
     "seed": "uv run python -m app.seed",
     "types": "node scripts/types.mjs",
-    "test": "npm run test:backend && npm run test:frontend && npm run test:e2e",
+    "test": "node scripts/test.mjs",
     "test:backend": "uv run pytest",
     "test:frontend": "npm run test --workspace frontend",
     "test:e2e": "playwright test"

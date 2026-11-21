@@ -146,7 +146,7 @@ def _recent(conn: Connection) -> list[RecentItem]:
                 kind="stage_change",
                 id=row["id"],
                 on=row["changed_at"].date(),
-                at=row["changed_at"],
+                at=row["created_at"],
                 text=rules.stage_change_text(row["from_stage"], row["to_stage"]),
                 type=None,
                 contact=None,

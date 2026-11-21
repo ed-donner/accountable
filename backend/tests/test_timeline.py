@@ -47,3 +47,20 @@ def test_entries_follow_the_main_contact(api):
     assert api.ok("GET", f"/api/contacts/{first['id']}/timeline")["items"] == []
     texts = [e["text"] for e in api.ok("GET", f"/api/contacts/{second['id']}/timeline")["items"]]
     assert "On the deal" in texts
+
+
+# TB28: the user's today can differ from the computer's clock (another time zone, or a
+# fixed test date). Entries on the same day still show in the order they were made.
+def test_same_day_order_when_today_is_not_the_clock_date(api):
+    day = {"X-Local-Date": "2026-01-05"}
+    contact = api.contact()
+    deal_body = {"name": "Renewal", "value": 1000, "organization_id": api.org()["id"], "contact_id": contact["id"]}
+    deal = api.ok("POST", "/api/deals", 201, headers=day, json=deal_body)
+    email = {"type": "email", "description": "Sent an offer", "deal_id": deal["id"], "occurred_on": "2026-01-05"}
+    api.ok("POST", "/api/activities", 201, headers=day, json=email)
+    api.ok("PATCH", f"/api/deals/{deal['id']}", headers=day, json={"stage": "proposal"})
+    expected = ["Moved from New to Proposal", "Sent an offer", "Added in New"]
+    for url in (f"/api/deals/{deal['id']}/timeline", f"/api/contacts/{contact['id']}/timeline"):
+        assert [e["text"] for e in api.ok("GET", url, headers=day)["items"]] == expected, url
+    recent = [r["text"] for r in api.ok("GET", "/api/dashboard", headers=day)["recent"]]
+    assert recent.index("Moved from New to Proposal") < recent.index("Sent an offer")

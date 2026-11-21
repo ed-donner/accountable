@@ -1,6 +1,6 @@
 """Deals: endpoints, queries, board moves and card positions."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -119,11 +119,20 @@ def _check_links(conn: Connection, organization_id: int | None, contact_id: int 
 
 
 def _record_stage_change(conn: Connection, deal_id: int, old: str | None, new: str, today: date) -> None:
-    """D6: every stage change leaves an entry."""
-    when = now_on(today)
+    """D6: every stage change leaves an entry.
+
+    changed_at is on the user's today; created_at is the real clock, like an activity's,
+    so timelines can order entries made on the same day.
+    """
+    created = datetime.now()
     conn.execute(
         insert(stage_changes).values(
-            deal_id=deal_id, from_stage=old, to_stage=new, changed_at=when, created_at=when, updated_at=when
+            deal_id=deal_id,
+            from_stage=old,
+            to_stage=new,
+            changed_at=now_on(today),
+            created_at=created,
+            updated_at=created,
         )
     )
 

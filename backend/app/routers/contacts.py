@@ -1,8 +1,7 @@
 """Contacts: endpoints and queries (C1 to C4, C6)."""
 
-from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from sqlalchemy import Connection, delete, func, insert, select, union_all, update
 
 from app.db import activities, contacts, deals, organizations
@@ -10,6 +9,9 @@ from app.deps import Conn, Today
 from app.routers.deals import deal_rows
 from app.rules import Status
 from app.schemas import (
+    PageLimit,
+    PageOffset,
+    RecordId,
     Contact,
     ContactCreate,
     ContactDetail,
@@ -84,8 +86,8 @@ def _check_organization(conn: Connection, organization_id: int | None) -> None:
 def list_contacts(
     conn: Conn,
     status: Status | None = None,
-    limit: Annotated[int | None, Query(ge=1)] = None,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: PageLimit = None,
+    offset: PageOffset = 0,
 ) -> ContactList:
     where = [contacts.c.status == status] if status else []
     items = contact_rows(conn, *where, limit=limit, offset=offset)
@@ -109,7 +111,7 @@ def create_contact(body: ContactCreate, conn: Conn) -> Contact:
 
 
 @router.get("/{contact_id}")
-def read_contact(contact_id: int, conn: Conn, today: Today) -> ContactDetail:
+def read_contact(contact_id: RecordId, conn: Conn, today: Today) -> ContactDetail:
     contact = get_contact(conn, contact_id)
     organization = None
     if contact["organization_id"] is not None:
@@ -123,7 +125,7 @@ def read_contact(contact_id: int, conn: Conn, today: Today) -> ContactDetail:
 
 
 @router.patch("/{contact_id}")
-def update_contact(contact_id: int, body: ContactUpdate, conn: Conn) -> Contact:
+def update_contact(contact_id: RecordId, body: ContactUpdate, conn: Conn) -> Contact:
     get_contact(conn, contact_id)
     values = body.model_dump(exclude_unset=True)
     _check_organization(conn, values.get("organization_id"))
@@ -134,7 +136,7 @@ def update_contact(contact_id: int, body: ContactUpdate, conn: Conn) -> Contact:
 
 
 @router.get("/{contact_id}/delete-impact")
-def contact_delete_impact(contact_id: int, conn: Conn) -> ContactImpact:
+def contact_delete_impact(contact_id: RecordId, conn: Conn) -> ContactImpact:
     contact = get_contact(conn, contact_id)
     return ContactImpact(
         name=contact["name"],
@@ -144,7 +146,7 @@ def contact_delete_impact(contact_id: int, conn: Conn) -> ContactImpact:
 
 
 @router.delete("/{contact_id}", status_code=204)
-def delete_contact(contact_id: int, conn: Conn) -> None:
+def delete_contact(contact_id: RecordId, conn: Conn) -> None:
     """C6: deals stay with no main contact; the contact's own activities go."""
     get_contact(conn, contact_id)
     conn.execute(delete(contacts).where(contacts.c.id == contact_id))

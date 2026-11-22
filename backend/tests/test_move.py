@@ -65,3 +65,21 @@ def test_new_deal_goes_to_top_of_its_column(api):
     api.deal(org["id"], name="Newer", stage="proposal")
     api.deal(org["id"], name="Newest", stage="proposal")
     assert column(api, "proposal") == ["Newest", "Newer", "Old"]
+
+
+def test_neighbours_in_the_wrong_order_are_refused(api, client):
+    # A stale board (say, in another tab) can name neighbours that are reversed or
+    # the same card. The move is refused with a field error, not a crash, and
+    # nothing changes.
+    org = api.org()
+    a = api.deal(org["id"], name="A", stage="proposal")
+    b = api.deal(org["id"], name="B", stage="proposal")
+    moving = api.deal(org["id"], name="M", stage="new")
+    assert column(api, "proposal") == ["B", "A"]
+    for after_id, before_id in ((a["id"], b["id"]), (a["id"], a["id"])):
+        body = {"stage": "proposal", "after_id": after_id, "before_id": before_id}
+        response = client.post(f"/api/deals/{moving['id']}/move", json=body)
+        assert response.status_code == 400
+        assert response.json()["fields"] == {"before_id": "Choose where to put the deal."}
+    assert api.ok("GET", f"/api/deals/{moving['id']}")["stage"] == "new"
+    assert column(api, "proposal") == ["B", "A"]

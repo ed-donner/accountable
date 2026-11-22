@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -40,16 +40,25 @@ type Props<T> = {
   emptyMessage?: string;
 };
 
-/** Text compares ignoring case, numbers as numbers, and empty values sort last. */
-const smartSort: SortingFn<unknown> = (a, b, columnId) => {
-  const x = a.getValue(columnId);
-  const y = b.getValue(columnId);
-  const xEmpty = x === null || x === undefined || x === "";
-  const yEmpty = y === null || y === undefined || y === "";
-  if (xEmpty || yEmpty) return xEmpty === yEmpty ? 0 : xEmpty ? 1 : -1;
-  if (typeof x === "number" && typeof y === "number") return x - y;
-  return String(x).localeCompare(String(y), undefined, { sensitivity: "base", numeric: true });
-};
+/**
+ * Text compares ignoring case, numbers as numbers, and empty values sort last in
+ * both directions. TanStack flips the whole result for a descending sort, so the
+ * empties' order is flipped first to cancel that out.
+ */
+const smartSort =
+  (sorting: { current: SortingState }): SortingFn<unknown> =>
+  (a, b, columnId) => {
+    const x = a.getValue(columnId);
+    const y = b.getValue(columnId);
+    const xEmpty = x === null || x === undefined || x === "";
+    const yEmpty = y === null || y === undefined || y === "";
+    if (xEmpty || yEmpty) {
+      const last = xEmpty === yEmpty ? 0 : xEmpty ? 1 : -1;
+      return sorting.current.find((s) => s.id === columnId)?.desc ? -last : last;
+    }
+    if (typeof x === "number" && typeof y === "number") return x - y;
+    return String(x).localeCompare(String(y), undefined, { sensitivity: "base", numeric: true });
+  };
 
 const search: FilterFn<unknown> = (row, columnId, query: string) => {
   const value = row.getValue(columnId);
@@ -72,6 +81,11 @@ export function DataTable<T>({
   emptyMessage,
 }: Props<T>) {
   const [sorting, setSorting] = useState<SortingState>(initialSort);
+  // TanStack keeps the first sorting function it's given, so it reads the current
+  // direction through a ref rather than a stale copy.
+  const sortingRef = useRef(sorting);
+  sortingRef.current = sorting;
+  const sortingFn = useMemo(() => smartSort(sortingRef), []);
   const [query, setQuery] = useState("");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
@@ -82,7 +96,10 @@ export function DataTable<T>({
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     globalFilterFn: search as FilterFn<T>,
-    defaultColumn: { sortingFn: smartSort as SortingFn<T>, enableGlobalFilter: false },
+    // Columns opt in with `enableGlobalFilter`. Without this, TanStack also drops any
+    // column whose first row is empty, so one blank email would stop email search.
+    getColumnCanGlobalFilter: () => true,
+    defaultColumn: { sortingFn: sortingFn as SortingFn<T>, enableGlobalFilter: false },
     enableSortingRemoval: false,
     sortDescFirst: false,
     autoResetPageIndex: false,

@@ -39,6 +39,20 @@ def conn(engine):
 
 
 @pytest.fixture
+def activity_exists(engine):
+    """Whether an activity is still in the database (there's no endpoint to read one)."""
+    from sqlalchemy import select
+
+    from app.db import activities
+
+    def check(activity_id: int) -> bool:
+        with engine.connect() as connection:
+            return connection.scalar(select(activities.c.id).where(activities.c.id == activity_id)) is not None
+
+    return check
+
+
+@pytest.fixture
 def client(engine):
     return TestClient(app, raise_server_exceptions=False)
 

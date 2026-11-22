@@ -63,7 +63,7 @@ test("errors show under fields and what was typed stays", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Add deal" }));
   expect(await screen.findByText("Enter a name.")).toBeInTheDocument();
   expect(screen.getByText("Choose an organization.")).toBeInTheDocument();
-  expect(screen.getByText("Enter a value of 0 or more, in whole dollars.")).toBeInTheDocument();
+  expect(screen.getByText("Enter a value from 0 to 1,000,000,000, in whole dollars.")).toBeInTheDocument();
   expect(screen.getByLabelText(/Value/)).toHaveValue("12.5");
   expect(calls.filter((c) => c.method === "POST")).toHaveLength(0);
 
@@ -80,4 +80,22 @@ test("errors show under fields and what was typed stays", async () => {
   expect(screen.getByLabelText(/Name/)).toHaveValue("Renewal");
   expect(screen.getByLabelText(/Value/)).toHaveValue("48,200");
   expect(onSaved).not.toHaveBeenCalled();
+});
+
+test("a list that fails to load says so and can be retried, keeping what was typed", async () => {
+  let failing = true;
+  mockApi({
+    "GET /organizations": () =>
+      failing ? { status: 500, body: { message: "Something went wrong.", fields: {} } } : { body: organizations },
+    "GET /contacts": contacts,
+  });
+  renderWithProviders(<DealForm preset={{ organizationId: 2 }} onSaved={vi.fn()} onCancel={vi.fn()} />);
+  const alert = await screen.findByText(/Couldn.t load the organizations\./);
+  await userEvent.type(screen.getByLabelText(/Name/), "Bolt pilot");
+  failing = false;
+  await userEvent.click(within(alert).getByRole("button", { name: "Retry" }));
+  await screen.findByRole("option", { name: "Bolt Freight" });
+  expect(screen.queryByText(/Couldn't load the organizations\./)).toBeNull();
+  await waitFor(() => expect(screen.getByLabelText(/Organization/)).toHaveDisplayValue("Bolt Freight"));
+  expect(screen.getByLabelText(/Name/)).toHaveValue("Bolt pilot");
 });

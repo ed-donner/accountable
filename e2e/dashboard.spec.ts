@@ -96,3 +96,17 @@ test("TE19 a won deal and a new follow-up show on the dashboard; Mark done remov
   await item.getByRole("button", { name: "Mark done: Send the signed order form" }).click();
   await expect(item).toHaveCount(0);
 });
+
+test("TE18 the charts use the brand colors from the tokens (RV9)", async ({ page }) => {
+  await page.goto("/");
+  const SEA_GREEN = "rgb(6, 214, 160)";
+  const CORAL = "rgb(247, 140, 107)";
+  const line = page.locator(".recharts-area-curve").first();
+  await expect(line).toBeVisible();
+  expect(await line.evaluate((el) => getComputedStyle(el).stroke)).toBe(SEA_GREEN);
+  const bars = page.locator(".recharts-bar path");
+  await expect(bars.first()).toBeAttached();
+  await expect
+    .poll(() => bars.evaluateAll((els) => [...new Set(els.map((el) => getComputedStyle(el).fill))].sort()))
+    .toEqual([SEA_GREEN, CORAL].sort());
+});

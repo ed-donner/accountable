@@ -27,7 +27,7 @@ import { LoadError, Loading } from "../shared/Loading";
 import { PageHeader } from "../shared/PageHeader";
 import { SidePanel } from "../shared/SidePanel";
 import { STAGES, stageLabel, type Stage } from "../shared/stages";
-import { boardTotals, buildColumns, isNoMove, matches, moveFrom, totals, type Columns } from "./board";
+import { boardTotals, buildColumns, isNoMove, matches, moveFrom, totals, withHiddenCards, type Columns } from "./board";
 import { Column } from "./Column";
 import { DealCard } from "./DealCard";
 import { useMoveDeal } from "./hooks";
@@ -150,9 +150,10 @@ export function PipelinePage() {
   const finish = (finalColumns: Columns, id: number) => {
     setActiveId(null);
     setDragColumns(null);
-    const result = moveFrom(finalColumns, id);
+    const dropped = moveFrom(finalColumns, id);
+    const result = dropped && withHiddenCards(deals, dropped);
     // R6: one move at a time per card; a second drop waits for the first to save.
-    if (!result || isNoMove(visible, result) || saving.has(id)) return;
+    if (!result || isNoMove(deals, result) || saving.has(id)) return;
     setSaving((s) => new Set(s).add(id));
     move.mutate(result, {
       onSettled: () =>

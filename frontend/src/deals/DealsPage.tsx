@@ -82,7 +82,7 @@ export function DealsPage() {
     <>
       <PageHeader
         title="Deals"
-        summary={query.data ? (stage ? `${plural(total, "deal")} in ${stageLabel(stage)}` : plural(total, "deal")) : " "}
+        summary={query.data && !query.isPlaceholderData ? (stage ? `${plural(total, "deal")} in ${stageLabel(stage)}` : plural(total, "deal")) : " "}
         action={
           <button type="button" className="btn" onClick={() => setEditing("new")}>
             <Plus size={16} aria-hidden="true" />
@@ -90,7 +90,9 @@ export function DealsPage() {
           </button>
         }
       />
-      {query.isPending ? (
+      {/* While a new stage filter loads, the previous stage's rows are only a
+          placeholder, so show loading rather than rows under the wrong filter. */}
+      {query.isPending || query.isPlaceholderData ? (
         <Loading />
       ) : query.isError ? (
         <LoadError error={query.error} what="list of deals" />

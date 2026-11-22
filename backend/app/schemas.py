@@ -3,11 +3,13 @@
 The frontend's copies of these messages live in frontend/src/shared/validation.ts.
 """
 
+import math
 import re
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict
+from fastapi import Path, Query
+from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field
 
 from app.rules import ActivityType, Stage, Status
 
@@ -22,7 +24,7 @@ MESSAGES = {
     "deal_id": "Choose a deal.",
     "stage": "Choose a stage.",
     "status": "Choose lead, qualified or customer.",
-    "value": "Enter a value of 0 or more, in whole dollars.",
+    "value": "Enter a value from 0 to 1,000,000,000, in whole dollars.",
     "probability": "Enter a probability from 0 to 100.",
     "close_date": "Enter a close date.",
     "type": "Choose note, call or email.",
@@ -34,7 +36,15 @@ MESSAGES = {
     "after_id": "Choose where to put the deal.",
 }
 
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# The largest deal value, well inside SQLite's integer range (RV1).
+MAX_VALUE = 1_000_000_000
+# SQLite keeps whole numbers in 64 bits, so no record id or offset can be larger.
+# Without this cap, a larger number crashes the query with a server error (RV11).
+MAX_ID = 2**63 - 1
+
+# The domain is dot-separated parts with no dots inside them, so a long run of dots
+# can't make the check backtrack. Keep in step with EMAIL_RE in validation.ts.
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$")
 WEBSITE_RE = re.compile(r"^https?://[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?(/\S*)?$", re.IGNORECASE)
 
 
@@ -76,7 +86,11 @@ def _blank_to_none(v: Any) -> Any:
 
 def _email(v: Any) -> Any:
     v = _blank_to_none(v)
-    if v is not None and not EMAIL_RE.match(str(v)):
+    if v is None:
+        return v
+    # The length cap goes first, so the format check only ever sees short text.
+    _at_most(NAME_MAX)(str(v))
+    if not EMAIL_RE.match(str(v)):
         raise ValueError(MESSAGES["email"])
     return v
 
@@ -93,7 +107,7 @@ def normalize_website(v: Any) -> Any:
     return v
 
 
-def _whole_number(field: str, low: int, high: int | None = None):
+def _whole_number(field: str, low: int, high: int):
     def check(v: Any) -> Any:
         if v is None or (isinstance(v, str) and not v.strip()):
             raise ValueError(MESSAGES[field])
@@ -101,7 +115,8 @@ def _whole_number(field: str, low: int, high: int | None = None):
             number = float(str(v).replace(",", "").replace("$", "").strip())
         except ValueError:
             raise ValueError(MESSAGES[field]) from None
-        if number != int(number) or number < low or (high is not None and number > high):
+        # "inf" and "nan" parse as floats but aren't numbers a person means.
+        if not math.isfinite(number) or number != int(number) or number < low or number > high:
             raise ValueError(MESSAGES[field])
         return int(number)
 
@@ -112,19 +127,40 @@ def _blank_date(v: Any) -> Any:
     return _blank_to_none(v)
 
 
-Name = Annotated[str, BeforeValidator(_required("name"))]
-OptionalText = Annotated[str | None, BeforeValidator(_blank_to_none)]
-Email = Annotated[str | None, BeforeValidator(_email)]
-Website = Annotated[str | None, BeforeValidator(normalize_website)]
+# Size caps, so a pasted file or a script can't bloat the database (RV10).
+NAME_MAX = 200
+TEXT_MAX = 10_000
+
+
+def _at_most(limit: int):
+    def check(v: Any) -> Any:
+        if isinstance(v, str) and len(v) > limit:
+            raise ValueError(f"Keep this to {limit:,} characters or fewer.")
+        return v
+
+    return check
+
+
+Name = Annotated[str, BeforeValidator(_required("name")), AfterValidator(_at_most(NAME_MAX))]
+OptionalText = Annotated[str | None, BeforeValidator(_blank_to_none), AfterValidator(_at_most(TEXT_MAX))]
+Email = Annotated[str | None, BeforeValidator(_email), AfterValidator(_at_most(NAME_MAX))]
+Website = Annotated[str | None, BeforeValidator(normalize_website), AfterValidator(_at_most(NAME_MAX))]
 OptionalDate = Annotated[date | None, BeforeValidator(_blank_date)]
-Value = Annotated[int, BeforeValidator(_whole_number("value", 0))]
+Value = Annotated[int, BeforeValidator(_whole_number("value", 0, MAX_VALUE))]
 Probability = Annotated[int, BeforeValidator(_whole_number("probability", 0, 100))]
 RequiredStage = Annotated[Stage, BeforeValidator(_required("stage"))]
 RequiredStatus = Annotated[Status, BeforeValidator(_required("status"))]
 RequiredType = Annotated[ActivityType, BeforeValidator(_required("type"))]
-Description = Annotated[str, BeforeValidator(_required("description"))]
+Description = Annotated[str, BeforeValidator(_required("description")), AfterValidator(_at_most(TEXT_MAX))]
 OccurredOn = Annotated[date, BeforeValidator(_required("occurred_on"))]
-OrganizationRequired = Annotated[int, BeforeValidator(_required("organization_id"))]
+OrganizationRequired = Annotated[int, BeforeValidator(_required("organization_id")), Field(le=MAX_ID)]
+# A link to another record, in a request body.
+Id = Annotated[int, Field(le=MAX_ID)]
+# A record id in a URL. Out of range is answered as "not found" (main.py).
+RecordId = Annotated[int, Path(le=MAX_ID)]
+# Paging for the list endpoints (R7).
+PageLimit = Annotated[int | None, Query(ge=1, le=1000)]
+PageOffset = Annotated[int, Query(ge=0, le=MAX_ID)]
 
 
 class In(BaseModel):
@@ -200,7 +236,7 @@ class ContactCreate(In):
     email: Email = None
     phone: OptionalText = None
     job_title: OptionalText = None
-    organization_id: int | None = None
+    organization_id: Id | None = None
     status: RequiredStatus = "lead"
 
 
@@ -209,7 +245,7 @@ class ContactUpdate(In):
     email: Email = None
     phone: OptionalText = None
     job_title: OptionalText = None
-    organization_id: int | None = None
+    organization_id: Id | None = None
     status: RequiredStatus = None  # type: ignore[assignment]
 
 
@@ -219,7 +255,7 @@ class Contact(BaseModel):
     email: str | None
     phone: str | None
     job_title: str | None
-    organization_id: int | None
+    organization_id: Id | None
     status: Status
     created_at: datetime
     updated_at: datetime
@@ -255,7 +291,7 @@ class ContactImpact(BaseModel):
 class DealCreate(In):
     name: Name
     organization_id: OrganizationRequired
-    contact_id: int | None = None
+    contact_id: Id | None = None
     stage: RequiredStage = "new"
     value: Value
     probability: Probability | None = None
@@ -264,8 +300,8 @@ class DealCreate(In):
 
 class DealUpdate(In):
     name: Name = None  # type: ignore[assignment]
-    organization_id: int | None = None
-    contact_id: int | None = None
+    organization_id: Id | None = None
+    contact_id: Id | None = None
     stage: RequiredStage = None  # type: ignore[assignment]
     value: Value = None  # type: ignore[assignment]
     probability: Probability = None  # type: ignore[assignment]
@@ -275,8 +311,8 @@ class DealUpdate(In):
 class Deal(BaseModel):
     id: int
     name: str
-    organization_id: int | None
-    contact_id: int | None
+    organization_id: Id | None
+    contact_id: Id | None
     stage: Stage
     value: int
     probability: int
@@ -306,8 +342,8 @@ class DealImpact(BaseModel):
 
 class DealMove(In):
     stage: RequiredStage
-    before_id: int | None = None
-    after_id: int | None = None
+    before_id: Id | None = None
+    after_id: Id | None = None
 
 
 # --- Organization and contact pages ---------------------------------------
@@ -332,8 +368,8 @@ class ActivityCreate(In):
     type: RequiredType
     description: Description
     occurred_on: OccurredOn
-    contact_id: int | None = None
-    deal_id: int | None = None
+    contact_id: Id | None = None
+    deal_id: Id | None = None
     follow_up_on: OptionalDate = None
     done: bool = False
 
@@ -351,8 +387,8 @@ class Activity(BaseModel):
     type: ActivityType
     description: str
     occurred_on: date
-    contact_id: int | None
-    deal_id: int | None
+    contact_id: Id | None
+    deal_id: Id | None
     follow_up_on: date | None
     done: bool
     follow_up_status: FollowUpStatus | None
@@ -374,7 +410,7 @@ class TimelineEntry(BaseModel):
     follow_up_status: FollowUpStatus | None = None
     from_stage: Stage | None = None
     to_stage: Stage | None = None
-    contact_id: int | None = None
+    contact_id: Id | None = None
     deal: Ref | None = None
 
 

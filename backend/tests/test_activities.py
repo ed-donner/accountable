@@ -35,7 +35,7 @@ def test_done_only_with_follow_up(api, client):
 
 
 # TB26
-def test_edit_delete_and_mark_done(api, client):
+def test_edit_delete_and_mark_done(api, client, activity_exists):
     contact = api.contact()
     activity = api.activity(contact_id=contact["id"], follow_up_on="2026-11-12")
     assert activity["follow_up_status"] == "overdue"
@@ -47,4 +47,11 @@ def test_edit_delete_and_mark_done(api, client):
     cleared = api.ok("PATCH", f"/api/activities/{activity['id']}", json={"follow_up_on": None})
     assert cleared["done"] is False
     assert client.delete(f"/api/activities/{activity['id']}").status_code == 204
-    assert client.get(f"/api/activities/{activity['id']}").status_code == 404
+    assert not activity_exists(activity["id"])
+
+
+def test_there_is_no_endpoint_to_read_one_activity(api, client):
+    """The spec's API has no GET for a single activity; the timelines show them."""
+    contact = api.contact()
+    activity = api.activity(contact_id=contact["id"])
+    assert client.get(f"/api/activities/{activity['id']}").status_code == 405

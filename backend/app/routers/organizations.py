@@ -1,8 +1,7 @@
 """Organizations: endpoints and queries (O1 to O4)."""
 
-from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from sqlalchemy import Connection, delete, func, insert, select, update
 
 from app.db import contacts, deals, organizations
@@ -11,6 +10,9 @@ from app.routers.contacts import contact_rows
 from app.routers.deals import deal_rows
 from app.rules import OPEN_STAGES
 from app.schemas import (
+    PageLimit,
+    PageOffset,
+    RecordId,
     NotFound,
     Organization,
     OrganizationCreate,
@@ -34,8 +36,8 @@ def get_organization(conn: Connection, organization_id: int) -> dict:
 @router.get("")
 def list_organizations(
     conn: Conn,
-    limit: Annotated[int | None, Query(ge=1)] = None,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: PageLimit = None,
+    offset: PageOffset = 0,
 ) -> OrganizationList:
     contact_counts = (
         select(contacts.c.organization_id, func.count().label("contact_count"))
@@ -82,7 +84,7 @@ def create_organization(body: OrganizationCreate, conn: Conn) -> Organization:
 
 
 @router.get("/{organization_id}")
-def read_organization(organization_id: int, conn: Conn, today: Today) -> OrganizationDetail:
+def read_organization(organization_id: RecordId, conn: Conn, today: Today) -> OrganizationDetail:
     organization = get_organization(conn, organization_id)
     return OrganizationDetail(
         **organization,
@@ -92,7 +94,7 @@ def read_organization(organization_id: int, conn: Conn, today: Today) -> Organiz
 
 
 @router.patch("/{organization_id}")
-def update_organization(organization_id: int, body: OrganizationUpdate, conn: Conn) -> Organization:
+def update_organization(organization_id: RecordId, body: OrganizationUpdate, conn: Conn) -> Organization:
     get_organization(conn, organization_id)
     values = body.model_dump(exclude_unset=True)
     if values:
@@ -102,7 +104,7 @@ def update_organization(organization_id: int, body: OrganizationUpdate, conn: Co
 
 
 @router.get("/{organization_id}/delete-impact")
-def organization_delete_impact(organization_id: int, conn: Conn) -> OrganizationImpact:
+def organization_delete_impact(organization_id: RecordId, conn: Conn) -> OrganizationImpact:
     organization = get_organization(conn, organization_id)
     return OrganizationImpact(
         name=organization["name"],
@@ -112,7 +114,7 @@ def organization_delete_impact(organization_id: int, conn: Conn) -> Organization
 
 
 @router.delete("/{organization_id}", status_code=204)
-def delete_organization(organization_id: int, conn: Conn) -> None:
+def delete_organization(organization_id: RecordId, conn: Conn) -> None:
     """O4: contacts and deals stay, with no organization, and keep their activities."""
     get_organization(conn, organization_id)
     conn.execute(delete(organizations).where(organizations.c.id == organization_id))

@@ -234,8 +234,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Activity */
-        get: operations["read_activity_api_activities__activity_id__get"];
+        get?: never;
         put?: never;
         post?: never;
         /** Delete Activity */
@@ -1651,39 +1650,6 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activity_api_activities__activity_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-local-date"?: string | null;
-            };
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };

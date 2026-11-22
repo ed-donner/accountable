@@ -104,3 +104,21 @@ test("TE07 deleting a deal removes its activities from the contact's timeline", 
   await expect(page.getByText("Asked about reopening the deal")).toHaveCount(0);
   await expect(page.getByText("Wilson support renewal")).toHaveCount(0);
 });
+
+test("TE07 changing the stage filter shows loading, never the previous stage's rows", async ({ page }) => {
+  await page.goto("/deals");
+  await expect(page.getByText("Showing 1 to 25 of")).toBeVisible();
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/api/deals?stage=won", async (route) => {
+    await held;
+    await route.continue();
+  });
+  await page.getByLabel("Filter by stage").selectOption("won");
+  await expect(page.getByText("Loading…")).toBeVisible();
+  await expect(page.locator("tbody tr")).toHaveCount(0);
+  await expect(page.getByText(/deals in Won/)).toHaveCount(0);
+  release();
+  await expect(page.getByText("11 deals in Won")).toBeVisible();
+  expect(new Set(await page.locator("tbody .stage-pill").allTextContents())).toEqual(new Set(["Won"]));
+});

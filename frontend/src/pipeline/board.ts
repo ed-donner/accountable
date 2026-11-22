@@ -43,6 +43,19 @@ export function moveFrom(columns: Columns, id: number): Move | null {
   return null;
 }
 
+/**
+ * P4 with a search on: the drop's neighbours are the visible cards only, so a hidden
+ * card may sit between them. The card goes directly under the visible card above it
+ * (or to the very top of the column), ahead of any hidden cards. With no search this
+ * changes nothing.
+ */
+export function withHiddenCards(deals: DealRow[], move: Move): Move {
+  const column = buildColumns(deals.filter((d) => d.id !== move.id))[move.stage];
+  const index = move.afterId === null ? -1 : column.indexOf(move.afterId);
+  if (move.afterId !== null && index === -1) return move;
+  return { ...move, beforeId: column[index + 1] ?? null };
+}
+
 /** True when a move leaves the card where it was. */
 export function isNoMove(deals: DealRow[], move: Move): boolean {
   const before = moveFrom(buildColumns(deals), move.id);

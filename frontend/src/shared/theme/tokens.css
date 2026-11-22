@@ -33,8 +33,26 @@
   --tint-raspberry: #fde6ec;
   --tint-cerulean: #e1f1f7;
 
+  /* Surfaces and washes. Every color in the app comes from this file (spec Colors, RV9). */
+  --on-dark: #ffffff;
+  --field: #ffffff;
+  --field-border: #c9d6da;
+  --table-head: #f7fafa;
+  --tint-marigold: #fff4dc;
+  --raspberry-on-dark: #ff9db4;
+  --stage-total-key: #b3d9e7;
+  --sidebar-hover: rgba(205, 216, 219, 0.1);
+  --scrim: rgba(7, 59, 76, 0.28);
+  --column: rgba(7, 59, 76, 0.04);
+  --column-won: rgba(6, 214, 160, 0.09);
+  --column-lost: rgba(239, 71, 111, 0.07);
+  --ink-wash: rgba(7, 59, 76, 0.05);
+  --bar-sheen: rgba(255, 255, 255, 0.6);
+
   --shadow: 0 1px 2px rgba(7, 59, 76, 0.06), 0 4px 16px rgba(7, 59, 76, 0.06);
   --shadow-lifted: 0 12px 32px rgba(7, 59, 76, 0.22);
+  --shadow-hover: 0 2px 4px rgba(7, 59, 76, 0.08), 0 8px 24px rgba(7, 59, 76, 0.1);
+  --shadow-panel: -8px 0 32px rgba(7, 59, 76, 0.18);
   --radius: 12px;
 
   --sans: "Instrument Sans", system-ui, sans-serif;

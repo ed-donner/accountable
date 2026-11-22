@@ -8,7 +8,7 @@ from sqlalchemy import Connection, delete, insert, select, update
 from app import rules
 from app.db import activities, contacts, deals
 from app.deps import Conn, Today
-from app.schemas import MESSAGES, Activity, ActivityCreate, ActivityUpdate, FieldErrors, NotFound
+from app.schemas import MESSAGES, Activity, ActivityCreate, ActivityUpdate, FieldErrors, NotFound, RecordId
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
@@ -44,13 +44,8 @@ def create_activity(body: ActivityCreate, conn: Conn, today: Today) -> Activity:
     return activity_out(get_activity(conn, activity_id), today)
 
 
-@router.get("/{activity_id}")
-def read_activity(activity_id: int, conn: Conn, today: Today) -> Activity:
-    return activity_out(get_activity(conn, activity_id), today)
-
-
 @router.patch("/{activity_id}")
-def update_activity(activity_id: int, body: ActivityUpdate, conn: Conn, today: Today) -> Activity:
+def update_activity(activity_id: RecordId, body: ActivityUpdate, conn: Conn, today: Today) -> Activity:
     current = get_activity(conn, activity_id)
     values = body.model_dump(exclude_unset=True)
     follow_up_on = values.get("follow_up_on", current["follow_up_on"])
@@ -64,7 +59,7 @@ def update_activity(activity_id: int, body: ActivityUpdate, conn: Conn, today: T
 
 
 @router.delete("/{activity_id}", status_code=204)
-def delete_activity(activity_id: int, conn: Conn) -> None:
+def delete_activity(activity_id: RecordId, conn: Conn) -> None:
     get_activity(conn, activity_id)
     conn.execute(delete(activities).where(activities.c.id == activity_id))
     conn.commit()

@@ -53,6 +53,16 @@ test("TF03 search filters as you type, across the searchable columns", async () 
   expect(screen.queryAllByRole("row")).toHaveLength(0);
 });
 
+test("TF03 search still covers a column whose first row is empty", async () => {
+  const data = [
+    { id: 1, name: "Alpha", city: null as unknown as string, value: 1 },
+    { id: 2, name: "Beta", city: "Leeds", value: 2 },
+  ];
+  setup(data);
+  await userEvent.type(screen.getByRole("searchbox", { name: "Search organizations" }), "leeds");
+  expect(firstCells()).toEqual(["Beta"]);
+});
+
 test("TF04 sort toggles and shows an arrow", async () => {
   setup(rows(3));
   const header = screen.getByRole("columnheader", { name: /Name/ });
@@ -67,6 +77,20 @@ test("TF04 sort toggles and shows an arrow", async () => {
   const values = bodyRows().map((r) => Number(within(r).getAllByRole("cell")[2].textContent));
   expect(values).toEqual([...values].sort((a, b) => a - b));
   expect(value.querySelector("svg")).not.toBeNull();
+});
+
+test("TF04 empty values sort last in both directions", async () => {
+  const data = [
+    { id: 1, name: "Alpha", city: "York", value: 1 },
+    { id: 2, name: "Beta", city: null as unknown as string, value: 2 },
+    { id: 3, name: "Gamma", city: "Leeds", value: 3 },
+  ];
+  setup(data, { initialSort: [{ id: "city", desc: false }] });
+  expect(firstCells()).toEqual(["Gamma", "Alpha", "Beta"]);
+  const header = screen.getByRole("columnheader", { name: /City/ });
+  await userEvent.click(within(header).getByRole("button"));
+  expect(header).toHaveAttribute("aria-sort", "descending");
+  expect(firstCells()).toEqual(["Alpha", "Gamma", "Beta"]);
 });
 
 test("TF05 25 rows a page with a count, and search goes back to page 1", async () => {

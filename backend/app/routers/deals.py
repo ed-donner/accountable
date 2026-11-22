@@ -1,16 +1,28 @@
 """Deals: endpoints, queries, board moves and card positions."""
 
 from datetime import date, datetime
-from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from sqlalchemy import Connection, delete, func, insert, select, update
 
 from app import rules
 from app.db import activities, contacts, deals, organizations, stage_changes
 from app.deps import Conn, Today, now_on
 from app.rules import Stage
-from app.schemas import MESSAGES, DealCreate, DealImpact, DealList, DealMove, DealRow, DealUpdate, FieldErrors, NotFound
+from app.schemas import (
+    MESSAGES,
+    DealCreate,
+    DealImpact,
+    DealList,
+    DealMove,
+    DealRow,
+    DealUpdate,
+    FieldErrors,
+    NotFound,
+    PageLimit,
+    PageOffset,
+    RecordId,
+)
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
@@ -58,7 +70,12 @@ def place_between(
     if position is None:
         renumber_column(conn, stage, exclude_id=moving_id)
         position = position_between(_position_of(conn, above_id), _position_of(conn, below_id))
-    assert position is not None
+    if position is None:
+        # Renumbering gives every card its own whole number, so a gap that is still
+        # too small means the neighbours are the same card or in the wrong order
+        # (for example a stale board in another tab). The request's connection is
+        # closed without a commit, so the renumbering is rolled back too.
+        raise FieldErrors({"before_id": MESSAGES["before_id"]})
     return position
 
 
@@ -175,8 +192,8 @@ def list_deals(
     conn: Conn,
     today: Today,
     stage: Stage | None = None,
-    limit: Annotated[int | None, Query(ge=1)] = None,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: PageLimit = None,
+    offset: PageOffset = 0,
 ) -> DealList:
     where = [deals.c.stage == stage] if stage else []
     rows = deal_rows(conn, today, *where)
@@ -212,12 +229,12 @@ def create_deal(body: DealCreate, conn: Conn, today: Today) -> DealRow:
 
 
 @router.get("/{deal_id}")
-def read_deal(deal_id: int, conn: Conn, today: Today) -> DealRow:
+def read_deal(deal_id: RecordId, conn: Conn, today: Today) -> DealRow:
     return DealRow(**get_deal(conn, deal_id, today))
 
 
 @router.patch("/{deal_id}")
-def update_deal(deal_id: int, body: DealUpdate, conn: Conn, today: Today) -> DealRow:
+def update_deal(deal_id: RecordId, body: DealUpdate, conn: Conn, today: Today) -> DealRow:
     deal = get_deal(conn, deal_id, today)
     sent = body.model_dump(exclude_unset=True)
     # Concern 1: required, unless it's already empty because its organization was deleted.
@@ -227,6 +244,9 @@ def update_deal(deal_id: int, body: DealUpdate, conn: Conn, today: Today) -> Dea
     values = _apply_stage(conn, deal, dict(sent), sent, today)
     stage = values.get("stage", deal["stage"])
     close_date = values.get("close_date", deal["close_date"])
+    # D4: a Won or Lost deal always has a close date, as on create (RV5).
+    if stage in rules.CLOSED_STAGES and close_date is None:
+        close_date = values["close_date"] = today
     if error := rules.close_date_error(stage, close_date, today):
         raise FieldErrors({"close_date": error})
     if values:
@@ -236,7 +256,7 @@ def update_deal(deal_id: int, body: DealUpdate, conn: Conn, today: Today) -> Dea
 
 
 @router.post("/{deal_id}/move")
-def move_deal(deal_id: int, body: DealMove, conn: Conn, today: Today) -> DealRow:
+def move_deal(deal_id: RecordId, body: DealMove, conn: Conn, today: Today) -> DealRow:
     """P3, P4: change stage and place in one transaction. `after_id` is the card
     it lands under and `before_id` the card it lands over."""
     deal = get_deal(conn, deal_id, today)
@@ -255,7 +275,7 @@ def move_deal(deal_id: int, body: DealMove, conn: Conn, today: Today) -> DealRow
 
 
 @router.get("/{deal_id}/delete-impact")
-def deal_delete_impact(deal_id: int, conn: Conn, today: Today) -> DealImpact:
+def deal_delete_impact(deal_id: RecordId, conn: Conn, today: Today) -> DealImpact:
     deal = get_deal(conn, deal_id, today)
     return DealImpact(
         name=deal["name"],
@@ -265,7 +285,7 @@ def deal_delete_impact(deal_id: int, conn: Conn, today: Today) -> DealImpact:
 
 
 @router.delete("/{deal_id}", status_code=204)
-def delete_deal(deal_id: int, conn: Conn, today: Today) -> None:
+def delete_deal(deal_id: RecordId, conn: Conn, today: Today) -> None:
     """D10: its activities and stage changes go with it."""
     get_deal(conn, deal_id, today)
     conn.execute(delete(deals).where(deals.c.id == deal_id))

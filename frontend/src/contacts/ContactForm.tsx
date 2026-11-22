@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Field, fieldProps } from "../shared/Field";
+import { ListRetry } from "../shared/ListRetry";
 import { Loading } from "../shared/Loading";
 import { applyServerErrors } from "../shared/forms";
 import { STATUSES } from "../shared/stages";
@@ -29,6 +30,8 @@ function ContactFormFields({ contact, organizationId, onSaved, onCancel }: Props
     register,
     handleSubmit,
     setError,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ContactValues>({
     resolver: zodResolver(contactSchema),
@@ -63,6 +66,12 @@ function ContactFormFields({ contact, organizationId, onSaved, onCancel }: Props
     }
   };
 
+  // After a Retry brings the choices in, show the preset one as chosen again.
+  const orgCount = organizations.data?.items.length ?? 0;
+  useEffect(() => {
+    setValue("organization_id", getValues("organization_id"));
+  }, [orgCount, getValues, setValue]);
+
   const orgs = [...(organizations.data?.items ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -83,6 +92,9 @@ function ContactFormFields({ contact, organizationId, onSaved, onCancel }: Props
             </option>
           ))}
         </select>
+        {organizations.isError && (
+          <ListRetry what="organizations" onRetry={() => organizations.refetch()} retrying={organizations.isFetching} />
+        )}
       </Field>
       <Field id="contact-job-title" label="Job title" error={errors.job_title?.message}>
         <input {...fieldProps("contact-job-title", errors.job_title?.message)} {...register("job_title")} autoComplete="off" />
@@ -116,10 +128,15 @@ function ContactFormFields({ contact, organizationId, onSaved, onCancel }: Props
   );
 }
 
-/** Waits for the lists its selects offer, so a preset organization or contact shows as chosen. */
+/**
+ * Waits for the organizations, so a preset one shows as chosen. Only the first load
+ * waits: a failed list goes back to "pending" when it's fetched again, and swapping
+ * the form for Loading then would loop forever.
+ */
 export function ContactForm(props: Props) {
   const organizations = useOrganizations();
-
-  if (organizations.isPending) return <Loading />;
+  const [loaded, setLoaded] = useState(false);
+  if (!loaded && !organizations.isPending) setLoaded(true);
+  if (!loaded && organizations.isPending) return <Loading />;
   return <ContactFormFields {...props} />;
 }

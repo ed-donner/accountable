@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.datastructures import Headers
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import config
@@ -39,6 +40,36 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Accountable", version="0.1.0", lifespan=lifespan)
 
+# Only answer requests addressed to this computer, so a web page that points its
+# own domain name at 127.0.0.1 (DNS rebinding) can't read or change the data (RV10).
+# The Vite proxy sends Host 127.0.0.1; "testserver" is FastAPI's test client.
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"] + (["testserver"] if config.testing() else [])
+WRONG_HOST = "Accountable only answers requests made on this computer."
+
+
+class LocalHostsOnly:
+    """Like Starlette's TrustedHostMiddleware, but the refusal uses the API's usual
+    error shape (spec: errors are {"message", "fields"})."""
+
+    def __init__(self, app, allowed_hosts: list[str]):
+        self.app = app
+        self.allowed_hosts = set(allowed_hosts)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            host = Headers(scope=scope).get("host", "").split(":")[0]
+            if host not in self.allowed_hosts:
+                if scope["type"] == "websocket":
+                    await send({"type": "websocket.close", "code": 1008})
+                else:
+                    response = JSONResponse(status_code=400, content={"message": WRONG_HOST, "fields": {}})
+                    await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(LocalHostsOnly, allowed_hosts=ALLOWED_HOSTS)
+
 API = "/api"
 for module in (health, organizations, contacts, deals, activities, timeline, dashboard):
     app.include_router(module.router, prefix=API)
@@ -59,6 +90,12 @@ def _field_name(loc: tuple) -> str:
 
 @app.exception_handler(RequestValidationError)
 async def on_validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
+    # A record id in the URL that can't exist (not a number, or too large) is
+    # simply not found, like a deleted one (RV11).
+    if exc.errors() and all(tuple(e.get("loc", ()))[:1] == ("path",) for e in exc.errors()):
+        return JSONResponse(
+            status_code=404, content={"message": "We couldn't find that record. It may have been deleted.", "fields": {}}
+        )
     fields: dict[str, str] = {}
     for error in exc.errors():
         field = _field_name(tuple(error.get("loc", ())))

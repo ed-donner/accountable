@@ -17,13 +17,22 @@ def get_conn() -> Iterator[Connection]:
         yield conn
 
 
+# A browser's date is always well inside this range. Dates near the ends of the
+# calendar would overflow the dashboard's date arithmetic, so they're ignored.
+EARLIEST_TODAY = date(1900, 1, 1)
+LATEST_TODAY = date(2999, 12, 31)
+
+
 def get_today(x_local_date: Annotated[str | None, Header()] = None) -> date:
     """G10: the browser's local date when it sends a valid one, the server's otherwise."""
     if x_local_date:
         try:
-            return date.fromisoformat(x_local_date.strip())
+            today = date.fromisoformat(x_local_date.strip())
         except ValueError:
             pass
+        else:
+            if EARLIEST_TODAY <= today <= LATEST_TODAY:
+                return today
     return config.server_today()
 
 

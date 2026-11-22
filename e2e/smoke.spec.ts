@@ -20,4 +20,16 @@ test.describe("a link to a deleted record", () => {
     await page.getByRole("link", { name: "Go to the dashboard" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
   });
+
+  // RV11: an id that can't exist (too large for the database, or not a number) is
+  // simply not found, on every kind of record page.
+  for (const [path, kind] of [["organizations", "organization"], ["contacts", "contact"], ["deals", "deal"]]) {
+    for (const id of ["99999999999999999999", "9223372036854775808", "abc"]) {
+      test(`TE01 /${path}/${id} says it can't find that ${kind}`, async ({ page }) => {
+        await page.goto(`/${path}/${id}`);
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(`We couldn't find that ${kind}`);
+        await expect(page.getByRole("link", { name: "Go to the dashboard" })).toBeVisible();
+      });
+    }
+  }
 });

@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Field, fieldProps } from "../shared/Field";
+import { ListRetry } from "../shared/ListRetry";
 import { Loading } from "../shared/Loading";
 import { applyServerErrors } from "../shared/forms";
 import { STAGES, stageInfo, type Stage } from "../shared/stages";
@@ -44,6 +45,8 @@ function DealFormFields({ deal, preset, onSaved, onCancel }: Props) {
     handleSubmit,
     setError,
     control,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<DealValues>({
     resolver: zodResolver(dealSchema(organizationRequired)),
@@ -87,6 +90,14 @@ function DealFormFields({ deal, preset, onSaved, onCancel }: Props) {
     }
   };
 
+  // After a Retry brings the choices in, show the preset ones as chosen again.
+  const orgCount = organizations.data?.items.length ?? 0;
+  const contactCount = contacts.data?.items.length ?? 0;
+  useEffect(() => {
+    setValue("organization_id", getValues("organization_id"));
+    setValue("contact_id", getValues("contact_id"));
+  }, [orgCount, contactCount, getValues, setValue]);
+
   const orgs = [...(organizations.data?.items ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   const e = errors;
   return (
@@ -108,6 +119,9 @@ function DealFormFields({ deal, preset, onSaved, onCancel }: Props) {
             </option>
           ))}
         </select>
+        {organizations.isError && (
+          <ListRetry what="organizations" onRetry={() => organizations.refetch()} retrying={organizations.isFetching} />
+        )}
       </Field>
       <Field id="deal-contact" label="Main contact" error={e.contact_id?.message}>
         <select {...fieldProps("deal-contact", e.contact_id?.message)} {...register("contact_id")}>
@@ -129,6 +143,7 @@ function DealFormFields({ deal, preset, onSaved, onCancel }: Props) {
             ))}
           </optgroup>
         </select>
+        {contacts.isError && <ListRetry what="contacts" onRetry={() => contacts.refetch()} retrying={contacts.isFetching} />}
       </Field>
       <div className="row-2">
         <Field id="deal-stage" label="Stage" required error={e.stage?.message}>
@@ -175,10 +190,17 @@ function DealFormFields({ deal, preset, onSaved, onCancel }: Props) {
   );
 }
 
-/** Waits for the lists its selects offer, so a preset organization or contact shows as chosen. */
+/**
+ * Waits for the lists its selects offer, so a preset organization or contact shows
+ * as chosen. Only the first load waits: a failed list goes back to "pending" when
+ * it's fetched again, and swapping the form for Loading then would loop forever.
+ */
 export function DealForm(props: Props) {
   const organizations = useOrganizations();
   const contacts = useContacts();
-  if (organizations.isPending || contacts.isPending) return <Loading />;
+  const [loaded, setLoaded] = useState(false);
+  const pending = organizations.isPending || contacts.isPending;
+  if (!loaded && !pending) setLoaded(true);
+  if (!loaded && pending) return <Loading />;
   return <DealFormFields {...props} />;
 }

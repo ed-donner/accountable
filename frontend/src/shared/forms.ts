@@ -10,11 +10,17 @@ export function applyServerErrors<T extends FieldValues>(
 ): string | null {
   if (!(error instanceof ApiError)) return GENERAL_MESSAGE;
   let placed = false;
+  // A message about something the form has no field for, such as "That deal no
+  // longer exists.", is shown for the whole form, since nothing can be highlighted.
+  const unplaced: string[] = [];
   for (const [field, message] of Object.entries(error.fields)) {
     if (fields.includes(field)) {
       setError(field as Path<T>, { type: "server", message });
       placed = true;
+    } else {
+      unplaced.push(message);
     }
   }
+  if (unplaced.length > 0) return unplaced.join(" ");
   return placed ? null : error.message;
 }

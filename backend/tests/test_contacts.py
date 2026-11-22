@@ -69,7 +69,7 @@ def test_page_has_organization_and_deals(api):
 
 
 # TB16
-def test_delete_keeps_deals_and_removes_own_activities(api, client):
+def test_delete_keeps_deals_and_removes_own_activities(api, client, activity_exists):
     org = api.org()
     contact = api.contact(organization_id=org["id"])
     deal = api.deal(org["id"], contact_id=contact["id"])
@@ -79,5 +79,5 @@ def test_delete_keeps_deals_and_removes_own_activities(api, client):
     assert impact == {"name": "Ada Park", "deals": 1, "activities": 1}
     assert client.delete(f"/api/contacts/{contact['id']}").status_code == 204
     assert api.ok("GET", f"/api/deals/{deal['id']}")["contact_id"] is None
-    assert client.get(f"/api/activities/{own['id']}").status_code == 404
-    assert client.get(f"/api/activities/{on_deal['id']}").status_code == 200
+    assert not activity_exists(own["id"])
+    assert activity_exists(on_deal["id"])

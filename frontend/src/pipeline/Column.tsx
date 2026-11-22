@@ -60,11 +60,10 @@ export function Column({ stage, cards, totals, activeId, saving, onOpen, onAdd }
         </div>
         <div className="col-sums">
           <span data-testid="column-value">{money(totals.value)}</span>
-          {stage.open && (
-            <span className="muted" data-testid="column-expected">
-              exp. {money(totals.expected)}
-            </span>
-          )}
+          {/* P5: every column, Won and Lost included, shows its expected revenue. */}
+          <span className="muted" data-testid="column-expected">
+            exp. {money(totals.expected)}
+          </span>
         </div>
       </div>
       <SortableContext id={stage.key} items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>

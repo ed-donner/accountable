@@ -17,16 +17,18 @@ def test_required_fields(client):
     assert response.json()["fields"] == {
         "name": "Enter a name.",
         "organization_id": "Choose an organization.",
-        "value": "Enter a value of 0 or more, in whole dollars.",
+        "value": "Enter a value from 0 to 1,000,000,000, in whole dollars.",
     }
 
 
 def test_value_zero_or_more_whole_dollars(api, client):
     org = api.org()
     assert api.deal(org["id"], value=0)["value"] == 0
-    for bad in (-1, 10.5, "lots"):
+    assert api.deal(org["id"], value=1_000_000_000)["value"] == 1_000_000_000
+    # RV1: too large, or "inf"/"nan", is a field error, never a server error.
+    for bad in (-1, 10.5, "lots", 1_000_000_001, "99999999999999999999", "inf", "-Infinity", "nan"):
         response = client.post("/api/deals", json={"name": "D", "organization_id": org["id"], "value": bad})
-        assert response.json()["fields"] == {"value": "Enter a value of 0 or more, in whole dollars."}
+        assert response.json()["fields"] == {"value": "Enter a value from 0 to 1,000,000,000, in whole dollars."}
 
 
 def test_probability_range(api, client):
@@ -69,7 +71,7 @@ def test_every_stage_change_records_an_entry(api):
 
 
 # TB20
-def test_delete_removes_activities_and_stage_changes(api, client):
+def test_delete_removes_activities_and_stage_changes(api, client, activity_exists):
     org = api.org()
     contact = api.contact(organization_id=org["id"])
     deal = api.deal(org["id"], contact_id=contact["id"])
@@ -78,7 +80,7 @@ def test_delete_removes_activities_and_stage_changes(api, client):
     impact = api.ok("GET", f"/api/deals/{deal['id']}/delete-impact")
     assert impact == {"name": "Big deal", "activities": 1, "stage_changes": 2}
     assert client.delete(f"/api/deals/{deal['id']}").status_code == 204
-    assert client.get(f"/api/activities/{activity['id']}").status_code == 404
+    assert not activity_exists(activity["id"])
     assert api.ok("GET", f"/api/contacts/{contact['id']}/timeline")["items"] == []
 
 

@@ -3,12 +3,15 @@
 Every schema change also needs an Alembic migration in backend/migrations/versions.
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
 from sqlalchemy import (
     Boolean,
+    Connection,
     CheckConstraint,
     Column,
     Date,
@@ -140,6 +143,31 @@ def engine_for(path: Path) -> Engine:
     return make_engine(path)
 
 
+@contextmanager
+def foreign_keys_off(engine: Engine) -> Iterator[Connection]:
+    """A connection with foreign keys off, for migrations (RV6).
+
+    Alembic's batch mode rebuilds a SQLite table by dropping the old one. With
+    foreign keys on, that drop would first fire ON DELETE and remove or blank
+    the rows that point at it. The pragma only takes effect outside a
+    transaction, so it's set before any migration starts. Afterwards every
+    link is checked, and foreign keys are turned back on before the
+    connection goes back to the pool.
+    """
+    with engine.connect() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        conn.commit()
+        try:
+            yield conn
+            broken = conn.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+            if broken:
+                raise RuntimeError(f"A migration left {len(broken)} broken links, for example {broken[0]}.")
+        finally:
+            conn.rollback()
+            conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+            conn.commit()
+
+
 def migrate(engine: Engine) -> None:
     """Apply any new Alembic migrations, keeping existing data (G12)."""
     from alembic import command
@@ -148,6 +176,6 @@ def migrate(engine: Engine) -> None:
     from app.config import REPO_ROOT
 
     cfg = Config(str(REPO_ROOT / "alembic.ini"))
-    with engine.begin() as conn:
+    with foreign_keys_off(engine) as conn:
         cfg.attributes["connection"] = conn
         command.upgrade(cfg, "head")

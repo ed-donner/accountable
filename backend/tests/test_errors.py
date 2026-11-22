@@ -30,3 +30,24 @@ def test_unexpected_error_gives_general_message(client):
     text = response.text
     assert "secret" not in text and "Traceback" not in text
     assert response.json()["message"].startswith("Something went wrong in Accountable.")
+
+
+def test_requests_for_another_host_are_refused(client):
+    """RV10: DNS rebinding. Only requests addressed to this computer are answered."""
+    refused = client.get("/api/health", headers={"Host": "evil.example.com"})
+    assert refused.status_code == 400
+    # The refusal uses the API's usual error shape.
+    assert refused.json() == {"message": "Accountable only answers requests made on this computer.", "fields": {}}
+    assert client.get("/api/health", headers={"Host": "127.0.0.1:8000"}).status_code == 200
+    assert client.get("/api/health", headers={"Host": "localhost:8000"}).status_code == 200
+
+
+def test_text_and_page_size_are_capped(client):
+    """RV10: names, notes and list pages have sensible limits, with plain messages."""
+    response = client.post("/api/organizations", json={"name": "N" * 201})
+    assert response.status_code == 400
+    assert response.json()["fields"] == {"name": "Keep this to 200 characters or fewer."}
+    response = client.post("/api/organizations", json={"name": "Acme", "notes": "x" * 10_001})
+    assert response.json()["fields"] == {"notes": "Keep this to 10,000 characters or fewer."}
+    assert client.post("/api/organizations", json={"name": "N" * 200, "notes": "x" * 10_000}).status_code == 201
+    assert client.get("/api/organizations?limit=1001").status_code == 400

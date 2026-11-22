@@ -107,14 +107,20 @@ export function LogActivityForm({ on, entry, onSaved, onCancel }: Props) {
         </div>
       )}
       {!editing && <h2 className="sr-only">Log activity</h2>}
-      <div className="type-choice" role="radiogroup" aria-label="Type">
-        {TYPES.map(({ key, label, icon: Icon }) => (
-          <label key={key}>
-            <input type="radio" value={key} {...register("type")} />
-            <Icon size={15} aria-hidden="true" />
-            {label}
-          </label>
-        ))}
+      {/* A labelled segmented choice, so it reads as picking a type rather than as action buttons (TM02). */}
+      <div className="field type-field">
+        <span className="label" id={`${prefix}-type-label`}>
+          Type
+        </span>
+        <div className="type-choice" role="radiogroup" aria-labelledby={`${prefix}-type-label`}>
+          {TYPES.map(({ key, label, icon: Icon }) => (
+            <label key={key}>
+              <input type="radio" value={key} {...register("type")} />
+              <Icon size={15} aria-hidden="true" />
+              {label}
+            </label>
+          ))}
+        </div>
       </div>
       {e.type && <span className="field error">{e.type.message}</span>}
       <div className={editing ? undefined : "log-row"}>

@@ -5,6 +5,12 @@ test("TE16 log a call with a follow-up on a contact and a deal; newest first; st
   await page.getByRole("searchbox").fill("Karen Willis");
   await page.getByRole("link", { name: "Karen Willis" }).click();
 
+  // TM02 (RV2): the type reads as a labelled choice, not as action buttons.
+  const typeChoice = page.getByRole("radiogroup", { name: "Type" });
+  await expect(typeChoice).toBeVisible();
+  await expect(page.getByText("Type", { exact: true })).toBeVisible();
+  await expect(typeChoice.getByRole("radio", { name: "Call" })).toBeChecked();
+
   await page.getByLabel("What happened").fill("Call about the new budget");
   await page.getByLabel("Follow-up date").fill("2026-11-19");
   await page.getByRole("button", { name: "Log activity" }).click();
@@ -69,4 +75,24 @@ test("TE17 edit and delete an activity, with confirmation", async ({ page }) => 
   await entry.getByRole("button", { name: "Delete call: Left a voicemail about pricing" }).click();
   await page.getByRole("button", { name: "Delete activity" }).click();
   await expect(page.getByText("Left a voicemail about pricing")).toHaveCount(0);
+});
+
+test("TE17 changing an activity's type in the edit panel shows on the timeline (RV2)", async ({ page }) => {
+  await page.goto("/contacts");
+  await page.getByRole("searchbox").fill("Karen Willis");
+  await page.getByRole("link", { name: "Karen Willis" }).click();
+  const first = page.getByRole("region", { name: "Timeline" }).getByRole("listitem").first();
+  const description = (await first.locator(".entry-main > div").first().textContent())!;
+  await first.hover();
+  await first.getByRole("button", { name: /^Edit / }).click();
+  const panel = page.getByRole("dialog", { name: "Edit activity" });
+  const type = panel.getByRole("radiogroup", { name: "Type" });
+  await expect(type).toBeVisible();
+  // The log form's own choice stays on Call while the panel changes this entry's type.
+  await panel.getByText("Email", { exact: true }).click();
+  await expect(type.getByRole("radio", { name: "Email" })).toBeChecked();
+  await expect(page.getByRole("form", { name: "Log activity" }).getByRole("radio", { name: "Call" })).toBeChecked();
+  await panel.getByRole("button", { name: "Save activity" }).click();
+  await expect(panel).toBeHidden();
+  await expect(first.getByRole("button", { name: `Edit email: ${description}` })).toBeAttached();
 });

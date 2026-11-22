@@ -9,7 +9,7 @@ export const MESSAGES = {
   organization_id: "Choose an organization.",
   stage: "Choose a stage.",
   status: "Choose lead, qualified or customer.",
-  value: "Enter a value of 0 or more, in whole dollars.",
+  value: "Enter a value from 0 to 1,000,000,000, in whole dollars.",
   probability: "Enter a probability from 0 to 100.",
   type: "Choose note, call or email.",
   description: "Enter a description.",
@@ -18,7 +18,9 @@ export const MESSAGES = {
   close_date: "Enter a close date.",
 } as const;
 
-export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// Same pattern as EMAIL_RE in schemas.py: domain parts have no dots inside them,
+// so a long run of dots can't make the check slow.
+export const EMAIL_RE = /^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/;
 export const WEBSITE_RE = /^https?:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?(\/\S*)?$/i;
 
 export function withHttps(website: string): string {
@@ -27,18 +29,37 @@ export function withHttps(website: string): string {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
-const required = (message: string) => z.string().trim().min(1, message);
+/** Size caps, the same as the backend's (RV10). */
+export const NAME_MAX = 200;
+export const TEXT_MAX = 10_000;
+export const tooLong = (limit: number) => `Keep this to ${limit.toLocaleString("en-US")} characters or fewer.`;
+
+const required = (message: string, limit = NAME_MAX) => z.string().trim().min(1, message).max(limit, tooLong(limit));
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Date fields hold YYYY-MM-DD; anything else is a half-typed date. */
 const optionalDate = (message: string) => z.string().refine((v) => v === "" || ISO_DATE.test(v), message);
 const requiredDate = (message: string) => z.string().trim().min(1, message).refine((v) => ISO_DATE.test(v), message);
-const optional = z.string();
-const email = z.string().trim().refine((v) => v === "" || EMAIL_RE.test(v), MESSAGES.email);
-const website = z.string().trim().refine((v) => v === "" || WEBSITE_RE.test(withHttps(v)), MESSAGES.website);
-const wholeNumber = (max?: number) => (v: string) => {
+const optional = z.string().trim().max(TEXT_MAX, tooLong(TEXT_MAX));
+/** A select holding a record id: no length to cap. */
+const choice = z.string();
+// Length first, as on the backend, so the format check only sees short text.
+const email = z
+  .string()
+  .trim()
+  .refine((v) => v.length <= NAME_MAX, { message: tooLong(NAME_MAX), abort: true })
+  .refine((v) => v === "" || EMAIL_RE.test(v), MESSAGES.email);
+// The backend adds https:// before it checks the length, so this does too.
+const website = z
+  .string()
+  .trim()
+  .refine((v) => v === "" || WEBSITE_RE.test(withHttps(v)), MESSAGES.website)
+  .refine((v) => withHttps(v).length <= NAME_MAX, tooLong(NAME_MAX));
+/** The largest deal value; the backend has the same limit (RV1). */
+export const MAX_VALUE = 1_000_000_000;
+const wholeNumber = (max: number) => (v: string) => {
   const cleaned = v.replace(/[$,\s]/g, "");
   if (!/^\d+$/.test(cleaned)) return false;
-  return max === undefined || Number(cleaned) <= max;
+  return Number(cleaned) <= max;
 };
 
 export const organizationSchema = z.object({
@@ -54,7 +75,7 @@ export const contactSchema = z.object({
   email,
   phone: optional,
   job_title: optional,
-  organization_id: optional,
+  organization_id: choice,
   status: z.enum(["lead", "qualified", "customer"], { message: MESSAGES.status }),
 });
 export type ContactValues = z.infer<typeof contactSchema>;
@@ -63,10 +84,10 @@ export type ContactValues = z.infer<typeof contactSchema>;
 export function dealSchema(organizationRequired: boolean) {
   return z.object({
     name: required(MESSAGES.name),
-    organization_id: organizationRequired ? required(MESSAGES.organization_id) : optional,
-    contact_id: optional,
+    organization_id: organizationRequired ? z.string().trim().min(1, MESSAGES.organization_id) : choice,
+    contact_id: choice,
     stage: z.enum(["new", "qualified", "proposal", "negotiation", "won", "lost"], { message: MESSAGES.stage }),
-    value: z.string().trim().min(1, MESSAGES.value).refine(wholeNumber(), MESSAGES.value),
+    value: z.string().trim().min(1, MESSAGES.value).refine(wholeNumber(MAX_VALUE), MESSAGES.value),
     probability: z
       .string()
       .trim()
@@ -78,7 +99,7 @@ export type DealValues = z.infer<ReturnType<typeof dealSchema>>;
 
 export const activitySchema = z.object({
   type: z.enum(["note", "call", "email"], { message: MESSAGES.type }),
-  description: required(MESSAGES.description),
+  description: required(MESSAGES.description, TEXT_MAX),
   occurred_on: requiredDate(MESSAGES.occurred_on),
   follow_up_on: optionalDate(MESSAGES.follow_up_on),
 });

@@ -10,7 +10,7 @@ from app.db import activities, deals, stage_changes
 from app.deps import Conn, Today
 from app.routers.contacts import get_contact
 from app.routers.deals import get_deal
-from app.schemas import Ref, Timeline, TimelineEntry
+from app.schemas import RecordId, Ref, Timeline, TimelineEntry
 
 router = APIRouter(tags=["timeline"])
 
@@ -71,12 +71,12 @@ def _entries(conn: Connection, today: date, *, contact_id: int | None = None, de
 
 
 @router.get("/contacts/{contact_id}/timeline")
-def contact_timeline(contact_id: int, conn: Conn, today: Today) -> Timeline:
+def contact_timeline(contact_id: RecordId, conn: Conn, today: Today) -> Timeline:
     get_contact(conn, contact_id)
     return _entries(conn, today, contact_id=contact_id)
 
 
 @router.get("/deals/{deal_id}/timeline")
-def deal_timeline(deal_id: int, conn: Conn, today: Today) -> Timeline:
+def deal_timeline(deal_id: RecordId, conn: Conn, today: Today) -> Timeline:
     get_deal(conn, deal_id, today)
     return _entries(conn, today, deal_id=deal_id)

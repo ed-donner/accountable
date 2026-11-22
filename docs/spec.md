@@ -1,26 +1,57 @@
-# Spec: the Accountable MVP
+# Spec: Accountable
 
-This spec turns `docs/intent.md` into requirements and a design. The intent says what we're building and why; this says exactly what the MVP does and how it's built. Where the two disagree, the intent wins until this spec is updated.
+This spec describes Accountable as it stands today: what it does, who it's for and how it's built. It's the first thing to read before changing the product. Each change has its own intent and plan in `docs/changes/<branch name>/`, and updates this spec so it keeps describing the whole product.
+
+## Problem
+
+A small business keeps track of its customers and sales in spreadsheets, inboxes and people's heads. Nobody can see at a glance which companies we deal with, who our contacts are, what's in the sales pipeline, what happened last with a customer or what needs doing next.
+
+## Product
+
+Accountable is a business management system: a sales CRM that will grow into a full Business OS, including ERP. Today it's a complete sales CRM for one person, running on their own computer: a private Salesforce that does the everyday CRM essentials really well. It should feel sharp, modern and professional, and be a pleasure to use.
+
+It has five sections:
+
+- **Dashboard**, the landing page: how sales are going at a glance, with revenue and deals won month by month, the open pipeline and its expected revenue, a sales funnel, recent activity and the follow-ups coming up or overdue.
+- **Organizations**: the companies we do business with, each with its contacts and deals.
+- **Contacts**: the people we deal with, leads and customers included, each with their organization and a timeline of everything that has happened with them.
+- **Deals**: the potential sales, with their stage, value and close date, and a timeline each.
+- **Pipeline**: the deals as cards on a board, one column per stage. Dragging a card changes its stage or its place, and dragging into Won or Lost closes the deal.
+
+### Users
+
+- One salesperson, using Accountable on their own computer every day. The rest of the sales team joins later.
+- The salesperson isn't technical: comfortable with web apps and spreadsheets, but not the terminal. Setup steps are written plainly, and error messages are clear and friendly.
+- No other systems are involved yet.
+
+### Goals
+
+Accountable is working when:
+
+- The salesperson stops keeping customer and sales data in spreadsheets or anywhere else.
+- The pipeline's value, a customer's last contact and today's follow-ups are each one click from the dashboard.
+- Logging a call with a follow-up takes under 30 seconds.
+- The code is a clean base for adding the team, Supabase and ERP later.
 
 ## Concerns
 
-The product owner confirmed every proposed answer below on 16 Nov 2026, so they're decisions now and the rest of this spec follows them. The numbering is kept because requirements refer to it.
+Questions settled while the product was designed. They're numbered because requirements, tests and code refer to them.
 
-1. **A deal's organization is required, but deleting an organization leaves deals with none.** Proposed: the organization is required when a deal is created, and when it's edited unless it's already empty. A deal with no organization shows "No organization" and a quiet prompt to pick one.
-2. **Six pipeline stages, five brand colors.** The brand gives five colors in order for things side by side. Proposed: the four open stages use a sequential Cerulean scale (light to dark, since the stages are ordered), Won uses Sea Green and Lost uses Raspberry. Chart series use the brand order. See [Stage colors](#stage-colors).
-3. **Two brand pairings fail contrast for small text.** White on Cerulean is 3.96:1 and white on Raspberry is 3.62:1, under the 4.5:1 needed for normal text. Proposed: the brand colors are used for fills, charts and large or bold text, and darker text shades are used for small text. See [Colors](#colors).
-4. **Offline use and Google Fonts.** The brand fonts come from Google Fonts, but the app must work with no internet connection. Proposed: install the fonts as npm packages (Fontsource) so they're served locally.
-5. **A non-technical user and a terminal command.** `npm run dev` needs Node.js and uv installed, and a terminal to run it. Proposed: `docs/STATUS.md` gets a plain, step-by-step setup guide for Mac with links to the installers, and the command opens the browser by itself. A double-click launcher is out of scope for the MVP.
-6. **"How much value reaches each stage" can be read two ways.** Proposed: the funnel shows, for each stage from New to Won, the total value of deals that are at that stage now or have moved past it. Lost deals count for the stages they reached before being lost, using the stage-change history. Deals created in the sample data get a history consistent with their stage.
-7. **Won deals by month depends on an editable date.** Proposed: a deal counts as won in the month of its close date. A Won or Lost deal's close date can't be in the future, so the charts can't show wins that haven't happened.
-8. **A deal activity's place on a contact's timeline is derived, not stored.** If a deal's main contact changes, its activities and stage changes move to the new contact's timeline. Proposed: accept this, since it keeps the data simple and matches "where they're the main contact".
-9. **Two delete rules were inferred, not asked.** Deleting a contact removes the activities logged on them, and deleting a deal removes its activities and stage changes. The product owner confirmed both.
-10. **"Upcoming" follow-ups have no window in the intent.** Proposed: overdue means a follow-up date before today, and upcoming means today or the next 7 days. Later follow-ups appear on the timelines but not on the dashboard.
+1. **A deal's organization is required, but deleting an organization leaves deals with none.** The organization is required when a deal is created, and when it's edited unless it's already empty. A deal with no organization shows "No organization" and a quiet prompt to pick one.
+2. **Six pipeline stages, five brand colors.** The brand gives five colors in order for things side by side. The four open stages use a sequential Cerulean scale (light to dark, since the stages are ordered), Won uses Sea Green and Lost uses Raspberry. Chart series use the brand order. See [Stage colors](#stage-colors).
+3. **Two brand pairings fail contrast for small text.** White on Cerulean is 3.96:1 and white on Raspberry is 3.62:1, under the 4.5:1 needed for normal text. The brand colors are used for fills, charts and large or bold text, and darker text shades are used for small text. See [Colors](#colors).
+4. **Offline use and Google Fonts.** The brand fonts come from Google Fonts, but the app must work with no internet connection. The fonts are installed as npm packages (Fontsource) and served locally.
+5. **A non-technical user and a terminal command.** `npm run dev` needs Node.js and uv installed, and a terminal to run it. `docs/STATUS.md` has a plain, step-by-step setup guide for Mac with links to the installers, and the command opens the browser by itself. There's no double-click launcher.
+6. **How much value reaches each stage.** The funnel shows, for each stage from New to Won, the total value of deals that are at that stage now or have moved past it. Lost deals count for the stages they reached before being lost, using the stage-change history. Deals created in the sample data get a history consistent with their stage.
+7. **Won deals by month depends on an editable date.** A deal counts as won in the month of its close date. A Won or Lost deal's close date can't be in the future, so the charts can't show wins that haven't happened.
+8. **A deal activity's place on a contact's timeline is derived, not stored.** If a deal's main contact changes, its activities and stage changes move to the new contact's timeline. This keeps the data simple and matches "where they're the main contact".
+9. **What deletes take with them.** Deleting a contact removes the activities logged on them, and deleting a deal removes its activities and stage changes.
+10. **The window for "upcoming" follow-ups.** Overdue means a follow-up date before today, and upcoming means today or the next 7 days. Later follow-ups appear on the timelines but not on the dashboard.
 11. **The sample data dates.** For the dashboard to look alive whenever it's seeded, the sample data is generated relative to today's date, with a fixed random seed so its shape is the same each time.
 
 ## Requirements
 
-Each requirement has an ID so tests and status notes can refer to it. "Must" is required for the MVP to be done.
+Each requirement has an ID so tests, code and status notes can refer to it.
 
 ### General
 
@@ -65,9 +96,9 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 
 ### Deals
 
-- **D1** Fields: name (required), organization (required, see Concern 1), main contact, stage (required, default New), value (required, whole dollars, 0 to 1,000,000,000; the cap was confirmed by the product owner in the second MVP review), probability of close (0 to 100), close date.
+- **D1** Fields: name (required), organization (required, see Concern 1), main contact, stage (required, default New), value (required, whole dollars, 0 to 1,000,000,000), probability of close (0 to 100), close date.
 - **D2** The main contact list offers the contacts of the chosen organization first, then everyone else.
-- **D3** Each stage has a usual probability: New 10%, Qualified 25%, Proposal 50%, Negotiation 75%, Won 100%, Lost 0%. A new deal takes its stage's probability, unless a probability is typed in when it's added. When the stage changes, the probability is reset to the new stage's, unless the same edit also types in a new probability, which then wins. A probability set by hand stays until the next stage change. (Confirmed by the product owner in the MVP review.)
+- **D3** Each stage has a usual probability: New 10%, Qualified 25%, Proposal 50%, Negotiation 75%, Won 100%, Lost 0%. A new deal takes its stage's probability, unless a probability is typed in when it's added. When the stage changes, the probability is reset to the new stage's, unless the same edit also types in a new probability, which then wins. A probability set by hand stays until the next stage change.
 - **D4** When a deal moves to Won or Lost, its close date becomes today, unless the same edit types in a different close date, which then wins. It can be edited afterwards, but not to a date after today (Concern 7). A Won or Lost deal always has a close date: if it's left empty, today is used.
 - **D5** When a deal moves to Won, its main contact's status becomes customer if it isn't already. A status is never lowered automatically, including when a deal moves out of Won.
 - **D6** Every stage change, whether from the form or the board, records an entry with the old stage, the new stage and the time. It appears in the deal's timeline as "Moved from Proposal to Negotiation" and in the dashboard's recent activity.
@@ -98,7 +129,7 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 
 ### Dashboard
 
-- **H1** Headline figures in a row: open pipeline value, expected revenue of open deals, revenue won this month, and follow-ups due today or overdue. Each links to the matching screen: the pipeline, the pipeline, the deals table filtered to Won, and the dashboard's own follow-ups panel (there's no separate follow-ups screen; confirmed by the product owner in the MVP review, R12).
+- **H1** Headline figures in a row: open pipeline value, expected revenue of open deals, revenue won this month, and follow-ups due today or overdue. Each links to the matching screen: the pipeline, the pipeline, the deals table filtered to Won, and the dashboard's own follow-ups panel (there's no separate follow-ups screen).
 - **H2** A line chart of revenue won per month for the last 12 months, ending with the current month.
 - **H3** A bar chart of deals won per month over the same 12 months, with deals lost alongside in a second series.
 - **H4** A pipeline visual: a horizontal bar for each open stage showing its value and expected revenue, in stage colors, each bar linking to the board.
@@ -125,6 +156,8 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 ## Design
 
 ### Architecture
+
+The technology is set in `docs/TECH_STACK.md`.
 
 ```
 Browser (React app, port 5173)
@@ -292,7 +325,7 @@ The `today` date comes from the browser in an `X-Local-Date` header, so "late", 
 
 ### Screens
 
-The chosen look is in `docs/mockups/final-dashboard.html` and `docs/mockups/final-pipeline.html`, with a screenshot of each beside it. It's mockup A with the funnel from mockup C and the probability ring from mockup B. Where this section and the mockups differ, this section wins.
+The look follows Accountable's brand guidelines, which take priority over any general design guidance (see [Brand](#brand)). It's light mode, designed for a laptop or desktop screen. The chosen look is in `docs/mockups/final-dashboard.html` and `docs/mockups/final-pipeline.html`, with a screenshot of each beside it. It's mockup A with the funnel from mockup C and the probability ring from mockup B. Where this section and the mockups differ, this section wins.
 
 **Layout.** A fixed left sidebar on Midnight with the Accountable wordmark and five links: Dashboard, Pipeline, Deals, Contacts, Organizations. The active link has a Sea Green pill behind it. Content sits on the light page background in white panels with 12 px rounded corners, no outlines and a soft shadow. The minimum supported width is 1280 px.
 
@@ -364,10 +397,16 @@ Badges with small white text use the darker text shades as their fill. Dark mode
 
 - **Backend (pytest)**: every rule in D3 to D7, the delete rules in O4, C6 and D10, the timeline contents in C5, card positions and renumbering, validation messages, and each dashboard figure against a small hand-made data set.
 - **Frontend (Vitest)**: money and date formatting, the table's search, sort and paging, form validation messages, and the optimistic update and rollback on the board.
-- **End to end (Playwright with installed Chrome)**: one test per success criterion in the intent, against a fresh seeded test database on its own port. It covers adding, searching, sorting, editing and deleting in each table; the status filter; dragging a card between columns and within a column and checking it after a reload; logging an activity with a follow-up and seeing it on the dashboard; marking a deal won and seeing the dashboard change; and no console errors on any page.
+- **End to end (Playwright with installed Chrome)**: the user journeys, against a fresh seeded test database on its own port. They cover adding, searching, sorting, editing and deleting in each table; the status filter; dragging a card between columns and within a column and checking it after a reload; logging an activity with a follow-up and seeing it on the dashboard; marking a deal won and seeing the dashboard change; and no console errors on any page.
 - The tests set the backend's database path with an environment variable, so they never touch `data/accountable.db`.
-- Before the MVP is called done, a person goes through every section and action in a real browser as in success criterion 8 of the intent, and the result is noted in `docs/STATUS.md`.
+- Passing tests is necessary but not enough. Before a change is called done, a person uses what it touched end to end in a real browser, the way a salesperson would, with the browser's console open, and the result is noted in `docs/STATUS.md`.
 
-### Out of scope
+### Not in Accountable yet
 
-As in the intent: sign-in and several users, dark mode and phone layouts, AI features, email, calendar and phone integrations, other currencies, reports beyond the dashboard, tags and custom fields, changing the stages, and import or export.
+Sign-in, user accounts and several users; a record of who did what; access from beyond the computer it runs on; dark mode and phone layouts; AI features; email, calendar and phone integrations; currencies other than US dollars; reports beyond the dashboard; tags and custom fields; changing the pipeline stages; and import or export.
+
+## Roadmap
+
+- **The team:** sign-in, several people sharing the same data, and a record of who did what.
+- **Beyond one computer:** making Accountable available to people elsewhere, not only on the computer it runs on.
+- **ERP:** new sections such as invoices, each as its own backend module and frontend folder (see [Repository layout](#repository-layout)).

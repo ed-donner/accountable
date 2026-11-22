@@ -1,4 +1,4 @@
-The MVP is built and its automated tests pass. Accountable runs on a Mac only; Windows is future work on the roadmap in `docs/intent.md`. Two checks remain before it's called done: TM04 (how fast it feels at full size) and TM05 (code review), listed at the end.
+The MVP is built and its automated tests pass. Accountable runs on a Mac. Two checks remain before it's called done: TM04 (how fast it feels at full size) and TM05 (code review), listed at the end.
 
 ## How to start Accountable
 
@@ -45,7 +45,7 @@ Type `npm run seed` in the terminal. **This deletes everything you've entered** 
 
 ## Intent
 
-- `docs/intent.md` was clarified through an interview with the product owner: delete rules, timelines, pipeline columns, stage probabilities, close dates on Won and Lost, contact status on a win, required fields, the dashboard's period, scale, sample data size, the user, and success in everyday use. No code yet.
+- `docs/intent.md` (now `docs/changes/mvp/intent.md`) was clarified through an interview with the product owner: delete rules, timelines, pipeline columns, stage probabilities, close dates on Won and Lost, contact status on a win, required fields, the dashboard's period, scale, sample data size, the user, and success in everyday use. No code yet.
 
 ## Spec
 
@@ -58,7 +58,7 @@ Type `npm run seed` in the terminal. **This deletes everything you've entered** 
 
 ## Plan
 
-- `docs/plan.md` has the build plan: the files that change, eight phases of work, the risks and the tests that prove each requirement, with IDs linked to the spec and intent and a traceability matrix. No code yet.
+- `docs/plan.md` (now `docs/changes/mvp/plan.md`) has the build plan: the files that change, eight phases of work, the risks and the tests that prove each requirement, with IDs linked to the spec and intent and a traceability matrix. No code yet.
 
 ## Structure review
 
@@ -66,7 +66,7 @@ Type `npm run seed` in the terminal. **This deletes everything you've entered** 
 
 ## Build
 
-Following `docs/plan.md`, phase by phase.
+Following `docs/changes/mvp/plan.md`, phase by phase.
 
 ### PH1 Skeleton: done
 
@@ -140,7 +140,7 @@ Following `docs/plan.md`, phase by phase.
 | --- | --- |
 | TM01 Every screen against the final mockups and brand | Done: checked by the product owner. |
 | TM02 Full walk-through as a salesperson, console open (SC8) | Done: walked through by the product owner. The Call, Email and Note choice looked like action buttons; now a labelled "Type" choice (RV2). Walked through again by hand after the fix, with no further issues. |
-| TM03 Fresh setup and `npm run dev` on a Mac, following the guide | Done: checked on a Mac by the product owner. ~~Windows (W8.5)~~: dropped for the MVP; Windows is future work on the roadmap. |
+| TM03 Fresh setup and `npm run dev` on a Mac, following the guide | Done: checked on a Mac by the product owner. |
 | TM04 Search, sort and screen changes feel instant at full size | To do soon. Measured above; needs a person's feel. |
 | TM05 Code review of layout rules, rules only in the backend, API ready for paging | Not done. |
 | R12 Follow-ups tile links to the dashboard's follow-ups panel | Confirmed by the product owner in the MVP review. |
@@ -240,3 +240,11 @@ The product owner chose a fix for each minor finding and parked none. Each code 
 | RV24 Dropping a card next to one still saving could be refused and snap back. | Moves are sent one after another; the board still updates the moment a card drops (spec P6). | TF15 `moves save one after another` |
 | RV25 Behaviour in the code but not the spec. | Spec updated and signed off by the product owner: D1 value cap, V5 text limits, `limit` at most 1,000, the localhost-only Host check (G6), the 404 console exception (G11), the Retry message (G8), the date fallback range. | Docs only |
 | RV26 Plan test descriptions out of date. | TB01 to TB03, TB17, TF14 and TF15 updated to the current rules and file names. | Docs only |
+
+## Docs reorganized for future changes (22 Nov)
+
+- `docs/spec.md` now describes the whole product as it stands, with the problem, users and goals brought in from the MVP intent, and a roadmap. Nothing in it defers to an intent any more.
+- The MVP's `intent.md` and `plan.md` moved to `docs/changes/mvp/`. Each future change gets its own `docs/changes/<branch name>/` folder with its intent and plan.
+- `AGENTS.md` says to read `docs/spec.md` first, and only the current change's folder.
+- `docs/REVIEW.md` has a new pass that flags code `docs/spec.md` doesn't describe.
+- No code changed.

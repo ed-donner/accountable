@@ -9,7 +9,8 @@ Make a separate pass over every change for each of these:
 
 - **Bugs:** the code does what it's meant to, including when something goes wrong.
 - **Security:** no secrets or personal data are exposed, and nobody can do what they should not.
-- **Matches spec.md and plan.md:** the change does what those documents say, with nothing missing and nothing extra.
+- **Matches spec.md and plan.md:** the change does what `docs/spec.md` and its own `docs/changes/<branch name>/plan.md` say, with nothing missing and nothing extra.
+- **Described by spec.md:** flag any code the change adds or alters that `docs/spec.md` doesn't describe.
 
 ## Important
 

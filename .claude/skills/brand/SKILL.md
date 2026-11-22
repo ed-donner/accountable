@@ -1,3 +1,8 @@
+---
+name: brand
+description: The Accountable brand (fonts, colors, surfaces, things to avoid, and tone of voice). Use it for any UI work, such as building or changing pages, components, styles, charts or user-facing copy.
+---
+
 # Brand
 
 ## Fonts

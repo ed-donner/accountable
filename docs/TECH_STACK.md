@@ -9,7 +9,7 @@ Prefer popular, well-supported libraries to custom code, such as for the data ta
 
 For now it runs locally. Later, Supabase will provide sign-in and the database, and the app will be deployed to Render.
 
-Commands are npm scripts in a `package.json` at the repo root, with `frontend/` as an npm workspace, so they work the same on Mac, Linux and Windows:
+Commands are npm scripts in a `package.json` at the repo root, with `frontend/` as an npm workspace, so they're ready for Windows and Linux when those are supported (future work, see the roadmap in `docs/intent.md`). The MVP runs on a Mac:
 
 - `npm run dev` starts the backend and the frontend together
 - `npm test` runs all the tests and fails if any test fails

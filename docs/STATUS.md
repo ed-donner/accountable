@@ -120,7 +120,7 @@ Following `docs/plan.md`, phase by phase.
 ### PH7 Dashboard: done
 
 - Headline tiles, revenue won line chart (Recharts, Sea Green with the page's one gradient), funnel, open pipeline by stage, won and lost bar chart, follow-ups with Mark done, and recent activity, laid out on the 12-column grid of the final mockup.
-- Tiles link to the pipeline, the pipeline, the deals table filtered to Won, and the dashboard's own follow-ups panel (R12: the plan's proposed answer, as there's no separate follow-ups screen; **still to be confirmed by the product owner**).
+- Tiles link to the pipeline, the pipeline, the deals table filtered to Won, and the dashboard's own follow-ups panel (R12: there's no separate follow-ups screen; confirmed by the product owner in the MVP review).
 - "Won this month" compares with last month ("up 78% on Oct"), as in the mockup. Charts carry their figures in an accessible label, which TE18 checks against the API.
 - Differences from the mockup, following the spec: no "Log activity" button on the dashboard (activities are logged on a contact or deal), no user name in the sidebar (single user, no sign-in), and the funnel's "% of previous" is by value (Concern 6), not count.
 
@@ -139,14 +139,104 @@ Following `docs/plan.md`, phase by phase.
 | Check | Status |
 | --- | --- |
 | TM01 Every screen against the final mockups and brand | Done: checked by the product owner. |
-| TM02 Full walk-through as a salesperson, console open (SC8) | Done: walked through by the product owner. Known issue, accepted for now: the Call, Email and Note buttons in the Log activity form didn't work as expected. |
+| TM02 Full walk-through as a salesperson, console open (SC8) | Done: walked through by the product owner. The Call, Email and Note choice looked like action buttons; now a labelled "Type" choice (RV2). Walked through again by hand after the fix, with no further issues. |
 | TM03 Fresh setup and `npm run dev` on a Mac, following the guide | Done: checked on a Mac by the product owner. ~~Windows (W8.5)~~: dropped for the MVP; Windows is future work on the roadmap. |
 | TM04 Search, sort and screen changes feel instant at full size | To do soon. Measured above; needs a person's feel. |
 | TM05 Code review of layout rules, rules only in the backend, API ready for paging | Not done. |
-| R12 Follow-ups tile links to the dashboard's follow-ups panel | Built as the plan proposed; needs the product owner's OK. |
+| R12 Follow-ups tile links to the dashboard's follow-ups panel | Confirmed by the product owner in the MVP review. |
 
-All eight success criteria in the intent are met: covered by passing automated tests, with SC1, SC7 and SC8 also checked by hand (SC1 on a Mac only).
+All eight success criteria in the intent are met: covered by passing automated tests, with SC1, SC7 and SC8 also checked by hand (SC1 on a Mac only). SC8 was only met once the Log activity type choice was fixed in the MVP review (RV2).
 
 ## Known issues
 
-- **Log activity type buttons (from TM02):** the Call, Email and Note buttons at the top of the Log activity form on contact and deal pages didn't work as expected in the walk-through. Accepted for now; to be looked at later.
+- None open from TM02: the Log activity type choice was fixed in the MVP review (RV2).
+
+## Review of the MVP branch (21 Nov)
+
+Reviewed against `docs/REVIEW.md` (bugs, security, spec and plan). `npm test` passed before the review. All findings below are fixed on this branch and covered by tests; `npm test` passes.
+
+Important:
+
+- **RV1 Very large deal value gives a server error.** Typing `99999999999999999999` as a deal's value passes the form, overflows SQLite and shows "Something went wrong" instead of a field error. Sending `"inf"` or `"nan"` straight to the API also gives a 500 or a raw Python message.
+- **RV2 STATUS claimed SC8 met with a known broken action.** The Log activity type buttons (from TM02) break A3 and SC8, so PH8 can't be called done until they're fixed.
+- **RV3 R12 was built before the product owner's decision**, which the plan required first.
+- **RV4 spec.md out of date on D3 and D4.** The code lets a probability or close date the user types win over the stage's usual one, and accepts a typed probability on a new deal; the spec still says the stage's values always apply.
+
+Nits:
+
+- **RV5 A Won or Lost deal could lose its close date** when it was cleared during the move or later, which dropped it from the dashboard's won figures.
+- **RV6 Migrations ran with foreign keys on**, so a future batch migration rebuilding a parent table would cascade-delete or null its related rows.
+- **RV7 Two quick pipeline drags could undo each other** for a moment when the first one's save failed.
+- **RV8 Won and Lost column headers left out expected revenue**, which spec P5 asks for on every column.
+- **RV9 The revenue line chart used the darker text green and hard-coded colours**, where the spec asks for Sea Green defined once as CSS variables.
+- **RV10 Security (minor):** the API didn't check the Host header, and text fields and `limit` had no size caps.
+
+Fixes:
+
+| Finding | Fix | Test |
+| --- | --- | --- |
+| RV1 | Deal value capped at $1,000,000,000 on both sides, with the message "Enter a value from 0 to 1,000,000,000, in whole dollars."; `inf` and `nan` are field errors. Spec D1 updated. | `test_value_zero_or_more_whole_dollars`, TF validation test |
+| RV2 | The type was wired correctly; it looked like three action buttons. It's now a segmented control with a visible "Type" label, the chosen type raised on white. | TE16 |
+| RV3 | Product owner confirmed the follow-ups tile linking to the dashboard's panel. Plan R12 and spec H1 updated. | TE18 (unchanged) |
+| RV4 | Product owner chose the code's rule: a typed probability or close date wins. Spec D3 and D4 updated. | Existing TB tests |
+| RV5 | A Won or Lost deal saved with no close date gets today, as on create. | `test_closed_deal_never_loses_its_close_date` |
+| RV6 | Migrations run on a connection with foreign keys off, check every link afterwards, then turn them back on. Without this, rebuilding two tables in a test lost half the activities and every contact's organization. | `test_table_rebuild_in_a_migration_keeps_linked_rows` |
+| RV7 | A failed move puts back only its own card, and the board reloads only once the last move has saved. | TF15, second case |
+| RV8 | Won and Lost headers show expected revenue (all of the value for Won, $0 for Lost). | TE12 |
+| RV9 | Charts take their colors from the CSS tokens; the revenue line is Sea Green. Spec's token path corrected. | Checked by eye |
+| RV10 | Security: the API answers only requests addressed to 127.0.0.1 or localhost (against DNS rebinding); names, emails and websites capped at 200 characters, other text at 10,000; list `limit` at 1,000. | `test_requests_for_another_host_are_refused`, `test_text_and_page_size_are_capped` |
+
+Not fixed, as they were below the review's cut: with a search active, a drop is placed relative to the visible cards only (since fixed, RV23); and two moves into the same gap at the same moment can get equal positions (the next drop renumbers the column, so it fixes itself).
+
+### Tests widened to similar areas (21 Nov)
+
+Each fix above was tested only where the review found it. The tests now cover every endpoint, field and component of the same kind. Doing so found one more bug, fixed here:
+
+- **RV11 Record ids and offsets beyond the database's range gave a server error.** Any id over 2^63 - 1 in a URL (every record page, timeline, delete and delete impact) or in a request body (every link to an organization, contact, deal or neighbouring card), and any such `offset` on the lists, crashed SQLite. Ids in a URL that can't exist, too large or not a number, are now "not found", like a deleted record. In a body they're a field error, and `offset` is capped.
+
+Two smaller changes came out of the same sweep:
+
+- **Text caps in the forms too.** Spec V4 has the frontend check the same rules as the backend, so the forms now refuse over-long text before sending it, with the backend's messages.
+- **Every color is a token.** The stylesheets still had 26 color values outside `tokens.css` (the same rule as RV9). They're now named tokens with the same values, so nothing looks different.
+
+New and widened tests:
+
+| Area | Tests |
+| --- | --- |
+| Bad input on every endpoint (RV1, RV10, RV11) | TB43 `test_inputs.py`: 18 URL endpoints with impossible ids; 10 body links; paging on all 3 lists; value and probability edge cases on add and edit; all 10 text fields at and over their limit, on add and edit; 5 foreign Host headers against reads and writes, checking nothing changed |
+| Close dates and typed values (RV4, RV5) | `test_rules.py`: every way into Won or Lost (add, edit, clear, drag, Won to Lost) sets a close date; no way in allows a future one; typed probability and close date win, an unchanged one sent back doesn't; a drag always takes the stage's figures |
+| Migrations (RV6) | TB42: foreign keys back on in every pooled connection and cascades still work after migrating; a migration that breaks links is stopped; a failed one still restores foreign keys; the command-line upgrade path keeps data |
+| Pipeline (RV7, RV8) | `board.test.tsx`: every column's totals, Won and Lost included; drops into Won, Lost and back to open; the board reloads only after the last of several moves |
+| Activity type (RV2) | `LogActivityForm.test.tsx`: labelled Type group when logging and editing; two forms on one page keep their own choice; click and arrow keys, with wrapping; the last type is kept; an edit saves the new type. TE17: changing type in the edit panel shows on the timeline |
+| Form limits (RV1, RV10) | `validation.test.ts`: value and probability edge cases; all 10 text fields at and over their limit. TE08: too long or too large shows under the field, keeps the text and saves nothing, on all four forms |
+| Colors (RV9) | `colors.test.ts`: no color values outside `tokens.css` in any source file; every `var(--...)` used exists; the brand colors match the spec. TE18: the charts render Sea Green and Coral |
+| Not found (RV11) | TE01: too-large and non-numeric ids on organization, contact and deal pages say the record can't be found |
+
+## Second review of the MVP branch (21 Nov)
+
+Reviewed again against `docs/REVIEW.md`. Two Important bugs were found and are fixed on this branch, each with a test that fails without the fix, along with one minor test race (RV14); `npm test` passes. The product owner also updated `docs/intent.md` and walked through the app by hand again after RV2.
+
+| Finding | Fix | Test |
+| --- | --- | --- |
+| RV12 A pipeline move whose neighbouring cards were reversed or the same card (for example from a stale board in another tab) crashed with a server error. | The move is refused with "Choose where to put the deal." and nothing changes. | `test_neighbours_in_the_wrong_order_are_refused` |
+| RV13 Table search skipped any column whose first row was empty, so one contact with no email stopped email search for every contact (all three list pages). | Columns are searchable whenever they opt in, whatever the first row holds. | TF03 `search still covers a column whose first row is empty` |
+| RV14 TE10, TE11, TE12, TE14 and TE15 could reload or leave the board before the move they check had saved. Their "network idle" wait returns at once on a page that has already been idle. With moves slowed by 500 ms, TE10 and TE11 failed. | Each test waits for its own move's response and checks it saved before reloading or navigating. The other e2e specs were checked for the same race: only the board updates before the server answers, so they're unaffected. | TE10 to TE15 pass 20 times in a row, and with moves slowed by 500 ms |
+
+### Minor findings, resolved (21 Nov)
+
+The product owner chose a fix for each minor finding and parked none. Each code change has a test; `npm test` passes.
+
+| Finding | Fix | Test |
+| --- | --- | --- |
+| RV15 A date far outside the normal range in `X-Local-Date` (year 1 or 9999) gave a server error on the dashboard and timelines. | A date outside 1900 to 2999 is ignored and the server's date is used, as for a missing header. | `test_a_date_outside_the_normal_range_falls_back_to_the_server_date` |
+| RV16 A long crafted email address made the format check take seconds (about 9 s at 80 KB). | The 200-character limit is checked first, and the domain pattern can no longer backtrack, on both backend and frontend. Valid addresses are unaffected; malformed ones such as `a@b..c` are now refused. | `test_a_long_crafted_email_is_refused_quickly`, `test_email_format`, matching cases in `validation.test.ts` |
+| RV17 A request for another host was refused with plain text, not the API's error shape. | The Host check now replies `{"message", "fields"}` like every other error. | `test_requests_for_another_host_are_refused` |
+| RV18 `GET /api/activities/{id}` wasn't in the spec and nothing called it. | Removed; tests that used it now check the database directly. | `test_there_is_no_endpoint_to_read_one_activity` |
+| RV19 On a descending sort, empty values came first. | Empty values sort last in both directions (spec T2). | TF04 `empty values sort last in both directions` |
+| RV20 Changing the Deals stage filter briefly showed the previous stage's rows and total. | The page shows Loading until the new stage's list arrives. | TE07 `changing the stage filter shows loading` |
+| RV21 Logging an activity on a deal or contact deleted elsewhere said "Check the highlighted fields" with nothing highlighted. | A server message about something the form has no field for is shown for the whole form, for example "That deal no longer exists." This applies to every form. | `forms.test.ts` |
+| RV22 When the organizations or contacts list failed to load, the deal and contact forms got stuck: fetching the list again swapped the form back to Loading, round and round, so the form never appeared. | Only the first load shows Loading. A failed list says "Couldn't load the organizations." under its field with a Retry button; what was typed and a preset choice are kept. | `DealForm.test.tsx`, `ContactForm.test.tsx` |
+| RV23 With a board search on, a drop between two visible cards could land on either side of a hidden card. | The card goes directly under the visible card above it, ahead of hidden cards (spec P4). | TF14, three cases |
+| RV24 Dropping a card next to one still saving could be refused and snap back. | Moves are sent one after another; the board still updates the moment a card drops (spec P6). | TF15 `moves save one after another` |
+| RV25 Behaviour in the code but not the spec. | Spec updated and signed off by the product owner: D1 value cap, V5 text limits, `limit` at most 1,000, the localhost-only Host check (G6), the 404 console exception (G11), the Retry message (G8), the date fallback range. | Docs only |
+| RV26 Plan test descriptions out of date. | TB01 to TB03, TB17, TF14 and TF15 updated to the current rules and file names. | Docs only |

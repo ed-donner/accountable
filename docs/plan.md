@@ -1,6 +1,6 @@
 # Plan: building the Accountable MVP
 
-This plan says how to build what `docs/intent.md` asks for and `docs/spec.md` specifies. The look follows `docs/mockups/final-dashboard.html` and `docs/mockups/final-pipeline.html`. No code has been written yet.
+This plan says how to build what `docs/intent.md` asks for and `docs/spec.md` specifies. The look follows `docs/mockups/final-dashboard.html` and `docs/mockups/final-pipeline.html`. The MVP has been built to this plan; progress is in `docs/STATUS.md`.
 
 ## How to read the IDs
 
@@ -142,7 +142,7 @@ Phases run in order. Each ends with `npm test` passing, the app checked in a bro
 
 | ID | Risk | Effect | What we'll do | Affects | Handled in | Proven by |
 | --- | --- | --- | --- | --- | --- | --- |
-| <a id="r1"></a>R1 | Drag and drop is hard to drive reliably in Playwright | Flaky or missing pipeline tests | Stepped mouse moves, a keyboard path, and the move rules tested in pytest so end-to-end tests only prove the wiring | [P3](spec.md#pipeline), [P4](spec.md#pipeline), [P8](spec.md#pipeline) | [W6.2](#w6-2), [W1.5](#w1-5) | [TB22](#tb22), [TB23](#tb23), [TE10](#te10), [TE11](#te11), [TE14](#te14) |
+| <a id="r1"></a>R1 | Drag and drop is hard to drive reliably in Playwright | Flaky or missing pipeline tests | Stepped mouse moves, a keyboard path, and the move rules tested in pytest so end-to-end tests only prove the wiring; each test waits for its move to save before a reload | [P3](spec.md#pipeline), [P4](spec.md#pipeline), [P8](spec.md#pipeline) | [W6.2](#w6-2), [W1.5](#w1-5) | [TB22](#tb22), [TB23](#tb23), [TE10](#te10), [TE11](#te11), [TE14](#te14) |
 | <a id="r2"></a>R2 | SQLite ignores foreign keys unless turned on per connection | Delete rules silently fail | Turn them on in a connect event and test every delete rule | [O4](spec.md#organizations), [C6](spec.md#contacts), [D10](spec.md#deals) | [W2.1](#w2-1) | [TB09](#tb09), [TB13](#tb13), [TB16](#tb16), [TB20](#tb20) |
 | <a id="r3"></a>R3 | Dates shift by a day between browser, server and tests | Wrong late, overdue and monthly figures | Store plain dates, send the browser's date, fix today in all tests | [G10](spec.md#general), [D7](spec.md#deals), [A6](spec.md#activities-and-follow-ups), [H1](spec.md#dashboard), [H2](spec.md#dashboard) | [W2.2](#w2-2), [W4.3](#w4-3) | [TB06](#tb06), [TB35](#tb35), [TB40](#tb40) |
 | <a id="r4"></a>R4 | Sample data relative to today makes tests depend on the day they run | Tests pass today and fail next month | Fix today with `ACCOUNTABLE_TODAY` and the Playwright clock | [S1](spec.md#sample-data), [S2](spec.md#sample-data) | [W1.5](#w1-5), [W2.5](#w2-5) | [TB38](#tb38), [TE01](#te01), [TE18](#te18) |
@@ -153,13 +153,13 @@ Phases run in order. Each ends with `npm test` passing, the app checked in a bro
 | <a id="r9"></a>R9 | Full lists in the browser slow down at the top sizes | Search and sort lag | Measure with generated data; the API already takes limit and offset | [G7](spec.md#general), [T1](spec.md#tables-organizations-contacts-and-deals), [T2](spec.md#tables-organizations-contacts-and-deals), [T3](spec.md#tables-organizations-contacts-and-deals) | [W8.1](#w8-1) | [TB41](#tb41), [TM04](#tm04) |
 | <a id="r10"></a>R10 | Dashboard queries slow down with 10,000 activities | The landing page is slow | Indexes on dates and follow-ups, timing test at full size | [G7](spec.md#general), [H1](spec.md#dashboard) | [W2.1](#w2-1), [W3.8](#w3-8), [W8.1](#w8-1) | [TB41](#tb41) |
 | <a id="r11"></a>R11 | A library doesn't yet support Node 26 or the latest React | Install or build fails | Pin working versions in PH1 and record them | [G1](spec.md#general) | [W1.1](#w1-1), [W1.2](#w1-2) | [TE01](#te01) |
-| <a id="r12"></a>R12 | H1 links follow-ups to a follow-ups list, but no such screen exists | A link with nowhere to go | Link to the dashboard's own follow-ups panel; confirm with the product owner in PH7 | [H1](spec.md#dashboard), [ES2](intent.md#success-criteria) | [W7.1](#w7-1) | [TE18](#te18) |
+| <a id="r12"></a>R12 | H1 links follow-ups to a follow-ups list, but no such screen exists | A link with nowhere to go | Link to the dashboard's own follow-ups panel. Confirmed by the product owner in the MVP review | [H1](spec.md#dashboard), [ES2](intent.md#success-criteria) | [W7.1](#w7-1) | [TE18](#te18) |
 | <a id="r13"></a>R13 | Tests touch the real database | The user's data is lost | Tests always set `ACCOUNTABLE_DB`; seeding refuses the default database during tests | [G3](spec.md#general) | [W1.5](#w1-5), [W2.2](#w2-2) | [TB39](#tb39) |
 | <a id="r14"></a>R14 | Something loads from the internet, such as fonts | The app breaks offline | Fontsource fonts bundled; an end-to-end test blocks and fails any outside request | [G2](spec.md#general), [CN4](spec.md#concerns) | [W4.1](#w4-1), [W8.3](#w8-3) | [TE22](#te22) |
 | <a id="r15"></a>R15 | A later schema change breaks or loses the salesperson's data | Data lost on upgrade, or the move to Supabase is harder | Every schema change is an Alembic migration applied on start, tested against a database with data | [G12](spec.md#general), [G3](spec.md#general) | [W2.1](#w2-1), [W2.5](#w2-5) | [TB42](#tb42) |
 | <a id="r16"></a>R16 | Frontend types drift from the backend's models | Breaks show up only when the app runs | Generate the types with openapi-typescript and fail a test when they're out of date | [V4](spec.md#validation), [ES4](intent.md#success-criteria) | [W3.9](#w3-9) | [TF17](#tf17) |
 
-[R12](#r12) needs a decision from the product owner before [W7.1](#w7-1) is built.
+[R12](#r12): the product owner confirmed the link to the dashboard's follow-ups panel in the MVP review, after [W7.1](#w7-1) was built.
 
 ## Proof
 
@@ -169,9 +169,9 @@ Phases run in order. Each ends with `npm test` passing, the app checked in a bro
 
 | ID | File in `backend/tests/` | Proves | Requirements | Risks |
 | --- | --- | --- | --- | --- |
-| <a id="tb01"></a>TB01 | `test_rules.py` | Each stage's usual probability; a new deal takes its stage's | [D3](spec.md#deals) | None |
-| <a id="tb02"></a>TB02 | `test_rules.py` | A stage change resets the probability; a hand-set one stays until the next change | [D3](spec.md#deals) | None |
-| <a id="tb03"></a>TB03 | `test_rules.py` | Moving to Won or Lost sets the close date to today | [D4](spec.md#deals) | None |
+| <a id="tb01"></a>TB01 | `test_rules.py` | Each stage's usual probability; a new deal takes its stage's, unless a probability is typed in | [D3](spec.md#deals) | None |
+| <a id="tb02"></a>TB02 | `test_rules.py` | A stage change resets the probability, unless the same edit types one in, which wins; a hand-set one stays until the next change | [D3](spec.md#deals) | None |
+| <a id="tb03"></a>TB03 | `test_rules.py` | Moving to Won or Lost sets the close date to today, unless the same edit types one in, which wins; a Won or Lost deal is never left without a close date | [D4](spec.md#deals) | None |
 | <a id="tb04"></a>TB04 | `test_rules.py` | A Won or Lost close date after today is refused | [D4](spec.md#deals), [CN7](spec.md#concerns) | None |
 | <a id="tb05"></a>TB05 | `test_rules.py` | A win makes the main contact a customer; a status is never lowered | [D5](spec.md#deals) | None |
 | <a id="tb06"></a>TB06 | `test_rules.py` | Late means open with a close date before today | [D7](spec.md#deals) | [R3](#r3) |
@@ -185,7 +185,7 @@ Phases run in order. Each ends with `npm test` passing, the app checked in a bro
 | <a id="tb14"></a>TB14 | `test_contacts.py` | Create, read, update, delete; name required; default status lead; email format | [C1](spec.md#contacts), [V1](spec.md#validation), [V2](spec.md#validation) | None |
 | <a id="tb15"></a>TB15 | `test_contacts.py` | Status filter and counts; last activity date; the page includes organization and deals | [C2](spec.md#contacts), [C3](spec.md#contacts), [C4](spec.md#contacts) | None |
 | <a id="tb16"></a>TB16 | `test_contacts.py` | Delete keeps deals with no main contact and removes the contact's activities; impact counts | [C6](spec.md#contacts), [T6](spec.md#tables-organizations-contacts-and-deals), [CN9](spec.md#concerns) | [R2](#r2) |
-| <a id="tb17"></a>TB17 | `test_deals.py` | Create with required fields and default stage New; value 0 or more | [D1](spec.md#deals), [V1](spec.md#validation) | None |
+| <a id="tb17"></a>TB17 | `test_deals.py` | Create with required fields and default stage New; value 0 to 1,000,000,000 | [D1](spec.md#deals), [V1](spec.md#validation) | None |
 | <a id="tb18"></a>TB18 | `test_deals.py` | Organization required on create, allowed empty once its organization is deleted | [D1](spec.md#deals), [CN1](spec.md#concerns) | None |
 | <a id="tb19"></a>TB19 | `test_deals.py` | Every stage change through edit records an entry | [D6](spec.md#deals) | None |
 | <a id="tb20"></a>TB20 | `test_deals.py` | Delete removes activities and stage changes; impact counts | [D10](spec.md#deals), [T6](spec.md#tables-organizations-contacts-and-deals), [CN9](spec.md#concerns) | [R2](#r2) |
@@ -210,7 +210,8 @@ Phases run in order. Each ends with `npm test` passing, the app checked in a bro
 | <a id="tb39"></a>TB39 | `test_seed.py` | First start seeds an empty database; reseed replaces everything; tests can't touch the default database | [G4](spec.md#general), [G5](spec.md#general) | [R13](#r13) |
 | <a id="tb40"></a>TB40 | `test_today.py` | `X-Local-Date` used when valid, the server's date otherwise | [G10](spec.md#general) | [R3](#r3) |
 | <a id="tb41"></a>TB41 | `test_performance.py` | Lists and dashboard within budget at 2,000 contacts, 1,000 deals and 10,000 activities | [G7](spec.md#general) | [R9](#r9), [R10](#r10) |
-| <a id="tb42"></a>TB42 | `test_migrations.py` | Migrating an empty database gives the same schema as `db.py`; upgrading a database with data keeps every row | [G12](spec.md#general), [G3](spec.md#general) | [R15](#r15) |
+| <a id="tb42"></a>TB42 | `test_migrations.py` | Migrating an empty database gives the same schema as `db.py`; upgrading a database with data keeps every row, including when a migration rebuilds a table; foreign keys are back on afterwards (added in the MVP review, RV6) | [G12](spec.md#general), [G3](spec.md#general) | [R15](#r15) |
+| <a id="tb43"></a>TB43 | `test_inputs.py` | Every endpoint and field answers bad input plainly, never with a server error: ids and offsets beyond the database's range, deal value and probability out of range, text and page size caps, and requests addressed to another host (added in the MVP review, RV1, RV10, RV11) | [V1](spec.md#validation), [V4](spec.md#validation), [G6](spec.md#general), [G8](spec.md#general) | None |
 
 ### Frontend unit tests (Vitest)
 
@@ -229,8 +230,8 @@ Phases run in order. Each ends with `npm test` passing, the app checked in a bro
 | <a id="tf11"></a>TF11 | `shared/validation.test.ts` | Required fields, email and website formats, plain messages | [V1](spec.md#validation), [V2](spec.md#validation), [V3](spec.md#validation) | None |
 | <a id="tf12"></a>TF12 | `deals/DealForm.test.tsx` | Organization's contacts listed first; typed values kept after an error | [D2](spec.md#deals), [V3](spec.md#validation) | None |
 | <a id="tf13"></a>TF13 | `activities/LogActivityForm.test.tsx` | Filled in and saved with the keyboard alone | [A3](spec.md#activities-and-follow-ups) | None |
-| <a id="tf14"></a>TF14 | `pipeline/board.test.ts` | A move updates column and board totals at once | [P5](spec.md#pipeline), [P6](spec.md#pipeline) | [R6](#r6) |
-| <a id="tf15"></a>TF15 | `pipeline/board.test.ts` | A failed save puts the card back and shows a message | [P6](spec.md#pipeline) | [R6](#r6) |
+| <a id="tf14"></a>TF14 | `pipeline/board.test.tsx` | A move updates column and board totals at once; with a search on, a drop goes directly under the visible card above it | [P5](spec.md#pipeline), [P6](spec.md#pipeline) | [R6](#r6) |
+| <a id="tf15"></a>TF15 | `pipeline/board.test.tsx` | A failed save puts the card back and shows a message; moves save one after another | [P6](spec.md#pipeline) | [R6](#r6) |
 | <a id="tf16"></a>TF16 | `shared/api.test.ts` | Server and network errors become friendly messages | [G8](spec.md#general) | None |
 | <a id="tf17"></a>TF17 | `shared/api-types.test.ts` | The generated API types match the backend's current schema | [V4](spec.md#validation), [ES4](intent.md#success-criteria) | [R16](#r16) |
 

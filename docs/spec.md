@@ -29,18 +29,18 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 - **G3** Every change is saved to the SQLite database at once. It's still there after a refresh and after a restart.
 - **G4** When the database file doesn't exist, the backend creates it by running the migrations and fills it with the sample data.
 - **G5** `npm run seed` deletes all data and loads the sample data again.
-- **G6** The app is a single-user app with no sign-in.
+- **G6** The app is a single-user app with no sign-in. The backend answers only requests addressed to this computer (`127.0.0.1` or `localhost`), so a web page elsewhere can't reach the data.
 - **G7** Lists, search, sort and screen changes respond in under 200 ms at 2,000 contacts, 1,000 deals and 10,000 activities on a typical laptop.
-- **G8** Error messages are short, plain and say what to do next, for example "Couldn't save the deal. Check your connection to Accountable and try again." No stack traces or codes are shown to the user.
+- **G8** Error messages are short, plain and say what to do next, for example "Couldn't save the deal. Check your connection to Accountable and try again." No stack traces or codes are shown to the user. When a form's list of choices, such as its organizations, doesn't load, the form says so under that field with a Retry button and keeps what was typed.
 - **G9** Money is in US dollars, shown as `$48,200` in tables and cards and `$1.2M` only where space is short, such as chart axes. Amounts are whole dollars.
 - **G10** Dates are shown as `16 Nov 2026`. The app uses the computer's local date for "today".
-- **G11** No errors appear in the browser console during normal use.
+- **G11** No errors appear in the browser console during normal use. One exception: opening a link to a record that has been deleted logs the server's 404 reply, while the page says the record can't be found.
 - **G12** Each time it starts, the backend applies any new database migrations, keeping all existing data.
 
 ### Tables (organizations, contacts and deals)
 
 - **T1** Each table has a search box that filters as you type, across the columns listed for that table.
-- **T2** Clicking a column heading sorts by it; clicking again reverses the order. The current sort shows an arrow.
+- **T2** Clicking a column heading sorts by it; clicking again reverses the order. The current sort shows an arrow. Empty values sort last in both directions.
 - **T3** Tables show 25 rows a page, with page controls and a count such as "Showing 26 to 50 of 412". Searching goes back to the first page.
 - **T4** Each table has an "Add" button that opens a form in a side panel.
 - **T5** Each row has Edit and Delete actions. Clicking the row itself opens the record's page.
@@ -65,10 +65,10 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 
 ### Deals
 
-- **D1** Fields: name (required), organization (required, see Concern 1), main contact, stage (required, default New), value (required, whole dollars, 0 or more), probability of close (0 to 100), close date.
+- **D1** Fields: name (required), organization (required, see Concern 1), main contact, stage (required, default New), value (required, whole dollars, 0 to 1,000,000,000; the cap was confirmed by the product owner in the second MVP review), probability of close (0 to 100), close date.
 - **D2** The main contact list offers the contacts of the chosen organization first, then everyone else.
-- **D3** Each stage has a usual probability: New 10%, Qualified 25%, Proposal 50%, Negotiation 75%, Won 100%, Lost 0%. A new deal takes its stage's probability. When the stage changes, the probability is reset to the new stage's. A probability set by hand stays until the next stage change.
-- **D4** When a deal moves to Won or Lost, its close date becomes today. It can be edited afterwards, but not to a date after today (Concern 7).
+- **D3** Each stage has a usual probability: New 10%, Qualified 25%, Proposal 50%, Negotiation 75%, Won 100%, Lost 0%. A new deal takes its stage's probability, unless a probability is typed in when it's added. When the stage changes, the probability is reset to the new stage's, unless the same edit also types in a new probability, which then wins. A probability set by hand stays until the next stage change. (Confirmed by the product owner in the MVP review.)
+- **D4** When a deal moves to Won or Lost, its close date becomes today, unless the same edit types in a different close date, which then wins. It can be edited afterwards, but not to a date after today (Concern 7). A Won or Lost deal always has a close date: if it's left empty, today is used.
 - **D5** When a deal moves to Won, its main contact's status becomes customer if it isn't already. A status is never lowered automatically, including when a deal moves out of Won.
 - **D6** Every stage change, whether from the form or the board, records an entry with the old stage, the new stage and the time. It appears in the deal's timeline as "Moved from Proposal to Negotiation" and in the dashboard's recent activity.
 - **D7** A deal is late when it's open (not Won or Lost) and its close date is before today. Late deals show a Raspberry "Late" badge in the table and on their card.
@@ -81,9 +81,9 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 - **P1** The board has six columns in order: New, Qualified, Proposal, Negotiation, Won, Lost.
 - **P2** Each card shows the deal name, organization, main contact, value, close date and the Late badge when it applies. Open deals show their probability as a ring (see [Screens](#screens)). Clicking a card opens the deal.
 - **P3** Dragging a card to another column changes the deal's stage, following D3 to D6. Dragging into Won or Lost closes the deal.
-- **P4** A card can be dropped anywhere in a column, including higher or lower in its own column, and stays exactly there after a refresh.
+- **P4** A card can be dropped anywhere in a column, including higher or lower in its own column, and stays exactly there after a refresh. With a search on, a card dropped below a visible card goes directly under it, ahead of any cards the search hides.
 - **P5** Each column header shows its stage, number of deals, total value and expected revenue. The board header shows the total value and expected revenue of open deals only.
-- **P6** All totals update the moment a card is dropped, before the server replies. If the save fails, the card goes back and a friendly message says so.
+- **P6** All totals update the moment a card is dropped, before the server replies. If the save fails, the card goes back and a friendly message says so. Moves are saved one after another, in the order the cards were dropped.
 - **P7** Each column has an "Add deal" button that opens the deal form with that stage chosen. The new deal goes at the top of the column.
 - **P8** Dragging works with a mouse and with the keyboard.
 
@@ -98,7 +98,7 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 
 ### Dashboard
 
-- **H1** Headline figures in a row: open pipeline value, expected revenue of open deals, revenue won this month, and follow-ups due today or overdue. Each links to the matching screen: the pipeline, the pipeline, the deals table filtered to Won, and the follow-ups list.
+- **H1** Headline figures in a row: open pipeline value, expected revenue of open deals, revenue won this month, and follow-ups due today or overdue. Each links to the matching screen: the pipeline, the pipeline, the deals table filtered to Won, and the dashboard's own follow-ups panel (there's no separate follow-ups screen; confirmed by the product owner in the MVP review, R12).
 - **H2** A line chart of revenue won per month for the last 12 months, ending with the current month.
 - **H3** A bar chart of deals won per month over the same 12 months, with deals lost alongside in a second series.
 - **H4** A pipeline visual: a horizontal bar for each open stage showing its value and expected revenue, in stage colors, each bar linking to the board.
@@ -113,6 +113,7 @@ Each requirement has an ID so tests and status notes can refer to it. "Must" is 
 - **V2** An email address or website is checked for the right format when it's filled in. A website without `https://` is accepted and saved with it added.
 - **V3** Errors show under the field in plain words, such as "Enter an email address like name@company.com". The form keeps what was typed.
 - **V4** The backend checks the same rules and returns friendly messages per field, so the frontend never relies on its own checks alone.
+- **V5** Text has a size limit: names, email addresses and websites up to 200 characters, other text (notes, descriptions) up to 10,000. Over the limit, the message is "Keep this to 200 characters or fewer." (or 10,000). An email address's length is checked before its format.
 
 ### Sample data
 
@@ -135,7 +136,7 @@ FastAPI (port 8000)
 SQLite file: data/accountable.db
 ```
 
-- The frontend fetches lists in full and does search, sort and paging in the browser. At the sizes in G7 that's a few hundred kilobytes and keeps every keystroke instant. The API keeps limit and offset parameters so this can move to the server when the data grows.
+- The frontend fetches lists in full and does search, sort and paging in the browser. At the sizes in G7 that's a few hundred kilobytes and keeps every keystroke instant. The API keeps limit and offset parameters so this can move to the server when the data grows; `limit` is at most 1,000.
 - The dashboard figures are computed by the backend in one request, so the browser doesn't have to load every activity.
 - The backend is the only place business rules live: stage probabilities, close dates on Won and Lost, customer status, stage-change entries and delete rules. The frontend shows the result.
 
@@ -233,7 +234,7 @@ All tables have an integer `id` primary key and `created_at` and `updated_at` ti
 | organization_id | int | `ON DELETE SET NULL`, required by the API on create |
 | contact_id | int | main contact, optional, `ON DELETE SET NULL` |
 | stage | text | `new`, `qualified`, `proposal`, `negotiation`, `won`, `lost` |
-| value | int | whole US dollars, 0 or more |
+| value | int | whole US dollars, 0 to 1,000,000,000 |
 | probability | int | 0 to 100 |
 | close_date | date | optional |
 | position | float | order within the stage's column, lower is higher up |
@@ -267,7 +268,7 @@ Indexes: every foreign key, `deals(stage, position)`, `activities(follow_up_on, 
 
 ### API
 
-All under `/api`. Responses are JSON. Errors use one shape: `{"message": "...", "fields": {"email": "Enter an email address like name@company.com"}}`, with status 400 for validation, 404 for a missing record and 500 for anything unexpected, which is logged on the server and shown to the user as a general friendly message.
+All under `/api`. Responses are JSON. Errors use one shape: `{"message": "...", "fields": {"email": "Enter an email address like name@company.com"}}`, with status 400 for validation or a request addressed to another host (G6), 404 for a missing record and 500 for anything unexpected, which is logged on the server and shown to the user as a general friendly message.
 
 | Method and path | Purpose |
 | --- | --- |
@@ -287,7 +288,7 @@ All under `/api`. Responses are JSON. Errors use one shape: `{"message": "...", 
 | `GET /dashboard` | headline figures, 12 months of won and lost, pipeline by stage, funnel, recent activity, follow-ups |
 | `GET /health` | used by the dev script and e2e tests |
 
-The `today` date comes from the browser in an `X-Local-Date` header, so "late", "overdue" and "this month" match the user's calendar. The backend falls back to its own date when the header is missing.
+The `today` date comes from the browser in an `X-Local-Date` header, so "late", "overdue" and "this month" match the user's calendar. The backend falls back to its own date when the header is missing, isn't a date, or is outside 1900 to 2999.
 
 ### Screens
 
@@ -322,7 +323,7 @@ Charts have light gridlines, no chart borders, tooltips with exact amounts and a
 
 #### Colors
 
-Defined once as CSS variables in `frontend/src/theme/tokens.css`.
+Defined once as CSS variables in `frontend/src/shared/theme/tokens.css`.
 
 | Token | Value | Use |
 | --- | --- | --- |

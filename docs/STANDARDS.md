@@ -1,5 +1,6 @@
 Follow these coding guidelines:
 
+- For description text with 5 or fewer sentences, have each sentence in its own line.
 - Be thoughtful and careful about labels and naming things, so that code is expressive and easy to read. 
 - Don't comment out unused code, delete it.
 - Favor short functions and methods with only one purpose.

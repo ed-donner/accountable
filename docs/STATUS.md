@@ -39,6 +39,7 @@ Type `npm run seed` in the terminal. **This deletes everything you've entered** 
 
 - `npm run dev` starts the backend (FastAPI, port 8000) and the frontend (Vite, port 5173).
 - `npm test` runs the backend tests (pytest), the frontend tests (Vitest) and the end-to-end tests (Playwright with the installed Google Chrome). It runs all three even when one fails, prints a pass or fail summary, and exits with an error if any failed. `npm run test:backend`, `test:frontend` and `test:e2e` run one suite. The end-to-end tests start their own copy of the app on ports 8100 and 5273 with `data/e2e.db`, so they never touch your data.
+- `npm run check` runs formatting, lint, complexity (15 per function), type and secret checks, then `npm test` with at least 80% unit test coverage. `npm run check:quick` skips the end-to-end tests, and `npm run format` fixes the formatting.
 - `npm run types` regenerates `frontend/src/shared/api-types.ts` after a change to the backend's models or routes; a test fails if you forget.
 - `npm run seed` reloads the sample data into `ACCOUNTABLE_DB` (default `data/accountable.db`).
 - Every schema change is an Alembic migration in `backend/migrations/versions/`, applied when the backend starts.
@@ -248,3 +249,8 @@ The product owner chose a fix for each minor finding and parked none. Each code 
 - `AGENTS.md` says to read `docs/spec.md` first, and only the current change's folder.
 - `docs/REVIEW.md` has a new pass that flags code `docs/spec.md` doesn't describe.
 - No code changed.
+
+## Harness
+
+- `npm run check`, `npm run check:quick` and `npm run format` added. Config: `frontend/eslint.config.js`, `frontend/.prettierrc.json` (100 columns), `[tool.ruff]` in `pyproject.toml` (100 columns, C901 at 15), `.gitleaks.toml` (allows the git-ignored `.env`), coverage thresholds in `frontend/vite.config.ts` and pytest `addopts`.
+- Fixed everything the checks found: split the complex forms, pages and `seed` into smaller functions, typed the backend for ty, and added frontend tests (coverage up from 45% to over 90%). SidePanel now focuses the first field once it appears, replacing `autoFocus`. TanStack Table's `useReactTable` has one approved line-level ESLint exception (react-hooks/incompatible-library), because the React Compiler isn't used.

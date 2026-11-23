@@ -1,9 +1,18 @@
 import { Check } from "lucide-react";
 import { shortDate } from "./format";
 
-type Props = { date: string; status: "overdue" | "upcoming" | "later" | "done"; today: string };
+type Props = {
+  date: string;
+  status: "overdue" | "upcoming" | "later" | "done";
+  today: string;
+};
 
-const WORDS = { overdue: "overdue", upcoming: "due", later: "due", done: "done" };
+const WORDS = {
+  overdue: "overdue",
+  upcoming: "due",
+  later: "due",
+  done: "done",
+};
 
 /** A follow-up date: Raspberry overdue, Cerulean upcoming, grey with a check when done. */
 export function FollowUpChip({ date, status, today }: Props) {

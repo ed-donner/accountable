@@ -16,7 +16,6 @@ export async function generateTypes() {
   const schema = execFileSync("uv", ["run", "--quiet", "python", "-m", "app.main"], {
     cwd: root,
     encoding: "utf8",
-    shell: process.platform === "win32",
   });
   const ast = await openapiTS(JSON.parse(schema));
   return HEADER + astToString(ast);

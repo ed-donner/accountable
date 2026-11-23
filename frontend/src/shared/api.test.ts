@@ -15,7 +15,10 @@ function reply(status: number, body: unknown, json = true) {
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue(
-      new Response(json ? JSON.stringify(body) : String(body), { status, headers: { "Content-Type": "application/json" } }),
+      new Response(json ? JSON.stringify(body) : String(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      }),
     ),
   );
 }
@@ -28,7 +31,10 @@ test("sends the local date", async () => {
 });
 
 test("field errors come through as they are", async () => {
-  reply(400, { message: "Check the highlighted fields and try again.", fields: { name: "Enter a name." } });
+  reply(400, {
+    message: "Check the highlighted fields and try again.",
+    fields: { name: "Enter a name." },
+  });
   const error = await failure(api("/contacts", "POST", {}));
   expect(error).toBeInstanceOf(ApiError);
   expect(error.message).toBe("Check the highlighted fields and try again.");

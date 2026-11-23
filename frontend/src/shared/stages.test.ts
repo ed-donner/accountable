@@ -17,7 +17,8 @@ test("six stages in order with their usual probabilities", () => {
 
 test("stage colors: a Cerulean scale, then Sea Green and Raspberry", () => {
   const tokens = readFileSync(join(__dirname, "theme", "tokens.css"), "utf8");
-  const value = (name: string) => tokens.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "i"))![1].toLowerCase();
+  const value = (name: string) =>
+    tokens.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "i"))![1].toLowerCase();
   const mix = (alpha: number) => {
     // Cerulean #118AB2 at `alpha` over white.
     const c = [0x11, 0x8a, 0xb2].map((ch) => Math.round(ch * alpha + 255 * (1 - alpha)));

@@ -20,7 +20,8 @@ function RecordLink({ contact, deal }: { contact: Ref; deal: Ref }) {
 export function FollowUps({ items, today }: { items: Dashboard["follow_ups"]; today: string }) {
   const toast = useToast();
   const markDone = useMarkDone();
-  if (!items.length) return <p className="muted">No follow-ups overdue or due in the next 7 days.</p>;
+  if (!items.length)
+    return <p className="muted">No follow-ups overdue or due in the next 7 days.</p>;
   return (
     <ul className="list">
       {items.map((f) => (
@@ -54,12 +55,20 @@ export function FollowUps({ items, today }: { items: Dashboard["follow_ups"]; to
 
 /** H6: the latest activities and stage changes, each linking to its record. */
 export function RecentActivity({ items, today }: { items: Dashboard["recent"]; today: string }) {
-  if (!items.length) return <p className="muted">Nothing has happened yet. Log a call or move a deal and it shows here.</p>;
+  if (!items.length)
+    return (
+      <p className="muted">
+        Nothing has happened yet. Log a call or move a deal and it shows here.
+      </p>
+    );
   return (
     <ul className="list">
       {items.map((r) => {
         const day = relativeDay(r.on, today);
-        const time = r.kind === "stage_change" && (day === "Today" || day === "Yesterday") ? `, ${r.at.slice(11, 16)}` : "";
+        const time =
+          r.kind === "stage_change" && (day === "Today" || day === "Yesterday")
+            ? `, ${r.at.slice(11, 16)}`
+            : "";
         return (
           <li key={`${r.kind}-${r.id}`}>
             <ActivityIcon kind={r.kind === "stage_change" ? "stage" : r.type!} />
@@ -67,7 +76,10 @@ export function RecentActivity({ items, today }: { items: Dashboard["recent"]; t
               <div className="text">{r.text}</div>
               <RecordLink contact={r.contact} deal={r.deal} />
             </div>
-            <span className="when">{day}{time}</span>
+            <span className="when">
+              {day}
+              {time}
+            </span>
           </li>
         );
       })}

@@ -6,7 +6,15 @@ from fastapi import APIRouter
 from sqlalchemy import Connection, delete, func, insert, select, update
 
 from app import rules
-from app.db import activities, contacts, deals, organizations, stage_changes
+from app.db import (
+    activities,
+    contacts,
+    count_rows,
+    deals,
+    insert_row,
+    organizations,
+    stage_changes,
+)
 from app.deps import Conn, Today, now_on
 from app.rules import Stage
 from app.schemas import (
@@ -36,10 +44,8 @@ MIN_GAP = 0.000001
 
 def position_between(above: float | None, below: float | None) -> float | None:
     """The position for a card between `above` and `below`, or None when the gap is too small."""
-    if above is None and below is None:
-        return 1.0
     if above is None:
-        return below - 1.0
+        return 1.0 if below is None else below - 1.0
     if below is None:
         return above + 1.0
     middle = (above + below) / 2
@@ -63,7 +69,11 @@ def _position_of(conn: Connection, deal_id: int | None) -> float | None:
 
 
 def place_between(
-    conn: Connection, stage: str, moving_id: int | None, above_id: int | None, below_id: int | None
+    conn: Connection,
+    stage: str,
+    moving_id: int | None,
+    above_id: int | None,
+    below_id: int | None,
 ) -> float:
     """Position for a card landing under `above_id` and over `below_id` in `stage`."""
     position = position_between(_position_of(conn, above_id), _position_of(conn, below_id))
@@ -129,13 +139,17 @@ def _check_links(conn: Connection, organization_id: int | None, contact_id: int 
         select(organizations.c.id).where(organizations.c.id == organization_id)
     ):
         errors["organization_id"] = "That organization no longer exists. Choose another."
-    if contact_id is not None and not conn.scalar(select(contacts.c.id).where(contacts.c.id == contact_id)):
+    if contact_id is not None and not conn.scalar(
+        select(contacts.c.id).where(contacts.c.id == contact_id)
+    ):
         errors["contact_id"] = "That contact no longer exists. Choose another."
     if errors:
         raise FieldErrors(errors)
 
 
-def _record_stage_change(conn: Connection, deal_id: int, old: str | None, new: str, today: date) -> None:
+def _record_stage_change(
+    conn: Connection, deal_id: int, old: str | None, new: str, today: date
+) -> None:
     """D6: every stage change leaves an entry.
 
     changed_at is on the user's today; created_at is the real clock, like an activity's,
@@ -208,19 +222,21 @@ def create_deal(body: DealCreate, conn: Conn, today: Today) -> DealRow:
         close_date = today
     if error := rules.close_date_error(body.stage, close_date, today):
         raise FieldErrors({"close_date": error})
-    probability = body.probability if body.probability is not None else rules.usual_probability(body.stage)
-    deal_id = conn.execute(
-        insert(deals).values(
-            name=body.name,
-            organization_id=body.organization_id,
-            contact_id=body.contact_id,
-            stage=body.stage,
-            value=body.value,
-            probability=probability,
-            close_date=close_date,
-            position=top_position(conn, body.stage),
-        )
-    ).inserted_primary_key[0]
+    probability = (
+        body.probability if body.probability is not None else rules.usual_probability(body.stage)
+    )
+    deal_id = insert_row(
+        conn,
+        deals,
+        name=body.name,
+        organization_id=body.organization_id,
+        contact_id=body.contact_id,
+        stage=body.stage,
+        value=body.value,
+        probability=probability,
+        close_date=close_date,
+        position=top_position(conn, body.stage),
+    )
     _record_stage_change(conn, deal_id, None, body.stage, today)
     if body.stage == "won":
         _make_customer(conn, body.contact_id)
@@ -238,7 +254,11 @@ def update_deal(deal_id: RecordId, body: DealUpdate, conn: Conn, today: Today) -
     deal = get_deal(conn, deal_id, today)
     sent = body.model_dump(exclude_unset=True)
     # Concern 1: required, unless it's already empty because its organization was deleted.
-    if "organization_id" in sent and sent["organization_id"] is None and deal["organization_id"] is not None:
+    if (
+        "organization_id" in sent
+        and sent["organization_id"] is None
+        and deal["organization_id"] is not None
+    ):
         raise FieldErrors({"organization_id": MESSAGES["organization_id"]})
     _check_links(conn, sent.get("organization_id"), sent.get("contact_id"))
     values = _apply_stage(conn, deal, dict(sent), sent, today)
@@ -279,8 +299,8 @@ def deal_delete_impact(deal_id: RecordId, conn: Conn, today: Today) -> DealImpac
     deal = get_deal(conn, deal_id, today)
     return DealImpact(
         name=deal["name"],
-        activities=conn.scalar(select(func.count()).where(activities.c.deal_id == deal_id)),
-        stage_changes=conn.scalar(select(func.count()).where(stage_changes.c.deal_id == deal_id)),
+        activities=count_rows(conn, activities, activities.c.deal_id == deal_id),
+        stage_changes=count_rows(conn, stage_changes, stage_changes.c.deal_id == deal_id),
     )
 
 

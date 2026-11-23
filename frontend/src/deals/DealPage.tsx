@@ -40,7 +40,11 @@ export function DealPage() {
           </span>
         }
         action={
-          <button type="button" className="btn ghost" onClick={() => setDeleting({ kind: "deal", id: deal.id, name: deal.name })}>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => setDeleting({ kind: "deal", id: deal.id, name: deal.name })}
+          >
             <Trash2 size={16} aria-hidden="true" />
             Delete deal
           </button>
@@ -58,11 +62,19 @@ export function DealPage() {
           <dl className="details">
             <dt>Organization</dt>
             <dd>
-              <RecordLink to={`/organizations/${deal.organization_id}`} name={deal.organization_name} none="No organization" />
+              <RecordLink
+                to={`/organizations/${deal.organization_id}`}
+                name={deal.organization_name}
+                none="No organization"
+              />
             </dd>
             <dt>Main contact</dt>
             <dd>
-              <RecordLink to={`/contacts/${deal.contact_id}`} name={deal.contact_name} none="No main contact" />
+              <RecordLink
+                to={`/contacts/${deal.contact_id}`}
+                name={deal.contact_name}
+                none="No main contact"
+              />
             </dd>
             <dt>Stage</dt>
             <dd>
@@ -77,7 +89,11 @@ export function DealPage() {
             <dt>{closed ? "Closed" : "Close date"}</dt>
             <dd>
               <span className="name-cell">
-                {deal.close_date ? <span className="mono">{formatDate(deal.close_date)}</span> : <span className="muted">Not set</span>}
+                {deal.close_date ? (
+                  <span className="mono">{formatDate(deal.close_date)}</span>
+                ) : (
+                  <span className="muted">Not set</span>
+                )}
                 <LateBadge late={deal.is_late} />
               </span>
             </dd>
@@ -92,7 +108,13 @@ export function DealPage() {
       <SidePanel title="Edit deal" open={editing} onClose={close}>
         {editing && <DealForm deal={deal} onSaved={close} onCancel={close} />}
       </SidePanel>
-      {deleting && <DeleteRecord record={deleting} onClose={closeDelete} onDeleted={() => navigate("/deals")} />}
+      {deleting && (
+        <DeleteRecord
+          record={deleting}
+          onClose={closeDelete}
+          onDeleted={() => navigate("/deals")}
+        />
+      )}
     </>
   );
 }

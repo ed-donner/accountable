@@ -12,12 +12,22 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import config
 from app.db import engine_for, migrate
-from app.routers import activities, contacts, dashboard, deals, health, organizations, timeline
+from app.routers import (
+    activities,
+    contacts,
+    dashboard,
+    deals,
+    health,
+    organizations,
+    timeline,
+)
 from app.schemas import MESSAGES, FieldErrors, NotFound
 
 log = logging.getLogger("accountable")
 
-GENERAL_ERROR = "Something went wrong in Accountable. Try again, and if it keeps happening, restart the app."
+GENERAL_ERROR = (
+    "Something went wrong in Accountable. Try again, and if it keeps happening, restart the app."
+)
 
 
 def start_database() -> None:
@@ -62,7 +72,9 @@ class LocalHostsOnly:
                 if scope["type"] == "websocket":
                     await send({"type": "websocket.close", "code": 1008})
                 else:
-                    response = JSONResponse(status_code=400, content={"message": WRONG_HOST, "fields": {}})
+                    response = JSONResponse(
+                        status_code=400, content={"message": WRONG_HOST, "fields": {}}
+                    )
                     await response(scope, receive, send)
                 return
         await self.app(scope, receive, send)
@@ -94,7 +106,11 @@ async def on_validation_error(_request: Request, exc: RequestValidationError) ->
     # simply not found, like a deleted one (RV11).
     if exc.errors() and all(tuple(e.get("loc", ()))[:1] == ("path",) for e in exc.errors()):
         return JSONResponse(
-            status_code=404, content={"message": "We couldn't find that record. It may have been deleted.", "fields": {}}
+            status_code=404,
+            content={
+                "message": "We couldn't find that record. It may have been deleted.",
+                "fields": {},
+            },
         )
     fields: dict[str, str] = {}
     for error in exc.errors():
@@ -102,16 +118,26 @@ async def on_validation_error(_request: Request, exc: RequestValidationError) ->
         if not field or field in fields:
             continue
         if error.get("type") == "value_error":
-            message = str(error.get("ctx", {}).get("error", "")) or MESSAGES.get(field, "Check this field.")
+            message = str(error.get("ctx", {}).get("error", "")) or MESSAGES.get(
+                field, "Check this field."
+            )
         else:
             message = MESSAGES.get(field, "Check this field.")
         fields[field] = message
     if not fields:
         return JSONResponse(
-            status_code=400, content={"message": "Accountable couldn't read that request. Try again.", "fields": {}}
+            status_code=400,
+            content={
+                "message": "Accountable couldn't read that request. Try again.",
+                "fields": {},
+            },
         )
     return JSONResponse(
-        status_code=400, content={"message": "Check the highlighted fields and try again.", "fields": fields}
+        status_code=400,
+        content={
+            "message": "Check the highlighted fields and try again.",
+            "fields": fields,
+        },
     )
 
 
@@ -124,7 +150,10 @@ async def on_field_errors(_request: Request, exc: FieldErrors) -> JSONResponse:
 async def on_not_found(_request: Request, exc: NotFound) -> JSONResponse:
     return JSONResponse(
         status_code=404,
-        content={"message": f"We couldn't find that {exc.kind}. It may have been deleted.", "fields": {}},
+        content={
+            "message": f"We couldn't find that {exc.kind}. It may have been deleted.",
+            "fields": {},
+        },
     )
 
 

@@ -111,8 +111,8 @@ Starting Codex with `--approve-for-me` sends approval requests to a reviewer mod
 **Allow uv and npm.** Commands such as `npm install` and `uv sync` need the network, so Codex asks before running them outside the sandbox. Rules let them through. Create `.codex/rules/default.rules`:
 
 ```python
-prefix_rule(pattern = ["uv"], decision = "allow")
-prefix_rule(pattern = ["npm"], decision = "allow")
+prefix_rule(pattern=["uv"], decision="allow")
+prefix_rule(pattern=["npm"], decision="allow")
 ```
 
 Rules are marked experimental in the Codex docs. Restart Codex after adding them.

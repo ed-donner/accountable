@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Phone, StickyNote } from "lucide-react";
-import { Field, fieldProps } from "../shared/Field";
-import { applyServerErrors } from "../shared/forms";
+import { Field, FormActions, FormError, fieldProps } from "../shared/Field";
+import { applyServerErrors, errorMessages } from "../shared/forms";
 import { useToast } from "../shared/Toast";
 import { localToday } from "../shared/today";
 import { activityFormSchema, orNull, type ActivityFormValues } from "../shared/validation";
@@ -27,6 +27,95 @@ type Props = {
 };
 
 type Values = ActivityFormValues;
+type ActivityType = Values["type"];
+
+/** A fresh form, for logging the next activity. */
+function blankActivity(type: ActivityType): Values {
+  return { type, description: "", occurred_on: localToday(), follow_up_on: "", done: false };
+}
+
+function entryValues(entry: TimelineEntry): Values {
+  return {
+    type: entry.type ?? "call",
+    description: entry.description ?? "",
+    occurred_on: entry.occurred_on ?? localToday(),
+    follow_up_on: entry.follow_up_on ?? "",
+    done: entry.done ?? false,
+  };
+}
+
+function activityBody(values: Values, editing: boolean, on: Props["on"]) {
+  const body: Record<string, unknown> = {
+    type: values.type,
+    description: values.description.trim(),
+    occurred_on: values.occurred_on,
+    follow_up_on: orNull(values.follow_up_on),
+  };
+  if (editing) body.done = values.follow_up_on ? values.done : false;
+  else {
+    body.contact_id = on?.contactId ?? null;
+    body.deal_id = on?.dealId ?? null;
+  }
+  return body;
+}
+
+type TypeChoiceProps = {
+  prefix: string;
+  registration: UseFormRegisterReturn;
+  error?: string;
+};
+
+/** A labelled segmented choice, so it reads as picking a type rather than as action buttons (TM02). */
+function TypeChoice({ prefix, registration, error }: TypeChoiceProps) {
+  return (
+    <>
+      <div className="field type-field">
+        <span className="label" id={`${prefix}-type-label`}>
+          Type
+        </span>
+        <div className="type-choice" role="radiogroup" aria-labelledby={`${prefix}-type-label`}>
+          {TYPES.map(({ key, label, icon: Icon }) => (
+            <label key={key}>
+              <input type="radio" value={key} {...registration} />
+              <Icon size={15} aria-hidden="true" />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+      {error && <span className="field error">{error}</span>}
+    </>
+  );
+}
+
+type EditExtrasProps = {
+  hasFollowUp: boolean;
+  doneRegistration: UseFormRegisterReturn;
+  doneError?: string;
+  submitting: boolean;
+  onCancel?: () => void;
+};
+
+/** When editing: ticking off the follow-up, then Save and Cancel. */
+function EditExtras({
+  hasFollowUp,
+  doneRegistration,
+  doneError,
+  submitting,
+  onCancel,
+}: EditExtrasProps) {
+  return (
+    <>
+      {hasFollowUp && (
+        <label className="check">
+          <input type="checkbox" {...doneRegistration} /> Follow-up done
+        </label>
+      )}
+      {doneError && <span className="field error">{doneError}</span>}
+      <FormActions submitLabel="Save activity" submitting={submitting} onCancel={onCancel} />
+    </>
+  );
+}
 
 /** A3: type, description and an optional follow-up, filled in and saved with the keyboard alone. */
 export function LogActivityForm({ on, entry, onSaved, onCancel }: Props) {
@@ -35,13 +124,6 @@ export function LogActivityForm({ on, entry, onSaved, onCancel }: Props) {
   const [formError, setFormError] = useState<string | null>(null);
   const editing = entry !== undefined;
   const prefix = editing ? "edit-activity" : "log-activity";
-  const defaults: Values = {
-    type: entry?.type ?? "call",
-    description: entry?.description ?? "",
-    occurred_on: entry?.occurred_on ?? localToday(),
-    follow_up_on: entry?.follow_up_on ?? "",
-    done: entry?.done ?? false,
-  };
   const {
     register,
     handleSubmit,
@@ -51,41 +133,31 @@ export function LogActivityForm({ on, entry, onSaved, onCancel }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     resolver: zodResolver(activityFormSchema),
-    defaultValues: defaults,
+    defaultValues: entry ? entryValues(entry) : blankActivity("call"),
   });
+  const errorOf = errorMessages(errors);
   const followUp = useWatch({ control, name: "follow_up_on" });
-  const lastType = useRef(defaults.type);
-  const [logged, setLogged] = useState(0);
+  // Each successful log gets a new object, so the effect below runs once per log.
+  const [justLogged, setJustLogged] = useState<{ type: ActivityType } | null>(null);
 
-  // After logging, clear the form for the next one and put the cursor back.
+  // After logging, clear the form for the next one, keeping the type, and put the cursor back.
   useEffect(() => {
-    if (logged === 0) return;
-    reset({ ...defaults, type: lastType.current, description: "", follow_up_on: "", occurred_on: localToday() });
+    if (!justLogged) return;
+    reset(blankActivity(justLogged.type));
     window.requestAnimationFrame(() => document.getElementById(`${prefix}-description`)?.focus());
-    // Runs only after each successful log.
-  }, [logged]);
+  }, [justLogged, prefix, reset]);
 
   const onSubmit = async (values: Values) => {
     setFormError(null);
-    const body: Record<string, unknown> = {
-      type: values.type,
-      description: values.description.trim(),
-      occurred_on: values.occurred_on,
-      follow_up_on: orNull(values.follow_up_on),
-    };
-    if (editing) body.done = values.follow_up_on ? values.done : false;
-    else {
-      body.contact_id = on?.contactId ?? null;
-      body.deal_id = on?.dealId ?? null;
-    }
     try {
-      await save.mutateAsync({ id: entry?.id, body });
+      await save.mutateAsync({ id: entry?.id, body: activityBody(values, editing, on) });
       if (editing) {
         toast.success("Activity saved.");
       } else {
-        toast.success(values.follow_up_on ? "Activity logged, with a follow-up." : "Activity logged.");
-        lastType.current = values.type;
-        setLogged((n) => n + 1);
+        toast.success(
+          values.follow_up_on ? "Activity logged, with a follow-up." : "Activity logged.",
+        );
+        setJustLogged({ type: values.type });
       }
       onSaved?.();
     } catch (error) {
@@ -93,7 +165,6 @@ export function LogActivityForm({ on, entry, onSaved, onCancel }: Props) {
     }
   };
 
-  const e = errors;
   return (
     <form
       className={editing ? undefined : "panel log-form"}
@@ -101,60 +172,45 @@ export function LogActivityForm({ on, entry, onSaved, onCancel }: Props) {
       noValidate
       aria-label={editing ? "Edit activity" : "Log activity"}
     >
-      {formError && (
-        <div className="form-error" role="alert">
-          {formError}
-        </div>
-      )}
+      <FormError message={formError} />
       {!editing && <h2 className="sr-only">Log activity</h2>}
-      {/* A labelled segmented choice, so it reads as picking a type rather than as action buttons (TM02). */}
-      <div className="field type-field">
-        <span className="label" id={`${prefix}-type-label`}>
-          Type
-        </span>
-        <div className="type-choice" role="radiogroup" aria-labelledby={`${prefix}-type-label`}>
-          {TYPES.map(({ key, label, icon: Icon }) => (
-            <label key={key}>
-              <input type="radio" value={key} {...register("type")} />
-              <Icon size={15} aria-hidden="true" />
-              {label}
-            </label>
-          ))}
-        </div>
-      </div>
-      {e.type && <span className="field error">{e.type.message}</span>}
+      <TypeChoice prefix={prefix} registration={register("type")} error={errorOf("type")} />
       <div className={editing ? undefined : "log-row"}>
-        <Field id={`${prefix}-description`} label="What happened" required error={e.description?.message}>
+        <Field
+          id={`${prefix}-description`}
+          label="What happened"
+          required
+          error={errorOf("description")}
+        >
           <input
-            {...fieldProps(`${prefix}-description`, e.description?.message)}
+            {...fieldProps(`${prefix}-description`, errorOf("description"))}
             {...register("description")}
             placeholder={editing ? undefined : "For example: agreed pricing for 3 sites"}
             autoComplete="off"
           />
         </Field>
-        <Field id={`${prefix}-follow-up`} label="Follow-up date" error={e.follow_up_on?.message}>
-          <input type="date" {...fieldProps(`${prefix}-follow-up`, e.follow_up_on?.message)} {...register("follow_up_on")} />
+        <Field id={`${prefix}-follow-up`} label="Follow-up date" error={errorOf("follow_up_on")}>
+          <input
+            type="date"
+            {...fieldProps(`${prefix}-follow-up`, errorOf("follow_up_on"))}
+            {...register("follow_up_on")}
+          />
         </Field>
-        <Field id={`${prefix}-occurred`} label="Date" required error={e.occurred_on?.message}>
-          <input type="date" {...fieldProps(`${prefix}-occurred`, e.occurred_on?.message)} {...register("occurred_on")} />
+        <Field id={`${prefix}-occurred`} label="Date" required error={errorOf("occurred_on")}>
+          <input
+            type="date"
+            {...fieldProps(`${prefix}-occurred`, errorOf("occurred_on"))}
+            {...register("occurred_on")}
+          />
         </Field>
         {editing ? (
-          <>
-            {followUp && (
-              <label className="check">
-                <input type="checkbox" {...register("done")} /> Follow-up done
-              </label>
-            )}
-            {e.done && <span className="field error">{e.done.message}</span>}
-            <div className="form-actions">
-              <button type="submit" className="btn" disabled={isSubmitting}>
-                Save activity
-              </button>
-              <button type="button" className="btn ghost" onClick={onCancel}>
-                Cancel
-              </button>
-            </div>
-          </>
+          <EditExtras
+            hasFollowUp={Boolean(followUp)}
+            doneRegistration={register("done")}
+            doneError={errorOf("done")}
+            submitting={isSubmitting}
+            onCancel={onCancel}
+          />
         ) : (
           <div className="field">
             <button type="submit" className="btn" disabled={isSubmitting}>

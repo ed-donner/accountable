@@ -5,7 +5,12 @@ import { STAGES, stageInfo, type Stage } from "../shared/stages";
 
 export type Columns = Record<Stage, number[]>;
 export type Totals = { count: number; value: number; expected: number };
-export type Move = { id: number; stage: Stage; afterId: number | null; beforeId: number | null };
+export type Move = {
+  id: number;
+  stage: Stage;
+  afterId: number | null;
+  beforeId: number | null;
+};
 
 const byPosition = (a: DealRow, b: DealRow) => a.position - b.position || a.id - b.id;
 
@@ -18,7 +23,11 @@ export function buildColumns(deals: DealRow[]): Columns {
 
 export function totals(deals: DealRow[]): Totals {
   return deals.reduce(
-    (sum, d) => ({ count: sum.count + 1, value: sum.value + d.value, expected: sum.expected + d.expected_revenue }),
+    (sum, d) => ({
+      count: sum.count + 1,
+      value: sum.value + d.value,
+      expected: sum.expected + d.expected_revenue,
+    }),
     { count: 0, value: 0, expected: 0 },
   );
 }
@@ -59,7 +68,12 @@ export function withHiddenCards(deals: DealRow[], move: Move): Move {
 /** True when a move leaves the card where it was. */
 export function isNoMove(deals: DealRow[], move: Move): boolean {
   const before = moveFrom(buildColumns(deals), move.id);
-  return before !== null && before.stage === move.stage && before.afterId === move.afterId && before.beforeId === move.beforeId;
+  return (
+    before !== null &&
+    before.stage === move.stage &&
+    before.afterId === move.afterId &&
+    before.beforeId === move.beforeId
+  );
 }
 
 /** The deals as they'll look once the server applies the move (D3, D4, P4). */
@@ -96,5 +110,7 @@ export function applyMove(deals: DealRow[], move: Move, today: string): DealRow[
 export function matches(deal: DealRow, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return [deal.name, deal.organization_name, deal.contact_name].some((v) => v?.toLowerCase().includes(q));
+  return [deal.name, deal.organization_name, deal.contact_name].some((v) =>
+    v?.toLowerCase().includes(q),
+  );
 }

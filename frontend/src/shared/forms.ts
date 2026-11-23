@@ -1,4 +1,10 @@
-import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
+import {
+  get,
+  type FieldErrors,
+  type FieldValues,
+  type Path,
+  type UseFormSetError,
+} from "react-hook-form";
 import { ApiError, GENERAL_MESSAGE } from "./api";
 
 /** Puts the backend's per-field messages under their fields (V4) and returns any
@@ -23,4 +29,12 @@ export function applyServerErrors<T extends FieldValues>(
   }
   if (unplaced.length > 0) return unplaced.join(" ");
   return placed ? null : error.message;
+}
+
+/** Looks up a field's error message by name, so a form needn't repeat `errors.x?.message`. */
+export function errorMessages<T extends FieldValues>(errors: FieldErrors<T>) {
+  return (name: Path<T>): string | undefined => {
+    const error: { message?: unknown } | undefined = get(errors, name);
+    return typeof error?.message === "string" ? error.message : undefined;
+  };
 }

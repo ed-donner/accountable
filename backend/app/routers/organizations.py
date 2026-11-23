@@ -1,18 +1,14 @@
 """Organizations: endpoints and queries (O1 to O4)."""
 
-
 from fastapi import APIRouter
-from sqlalchemy import Connection, delete, func, insert, select, update
+from sqlalchemy import Connection, delete, func, select, update
 
-from app.db import contacts, deals, organizations
+from app.db import contacts, count_rows, deals, insert_row, organizations
 from app.deps import Conn, Today
 from app.routers.contacts import contact_rows
 from app.routers.deals import deal_rows
 from app.rules import OPEN_STAGES
 from app.schemas import (
-    PageLimit,
-    PageOffset,
-    RecordId,
     NotFound,
     Organization,
     OrganizationCreate,
@@ -21,13 +17,20 @@ from app.schemas import (
     OrganizationList,
     OrganizationRow,
     OrganizationUpdate,
+    PageLimit,
+    PageOffset,
+    RecordId,
 )
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
 
 def get_organization(conn: Connection, organization_id: int) -> dict:
-    row = conn.execute(select(organizations).where(organizations.c.id == organization_id)).mappings().first()
+    row = (
+        conn.execute(select(organizations).where(organizations.c.id == organization_id))
+        .mappings()
+        .first()
+    )
     if row is None:
         raise NotFound("organization")
     return dict(row)
@@ -62,9 +65,9 @@ def list_organizations(
             func.coalesce(open_deals.c.open_value, 0).label("open_value"),
         )
         .select_from(
-            organizations.outerjoin(contact_counts, contact_counts.c.organization_id == organizations.c.id).outerjoin(
-                open_deals, open_deals.c.organization_id == organizations.c.id
-            )
+            organizations.outerjoin(
+                contact_counts, contact_counts.c.organization_id == organizations.c.id
+            ).outerjoin(open_deals, open_deals.c.organization_id == organizations.c.id)
         )
         .order_by(organizations.c.name, organizations.c.id)
         .offset(offset)
@@ -72,13 +75,13 @@ def list_organizations(
     if limit:
         query = query.limit(limit)
     items = [OrganizationRow(**row) for row in conn.execute(query).mappings()]
-    total = conn.scalar(select(func.count()).select_from(organizations))
+    total = count_rows(conn, organizations)
     return OrganizationList(items=items, total=total)
 
 
 @router.post("", status_code=201)
 def create_organization(body: OrganizationCreate, conn: Conn) -> Organization:
-    organization_id = conn.execute(insert(organizations).values(**body.model_dump())).inserted_primary_key[0]
+    organization_id = insert_row(conn, organizations, **body.model_dump())
     conn.commit()
     return Organization(**get_organization(conn, organization_id))
 
@@ -94,11 +97,15 @@ def read_organization(organization_id: RecordId, conn: Conn, today: Today) -> Or
 
 
 @router.patch("/{organization_id}")
-def update_organization(organization_id: RecordId, body: OrganizationUpdate, conn: Conn) -> Organization:
+def update_organization(
+    organization_id: RecordId, body: OrganizationUpdate, conn: Conn
+) -> Organization:
     get_organization(conn, organization_id)
     values = body.model_dump(exclude_unset=True)
     if values:
-        conn.execute(update(organizations).where(organizations.c.id == organization_id).values(**values))
+        conn.execute(
+            update(organizations).where(organizations.c.id == organization_id).values(**values)
+        )
         conn.commit()
     return Organization(**get_organization(conn, organization_id))
 
@@ -108,8 +115,8 @@ def organization_delete_impact(organization_id: RecordId, conn: Conn) -> Organiz
     organization = get_organization(conn, organization_id)
     return OrganizationImpact(
         name=organization["name"],
-        contacts=conn.scalar(select(func.count()).where(contacts.c.organization_id == organization_id)),
-        deals=conn.scalar(select(func.count()).where(deals.c.organization_id == organization_id)),
+        contacts=count_rows(conn, contacts, contacts.c.organization_id == organization_id),
+        deals=count_rows(conn, deals, deals.c.organization_id == organization_id),
     )
 
 

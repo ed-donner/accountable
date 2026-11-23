@@ -7,7 +7,18 @@ import { ContactForm } from "./ContactForm";
 afterEach(() => vi.unstubAllGlobals());
 
 const organizations = {
-  items: [{ id: 2, name: "Bolt Freight", industry: null, website: null, notes: null, contact_count: 0, open_deal_count: 0, open_value: 0 }],
+  items: [
+    {
+      id: 2,
+      name: "Bolt Freight",
+      industry: null,
+      website: null,
+      notes: null,
+      contact_count: 0,
+      open_deal_count: 0,
+      open_value: 0,
+    },
+  ],
   total: 1,
 };
 
@@ -15,7 +26,12 @@ test("a list that fails to load says so and can be retried, keeping what was typ
   let failing = true;
   mockApi({
     "GET /organizations": () =>
-      failing ? { status: 500, body: { message: "Something went wrong.", fields: {} } } : { body: organizations },
+      failing
+        ? {
+            status: 500,
+            body: { message: "Something went wrong.", fields: {} },
+          }
+        : { body: organizations },
   });
   renderWithProviders(<ContactForm organizationId={2} onSaved={vi.fn()} onCancel={vi.fn()} />);
   const alert = await screen.findByText(/Couldn't load the organizations\./);
@@ -23,6 +39,8 @@ test("a list that fails to load says so and can be retried, keeping what was typ
   failing = false;
   await userEvent.click(within(alert).getByRole("button", { name: "Retry" }));
   await screen.findByRole("option", { name: "Bolt Freight" });
-  await waitFor(() => expect(screen.getByLabelText(/Organization/)).toHaveDisplayValue("Bolt Freight"));
+  await waitFor(() =>
+    expect(screen.getByLabelText(/Organization/)).toHaveDisplayValue("Bolt Freight"),
+  );
   expect(screen.getByLabelText(/Name/)).toHaveValue("Ann Bolt");
 });

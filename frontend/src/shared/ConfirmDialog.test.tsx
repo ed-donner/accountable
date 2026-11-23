@@ -38,7 +38,11 @@ test("the dialog asks first and confirms or cancels", async () => {
   render(
     <ConfirmDialog
       title="Delete Acme Ltd?"
-      message={organizationDeleteMessage({ name: "Acme Ltd", contacts: 4, deals: 2 })}
+      message={organizationDeleteMessage({
+        name: "Acme Ltd",
+        contacts: 4,
+        deals: 2,
+      })}
       confirmLabel="Delete organization"
       onConfirm={onConfirm}
       onCancel={onCancel}

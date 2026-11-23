@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
-import { DataTable } from "../shared/DataTable";
+import { DataTable, type TableColumn } from "../shared/DataTable";
 import { DeleteRecord, type Deletable } from "../shared/DeleteRecord";
 import { money, plural } from "../shared/format";
 import { LoadError, Loading } from "../shared/Loading";
@@ -19,7 +18,7 @@ export function OrganizationsPage() {
   const close = useCallback(() => setEditing(null), []);
   const closeDelete = useCallback(() => setDeleting(null), []);
 
-  const columns = useMemo<ColumnDef<OrganizationRow, any>[]>(
+  const columns = useMemo<TableColumn<OrganizationRow>[]>(
     () => [
       {
         accessorKey: "name",
@@ -39,14 +38,28 @@ export function OrganizationsPage() {
         cell: ({ getValue }) => {
           const site = getValue<string | null>();
           return site ? (
-            <a href={site} target="_blank" rel="noreferrer" className="muted" onClick={(e) => e.stopPropagation()}>
+            <a
+              href={site}
+              target="_blank"
+              rel="noreferrer"
+              className="muted"
+              onClick={(e) => e.stopPropagation()}
+            >
               {site.replace(/^https?:\/\//, "")}
             </a>
           ) : null;
         },
       },
-      { accessorKey: "contact_count", header: "Contacts", meta: { numeric: true } },
-      { accessorKey: "open_deal_count", header: "Open deals", meta: { numeric: true } },
+      {
+        accessorKey: "contact_count",
+        header: "Contacts",
+        meta: { numeric: true },
+      },
+      {
+        accessorKey: "open_deal_count",
+        header: "Open deals",
+        meta: { numeric: true },
+      },
       {
         accessorKey: "open_value",
         header: "Open pipeline",
@@ -88,9 +101,17 @@ export function OrganizationsPage() {
           addLabel="Add organization"
         />
       )}
-      <SidePanel title={editing === "new" ? "Add organization" : "Edit organization"} open={editing !== null} onClose={close}>
+      <SidePanel
+        title={editing === "new" ? "Add organization" : "Edit organization"}
+        open={editing !== null}
+        onClose={close}
+      >
         {editing !== null && (
-          <OrganizationForm organization={editing === "new" ? undefined : editing} onSaved={close} onCancel={close} />
+          <OrganizationForm
+            organization={editing === "new" ? undefined : editing}
+            onSaved={close}
+            onCancel={close}
+          />
         )}
       </SidePanel>
       {deleting && <DeleteRecord record={deleting} onClose={closeDelete} />}

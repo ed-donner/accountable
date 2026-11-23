@@ -6,13 +6,16 @@ from datetime import date
 
 os.environ["ACCOUNTABLE_TESTING"] = "1"
 os.environ["ACCOUNTABLE_TODAY"] = "2026-11-16"
-os.environ.setdefault("ACCOUNTABLE_DB", os.path.join(os.path.dirname(__file__), "..", "..", "data", "pytest-unused.db"))
+os.environ.setdefault(
+    "ACCOUNTABLE_DB",
+    os.path.join(os.path.dirname(__file__), "..", "..", "data", "pytest-unused.db"),
+)
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.db import engine_for, migrate  # noqa: E402
-from app.main import app  # noqa: E402
+from app.db import engine_for, migrate
+from app.main import app
 
 TODAY = date(2026, 11, 16)
 
@@ -47,7 +50,10 @@ def activity_exists(engine):
 
     def check(activity_id: int) -> bool:
         with engine.connect() as connection:
-            return connection.scalar(select(activities.c.id).where(activities.c.id == activity_id)) is not None
+            return (
+                connection.scalar(select(activities.c.id).where(activities.c.id == activity_id))
+                is not None
+            )
 
     return check
 
@@ -75,11 +81,21 @@ class Api:
         return self.ok("POST", "/api/contacts", 201, json={"name": name, **fields})
 
     def deal(self, organization_id, name="Big deal", value=1000, **fields):
-        body = {"name": name, "organization_id": organization_id, "value": value, **fields}
+        body = {
+            "name": name,
+            "organization_id": organization_id,
+            "value": value,
+            **fields,
+        }
         return self.ok("POST", "/api/deals", 201, json=body)
 
     def activity(self, description="Called them", type="call", occurred_on="2026-11-10", **fields):
-        body = {"type": type, "description": description, "occurred_on": occurred_on, **fields}
+        body = {
+            "type": type,
+            "description": description,
+            "occurred_on": occurred_on,
+            **fields,
+        }
         return self.ok("POST", "/api/activities", 201, json=body)
 
     def move(self, deal_id, stage, before_id=None, after_id=None):

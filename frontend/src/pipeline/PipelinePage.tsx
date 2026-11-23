@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   closestCenter,
@@ -27,7 +27,16 @@ import { LoadError, Loading } from "../shared/Loading";
 import { PageHeader } from "../shared/PageHeader";
 import { SidePanel } from "../shared/SidePanel";
 import { STAGES, stageLabel, type Stage } from "../shared/stages";
-import { boardTotals, buildColumns, isNoMove, matches, moveFrom, totals, withHiddenCards, type Columns } from "./board";
+import {
+  boardTotals,
+  buildColumns,
+  isNoMove,
+  matches,
+  moveFrom,
+  totals,
+  withHiddenCards,
+  type Columns,
+} from "./board";
 import { Column } from "./Column";
 import { DealCard } from "./DealCard";
 import { useMoveDeal } from "./hooks";
@@ -36,7 +45,9 @@ const isStage = (id: UniqueIdentifier): id is Stage => typeof id === "string";
 
 function columnOf(columns: Columns, id: UniqueIdentifier): Stage | null {
   if (isStage(id)) return id;
-  return (Object.keys(columns) as Stage[]).find((stage) => columns[stage].includes(id as number)) ?? null;
+  return (
+    (Object.keys(columns) as Stage[]).find((stage) => columns[stage].includes(id as number)) ?? null
+  );
 }
 
 /** P1 to P8: the deals as cards, one column per stage, moved by mouse or keyboard. */
@@ -96,8 +107,14 @@ export function PipelinePage() {
   );
 
   // The keyboard: left and right go to the top of the next column; up and down move within one.
-  const placeRef = useRef({ columns: null as Columns | null, activeId: null as number | null });
-  placeRef.current = { columns: dragColumns, activeId };
+  const placeRef = useRef({
+    columns: null as Columns | null,
+    activeId: null as number | null,
+  });
+  // Kept in step after each render, since the getter is handed to the sensor only once.
+  useLayoutEffect(() => {
+    placeRef.current = { columns: dragColumns, activeId };
+  }, [dragColumns, activeId]);
   const keyboardCoordinates: KeyboardCoordinateGetter = useCallback((event, args) => {
     const step = event.code === "ArrowRight" ? 1 : event.code === "ArrowLeft" ? -1 : 0;
     const { columns: current, activeId: id } = placeRef.current;
@@ -116,7 +133,11 @@ export function PipelinePage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: keyboardCoordinates,
-      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
+      keyboardCodes: {
+        start: ["Space"],
+        cancel: ["Escape"],
+        end: ["Space", "Enter"],
+      },
     }),
   );
 
@@ -198,7 +219,9 @@ export function PipelinePage() {
     <>
       <PageHeader
         title="Pipeline"
-        summary={query.data ? `${plural(openCount, "open deal")}. Drag a card to change its stage.` : " "}
+        summary={
+          query.data ? `${plural(openCount, "open deal")}. Drag a card to change its stage.` : " "
+        }
         action={
           <div className="board-sum" aria-label="Open pipeline totals">
             <div>
@@ -220,7 +243,12 @@ export function PipelinePage() {
         <label className="search-box">
           <Search size={16} aria-hidden="true" />
           <span className="sr-only">Search deals</span>
-          <input type="search" placeholder="Search deals" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input
+            type="search"
+            placeholder="Search deals"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </label>
         <button type="button" className="btn" onClick={() => setAdding("new")}>
           <Plus size={16} aria-hidden="true" />
@@ -243,16 +271,22 @@ export function PipelinePage() {
             announcements: {
               onDragStart: ({ active: a }) => `Picked up ${byId.get(a.id as number)?.name}.`,
               onDragOver: ({ active: a, over }) =>
-                over ? `${byId.get(a.id as number)?.name} is over ${dragColumns ? stageLabel(columnOf(dragColumns, over.id) ?? "new") : ""}.` : "",
+                over
+                  ? `${byId.get(a.id as number)?.name} is over ${dragColumns ? stageLabel(columnOf(dragColumns, over.id) ?? "new") : ""}.`
+                  : "",
               onDragEnd: ({ active: a, over }) =>
-                over ? `Dropped ${byId.get(a.id as number)?.name} in ${stageLabel(columnOf(columns, a.id) ?? "new")}.` : "Move cancelled.",
+                over
+                  ? `Dropped ${byId.get(a.id as number)?.name} in ${stageLabel(columnOf(columns, a.id) ?? "new")}.`
+                  : "Move cancelled.",
               onDragCancel: () => "Move cancelled.",
             },
           }}
         >
           <div className="board">
             {STAGES.map((stage) => {
-              const cards = columns[stage.key].map((id) => byId.get(id)).filter(Boolean) as DealRow[];
+              const cards = columns[stage.key]
+                .map((id) => byId.get(id))
+                .filter(Boolean) as DealRow[];
               const all = deals.filter((d) => d.stage === stage.key);
               return (
                 <Column
@@ -268,11 +302,15 @@ export function PipelinePage() {
               );
             })}
           </div>
-          <DragOverlay>{active ? <DealCard deal={active} className="overlay-card" /> : null}</DragOverlay>
+          <DragOverlay>
+            {active ? <DealCard deal={active} className="overlay-card" /> : null}
+          </DragOverlay>
         </DndContext>
       )}
       <SidePanel title="Add deal" open={adding !== null} onClose={closeAdd}>
-        {adding !== null && <DealForm preset={{ stage: adding }} onSaved={closeAdd} onCancel={closeAdd} />}
+        {adding !== null && (
+          <DealForm preset={{ stage: adding }} onSaved={closeAdd} onCancel={closeAdd} />
+        )}
       </SidePanel>
     </>
   );

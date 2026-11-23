@@ -41,3 +41,33 @@ export function fieldProps(id: string, error?: string) {
     "aria-describedby": error ? `${id}-error` : undefined,
   } as const;
 }
+
+/** The message for the whole form, such as a failed save, above its fields. */
+export function FormError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <div className="form-error" role="alert">
+      {message}
+    </div>
+  );
+}
+
+type FormActionsProps = {
+  submitLabel: string;
+  submitting: boolean;
+  onCancel?: () => void;
+};
+
+/** Save and Cancel at the foot of a form. */
+export function FormActions({ submitLabel, submitting, onCancel }: FormActionsProps) {
+  return (
+    <div className="form-actions">
+      <button type="submit" className="btn" disabled={submitting}>
+        {submitLabel}
+      </button>
+      <button type="button" className="btn ghost" onClick={onCancel}>
+        Cancel
+      </button>
+    </div>
+  );
+}

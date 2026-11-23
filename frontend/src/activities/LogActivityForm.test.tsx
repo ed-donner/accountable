@@ -9,7 +9,9 @@ import { LogActivityForm } from "./LogActivityForm";
 afterEach(() => vi.unstubAllGlobals());
 
 test("log an email with a follow-up using only the keyboard", async () => {
-  const calls = mockApi({ "POST /activities": { status: 201, body: { id: 1 } } });
+  const calls = mockApi({
+    "POST /activities": { status: 201, body: { id: 1 } },
+  });
   renderWithProviders(<LogActivityForm on={{ contactId: 7 }} />);
   const user = userEvent.setup();
 
@@ -56,21 +58,32 @@ test("description is required", async () => {
 
 // RV2 (TM02): the type reads as a labelled choice in both places the form appears.
 const entry: TimelineEntry = {
-  kind: "activity", id: 5, on: "2026-11-03", at: "2026-11-03T10:00:00", text: "Budget approved",
-  type: "note", description: "Budget approved", occurred_on: "2026-11-03", follow_up_on: null, done: false,
+  kind: "activity",
+  id: 5,
+  on: "2026-11-03",
+  at: "2026-11-03T10:00:00",
+  text: "Budget approved",
+  type: "note",
+  description: "Budget approved",
+  occurred_on: "2026-11-03",
+  follow_up_on: null,
+  done: false,
 };
 
 test.each([
   ["logging", () => <LogActivityForm on={{ contactId: 7 }} />, "call"],
   ["editing", () => <LogActivityForm entry={entry} />, "note"],
-] as const)("when %s, the type is a group labelled Type with the current one chosen", (_when, form, current) => {
-  renderWithProviders(form());
-  const group = screen.getByRole("radiogroup", { name: "Type" });
-  expect(screen.getByText("Type", { selector: ".label" })).toBeVisible();
-  const radios = within(group).getAllByRole("radio");
-  expect(radios.map((r) => r.getAttribute("value"))).toEqual(["call", "email", "note"]);
-  expect(within(group).getByRole("radio", { checked: true })).toHaveAttribute("value", current);
-});
+] as const)(
+  "when %s, the type is a group labelled Type with the current one chosen",
+  (_when, form, current) => {
+    renderWithProviders(form());
+    const group = screen.getByRole("radiogroup", { name: "Type" });
+    expect(screen.getByText("Type", { selector: ".label" })).toBeVisible();
+    const radios = within(group).getAllByRole("radio");
+    expect(radios.map((r) => r.getAttribute("value"))).toEqual(["call", "email", "note"]);
+    expect(within(group).getByRole("radio", { checked: true })).toHaveAttribute("value", current);
+  },
+);
 
 test("both forms on one page keep their own type: the edit panel doesn't change the log form", async () => {
   renderWithProviders(
@@ -102,13 +115,19 @@ test("clicking anywhere on a type chooses it, and arrows move through all three 
 });
 
 test("after logging, the next one starts with the type just used", async () => {
-  const calls = mockApi({ "POST /activities": { status: 201, body: { id: 1 } } });
+  const calls = mockApi({
+    "POST /activities": { status: 201, body: { id: 1 } },
+  });
   renderWithProviders(<LogActivityForm on={{ dealId: 3 }} />);
   const user = userEvent.setup();
   await user.click(screen.getByText("Note"));
   await user.type(screen.getByLabelText(/What happened/), "Left a note{Enter}");
   await waitFor(() => expect(calls).toHaveLength(1));
-  expect(calls[0].body).toMatchObject({ type: "note", deal_id: 3, contact_id: null });
+  expect(calls[0].body).toMatchObject({
+    type: "note",
+    deal_id: 3,
+    contact_id: null,
+  });
   await waitFor(() => expect(screen.getByLabelText(/What happened/)).toHaveValue(""));
   expect(screen.getByRole("radio", { name: "Note" })).toBeChecked();
 });
@@ -119,5 +138,9 @@ test("an edit saves the type that was chosen", async () => {
   await userEvent.click(screen.getByText("Email"));
   await userEvent.click(screen.getByRole("button", { name: "Save activity" }));
   await waitFor(() => expect(calls).toHaveLength(1));
-  expect(calls[0]).toMatchObject({ method: "PATCH", path: "/activities/5", body: { type: "email" } });
+  expect(calls[0]).toMatchObject({
+    method: "PATCH",
+    path: "/activities/5",
+    body: { type: "email" },
+  });
 });

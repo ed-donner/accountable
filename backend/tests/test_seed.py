@@ -1,6 +1,7 @@
 """TB37 to TB39: sample data."""
 
 from datetime import date, timedelta
+from itertools import pairwise
 
 import pytest
 from sqlalchemy import func, insert, select
@@ -40,7 +41,12 @@ def test_mix(seeded):
         assert len(set(conn.scalars(select(organizations.c.industry)))) >= 5
         late = count(conn, deals, deals.c.stage.in_(OPEN_STAGES), deals.c.close_date < TODAY)
         assert late >= 3
-        overdue = count(conn, activities, activities.c.done.is_(False), activities.c.follow_up_on < TODAY)
+        overdue = count(
+            conn,
+            activities,
+            activities.c.done.is_(False),
+            activities.c.follow_up_on < TODAY,
+        )
         assert overdue >= 3
         upcoming = count(
             conn,
@@ -52,13 +58,25 @@ def test_mix(seeded):
         assert upcoming >= 3
         assert count(conn, deals, deals.c.stage.in_(OPEN_STAGES), deals.c.close_date > TODAY) >= 5
         # Won and lost deals in most of the past 12 months.
-        won_months = {d.strftime("%Y-%m") for d in conn.scalars(select(deals.c.close_date).where(deals.c.stage == "won"))}
+        won_months = {
+            d.strftime("%Y-%m")
+            for d in conn.scalars(select(deals.c.close_date).where(deals.c.stage == "won"))
+        }
         assert len(won_months) >= 9
         assert count(conn, deals, deals.c.stage == "lost") >= 3
 
 
 def test_names_are_invented(seeded):
-    real = {"google", "microsoft", "apple", "amazon", "salesforce", "oracle", "ibm", "walmart"}
+    real = {
+        "google",
+        "microsoft",
+        "apple",
+        "amazon",
+        "salesforce",
+        "oracle",
+        "ibm",
+        "walmart",
+    }
     with seeded.connect() as conn:
         names = " ".join(conn.scalars(select(organizations.c.name))).lower()
         websites = list(conn.scalars(select(organizations.c.website)))
@@ -69,7 +87,9 @@ def test_names_are_invented(seeded):
 def test_everything_happened_in_the_past_year(seeded):
     with seeded.connect() as conn:
         dates = list(conn.scalars(select(activities.c.occurred_on)))
-        closed = list(conn.scalars(select(deals.c.close_date).where(deals.c.stage.in_(["won", "lost"]))))
+        closed = list(
+            conn.scalars(select(deals.c.close_date).where(deals.c.stage.in_(["won", "lost"])))
+        )
     assert min(dates) >= TODAY - timedelta(days=365)
     assert max(dates) <= TODAY
     assert max(closed) <= TODAY
@@ -78,7 +98,9 @@ def test_everything_happened_in_the_past_year(seeded):
 def test_deal_activities_happen_while_the_deal_exists(seeded):
     with seeded.connect() as conn:
         rows = conn.execute(
-            select(activities.c.occurred_on, deals.c.created_at).join(deals, deals.c.id == activities.c.deal_id)
+            select(activities.c.occurred_on, deals.c.created_at).join(
+                deals, deals.c.id == activities.c.deal_id
+            )
         ).all()
     assert all(occurred >= created.date() for occurred, created in rows)
 
@@ -94,22 +116,30 @@ def test_stage_history_leads_to_current_stage(seeded):
             ).all()
             assert history[0] == (None, "new")
             assert history[-1].to_stage == stage
-            for before, after in zip(history, history[1:]):
+            for before, after in pairwise(history):
                 assert after.from_stage == before.to_stage
 
 
 def snapshot(engine):
     with engine.connect() as conn:
         return {
-            "orgs": conn.execute(select(organizations.c.name, organizations.c.industry).order_by(organizations.c.id)).all(),
-            "contacts": conn.execute(select(contacts.c.name, contacts.c.status).order_by(contacts.c.id)).all(),
+            "orgs": conn.execute(
+                select(organizations.c.name, organizations.c.industry).order_by(organizations.c.id)
+            ).all(),
+            "contacts": conn.execute(
+                select(contacts.c.name, contacts.c.status).order_by(contacts.c.id)
+            ).all(),
             "deals": conn.execute(
-                select(deals.c.name, deals.c.stage, deals.c.value, deals.c.close_date).order_by(deals.c.id)
+                select(deals.c.name, deals.c.stage, deals.c.value, deals.c.close_date).order_by(
+                    deals.c.id
+                )
             ).all(),
             "activities": conn.execute(
-                select(activities.c.description, activities.c.occurred_on, activities.c.follow_up_on).order_by(
-                    activities.c.id
-                )
+                select(
+                    activities.c.description,
+                    activities.c.occurred_on,
+                    activities.c.follow_up_on,
+                ).order_by(activities.c.id)
             ).all(),
         }
 
@@ -126,7 +156,9 @@ def test_dates_relative_to_today(engine):
     seed(engine, later)
     with engine.connect() as conn:
         assert conn.scalar(select(func.max(activities.c.occurred_on))) <= later
-        assert conn.scalar(select(func.min(activities.c.occurred_on))) >= later - timedelta(days=365)
+        assert conn.scalar(select(func.min(activities.c.occurred_on))) >= later - timedelta(
+            days=365
+        )
         late = count(conn, deals, deals.c.stage.in_(OPEN_STAGES), deals.c.close_date < later)
         assert late >= 3
 

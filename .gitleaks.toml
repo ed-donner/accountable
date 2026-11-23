@@ -1,0 +1,14 @@
+# Scans the working tree. Git-ignored folders hold installed packages, build
+# output and local data; .env is git-ignored and is where local secrets belong.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Git-ignored files"
+paths = [
+  '''(^|/)\.env$''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)\.git/''',
+  '''(^|/)(dist|coverage|htmlcov|test-results|playwright-report|data|\.pytest_cache|\.ruff_cache)/''',
+]

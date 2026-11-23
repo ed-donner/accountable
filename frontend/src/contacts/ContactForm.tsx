@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Field, fieldProps } from "../shared/Field";
-import { ListRetry } from "../shared/ListRetry";
+import { Field, FormActions, FormError, fieldProps } from "../shared/Field";
 import { Loading } from "../shared/Loading";
-import { applyServerErrors } from "../shared/forms";
+import { applyServerErrors, errorMessages } from "../shared/forms";
 import { STATUSES } from "../shared/stages";
 import { useToast } from "../shared/Toast";
 import { contactSchema, idOrNull, orNull, type ContactValues } from "../shared/validation";
 import { useOrganizations } from "../organizations/hooks";
+import { OrganizationSelect } from "../organizations/OrganizationSelect";
 import { useSaveContact, type Contact } from "./hooks";
 
 type Props = {
@@ -20,6 +20,28 @@ type Props = {
 };
 
 const FIELDS = ["name", "email", "phone", "job_title", "organization_id", "status"] as const;
+
+function contactDefaults(contact?: Contact, organizationId?: number): ContactValues {
+  return {
+    name: contact?.name ?? "",
+    email: contact?.email ?? "",
+    phone: contact?.phone ?? "",
+    job_title: contact?.job_title ?? "",
+    organization_id: String(contact?.organization_id ?? organizationId ?? ""),
+    status: contact?.status ?? "lead",
+  };
+}
+
+function contactBody(values: ContactValues) {
+  return {
+    name: values.name.trim(),
+    email: orNull(values.email),
+    phone: orNull(values.phone),
+    job_title: orNull(values.job_title),
+    organization_id: idOrNull(values.organization_id),
+    status: values.status,
+  };
+}
 
 function ContactFormFields({ contact, organizationId, onSaved, onCancel }: Props) {
   const toast = useToast();
@@ -35,30 +57,14 @@ function ContactFormFields({ contact, organizationId, onSaved, onCancel }: Props
     formState: { errors, isSubmitting },
   } = useForm<ContactValues>({
     resolver: zodResolver(contactSchema),
-    defaultValues: {
-      name: contact?.name ?? "",
-      email: contact?.email ?? "",
-      phone: contact?.phone ?? "",
-      job_title: contact?.job_title ?? "",
-      organization_id: String(contact?.organization_id ?? organizationId ?? ""),
-      status: contact?.status ?? "lead",
-    },
+    defaultValues: contactDefaults(contact, organizationId),
   });
+  const errorOf = errorMessages(errors);
 
   const onSubmit = async (values: ContactValues) => {
     setFormError(null);
     try {
-      const saved = await save.mutateAsync({
-        id: contact?.id,
-        body: {
-          name: values.name.trim(),
-          email: orNull(values.email),
-          phone: orNull(values.phone),
-          job_title: orNull(values.job_title),
-          organization_id: idOrNull(values.organization_id),
-          status: values.status,
-        },
-      });
+      const saved = await save.mutateAsync({ id: contact?.id, body: contactBody(values) });
       toast.success(contact ? `Saved ${saved.name}.` : `Added ${saved.name}.`);
       onSaved(saved);
     } catch (error) {
@@ -72,43 +78,49 @@ function ContactFormFields({ contact, organizationId, onSaved, onCancel }: Props
     setValue("organization_id", getValues("organization_id"));
   }, [orgCount, getValues, setValue]);
 
-  const orgs = [...(organizations.data?.items ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      {formError && (
-        <div className="form-error" role="alert">
-          {formError}
-        </div>
-      )}
-      <Field id="contact-name" label="Name" required error={errors.name?.message}>
-        <input {...fieldProps("contact-name", errors.name?.message)} {...register("name")} autoComplete="off" autoFocus />
+      <FormError message={formError} />
+      <Field id="contact-name" label="Name" required error={errorOf("name")}>
+        <input
+          {...fieldProps("contact-name", errorOf("name"))}
+          {...register("name")}
+          autoComplete="off"
+        />
       </Field>
-      <Field id="contact-organization" label="Organization" error={errors.organization_id?.message}>
-        <select {...fieldProps("contact-organization", errors.organization_id?.message)} {...register("organization_id")}>
-          <option value="">No organization</option>
-          {orgs.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-        {organizations.isError && (
-          <ListRetry what="organizations" onRetry={() => organizations.refetch()} retrying={organizations.isFetching} />
-        )}
-      </Field>
-      <Field id="contact-job-title" label="Job title" error={errors.job_title?.message}>
-        <input {...fieldProps("contact-job-title", errors.job_title?.message)} {...register("job_title")} autoComplete="off" />
+      <OrganizationSelect
+        id="contact-organization"
+        registration={register("organization_id")}
+        error={errorOf("organization_id")}
+        emptyLabel="No organization"
+      />
+      <Field id="contact-job-title" label="Job title" error={errorOf("job_title")}>
+        <input
+          {...fieldProps("contact-job-title", errorOf("job_title"))}
+          {...register("job_title")}
+          autoComplete="off"
+        />
       </Field>
       <div className="row-2">
-        <Field id="contact-email" label="Email" error={errors.email?.message}>
-          <input type="email" {...fieldProps("contact-email", errors.email?.message)} {...register("email")} autoComplete="off" />
+        <Field id="contact-email" label="Email" error={errorOf("email")}>
+          <input
+            type="email"
+            {...fieldProps("contact-email", errorOf("email"))}
+            {...register("email")}
+            autoComplete="off"
+          />
         </Field>
-        <Field id="contact-phone" label="Phone" error={errors.phone?.message}>
-          <input type="tel" {...fieldProps("contact-phone", errors.phone?.message)} {...register("phone")} autoComplete="off" />
+        <Field id="contact-phone" label="Phone" error={errorOf("phone")}>
+          <input
+            type="tel"
+            {...fieldProps("contact-phone", errorOf("phone"))}
+            {...register("phone")}
+            autoComplete="off"
+          />
         </Field>
       </div>
-      <Field id="contact-status" label="Status" required error={errors.status?.message}>
-        <select {...fieldProps("contact-status", errors.status?.message)} {...register("status")}>
+      <Field id="contact-status" label="Status" required error={errorOf("status")}>
+        <select {...fieldProps("contact-status", errorOf("status"))} {...register("status")}>
           {STATUSES.map((s) => (
             <option key={s.key} value={s.key}>
               {s.label}
@@ -116,14 +128,11 @@ function ContactFormFields({ contact, organizationId, onSaved, onCancel }: Props
           ))}
         </select>
       </Field>
-      <div className="form-actions">
-        <button type="submit" className="btn" disabled={isSubmitting}>
-          {contact ? "Save contact" : "Add contact"}
-        </button>
-        <button type="button" className="btn ghost" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
+      <FormActions
+        submitLabel={contact ? "Save contact" : "Add contact"}
+        submitting={isSubmitting}
+        onCancel={onCancel}
+      />
     </form>
   );
 }

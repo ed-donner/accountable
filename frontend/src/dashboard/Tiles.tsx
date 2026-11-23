@@ -4,13 +4,29 @@ import type { ReactNode } from "react";
 import { money, monthLabel, plural } from "../shared/format";
 import type { Dashboard } from "./hooks";
 
-function Tile({ to, label, icon, value, note, alert, anchor }: {
-  to: string; label: string; icon: ReactNode; value: string; note: string; alert?: boolean; anchor?: boolean;
+function Tile({
+  to,
+  label,
+  icon,
+  value,
+  note,
+  alert,
+  anchor,
+}: {
+  to: string;
+  label: string;
+  icon: ReactNode;
+  value: string;
+  note: string;
+  alert?: boolean;
+  anchor?: boolean;
 }) {
   const body = (
     <>
       <div className="tile-label">
-        <span className="tile-icon" aria-hidden="true">{icon}</span>
+        <span className="tile-icon" aria-hidden="true">
+          {icon}
+        </span>
         {label}
       </div>
       <div className="tile-value">{value}</div>
@@ -19,9 +35,13 @@ function Tile({ to, label, icon, value, note, alert, anchor }: {
   );
   const className = `tile${alert ? " alert" : ""}`;
   return anchor ? (
-    <a className={className} href={to} aria-label={`${label}: ${value}`}>{body}</a>
+    <a className={className} href={to} aria-label={`${label}: ${value}`}>
+      {body}
+    </a>
   ) : (
-    <Link className={className} to={to} aria-label={`${label}: ${value}`}>{body}</Link>
+    <Link className={className} to={to} aria-label={`${label}: ${value}`}>
+      {body}
+    </Link>
   );
 }
 
@@ -41,8 +61,20 @@ export function Tiles({ data }: { data: Dashboard }) {
   const comparison = comparedWithLastMonth(data.months);
   return (
     <section className="tiles" aria-label="Headline figures">
-      <Tile to="/pipeline" label="Open pipeline" icon={<SquareKanban size={16} />} value={money(h.open_value)} note={plural(h.open_count, "open deal")} />
-      <Tile to="/pipeline" label="Expected revenue" icon={<DollarSign size={16} />} value={money(h.expected_revenue)} note="Value times probability" />
+      <Tile
+        to="/pipeline"
+        label="Open pipeline"
+        icon={<SquareKanban size={16} />}
+        value={money(h.open_value)}
+        note={plural(h.open_count, "open deal")}
+      />
+      <Tile
+        to="/pipeline"
+        label="Expected revenue"
+        icon={<DollarSign size={16} />}
+        value={money(h.expected_revenue)}
+        note="Value times probability"
+      />
       <Tile
         to="/deals?stage=won"
         label="Won this month"
@@ -57,7 +89,11 @@ export function Tiles({ data }: { data: Dashboard }) {
         label="Follow-ups due"
         icon={<Phone size={16} />}
         value={String(h.follow_ups_due)}
-        note={h.follow_ups_due ? `${h.follow_ups_overdue} overdue, ${dueToday} due today` : "Nothing due today"}
+        note={
+          h.follow_ups_due
+            ? `${h.follow_ups_overdue} overdue, ${dueToday} due today`
+            : "Nothing due today"
+        }
       />
     </section>
   );

@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
-import { DataTable } from "../shared/DataTable";
+import { DataTable, type TableColumn } from "../shared/DataTable";
 import { DeleteRecord, type Deletable } from "../shared/DeleteRecord";
 import { formatDate, plural } from "../shared/format";
 import { LoadError, Loading } from "../shared/Loading";
@@ -26,7 +25,7 @@ export function ContactsPage() {
   const close = useCallback(() => setEditing(null), []);
   const closeDelete = useCallback(() => setDeleting(null), []);
 
-  const columns = useMemo<ColumnDef<ContactRow, any>[]>(
+  const columns = useMemo<TableColumn<ContactRow>[]>(
     () => [
       {
         accessorKey: "name",
@@ -38,11 +37,28 @@ export function ContactsPage() {
           </Link>
         ),
       },
-      { accessorKey: "organization_name", header: "Organization", enableGlobalFilter: true },
-      { accessorKey: "job_title", header: "Job title", enableGlobalFilter: true },
+      {
+        accessorKey: "organization_name",
+        header: "Organization",
+        enableGlobalFilter: true,
+      },
+      {
+        accessorKey: "job_title",
+        header: "Job title",
+        enableGlobalFilter: true,
+      },
       { accessorKey: "email", header: "Email", enableGlobalFilter: true },
-      { accessorKey: "phone", header: "Phone", enableGlobalFilter: true, cell: ({ getValue }) => <span className="mono">{getValue<string>()}</span> },
-      { accessorKey: "status", header: "Status", cell: ({ getValue }) => <StatusBadge status={getValue<Status>()} /> },
+      {
+        accessorKey: "phone",
+        header: "Phone",
+        enableGlobalFilter: true,
+        cell: ({ getValue }) => <span className="mono">{getValue<string>()}</span>,
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ getValue }) => <StatusBadge status={getValue<Status>()} />,
+      },
       {
         accessorKey: "last_activity_on",
         header: "Last activity",
@@ -74,7 +90,11 @@ export function ContactsPage() {
     <>
       <PageHeader
         title="Contacts"
-        summary={counts ? `${plural(counts.all, "contact")}: ${counts.lead} leads, ${counts.qualified} qualified, ${counts.customer} customers` : " "}
+        summary={
+          counts
+            ? `${plural(counts.all, "contact")}: ${counts.lead} leads, ${counts.qualified} qualified, ${counts.customer} customers`
+            : " "
+        }
         action={
           <button type="button" className="btn" onClick={() => setEditing("new")}>
             <Plus size={16} aria-hidden="true" />
@@ -100,11 +120,25 @@ export function ContactsPage() {
           onAdd={() => setEditing("new")}
           addLabel="Add contact"
           filters={filters}
-          emptyMessage={status ? `No ${STATUSES.find((s) => s.key === status)!.label.toLowerCase()} contacts yet.` : undefined}
+          emptyMessage={
+            status
+              ? `No ${STATUSES.find((s) => s.key === status)!.label.toLowerCase()} contacts yet.`
+              : undefined
+          }
         />
       )}
-      <SidePanel title={editing === "new" ? "Add contact" : "Edit contact"} open={editing !== null} onClose={close}>
-        {editing !== null && <ContactForm contact={editing === "new" ? undefined : editing} onSaved={close} onCancel={close} />}
+      <SidePanel
+        title={editing === "new" ? "Add contact" : "Edit contact"}
+        open={editing !== null}
+        onClose={close}
+      >
+        {editing !== null && (
+          <ContactForm
+            contact={editing === "new" ? undefined : editing}
+            onSaved={close}
+            onCancel={close}
+          />
+        )}
       </SidePanel>
       {deleting && <DeleteRecord record={deleting} onClose={closeDelete} />}
     </>

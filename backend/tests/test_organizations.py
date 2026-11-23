@@ -53,9 +53,17 @@ def test_list_has_counts_and_open_value(api):
     listing = api.ok("GET", "/api/organizations")
     assert listing["total"] == 2
     row = next(item for item in listing["items"] if item["id"] == org["id"])
-    assert (row["contact_count"], row["open_deal_count"], row["open_value"]) == (2, 2, 3500)
+    assert (row["contact_count"], row["open_deal_count"], row["open_value"]) == (
+        2,
+        2,
+        3500,
+    )
     empty = next(item for item in listing["items"] if item["name"] == "Empty Co")
-    assert (empty["contact_count"], empty["open_deal_count"], empty["open_value"]) == (0, 0, 0)
+    assert (empty["contact_count"], empty["open_deal_count"], empty["open_value"]) == (
+        0,
+        0,
+        0,
+    )
 
 
 def test_list_takes_limit_and_offset(api):

@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Field, fieldProps } from "../shared/Field";
-import { applyServerErrors } from "../shared/forms";
+import { Field, FormActions, FormError, fieldProps } from "../shared/Field";
+import { applyServerErrors, errorMessages } from "../shared/forms";
 import { useToast } from "../shared/Toast";
 import { orNull, organizationSchema, type OrganizationValues } from "../shared/validation";
 import { useOrganizations, useSaveOrganization, type Organization } from "./hooks";
@@ -15,10 +15,37 @@ type Props = {
 
 const FIELDS = ["name", "website", "industry", "notes"] as const;
 
+function organizationDefaults(organization?: Organization): OrganizationValues {
+  return {
+    name: organization?.name ?? "",
+    website: organization?.website ?? "",
+    industry: organization?.industry ?? "",
+    notes: organization?.notes ?? "",
+  };
+}
+
+function organizationBody(values: OrganizationValues) {
+  return {
+    name: values.name.trim(),
+    website: orNull(values.website),
+    industry: orNull(values.industry),
+    notes: orNull(values.notes),
+  };
+}
+
+/** Industry is free text, with the ones already in use offered as suggestions. */
+function useIndustries() {
+  const all = useOrganizations();
+  return useMemo(() => {
+    const used = (all.data?.items ?? []).map((o) => o.industry).filter(Boolean) as string[];
+    return [...new Set(used)].sort();
+  }, [all.data]);
+}
+
 export function OrganizationForm({ organization, onSaved, onCancel }: Props) {
   const toast = useToast();
   const save = useSaveOrganization();
-  const all = useOrganizations();
+  const industries = useIndustries();
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -27,31 +54,16 @@ export function OrganizationForm({ organization, onSaved, onCancel }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<OrganizationValues>({
     resolver: zodResolver(organizationSchema),
-    defaultValues: {
-      name: organization?.name ?? "",
-      website: organization?.website ?? "",
-      industry: organization?.industry ?? "",
-      notes: organization?.notes ?? "",
-    },
+    defaultValues: organizationDefaults(organization),
   });
-
-  // Industry is free text, with the ones already in use offered as suggestions.
-  const industries = useMemo(
-    () => [...new Set((all.data?.items ?? []).map((o) => o.industry).filter(Boolean) as string[])].sort(),
-    [all.data],
-  );
+  const errorOf = errorMessages(errors);
 
   const onSubmit = async (values: OrganizationValues) => {
     setFormError(null);
     try {
       const saved = await save.mutateAsync({
         id: organization?.id,
-        body: {
-          name: values.name.trim(),
-          website: orNull(values.website),
-          industry: orNull(values.industry),
-          notes: orNull(values.notes),
-        },
+        body: organizationBody(values),
       });
       toast.success(organization ? `Saved ${saved.name}.` : `Added ${saved.name}.`);
       onSaved(saved);
@@ -62,20 +74,29 @@ export function OrganizationForm({ organization, onSaved, onCancel }: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      {formError && (
-        <div className="form-error" role="alert">
-          {formError}
-        </div>
-      )}
-      <Field id="org-name" label="Name" required error={errors.name?.message}>
-        <input {...fieldProps("org-name", errors.name?.message)} {...register("name")} autoComplete="off" autoFocus />
-      </Field>
-      <Field id="org-website" label="Website" error={errors.website?.message} hint="For example acme.com">
-        <input {...fieldProps("org-website", errors.website?.message)} {...register("website")} autoComplete="off" />
-      </Field>
-      <Field id="org-industry" label="Industry" error={errors.industry?.message}>
+      <FormError message={formError} />
+      <Field id="org-name" label="Name" required error={errorOf("name")}>
         <input
-          {...fieldProps("org-industry", errors.industry?.message)}
+          {...fieldProps("org-name", errorOf("name"))}
+          {...register("name")}
+          autoComplete="off"
+        />
+      </Field>
+      <Field
+        id="org-website"
+        label="Website"
+        error={errorOf("website")}
+        hint="For example acme.com"
+      >
+        <input
+          {...fieldProps("org-website", errorOf("website"))}
+          {...register("website")}
+          autoComplete="off"
+        />
+      </Field>
+      <Field id="org-industry" label="Industry" error={errorOf("industry")}>
+        <input
+          {...fieldProps("org-industry", errorOf("industry"))}
           {...register("industry")}
           list="industry-options"
           autoComplete="off"
@@ -86,17 +107,14 @@ export function OrganizationForm({ organization, onSaved, onCancel }: Props) {
           ))}
         </datalist>
       </Field>
-      <Field id="org-notes" label="Notes" error={errors.notes?.message}>
-        <textarea {...fieldProps("org-notes", errors.notes?.message)} {...register("notes")} />
+      <Field id="org-notes" label="Notes" error={errorOf("notes")}>
+        <textarea {...fieldProps("org-notes", errorOf("notes"))} {...register("notes")} />
       </Field>
-      <div className="form-actions">
-        <button type="submit" className="btn" disabled={isSubmitting}>
-          {organization ? "Save organization" : "Add organization"}
-        </button>
-        <button type="button" className="btn ghost" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
+      <FormActions
+        submitLabel={organization ? "Save organization" : "Add organization"}
+        submitting={isSubmitting}
+        onCancel={onCancel}
+      />
     </form>
   );
 }

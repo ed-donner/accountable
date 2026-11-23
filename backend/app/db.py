@@ -3,17 +3,18 @@
 Every schema change also needs an Alembic migration in backend/migrations/versions.
 """
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 from sqlalchemy import (
     Boolean,
-    Connection,
     CheckConstraint,
     Column,
+    ColumnElement,
+    Connection,
     Date,
     DateTime,
     Engine,
@@ -27,6 +28,9 @@ from sqlalchemy import (
     Text,
     create_engine,
     event,
+    func,
+    insert,
+    select,
 )
 
 metadata = MetaData()
@@ -35,7 +39,13 @@ metadata = MetaData()
 def _timestamps() -> list[Column]:
     return [
         Column("created_at", DateTime, nullable=False, default=datetime.now),
-        Column("updated_at", DateTime, nullable=False, default=datetime.now, onupdate=datetime.now),
+        Column(
+            "updated_at",
+            DateTime,
+            nullable=False,
+            default=datetime.now,
+            onupdate=datetime.now,
+        ),
     ]
 
 
@@ -79,7 +89,12 @@ deals = Table(
         ForeignKey("organizations.id", ondelete="SET NULL"),
         index=True,
     ),
-    Column("contact_id", Integer, ForeignKey("contacts.id", ondelete="SET NULL"), index=True),
+    Column(
+        "contact_id",
+        Integer,
+        ForeignKey("contacts.id", ondelete="SET NULL"),
+        index=True,
+    ),
     Column("stage", String, nullable=False, default="new"),
     Column("value", Integer, nullable=False, default=0),
     Column("probability", Integer, nullable=False),
@@ -101,9 +116,7 @@ activities = Table(
     Column("follow_up_on", Date),
     Column("done", Boolean, nullable=False, default=False),
     *_timestamps(),
-    CheckConstraint(
-        "(contact_id IS NULL) <> (deal_id IS NULL)", name="ck_activities_one_parent"
-    ),
+    CheckConstraint("(contact_id IS NULL) <> (deal_id IS NULL)", name="ck_activities_one_parent"),
     Index("ix_activities_follow_up", "follow_up_on", "done"),
     Index("ix_activities_occurred_on", "occurred_on"),
 )
@@ -112,12 +125,27 @@ stage_changes = Table(
     "stage_changes",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("deal_id", Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column(
+        "deal_id",
+        Integer,
+        ForeignKey("deals.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
     Column("from_stage", String),
     Column("to_stage", String, nullable=False),
     Column("changed_at", DateTime, nullable=False),
     *_timestamps(),
 )
+
+
+def insert_row(conn: Connection, table: Table, **values) -> int:
+    """Adds a row and returns its new id."""
+    return conn.execute(insert(table).values(**values).returning(table.c.id)).scalar_one()
+
+
+def count_rows(conn: Connection, table: Table, *where: ColumnElement[bool]) -> int:
+    return conn.execute(select(func.count()).select_from(table).where(*where)).scalar_one()
 
 
 def _on_connect(dbapi_conn, _record) -> None:
@@ -138,13 +166,13 @@ def make_engine(path: Path) -> Engine:
     return engine
 
 
-@lru_cache(maxsize=None)
+@cache
 def engine_for(path: Path) -> Engine:
     return make_engine(path)
 
 
 @contextmanager
-def foreign_keys_off(engine: Engine) -> Iterator[Connection]:
+def foreign_keys_off(engine: Engine) -> Generator[Connection]:
     """A connection with foreign keys off, for migrations (RV6).
 
     Alembic's batch mode rebuilds a SQLite table by dropping the old one. With
@@ -161,7 +189,9 @@ def foreign_keys_off(engine: Engine) -> Iterator[Connection]:
             yield conn
             broken = conn.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
             if broken:
-                raise RuntimeError(f"A migration left {len(broken)} broken links, for example {broken[0]}.")
+                raise RuntimeError(
+                    f"A migration left {len(broken)} broken links, for example {broken[0]}."
+                )
         finally:
             conn.rollback()
             conn.exec_driver_sql("PRAGMA foreign_keys=ON")

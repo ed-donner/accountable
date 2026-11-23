@@ -32,15 +32,23 @@ export function useMoveDeal() {
       await client.cancelQueries({ queryKey: BOARD_KEY });
       const previous = client.getQueryData<DealList>(BOARD_KEY);
       if (previous) {
-        client.setQueryData<DealList>(BOARD_KEY, { ...previous, items: applyMove(previous.items, move, localToday()) });
+        client.setQueryData<DealList>(BOARD_KEY, {
+          ...previous,
+          items: applyMove(previous.items, move, localToday()),
+        });
       }
       return { previous };
     },
     onError: (error, move, context) => {
       const original = context?.previous?.items.find((d) => d.id === move.id);
       if (original) {
-        client.setQueryData<DealList>(BOARD_KEY, (current) =>
-          current && { ...current, items: current.items.map((d) => (d.id === move.id ? original : d)) },
+        client.setQueryData<DealList>(
+          BOARD_KEY,
+          (current) =>
+            current && {
+              ...current,
+              items: current.items.map((d) => (d.id === move.id ? original : d)),
+            },
         );
       }
       toast.error(failureMessage(`move ${original?.name ?? "the deal"}`, error));

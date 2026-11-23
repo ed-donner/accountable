@@ -4,15 +4,26 @@ Run `npm run seed` (or `uv run python -m app.seed`) to delete everything and loa
 """
 
 import random
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
+from typing import Any
 
 from faker import Faker
-from sqlalchemy import Engine, delete, insert
+from sqlalchemy import Connection, Engine, delete, insert
 
 from app import config
-from app.db import activities, contacts, deals, engine_for, migrate, organizations, stage_changes
-from app.rules import OPEN_STAGES, usual_probability
+from app.db import (
+    activities,
+    contacts,
+    deals,
+    engine_for,
+    insert_row,
+    migrate,
+    organizations,
+    stage_changes,
+)
+from app.rules import OPEN_STAGES, Stage, usual_probability
 
 SEED = 2026
 
@@ -95,7 +106,7 @@ N_CONTACTS = 40
 N_ACTIVITIES = 120
 WON_MONTHS_AGO = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 LOST_MONTHS_AGO = [1, 3, 5, 7, 9]
-OPEN_MIX = {"new": 3, "qualified": 4, "proposal": 4, "negotiation": 3}
+OPEN_MIX: dict[Stage, int] = {"new": 3, "qualified": 4, "proposal": 4, "negotiation": 3}
 LATE_PER_STAGE = {"qualified": 2, "proposal": 1, "negotiation": 1}
 
 
@@ -117,9 +128,287 @@ def _at(day: date, rng: random.Random) -> datetime:
     return datetime.combine(day, time(rng.randint(8, 17), rng.randint(0, 59)))
 
 
-def _clear(conn) -> None:
+def _clear(conn: Connection) -> None:
     for table in (activities, stage_changes, deals, contacts, organizations):
         conn.execute(delete(table))
+
+
+@dataclass
+class _Org:
+    id: int
+    short: str
+    domain: str
+
+
+@dataclass
+class _DealSpan:
+    """When a deal was open, so its activities can fall inside that time."""
+
+    deal_id: int
+    start: date
+    end: date
+
+
+def _add_organizations(
+    conn: Connection, rng: random.Random, fake: Faker, year_ago: date
+) -> list[_Org]:
+    """Organizations, across every industry."""
+    orgs: list[_Org] = []
+    industries = list(INDUSTRIES)
+    for i in range(N_ORGS):
+        industry = industries[i % len(industries)]
+        short = fake.unique.last_name()
+        name = f"{short} {rng.choice(INDUSTRIES[industry])}"
+        domain = "".join(ch for ch in name.lower() if ch.isalnum()) + ".example.com"
+        created = _at(year_ago + timedelta(days=rng.randint(0, 60)), rng)
+        org_id = insert_row(
+            conn,
+            organizations,
+            name=name,
+            website=f"https://{domain}",
+            industry=industry,
+            notes=rng.choice(NOTES),
+            created_at=created,
+            updated_at=created,
+        )
+        orgs.append(_Org(org_id, short, domain))
+    return orgs
+
+
+def _contact_row(
+    rng: random.Random, fake: Faker, year_ago: date, org: _Org | None
+) -> dict[str, Any]:
+    first, last = fake.unique.first_name(), fake.last_name()
+    domain = org.domain if org else "example.net"
+    created = _at(year_ago + timedelta(days=rng.randint(0, 200)), rng)
+    return {
+        "name": f"{first} {last}",
+        "email": f"{first.lower()}.{last.lower()}@{domain}",
+        "phone": fake.numerify("(###) 555-####"),
+        "job_title": rng.choice(JOB_TITLES),
+        "organization_id": org.id if org else None,
+        "status": rng.choice(["lead", "lead", "qualified"]),
+        "created_at": created,
+        "updated_at": created,
+    }
+
+
+def _add_contacts(
+    conn: Connection, rng: random.Random, fake: Faker, year_ago: date, orgs: list[_Org]
+) -> tuple[list[int], dict[int, list[int]]]:
+    """Contacts, mostly at an organization. Returns their ids, and the ids at each organization."""
+    rows = [
+        _contact_row(rng, fake, year_ago, orgs[i % N_ORGS] if i < N_CONTACTS - 3 else None)
+        for i in range(N_CONTACTS)
+    ]
+    contact_ids = [insert_row(conn, contacts, **row) for row in rows]
+    contacts_by_org: dict[int, list[int]] = {}
+    for contact_id, row in zip(contact_ids, rows, strict=True):
+        if row["organization_id"]:
+            contacts_by_org.setdefault(row["organization_id"], []).append(contact_id)
+    return contact_ids, contacts_by_org
+
+
+def _deal_plans(rng: random.Random, today: date) -> list[tuple[Stage, date]]:
+    """Each deal's stage and close date: closed ones over the past year, open ones
+    ahead, a few running late."""
+    plans: list[tuple[Stage, date]] = []
+    for months_ago in WON_MONTHS_AGO:
+        plans.append(("won", _day_in_month(rng, today, months_ago)))
+    for months_ago in LOST_MONTHS_AGO:
+        plans.append(("lost", _day_in_month(rng, today, months_ago)))
+    for stage, count in OPEN_MIX.items():
+        for n in range(count):
+            if n < LATE_PER_STAGE.get(stage, 0):
+                close = today - timedelta(days=rng.randint(3, 40))
+            else:
+                close = today + timedelta(days=rng.randint(10, 120))
+            plans.append((stage, close))
+    return plans
+
+
+def _stage_path(rng: random.Random, stage: Stage) -> list[Stage]:
+    """The stages a deal went through to reach `stage` (S3)."""
+    if stage == "lost":
+        reached = rng.randint(0, 3)
+        return [*OPEN_STAGES[: reached + 1], "lost"]
+    if stage == "won":
+        return [*OPEN_STAGES, "won"]
+    return OPEN_STAGES[: OPEN_STAGES.index(stage) + 1]
+
+
+def _probability(rng: random.Random, stage: Stage) -> int:
+    probability = usual_probability(stage)
+    if stage in ("proposal", "negotiation") and rng.random() < 0.25:
+        probability = min(95, probability + 10)  # set by hand
+    return probability
+
+
+def _add_stage_history(
+    conn: Connection,
+    rng: random.Random,
+    deal_id: int,
+    path: list[Stage],
+    created_at: datetime,
+    span: _DealSpan,
+    closed: bool,
+) -> None:
+    """One stage change per step of the path, spread across the deal's open time."""
+    days = max(1, (span.end - span.start).days)
+    for step, to_stage in enumerate(path):
+        if step == 0:
+            when = created_at
+        elif step == len(path) - 1 and closed:
+            when = _at(span.end, rng)
+        else:
+            when = _at(span.start + timedelta(days=round(days * step / len(path))), rng)
+        conn.execute(
+            insert(stage_changes).values(
+                deal_id=deal_id,
+                from_stage=path[step - 1] if step else None,
+                to_stage=to_stage,
+                changed_at=when,
+                created_at=when,
+                updated_at=when,
+            )
+        )
+
+
+def _deal_name(org: _Org, i: int) -> str:
+    return f"{org.short} {DEAL_NAMES[(i + i // len(DEAL_NAMES)) % len(DEAL_NAMES)]}"
+
+
+def _add_deals(
+    conn: Connection,
+    rng: random.Random,
+    today: date,
+    year_ago: date,
+    orgs: list[_Org],
+    contacts_by_org: dict[int, list[int]],
+) -> tuple[list[_DealSpan], set[int]]:
+    """Deals with their stage history. Returns each deal's open time, and the main
+    contacts of won deals."""
+    positions: dict[str, float] = {}
+    spans: list[_DealSpan] = []
+    won_contacts: set[int] = set()
+    for i, (stage, close) in enumerate(_deal_plans(rng, today)):
+        org = orgs[(i * 5) % N_ORGS]
+        options = contacts_by_org.get(org.id, [])
+        contact_id = rng.choice(options) if options else None
+        value = rng.randrange(4_000, 120_000, 500)
+        closed = stage in ("won", "lost")
+        if closed:
+            created_on = max(year_ago, close - timedelta(days=rng.randint(25, 110)))
+            ends_on = close
+        else:
+            created_on = max(year_ago, today - timedelta(days=rng.randint(10, 200)))
+            ends_on = today - timedelta(days=1)
+        path = _stage_path(rng, stage)
+        probability = _probability(rng, stage)
+        positions[stage] = positions.get(stage, 0.0) + 1.0
+        created_at = _at(created_on, rng)
+        deal_id = insert_row(
+            conn,
+            deals,
+            name=_deal_name(org, i),
+            organization_id=org.id,
+            contact_id=contact_id,
+            stage=stage,
+            value=value,
+            probability=probability,
+            close_date=close,
+            position=positions[stage],
+            created_at=created_at,
+            updated_at=created_at,
+        )
+        span = _DealSpan(deal_id, created_on, ends_on)
+        _add_stage_history(conn, rng, deal_id, path, created_at, span, closed)
+        if stage == "won" and contact_id:
+            won_contacts.add(contact_id)
+        spans.append(span)
+    return spans, won_contacts
+
+
+def _make_customers(
+    conn: Connection, rng: random.Random, contact_ids: list[int], won_contacts: set[int]
+) -> None:
+    """Every status is present: main contacts of won deals are customers (D5), plus a few more."""
+    customer_ids = set(won_contacts)
+    others = [cid for cid in contact_ids if cid not in customer_ids]
+    customer_ids.update(rng.sample(others, 3))
+    for cid in customer_ids:
+        conn.execute(contacts.update().where(contacts.c.id == cid).values(status="customer"))
+
+
+def _on_deal(
+    rng: random.Random, spans: list[_DealSpan], today: date
+) -> tuple[dict[str, int | None], date, date]:
+    """A random deal to log an activity on, and the days the activity can fall in."""
+    span = rng.choice(spans)
+    return {"deal_id": span.deal_id, "contact_id": None}, span.start, min(span.end, today)
+
+
+def _done_follow_up(rng: random.Random, occurred_on: date, today: date) -> date:
+    """A follow-up date in the past, for an activity whose follow-up is done."""
+    follow_up_on = min(
+        today - timedelta(days=1),
+        occurred_on + timedelta(days=rng.randint(2, 10)),
+    )
+    return max(follow_up_on, occurred_on)
+
+
+def _add_activities(
+    conn: Connection,
+    rng: random.Random,
+    today: date,
+    year_ago: date,
+    contact_ids: list[int],
+    spans: list[_DealSpan],
+) -> None:
+    """Activities spread over the year, with follow-ups overdue, due soon, later and done."""
+    follow_ups = (
+        [("overdue", today - timedelta(days=d)) for d in (1, 3, 6, 12)]
+        + [("upcoming", today + timedelta(days=d)) for d in (0, 1, 3, 5, 7)]
+        + [("later", today + timedelta(days=d)) for d in (14, 30)]
+    )
+    # The won and lost deals come first, so the rest are the open ones.
+    open_spans = spans[len(WON_MONTHS_AGO) + len(LOST_MONTHS_AGO) :]
+    for i in range(N_ACTIVITIES):
+        kind = rng.choice(["call", "call", "email", "email", "note"])
+        on_deal = i % 2 == 0
+        if on_deal:
+            parent, start, end = _on_deal(rng, spans, today)
+        else:
+            parent = {"deal_id": None, "contact_id": rng.choice(contact_ids)}
+            start, end = year_ago, today
+        follow_up_on: date | None = None
+        done = False
+        if i < len(follow_ups):
+            _, due = follow_ups[i]
+            follow_up_on = due
+            if on_deal:  # keep follow-ups on open deals
+                parent, start, end = _on_deal(rng, open_spans, today)
+            start = max(start, due - timedelta(days=21))
+            end = min(end, due, today)
+        elif i < len(follow_ups) + 8:
+            done = True
+        start = min(start, end)
+        occurred_on = start + timedelta(days=rng.randint(0, (end - start).days))
+        if done:
+            follow_up_on = _done_follow_up(rng, occurred_on, today)
+        at = _at(occurred_on, rng)
+        conn.execute(
+            insert(activities).values(
+                type=kind,
+                description=rng.choice(ACTIVITY_TEXT[kind]),
+                occurred_on=occurred_on,
+                follow_up_on=follow_up_on,
+                done=done,
+                created_at=at,
+                updated_at=at,
+                **parent,
+            )
+        )
 
 
 def seed(engine: Engine, today: date, rng_seed: int = SEED) -> None:
@@ -135,192 +424,11 @@ def seed(engine: Engine, today: date, rng_seed: int = SEED) -> None:
 
     with engine.begin() as conn:
         _clear(conn)
-
-        # Organizations, across every industry.
-        org_ids: list[int] = []
-        org_names: dict[int, str] = {}
-        org_short: dict[int, str] = {}
-        org_domains: dict[int, str] = {}
-        industries = list(INDUSTRIES)
-        for i in range(N_ORGS):
-            industry = industries[i % len(industries)]
-            short = fake.unique.last_name()
-            name = f"{short} {rng.choice(INDUSTRIES[industry])}"
-            domain = "".join(ch for ch in name.lower() if ch.isalnum()) + ".example.com"
-            created = _at(year_ago + timedelta(days=rng.randint(0, 60)), rng)
-            org_id = conn.execute(
-                insert(organizations).values(
-                    name=name,
-                    website=f"https://{domain}",
-                    industry=industry,
-                    notes=rng.choice(NOTES),
-                    created_at=created,
-                    updated_at=created,
-                )
-            ).inserted_primary_key[0]
-            org_ids.append(org_id)
-            org_names[org_id] = name
-            org_short[org_id] = short
-            org_domains[org_id] = domain
-
-        # Contacts, mostly at an organization.
-        contact_rows: list[dict] = []
-        for i in range(N_CONTACTS):
-            first, last = fake.unique.first_name(), fake.last_name()
-            org_id = org_ids[i % N_ORGS] if i < N_CONTACTS - 3 else None
-            domain = org_domains[org_id] if org_id else "example.net"
-            created = _at(year_ago + timedelta(days=rng.randint(0, 200)), rng)
-            contact_rows.append(
-                {
-                    "name": f"{first} {last}",
-                    "email": f"{first.lower()}.{last.lower()}@{domain}",
-                    "phone": fake.numerify("(###) 555-####"),
-                    "job_title": rng.choice(JOB_TITLES),
-                    "organization_id": org_id,
-                    "status": rng.choice(["lead", "lead", "qualified"]),
-                    "created_at": created,
-                    "updated_at": created,
-                }
-            )
-        contact_ids = [
-            conn.execute(insert(contacts).values(**row)).inserted_primary_key[0] for row in contact_rows
-        ]
-        contacts_by_org: dict[int, list[int]] = {}
-        for cid, row in zip(contact_ids, contact_rows, strict=True):
-            if row["organization_id"]:
-                contacts_by_org.setdefault(row["organization_id"], []).append(cid)
-
-        # Deals: closed ones over the past year, open ones ahead, a few running late.
-        plans: list[dict] = []
-        for months_ago in WON_MONTHS_AGO:
-            plans.append({"stage": "won", "close": _day_in_month(rng, today, months_ago)})
-        for months_ago in LOST_MONTHS_AGO:
-            plans.append({"stage": "lost", "close": _day_in_month(rng, today, months_ago)})
-        for stage, count in OPEN_MIX.items():
-            for n in range(count):
-                if n < LATE_PER_STAGE.get(stage, 0):
-                    close = today - timedelta(days=rng.randint(3, 40))
-                else:
-                    close = today + timedelta(days=rng.randint(10, 120))
-                plans.append({"stage": stage, "close": close})
-
-        customer_ids: set[int] = set()
-        positions: dict[str, float] = {}
-        deal_spans: list[tuple[int, date, date]] = []
-        for i, plan in enumerate(plans):
-            stage = plan["stage"]
-            org_id = org_ids[(i * 5) % N_ORGS]
-            options = contacts_by_org.get(org_id, [])
-            contact_id = rng.choice(options) if options else None
-            value = rng.randrange(4_000, 120_000, 500)
-            closed = stage in ("won", "lost")
-            if closed:
-                created_on = max(year_ago, plan["close"] - timedelta(days=rng.randint(25, 110)))
-                ends_on = plan["close"]
-            else:
-                created_on = max(year_ago, today - timedelta(days=rng.randint(10, 200)))
-                ends_on = today - timedelta(days=1)
-            # Stage history leading to the current stage (S3).
-            if stage == "lost":
-                reached = rng.randint(0, 3)
-                path = OPEN_STAGES[: reached + 1] + ["lost"]
-            elif stage == "won":
-                path = OPEN_STAGES + ["won"]
-            else:
-                path = OPEN_STAGES[: OPEN_STAGES.index(stage) + 1]
-            probability = usual_probability(stage)
-            if stage in ("proposal", "negotiation") and rng.random() < 0.25:
-                probability = min(95, probability + 10)  # set by hand
-            positions[stage] = positions.get(stage, 0.0) + 1.0
-            created_at = _at(created_on, rng)
-            deal_id = conn.execute(
-                insert(deals).values(
-                    name=f"{org_short[org_id]} {DEAL_NAMES[(i + i // len(DEAL_NAMES)) % len(DEAL_NAMES)]}",
-                    organization_id=org_id,
-                    contact_id=contact_id,
-                    stage=stage,
-                    value=value,
-                    probability=probability,
-                    close_date=plan["close"],
-                    position=positions[stage],
-                    created_at=created_at,
-                    updated_at=created_at,
-                )
-            ).inserted_primary_key[0]
-            span = max(1, (ends_on - created_on).days)
-            for step, to_stage in enumerate(path):
-                if step == 0:
-                    when = created_at
-                elif step == len(path) - 1 and closed:
-                    when = _at(plan["close"], rng)
-                else:
-                    when = _at(created_on + timedelta(days=round(span * step / len(path))), rng)
-                conn.execute(
-                    insert(stage_changes).values(
-                        deal_id=deal_id,
-                        from_stage=path[step - 1] if step else None,
-                        to_stage=to_stage,
-                        changed_at=when,
-                        created_at=when,
-                        updated_at=when,
-                    )
-                )
-            if stage == "won" and contact_id:
-                customer_ids.add(contact_id)
-            deal_spans.append((deal_id, created_on, ends_on if not closed else plan["close"]))
-
-        # Every status is present: main contacts of won deals are customers (D5), plus a few more.
-        extra = [cid for cid in contact_ids if cid not in customer_ids]
-        customer_ids.update(rng.sample(extra, 3))
-        for cid in customer_ids:
-            conn.execute(contacts.update().where(contacts.c.id == cid).values(status="customer"))
-
-        # Activities: spread over the year, with follow-ups overdue, due soon, later and done.
-        follow_ups = (
-            [("overdue", today - timedelta(days=d)) for d in (1, 3, 6, 12)]
-            + [("upcoming", today + timedelta(days=d)) for d in (0, 1, 3, 5, 7)]
-            + [("later", today + timedelta(days=d)) for d in (14, 30)]
-        )
-        for i in range(N_ACTIVITIES):
-            kind = rng.choice(["call", "call", "email", "email", "note"])
-            on_deal = i % 2 == 0
-            if on_deal:
-                deal_id, start, end = rng.choice(deal_spans)
-                end = min(end, today)
-                parent = {"deal_id": deal_id, "contact_id": None}
-            else:
-                start, end = year_ago, today
-                parent = {"deal_id": None, "contact_id": rng.choice(contact_ids)}
-            follow_up_on, done = None, False
-            if i < len(follow_ups):
-                _, follow_up_on = follow_ups[i]
-                if on_deal:  # keep follow-ups on open deals
-                    deal_id, start, end = rng.choice(deal_spans[len(WON_MONTHS_AGO) + len(LOST_MONTHS_AGO) :])
-                    end = min(end, today)
-                    parent = {"deal_id": deal_id, "contact_id": None}
-                start = max(start, follow_up_on - timedelta(days=21))
-                end = min(end, follow_up_on, today)
-            elif i < len(follow_ups) + 8:
-                done = True
-            if end < start:
-                start = end
-            occurred_on = start + timedelta(days=rng.randint(0, (end - start).days))
-            if done:
-                follow_up_on = min(today - timedelta(days=1), occurred_on + timedelta(days=rng.randint(2, 10)))
-                follow_up_on = max(follow_up_on, occurred_on)
-            at = _at(occurred_on, rng)
-            conn.execute(
-                insert(activities).values(
-                    type=kind,
-                    description=rng.choice(ACTIVITY_TEXT[kind]),
-                    occurred_on=occurred_on,
-                    follow_up_on=follow_up_on,
-                    done=done,
-                    created_at=at,
-                    updated_at=at,
-                    **parent,
-                )
-            )
+        orgs = _add_organizations(conn, rng, fake, year_ago)
+        contact_ids, contacts_by_org = _add_contacts(conn, rng, fake, year_ago, orgs)
+        spans, won_contacts = _add_deals(conn, rng, today, year_ago, orgs, contacts_by_org)
+        _make_customers(conn, rng, contact_ids, won_contacts)
+        _add_activities(conn, rng, today, year_ago, contact_ids, spans)
 
 
 def main() -> None:

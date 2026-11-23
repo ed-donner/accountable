@@ -33,9 +33,21 @@ export function ContactPage() {
     <>
       <PageHeader
         title={contact.name}
-        summary={[contact.job_title, contact.organization?.name].filter(Boolean).join(" at ") || "Contact"}
+        summary={
+          [contact.job_title, contact.organization?.name].filter(Boolean).join(" at ") || "Contact"
+        }
         action={
-          <button type="button" className="btn ghost" onClick={() => setDeleting({ kind: "contact", id: contact.id, name: contact.name })}>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() =>
+              setDeleting({
+                kind: "contact",
+                id: contact.id,
+                name: contact.name,
+              })
+            }
+          >
             <Trash2 size={16} aria-hidden="true" />
             Delete contact
           </button>
@@ -58,12 +70,22 @@ export function ContactPage() {
               </dd>
               <dt>Organization</dt>
               <dd>
-                <RecordLink to={`/organizations/${contact.organization?.id}`} name={contact.organization?.name} none="No organization" />
+                <RecordLink
+                  to={`/organizations/${contact.organization?.id}`}
+                  name={contact.organization?.name}
+                  none="No organization"
+                />
               </dd>
               <dt>Job title</dt>
               <dd>{contact.job_title ?? <span className="muted">None</span>}</dd>
               <dt>Email</dt>
-              <dd>{contact.email ? <a href={`mailto:${contact.email}`}>{contact.email}</a> : <span className="muted">None</span>}</dd>
+              <dd>
+                {contact.email ? (
+                  <a href={`mailto:${contact.email}`}>{contact.email}</a>
+                ) : (
+                  <span className="muted">None</span>
+                )}
+              </dd>
               <dt>Phone</dt>
               <dd className="mono">{contact.phone ?? <span className="muted">None</span>}</dd>
             </dl>
@@ -85,7 +107,8 @@ export function ContactPage() {
                     <div>
                       <Link to={`/deals/${d.id}`}>{d.name}</Link> <LateBadge late={d.is_late} />
                       <div className="meta">
-                        <StagePill stage={d.stage} /> · {d.close_date ? formatDate(d.close_date) : "No close date"}
+                        <StagePill stage={d.stage} /> ·{" "}
+                        {d.close_date ? formatDate(d.close_date) : "No close date"}
                       </div>
                     </div>
                     <span className="mono">{money(d.value)}</span>
@@ -98,13 +121,30 @@ export function ContactPage() {
         <Timeline kind="contact" id={contact.id} />
       </div>
 
-      <SidePanel title={panel === "edit" ? "Edit contact" : "Add deal"} open={panel !== null} onClose={close}>
+      <SidePanel
+        title={panel === "edit" ? "Edit contact" : "Add deal"}
+        open={panel !== null}
+        onClose={close}
+      >
         {panel === "edit" && <ContactForm contact={contact} onSaved={close} onCancel={close} />}
         {panel === "deal" && (
-          <DealForm preset={{ organizationId: contact.organization_id, contactId: contact.id }} onSaved={close} onCancel={close} />
+          <DealForm
+            preset={{
+              organizationId: contact.organization_id,
+              contactId: contact.id,
+            }}
+            onSaved={close}
+            onCancel={close}
+          />
         )}
       </SidePanel>
-      {deleting && <DeleteRecord record={deleting} onClose={closeDelete} onDeleted={() => navigate("/contacts")} />}
+      {deleting && (
+        <DeleteRecord
+          record={deleting}
+          onClose={closeDelete}
+          onDeleted={() => navigate("/contacts")}
+        />
+      )}
     </>
   );
 }

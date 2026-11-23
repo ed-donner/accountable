@@ -69,19 +69,65 @@ def test_an_id_that_cant_exist_is_not_found(client, method, path, record_id):
 
 
 def _link_cases(records):
-    org, contact, deal = records["organization"]["id"], records["contact"]["id"], records["deal"]["id"]
+    org, contact, deal = (
+        records["organization"]["id"],
+        records["contact"]["id"],
+        records["deal"]["id"],
+    )
     new_deal = {"name": "D", "organization_id": org, "value": 1}
     new_activity = {"type": "call", "description": "x", "occurred_on": "2026-11-10"}
     return [
-        ("POST", "/api/contacts", {"name": "C"}, "organization_id", "Choose an organization."),
-        ("PATCH", f"/api/contacts/{contact}", {}, "organization_id", "Choose an organization."),
-        ("POST", "/api/deals", {**new_deal}, "organization_id", "Choose an organization."),
+        (
+            "POST",
+            "/api/contacts",
+            {"name": "C"},
+            "organization_id",
+            "Choose an organization.",
+        ),
+        (
+            "PATCH",
+            f"/api/contacts/{contact}",
+            {},
+            "organization_id",
+            "Choose an organization.",
+        ),
+        (
+            "POST",
+            "/api/deals",
+            {**new_deal},
+            "organization_id",
+            "Choose an organization.",
+        ),
         ("POST", "/api/deals", {**new_deal}, "contact_id", "Choose a contact."),
-        ("PATCH", f"/api/deals/{deal}", {}, "organization_id", "Choose an organization."),
+        (
+            "PATCH",
+            f"/api/deals/{deal}",
+            {},
+            "organization_id",
+            "Choose an organization.",
+        ),
         ("PATCH", f"/api/deals/{deal}", {}, "contact_id", "Choose a contact."),
-        ("POST", f"/api/deals/{deal}/move", {"stage": "new"}, "after_id", "Choose where to put the deal."),
-        ("POST", f"/api/deals/{deal}/move", {"stage": "new"}, "before_id", "Choose where to put the deal."),
-        ("POST", "/api/activities", {**new_activity}, "contact_id", "Choose a contact."),
+        (
+            "POST",
+            f"/api/deals/{deal}/move",
+            {"stage": "new"},
+            "after_id",
+            "Choose where to put the deal.",
+        ),
+        (
+            "POST",
+            f"/api/deals/{deal}/move",
+            {"stage": "new"},
+            "before_id",
+            "Choose where to put the deal.",
+        ),
+        (
+            "POST",
+            "/api/activities",
+            {**new_activity},
+            "contact_id",
+            "Choose a contact.",
+        ),
         ("POST", "/api/activities", {**new_activity}, "deal_id", "Choose a deal."),
     ]
 
@@ -97,9 +143,14 @@ def test_a_link_beyond_any_record_is_a_field_error(client, records, too_big):
 def test_a_link_to_a_missing_record_in_range_is_still_explained(client, records):
     """The cap doesn't change what happens to an id that's in range but gone."""
     org = records["organization"]["id"]
-    response = client.post("/api/deals", json={"name": "D", "organization_id": org, "value": 1, "contact_id": MAX_ID})
+    response = client.post(
+        "/api/deals",
+        json={"name": "D", "organization_id": org, "value": 1, "contact_id": MAX_ID},
+    )
     assert response.status_code == 400
-    assert response.json()["fields"] == {"contact_id": "That contact no longer exists. Choose another."}
+    assert response.json()["fields"] == {
+        "contact_id": "That contact no longer exists. Choose another."
+    }
 
 
 # --- Paging (RV10, RV11) -------------------------------------------------------
@@ -111,7 +162,14 @@ LISTS = ["/api/organizations", "/api/contacts", "/api/deals"]
 def test_paging_limits(client, records, path):
     assert client.get(f"{path}?limit=1000").status_code == 200
     assert client.get(f"{path}?offset={MAX_ID}").json()["items"] == []
-    for bad in ("limit=0", "limit=1001", "offset=-1", f"offset={TOO_BIG}", f"offset={HUGE}", "limit=abc"):
+    for bad in (
+        "limit=0",
+        "limit=1001",
+        "offset=-1",
+        f"offset={TOO_BIG}",
+        f"offset={HUGE}",
+        "limit=abc",
+    ):
         response = client.get(f"{path}?{bad}")
         assert response.status_code == 400, (path, bad, response.text)
         assert set(response.json()["fields"]) <= {"limit", "offset"}
@@ -119,9 +177,31 @@ def test_paging_limits(client, records, path):
 
 # --- Deal value and probability (RV1) ------------------------------------------
 
-GOOD_VALUES = [(0, 0), (1_000_000_000, 1_000_000_000), ("1,000,000,000", 1_000_000_000), ("$48,200", 48200), ("7.0", 7)]
-BAD_VALUES = [-1, 10.5, "lots", 1_000_000_001, "1,000,000,001", HUGE, "99999999999999999999",
-              "inf", "-inf", "Infinity", "nan", "NaN", "1e400", True, [], {}]
+GOOD_VALUES = [
+    (0, 0),
+    (1_000_000_000, 1_000_000_000),
+    ("1,000,000,000", 1_000_000_000),
+    ("$48,200", 48200),
+    ("7.0", 7),
+]
+BAD_VALUES = [
+    -1,
+    10.5,
+    "lots",
+    1_000_000_001,
+    "1,000,000,001",
+    HUGE,
+    "99999999999999999999",
+    "inf",
+    "-inf",
+    "Infinity",
+    "nan",
+    "NaN",
+    "1e400",
+    True,
+    [],
+    {},
+]
 GOOD_PROBABILITIES = [(0, 0), (100, 100), ("55", 55)]
 BAD_PROBABILITIES = [-1, 101, 50.5, HUGE, "inf", "nan", "1e400", "half"]
 
@@ -130,7 +210,10 @@ BAD_PROBABILITIES = [-1, 101, 50.5, HUGE, "inf", "nan", "1e400", "half"]
 def test_good_values_on_add_and_edit(api, records, sent, stored):
     org = records["organization"]["id"]
     assert api.deal(org, value=sent)["value"] == stored
-    assert api.ok("PATCH", f"/api/deals/{records['deal']['id']}", json={"value": sent})["value"] == stored
+    assert (
+        api.ok("PATCH", f"/api/deals/{records['deal']['id']}", json={"value": sent})["value"]
+        == stored
+    )
 
 
 @pytest.mark.parametrize("bad", BAD_VALUES)
@@ -149,14 +232,23 @@ def test_bad_values_on_add_and_edit(client, records, bad):
 def test_good_probabilities_on_add_and_edit(api, records, sent, stored):
     org = records["organization"]["id"]
     assert api.deal(org, probability=sent)["probability"] == stored
-    assert api.ok("PATCH", f"/api/deals/{records['deal']['id']}", json={"probability": sent})["probability"] == stored
+    assert (
+        api.ok("PATCH", f"/api/deals/{records['deal']['id']}", json={"probability": sent})[
+            "probability"
+        ]
+        == stored
+    )
 
 
 @pytest.mark.parametrize("bad", BAD_PROBABILITIES)
 def test_bad_probabilities_on_add_and_edit(client, records, bad):
     org, deal = records["organization"]["id"], records["deal"]["id"]
     for method, url, body in (
-        ("POST", "/api/deals", {"name": "D", "organization_id": org, "value": 1, "probability": bad}),
+        (
+            "POST",
+            "/api/deals",
+            {"name": "D", "organization_id": org, "value": 1, "probability": bad},
+        ),
         ("PATCH", f"/api/deals/{deal}", {"probability": bad}),
     ):
         response = client.request(method, url, json=body)
@@ -199,14 +291,25 @@ def _create(kind: str, records: dict, field: str, value: str) -> tuple[str, dict
         "organization": ("/api/organizations", {"name": "Org"}),
         "contact": ("/api/contacts", {"name": "Person"}),
         "deal": ("/api/deals", {"name": "Deal", "organization_id": org, "value": 1}),
-        "activity": ("/api/activities", {"type": "note", "description": "x", "occurred_on": "2026-11-10",
-                                         "contact_id": contact}),
+        "activity": (
+            "/api/activities",
+            {
+                "type": "note",
+                "description": "x",
+                "occurred_on": "2026-11-10",
+                "contact_id": contact,
+            },
+        ),
     }
     url, body = bodies[kind]
     return url, {**body, field: value}
 
 
-@pytest.mark.parametrize(("kind", "field", "limit", "make"), TEXT_FIELDS, ids=[f"{k}.{f}" for k, f, _, _ in TEXT_FIELDS])
+@pytest.mark.parametrize(
+    ("kind", "field", "limit", "make"),
+    TEXT_FIELDS,
+    ids=[f"{k}.{f}" for k, f, _, _ in TEXT_FIELDS],
+)
 def test_text_at_its_limit_saves_and_one_more_is_refused(client, records, kind, field, limit, make):
     message = f"Keep this to {limit:,} characters or fewer."
     url, body = _create(kind, records, field, make(limit))
@@ -231,15 +334,31 @@ def test_local_hosts_are_answered(client, host):
     assert client.get("/api/deals", headers={"Host": host}).status_code == 200
 
 
-@pytest.mark.parametrize("host", ["evil.example.com", "127.0.0.1.evil.example.com", "localhost.evil.example.com",
-                                  "192.168.1.20:8000", "0.0.0.0:8000"])
+@pytest.mark.parametrize(
+    "host",
+    [
+        "evil.example.com",
+        "127.0.0.1.evil.example.com",
+        "localhost.evil.example.com",
+        "192.168.1.20:8000",
+        "0.0.0.0:8000",
+    ],
+)
 def test_other_hosts_can_neither_read_nor_change_anything(client, api, records, host):
     org_id = records["organization"]["id"]
     headers = {"Host": host}
     assert client.get("/api/contacts", headers=headers).status_code == 400
     assert client.get(f"/api/organizations/{org_id}", headers=headers).status_code == 400
-    assert client.post("/api/organizations", json={"name": "Planted"}, headers=headers).status_code == 400
-    assert client.patch(f"/api/organizations/{org_id}", json={"name": "Renamed"}, headers=headers).status_code == 400
+    assert (
+        client.post("/api/organizations", json={"name": "Planted"}, headers=headers).status_code
+        == 400
+    )
+    assert (
+        client.patch(
+            f"/api/organizations/{org_id}", json={"name": "Renamed"}, headers=headers
+        ).status_code
+        == 400
+    )
     assert client.delete(f"/api/organizations/{org_id}", headers=headers).status_code == 400
     # Nothing changed.
     names = [o["name"] for o in api.ok("GET", "/api/organizations")["items"]]
@@ -264,7 +383,10 @@ def test_a_date_outside_the_normal_range_falls_back_to_the_server_date(client, a
 def test_a_normal_date_from_the_browser_is_still_used(client, api):
     contact = api.contact()
     api.activity(contact_id=contact["id"], follow_up_on="2026-11-20")
-    timeline = client.get(f"/api/contacts/{contact['id']}/timeline", headers={"X-Local-Date": "2026-11-25"})
+    timeline = client.get(
+        f"/api/contacts/{contact['id']}/timeline",
+        headers={"X-Local-Date": "2026-11-25"},
+    )
     assert timeline.json()["items"][0]["follow_up_status"] == "overdue"
 
 
@@ -283,9 +405,18 @@ def test_a_long_crafted_email_is_refused_quickly(client):
 
 @pytest.mark.parametrize(
     ("email", "ok"),
-    [("name@company.com", True), ("a.b+c@mail.example.co.uk", True), ("a@b.c", True),
-     ("no-at-sign.com", False), ("a@b", False), ("a@b..c", False), ("a@.b.c", False), ("a@b.c.", False),
-     ("a b@c.com", False), ("a@b@c.com", False)],
+    [
+        ("name@company.com", True),
+        ("a.b+c@mail.example.co.uk", True),
+        ("a@b.c", True),
+        ("no-at-sign.com", False),
+        ("a@b", False),
+        ("a@b..c", False),
+        ("a@.b.c", False),
+        ("a@b.c.", False),
+        ("a b@c.com", False),
+        ("a@b@c.com", False),
+    ],
 )
 def test_email_format(client, email, ok):
     response = client.post("/api/contacts", json={"name": "X", "email": email})

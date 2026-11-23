@@ -16,12 +16,17 @@
     "test": "node scripts/test.mjs",
     "test:backend": "uv run pytest",
     "test:frontend": "npm run test --workspace frontend",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check": "node scripts/check.mjs",
+    "check:quick": "node scripts/check.mjs --quick",
+    "format": "npm run format --workspace frontend && uv run ruff format",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1",
     "@types/node": "^26.6.6",
     "concurrently": "^10.0.7",
+    "lefthook": "^2.2.2",
     "openapi-typescript": "^7.13.0",
     "typescript": "5.9"
   }

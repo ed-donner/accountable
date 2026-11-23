@@ -32,13 +32,21 @@ export function withHttps(website: string): string {
 /** Size caps, the same as the backend's (RV10). */
 export const NAME_MAX = 200;
 export const TEXT_MAX = 10_000;
-export const tooLong = (limit: number) => `Keep this to ${limit.toLocaleString("en-US")} characters or fewer.`;
+export const tooLong = (limit: number) =>
+  `Keep this to ${limit.toLocaleString("en-US")} characters or fewer.`;
 
-const required = (message: string, limit = NAME_MAX) => z.string().trim().min(1, message).max(limit, tooLong(limit));
+const required = (message: string, limit = NAME_MAX) =>
+  z.string().trim().min(1, message).max(limit, tooLong(limit));
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Date fields hold YYYY-MM-DD; anything else is a half-typed date. */
-const optionalDate = (message: string) => z.string().refine((v) => v === "" || ISO_DATE.test(v), message);
-const requiredDate = (message: string) => z.string().trim().min(1, message).refine((v) => ISO_DATE.test(v), message);
+const optionalDate = (message: string) =>
+  z.string().refine((v) => v === "" || ISO_DATE.test(v), message);
+const requiredDate = (message: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, message)
+    .refine((v) => ISO_DATE.test(v), message);
 const optional = z.string().trim().max(TEXT_MAX, tooLong(TEXT_MAX));
 /** A select holding a record id: no length to cap. */
 const choice = z.string();
@@ -46,7 +54,10 @@ const choice = z.string();
 const email = z
   .string()
   .trim()
-  .refine((v) => v.length <= NAME_MAX, { message: tooLong(NAME_MAX), abort: true })
+  .refine((v) => v.length <= NAME_MAX, {
+    message: tooLong(NAME_MAX),
+    abort: true,
+  })
   .refine((v) => v === "" || EMAIL_RE.test(v), MESSAGES.email);
 // The backend adds https:// before it checks the length, so this does too.
 const website = z
@@ -76,7 +87,9 @@ export const contactSchema = z.object({
   phone: optional,
   job_title: optional,
   organization_id: choice,
-  status: z.enum(["lead", "qualified", "customer"], { message: MESSAGES.status }),
+  status: z.enum(["lead", "qualified", "customer"], {
+    message: MESSAGES.status,
+  }),
 });
 export type ContactValues = z.infer<typeof contactSchema>;
 
@@ -84,9 +97,13 @@ export type ContactValues = z.infer<typeof contactSchema>;
 export function dealSchema(organizationRequired: boolean) {
   return z.object({
     name: required(MESSAGES.name),
-    organization_id: organizationRequired ? z.string().trim().min(1, MESSAGES.organization_id) : choice,
+    organization_id: organizationRequired
+      ? z.string().trim().min(1, MESSAGES.organization_id)
+      : choice,
     contact_id: choice,
-    stage: z.enum(["new", "qualified", "proposal", "negotiation", "won", "lost"], { message: MESSAGES.stage }),
+    stage: z.enum(["new", "qualified", "proposal", "negotiation", "won", "lost"], {
+      message: MESSAGES.stage,
+    }),
     value: z.string().trim().min(1, MESSAGES.value).refine(wholeNumber(MAX_VALUE), MESSAGES.value),
     probability: z
       .string()

@@ -26,15 +26,34 @@ def test_value_zero_or_more_whole_dollars(api, client):
     assert api.deal(org["id"], value=0)["value"] == 0
     assert api.deal(org["id"], value=1_000_000_000)["value"] == 1_000_000_000
     # RV1: too large, or "inf"/"nan", is a field error, never a server error.
-    for bad in (-1, 10.5, "lots", 1_000_000_001, "99999999999999999999", "inf", "-Infinity", "nan"):
-        response = client.post("/api/deals", json={"name": "D", "organization_id": org["id"], "value": bad})
-        assert response.json()["fields"] == {"value": "Enter a value from 0 to 1,000,000,000, in whole dollars."}
+    for bad in (
+        -1,
+        10.5,
+        "lots",
+        1_000_000_001,
+        "99999999999999999999",
+        "inf",
+        "-Infinity",
+        "nan",
+    ):
+        response = client.post(
+            "/api/deals", json={"name": "D", "organization_id": org["id"], "value": bad}
+        )
+        assert response.json()["fields"] == {
+            "value": "Enter a value from 0 to 1,000,000,000, in whole dollars."
+        }
 
 
 def test_probability_range(api, client):
     org = api.org()
     response = client.post(
-        "/api/deals", json={"name": "D", "organization_id": org["id"], "value": 1, "probability": 120}
+        "/api/deals",
+        json={
+            "name": "D",
+            "organization_id": org["id"],
+            "value": 1,
+            "probability": 120,
+        },
     )
     assert response.json()["fields"] == {"probability": "Enter a probability from 0 to 100."}
 
@@ -48,7 +67,11 @@ def test_organization_required_on_create_but_may_stay_empty(api, client):
     assert response.status_code == 400
     assert response.json()["fields"] == {"organization_id": "Choose an organization."}
     client.delete(f"/api/organizations/{org['id']}")
-    updated = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"organization_id": None, "name": "Kept"})
+    updated = api.ok(
+        "PATCH",
+        f"/api/deals/{deal['id']}",
+        json={"organization_id": None, "name": "Kept"},
+    )
     assert updated["organization_id"] is None
     assert updated["name"] == "Kept"
     updated = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"organization_id": other["id"]})
@@ -93,6 +116,10 @@ def test_list_has_names_expected_revenue_and_stage_filter(api):
     everything = api.ok("GET", "/api/deals")
     assert everything["total"] == 2
     first = everything["items"][0]
-    assert (first["organization_name"], first["contact_name"], first["expected_revenue"]) == ("Acme Ltd", "Ada Park", 500)
+    assert (
+        first["organization_name"],
+        first["contact_name"],
+        first["expected_revenue"],
+    ) == ("Acme Ltd", "Ada Park", 500)
     proposals = api.ok("GET", "/api/deals?stage=proposal")
     assert [d["name"] for d in proposals["items"]] == ["A"]

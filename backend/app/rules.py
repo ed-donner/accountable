@@ -6,10 +6,11 @@ from typing import Literal
 Stage = Literal["new", "qualified", "proposal", "negotiation", "won", "lost"]
 Status = Literal["lead", "qualified", "customer"]
 ActivityType = Literal["note", "call", "email"]
+FollowUpStatus = Literal["overdue", "upcoming", "later", "done"]
 
-STAGES: list[str] = ["new", "qualified", "proposal", "negotiation", "won", "lost"]
-OPEN_STAGES: list[str] = ["new", "qualified", "proposal", "negotiation"]
-CLOSED_STAGES: list[str] = ["won", "lost"]
+STAGES: list[Stage] = ["new", "qualified", "proposal", "negotiation", "won", "lost"]
+OPEN_STAGES: list[Stage] = ["new", "qualified", "proposal", "negotiation"]
+CLOSED_STAGES: list[Stage] = ["won", "lost"]
 STAGE_LABELS = {
     "new": "New",
     "qualified": "Qualified",
@@ -26,7 +27,7 @@ USUAL_PROBABILITY = {
     "won": 100,
     "lost": 0,
 }
-STATUSES: list[str] = ["lead", "qualified", "customer"]
+STATUSES: list[Status] = ["lead", "qualified", "customer"]
 
 UPCOMING_DAYS = 7
 
@@ -61,14 +62,14 @@ def close_date_error(stage: str, close_date: date | None, today: date) -> str | 
     return None
 
 
-def raised_status(current: str, target: str) -> str:
+def raised_status(current: Status, target: Status) -> Status:
     """D5: a status only ever goes up, never down."""
     if STATUSES.index(target) > STATUSES.index(current):
         return target
     return current
 
 
-def status_after_win(current: str) -> str:
+def status_after_win(current: Status) -> Status:
     return raised_status(current, "customer")
 
 
@@ -81,7 +82,7 @@ def expected_revenue(value: int, probability: int) -> int:
     return round(value * probability / 100)
 
 
-def follow_up_status(follow_up_on: date | None, done: bool, today: date) -> str | None:
+def follow_up_status(follow_up_on: date | None, done: bool, today: date) -> FollowUpStatus | None:
     """A6 and Concern 10: done, overdue, upcoming (today to 7 days) or later."""
     if follow_up_on is None:
         return None

@@ -1,12 +1,24 @@
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
   type TooltipContentProps,
 } from "recharts";
 import { money, monthLabel, monthYear, shortMoney } from "../shared/format";
 import type { Dashboard } from "./hooks";
 
 // Colors come from the brand tokens in shared/theme/tokens.css (RV9).
-const axis = { fontSize: 11, fontFamily: "var(--mono)", fill: "var(--ink-muted)" };
+const axis = {
+  fontSize: 11,
+  fontFamily: "var(--mono)",
+  fill: "var(--ink-muted)",
+};
 
 function MoneyTip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
@@ -33,7 +45,11 @@ function CountTip({ active, payload, label }: Partial<TooltipContentProps<number
 /** H2: revenue won per month, Sea Green with the page's one gradient under it. */
 export function RevenueChart({ months }: { months: Dashboard["months"] }) {
   return (
-    <div className="chart" role="img" aria-label={`Revenue won per month: ${months.map((m) => `${monthYear(m.month)} ${money(m.won_value)}`).join(", ")}`}>
+    <div
+      className="chart"
+      role="img"
+      aria-label={`Revenue won per month: ${months.map((m) => `${monthYear(m.month)} ${money(m.won_value)}`).join(", ")}`}
+    >
       <ResponsiveContainer width="100%" height={320}>
         <AreaChart data={months} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
           <defs>
@@ -43,8 +59,20 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="month" tickFormatter={monthLabel} tick={axis} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={shortMoney} tick={axis} axisLine={false} tickLine={false} width={56} />
+          <XAxis
+            dataKey="month"
+            tickFormatter={monthLabel}
+            tick={axis}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tickFormatter={shortMoney}
+            tick={axis}
+            axisLine={false}
+            tickLine={false}
+            width={56}
+          />
           <Tooltip content={<MoneyTip />} cursor={{ stroke: "var(--sea-mist)" }} />
           <Area
             type="linear"
@@ -52,7 +80,12 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
             stroke="var(--sea-green)"
             strokeWidth={2.5}
             fill="url(#revenue-fill)"
-            dot={{ r: 3.5, fill: "var(--panel)", stroke: "var(--sea-green)", strokeWidth: 2 }}
+            dot={{
+              r: 3.5,
+              fill: "var(--panel)",
+              stroke: "var(--sea-green)",
+              strokeWidth: 2,
+            }}
             activeDot={{ r: 5, fill: "var(--sea-green)" }}
           />
         </AreaChart>
@@ -64,11 +97,21 @@ export function RevenueChart({ months }: { months: Dashboard["months"] }) {
 /** H3: deals won and lost per month, Sea Green and Coral. */
 export function WonLostChart({ months }: { months: Dashboard["months"] }) {
   return (
-    <div className="chart" role="img" aria-label={`Deals won and lost per month: ${months.map((m) => `${monthYear(m.month)} ${m.won_count} won, ${m.lost_count} lost`).join("; ")}`}>
+    <div
+      className="chart"
+      role="img"
+      aria-label={`Deals won and lost per month: ${months.map((m) => `${monthYear(m.month)} ${m.won_count} won, ${m.lost_count} lost`).join("; ")}`}
+    >
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={months} margin={{ top: 8, right: 8, left: -12, bottom: 0 }} barGap={3}>
           <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="month" tickFormatter={monthLabel} tick={axis} axisLine={false} tickLine={false} />
+          <XAxis
+            dataKey="month"
+            tickFormatter={monthLabel}
+            tick={axis}
+            axisLine={false}
+            tickLine={false}
+          />
           <YAxis allowDecimals={false} tick={axis} axisLine={false} tickLine={false} width={40} />
           <Tooltip content={<CountTip />} cursor={{ fill: "var(--hover)" }} />
           <Bar dataKey="won_count" fill="var(--sea-green)" radius={[3, 3, 0, 0]} maxBarSize={14} />

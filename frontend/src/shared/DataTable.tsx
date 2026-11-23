@@ -6,25 +6,36 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  type Column,
   type ColumnDef,
   type FilterFn,
   type SortingFn,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 
 export const PAGE_SIZE = 25;
 
-declare module "@tanstack/react-table" {
-  interface ColumnMeta<TData, TValue> {
-    numeric?: boolean;
-    width?: string;
-  }
-}
+/** How a column lays out: numbers right-aligned, and an optional fixed width. */
+type ColumnLayout = { numeric?: boolean; width?: string };
+
+/** A table column, with its layout in `meta`. */
+export type TableColumn<T> = ColumnDef<T, unknown> & { meta?: ColumnLayout };
+
+const layoutOf = <T,>(column: Column<T, unknown>): ColumnLayout => column.columnDef.meta ?? {};
 
 type Props<T> = {
   data: T[];
-  columns: ColumnDef<T, any>[];
+  columns: TableColumn<T>[];
   /** Singular and plural nouns, such as ["contact", "contacts"]. */
   noun: [string, string];
   rowName: (row: T) => string;
@@ -57,12 +68,17 @@ const smartSort =
       return sorting.current.find((s) => s.id === columnId)?.desc ? -last : last;
     }
     if (typeof x === "number" && typeof y === "number") return x - y;
-    return String(x).localeCompare(String(y), undefined, { sensitivity: "base", numeric: true });
+    return String(x).localeCompare(String(y), undefined, {
+      sensitivity: "base",
+      numeric: true,
+    });
   };
 
 const search: FilterFn<unknown> = (row, columnId, query: string) => {
   const value = row.getValue(columnId);
-  return String(value ?? "").toLowerCase().includes(query.trim().toLowerCase());
+  return String(value ?? "")
+    .toLowerCase()
+    .includes(query.trim().toLowerCase());
 };
 
 /** Tables with search as you type, sorting, 25 rows a page and row actions (T1 to T5, T7). */
@@ -87,8 +103,13 @@ export function DataTable<T>({
   sortingRef.current = sorting;
   const sortingFn = useMemo(() => smartSort(sortingRef), []);
   const [query, setQuery] = useState("");
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
 
+  // TanStack Table returns functions the React Compiler can't memoize. The app doesn't use the compiler.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
@@ -99,7 +120,10 @@ export function DataTable<T>({
     // Columns opt in with `enableGlobalFilter`. Without this, TanStack also drops any
     // column whose first row is empty, so one blank email would stop email search.
     getColumnCanGlobalFilter: () => true,
-    defaultColumn: { sortingFn: sortingFn as SortingFn<T>, enableGlobalFilter: false },
+    defaultColumn: {
+      sortingFn: sortingFn as SortingFn<T>,
+      enableGlobalFilter: false,
+    },
     enableSortingRemoval: false,
     sortDescFirst: false,
     autoResetPageIndex: false,
@@ -138,7 +162,9 @@ export function DataTable<T>({
     }
     return (
       <div className="empty-state">
-        <p>No {noun[1]} match “{query.trim()}”.</p>
+        <p>
+          No {noun[1]} match “{query.trim()}”.
+        </p>
       </div>
     );
   }, [data.length, emptyMessage, noun, onAdd, addLabel, query]);
@@ -149,7 +175,12 @@ export function DataTable<T>({
         <label className="search-box">
           <Search size={16} aria-hidden="true" />
           <span className="sr-only">Search {noun[1]}</span>
-          <input type="search" placeholder={`Search ${noun[1]}`} value={query} onChange={(e) => onSearch(e.target.value)} />
+          <input
+            type="search"
+            placeholder={`Search ${noun[1]}`}
+            value={query}
+            onChange={(e) => onSearch(e.target.value)}
+          />
         </label>
         {filters}
       </div>
@@ -163,16 +194,26 @@ export function DataTable<T>({
               <tr key={group.id}>
                 {group.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
-                  const numeric = header.column.columnDef.meta?.numeric;
+                  const { numeric, width } = layoutOf(header.column);
                   return (
                     <th
                       key={header.id}
                       className={numeric ? "num" : undefined}
-                      style={{ width: header.column.columnDef.meta?.width }}
-                      aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                      style={{ width }}
+                      aria-sort={
+                        sorted === "asc"
+                          ? "ascending"
+                          : sorted === "desc"
+                            ? "descending"
+                            : undefined
+                      }
                     >
                       {header.column.getCanSort() ? (
-                        <button type="button" className="sort" onClick={header.column.getToggleSortingHandler()}>
+                        <button
+                          type="button"
+                          className="sort"
+                          onClick={header.column.getToggleSortingHandler()}
+                        >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {sorted === "asc" && <ArrowUp size={13} aria-hidden="true" />}
                           {sorted === "desc" && <ArrowDown size={13} aria-hidden="true" />}
@@ -193,7 +234,7 @@ export function DataTable<T>({
             {rows.map((row) => (
               <tr key={row.id} onClick={() => onOpen(row.original)}>
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={cell.column.columnDef.meta?.numeric ? "num" : undefined}>
+                  <td key={cell.id} className={layoutOf(cell.column).numeric ? "num" : undefined}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}

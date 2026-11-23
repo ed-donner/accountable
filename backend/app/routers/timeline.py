@@ -15,18 +15,30 @@ from app.schemas import RecordId, Ref, Timeline, TimelineEntry
 router = APIRouter(tags=["timeline"])
 
 
-def _entries(conn: Connection, today: date, *, contact_id: int | None = None, deal_id: int | None = None) -> Timeline:
+def _entries(
+    conn: Connection,
+    today: date,
+    *,
+    contact_id: int | None = None,
+    deal_id: int | None = None,
+) -> Timeline:
     if contact_id is not None:
         # Deals where the contact is the main contact now, so entries follow the deal's contact.
         deal_ids = select(deals.c.id).where(deals.c.contact_id == contact_id)
-        activity_where = or_(activities.c.contact_id == contact_id, activities.c.deal_id.in_(deal_ids))
+        activity_where = or_(
+            activities.c.contact_id == contact_id, activities.c.deal_id.in_(deal_ids)
+        )
         change_where = stage_changes.c.deal_id.in_(deal_ids)
     else:
         activity_where = activities.c.deal_id == deal_id
         change_where = stage_changes.c.deal_id == deal_id
 
     names = (
-        dict(conn.execute(select(deals.c.id, deals.c.name).where(deals.c.contact_id == contact_id)).all())
+        dict(
+            conn.execute(
+                select(deals.c.id, deals.c.name).where(deals.c.contact_id == contact_id)
+            ).all()
+        )
         if contact_id is not None
         else {}
     )

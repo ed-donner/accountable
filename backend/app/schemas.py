@@ -10,8 +10,9 @@ from typing import Annotated, Any, Literal
 
 from fastapi import Path, Query
 from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic.json_schema import SkipJsonSchema
 
-from app.rules import ActivityType, Stage, Status
+from app.rules import ActivityType, FollowUpStatus, Stage, Status
 
 # --- Field messages -------------------------------------------------------
 
@@ -51,7 +52,11 @@ WEBSITE_RE = re.compile(r"^https?://[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?(/\S*)?$", r
 class FieldErrors(Exception):
     """A 400 with a message per field."""
 
-    def __init__(self, fields: dict[str, str], message: str = "Check the highlighted fields and try again."):
+    def __init__(
+        self,
+        fields: dict[str, str],
+        message: str = "Check the highlighted fields and try again.",
+    ):
         super().__init__(message)
         self.fields = fields
         self.message = message
@@ -142,18 +147,26 @@ def _at_most(limit: int):
 
 
 Name = Annotated[str, BeforeValidator(_required("name")), AfterValidator(_at_most(NAME_MAX))]
-OptionalText = Annotated[str | None, BeforeValidator(_blank_to_none), AfterValidator(_at_most(TEXT_MAX))]
+OptionalText = Annotated[
+    str | None, BeforeValidator(_blank_to_none), AfterValidator(_at_most(TEXT_MAX))
+]
 Email = Annotated[str | None, BeforeValidator(_email), AfterValidator(_at_most(NAME_MAX))]
-Website = Annotated[str | None, BeforeValidator(normalize_website), AfterValidator(_at_most(NAME_MAX))]
+Website = Annotated[
+    str | None, BeforeValidator(normalize_website), AfterValidator(_at_most(NAME_MAX))
+]
 OptionalDate = Annotated[date | None, BeforeValidator(_blank_date)]
 Value = Annotated[int, BeforeValidator(_whole_number("value", 0, MAX_VALUE))]
 Probability = Annotated[int, BeforeValidator(_whole_number("probability", 0, 100))]
 RequiredStage = Annotated[Stage, BeforeValidator(_required("stage"))]
 RequiredStatus = Annotated[Status, BeforeValidator(_required("status"))]
 RequiredType = Annotated[ActivityType, BeforeValidator(_required("type"))]
-Description = Annotated[str, BeforeValidator(_required("description")), AfterValidator(_at_most(TEXT_MAX))]
+Description = Annotated[
+    str, BeforeValidator(_required("description")), AfterValidator(_at_most(TEXT_MAX))
+]
 OccurredOn = Annotated[date, BeforeValidator(_required("occurred_on"))]
-OrganizationRequired = Annotated[int, BeforeValidator(_required("organization_id")), Field(le=MAX_ID)]
+OrganizationRequired = Annotated[
+    int, BeforeValidator(_required("organization_id")), Field(le=MAX_ID)
+]
 # A link to another record, in a request body.
 Id = Annotated[int, Field(le=MAX_ID)]
 # A record id in a URL. Out of range is answered as "not found" (main.py).
@@ -161,6 +174,37 @@ RecordId = Annotated[int, Path(le=MAX_ID)]
 # Paging for the list endpoints (R7).
 PageLimit = Annotated[int | None, Query(ge=1, le=1000)]
 PageOffset = Annotated[int, Query(ge=0, le=MAX_ID)]
+
+
+def _not_null(field: str):
+    def check(v: Any) -> Any:
+        if v is None:
+            raise ValueError(MESSAGES[field])
+        return v
+
+    return check
+
+
+# Fields an update may leave out but may not clear. None is only ever the default
+# for a field that wasn't sent, which the routers skip (exclude_unset); a null that
+# is sent gets the field's message. The schema still shows the plain field type.
+NameChange = Annotated[Name | SkipJsonSchema[None], BeforeValidator(_not_null("name"))]
+StageChange = Annotated[RequiredStage | SkipJsonSchema[None], BeforeValidator(_not_null("stage"))]
+StatusChange = Annotated[
+    RequiredStatus | SkipJsonSchema[None], BeforeValidator(_not_null("status"))
+]
+ValueChange = Annotated[Value | SkipJsonSchema[None], BeforeValidator(_not_null("value"))]
+ProbabilityChange = Annotated[
+    Probability | SkipJsonSchema[None], BeforeValidator(_not_null("probability"))
+]
+TypeChange = Annotated[RequiredType | SkipJsonSchema[None], BeforeValidator(_not_null("type"))]
+DescriptionChange = Annotated[
+    Description | SkipJsonSchema[None], BeforeValidator(_not_null("description"))
+]
+OccurredOnChange = Annotated[
+    OccurredOn | SkipJsonSchema[None], BeforeValidator(_not_null("occurred_on"))
+]
+DoneChange = Annotated[bool | SkipJsonSchema[None], BeforeValidator(_not_null("done"))]
 
 
 class In(BaseModel):
@@ -195,7 +239,7 @@ class OrganizationCreate(In):
 
 
 class OrganizationUpdate(In):
-    name: Name = None  # type: ignore[assignment]
+    name: NameChange = None
     website: Website = None
     industry: OptionalText = None
     notes: OptionalText = None
@@ -241,12 +285,12 @@ class ContactCreate(In):
 
 
 class ContactUpdate(In):
-    name: Name = None  # type: ignore[assignment]
+    name: NameChange = None
     email: Email = None
     phone: OptionalText = None
     job_title: OptionalText = None
     organization_id: Id | None = None
-    status: RequiredStatus = None  # type: ignore[assignment]
+    status: StatusChange = None
 
 
 class Contact(BaseModel):
@@ -299,12 +343,12 @@ class DealCreate(In):
 
 
 class DealUpdate(In):
-    name: Name = None  # type: ignore[assignment]
+    name: NameChange = None
     organization_id: Id | None = None
     contact_id: Id | None = None
-    stage: RequiredStage = None  # type: ignore[assignment]
-    value: Value = None  # type: ignore[assignment]
-    probability: Probability = None  # type: ignore[assignment]
+    stage: StageChange = None
+    value: ValueChange = None
+    probability: ProbabilityChange = None
     close_date: OptionalDate = None
 
 
@@ -361,8 +405,6 @@ class ContactDetail(Contact):
 
 # --- Activities and timelines ---------------------------------------------
 
-FollowUpStatus = Literal["overdue", "upcoming", "later", "done"]
-
 
 class ActivityCreate(In):
     type: RequiredType
@@ -375,11 +417,11 @@ class ActivityCreate(In):
 
 
 class ActivityUpdate(In):
-    type: RequiredType = None  # type: ignore[assignment]
-    description: Description = None  # type: ignore[assignment]
-    occurred_on: OccurredOn = None  # type: ignore[assignment]
+    type: TypeChange = None
+    description: DescriptionChange = None
+    occurred_on: OccurredOnChange = None
     follow_up_on: OptionalDate = None
-    done: bool = None  # type: ignore[assignment]
+    done: DoneChange = None
 
 
 class Activity(BaseModel):

@@ -37,7 +37,11 @@ export function OrganizationPage() {
         title={org.name}
         summary={`${org.industry ?? "Organization"} · ${plural(org.contacts.length, "contact")} · ${plural(openDeals.length, "open deal")}`}
         action={
-          <button type="button" className="btn ghost" onClick={() => setDeleting({ kind: "organization", id: org.id, name: org.name })}>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => setDeleting({ kind: "organization", id: org.id, name: org.name })}
+          >
             <Trash2 size={16} aria-hidden="true" />
             Delete organization
           </button>
@@ -89,7 +93,9 @@ export function OrganizationPage() {
                   <li key={c.id}>
                     <div>
                       <Link to={`/contacts/${c.id}`}>{c.name}</Link>
-                      <div className="meta">{[c.job_title, c.email].filter(Boolean).join(" · ")}</div>
+                      <div className="meta">
+                        {[c.job_title, c.email].filter(Boolean).join(" · ")}
+                      </div>
                     </div>
                     <StatusBadge status={c.status} />
                   </li>
@@ -114,7 +120,8 @@ export function OrganizationPage() {
                     <div>
                       <Link to={`/deals/${d.id}`}>{d.name}</Link> <LateBadge late={d.is_late} />
                       <div className="meta">
-                        <StagePill stage={d.stage} /> · {d.close_date ? formatDate(d.close_date) : "No close date"}
+                        <StagePill stage={d.stage} /> ·{" "}
+                        {d.close_date ? formatDate(d.close_date) : "No close date"}
                       </div>
                     </div>
                     <span className="mono">{money(d.value)}</span>
@@ -127,15 +134,29 @@ export function OrganizationPage() {
       </div>
 
       <SidePanel
-        title={panel === "edit" ? "Edit organization" : panel === "contact" ? "Add contact" : "Add deal"}
+        title={
+          panel === "edit" ? "Edit organization" : panel === "contact" ? "Add contact" : "Add deal"
+        }
         open={panel !== null}
         onClose={close}
       >
-        {panel === "edit" && <OrganizationForm organization={org} onSaved={close} onCancel={close} />}
-        {panel === "contact" && <ContactForm organizationId={org.id} onSaved={close} onCancel={close} />}
-        {panel === "deal" && <DealForm preset={{ organizationId: org.id }} onSaved={close} onCancel={close} />}
+        {panel === "edit" && (
+          <OrganizationForm organization={org} onSaved={close} onCancel={close} />
+        )}
+        {panel === "contact" && (
+          <ContactForm organizationId={org.id} onSaved={close} onCancel={close} />
+        )}
+        {panel === "deal" && (
+          <DealForm preset={{ organizationId: org.id }} onSaved={close} onCancel={close} />
+        )}
       </SidePanel>
-      {deleting && <DeleteRecord record={deleting} onClose={closeDelete} onDeleted={() => navigate("/organizations")} />}
+      {deleting && (
+        <DeleteRecord
+          record={deleting}
+          onClose={closeDelete}
+          onDeleted={() => navigate("/organizations")}
+        />
+      )}
     </>
   );
 }

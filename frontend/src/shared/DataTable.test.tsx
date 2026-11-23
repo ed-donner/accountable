@@ -22,7 +22,12 @@ function rows(count: number): Row[] {
 }
 
 function setup(data: Row[], extra: Partial<Parameters<typeof DataTable<Row>>[0]> = {}) {
-  const handlers = { onOpen: vi.fn(), onEdit: vi.fn(), onDelete: vi.fn(), onAdd: vi.fn() };
+  const handlers = {
+    onOpen: vi.fn(),
+    onEdit: vi.fn(),
+    onDelete: vi.fn(),
+    onAdd: vi.fn(),
+  };
   render(
     <DataTable<Row>
       data={data}

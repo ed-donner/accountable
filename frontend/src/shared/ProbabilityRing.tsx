@@ -9,7 +9,14 @@ export function ProbabilityRing({ value, color }: { value: number; color: string
   return (
     <span className="ring" role="img" aria-label={`${value}% probability`}>
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
-        <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="var(--line)" strokeWidth={STROKE} />
+        <circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={RADIUS}
+          fill="none"
+          stroke="var(--line)"
+          strokeWidth={STROKE}
+        />
         <circle
           data-testid="ring-arc"
           cx={SIZE / 2}

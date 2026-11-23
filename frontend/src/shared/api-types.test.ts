@@ -2,11 +2,7 @@
 import { readFileSync } from "node:fs";
 import { generateTypes, TYPES_FILE } from "../../../scripts/types.mjs";
 
-test(
-  "api-types.ts is up to date with the backend (run `npm run types` if this fails)",
-  async () => {
-    const fresh = await generateTypes();
-    expect(readFileSync(TYPES_FILE, "utf8")).toBe(fresh);
-  },
-  60_000,
-);
+test("api-types.ts is up to date with the backend (run `npm run types` if this fails)", async () => {
+  const fresh = await generateTypes();
+  expect(readFileSync(TYPES_FILE, "utf8")).toBe(fresh);
+}, 60_000);

@@ -1,17 +1,13 @@
 """Contacts: endpoints and queries (C1 to C4, C6)."""
 
-
 from fastapi import APIRouter
-from sqlalchemy import Connection, delete, func, insert, select, union_all, update
+from sqlalchemy import Connection, delete, func, select, union_all, update
 
-from app.db import activities, contacts, deals, organizations
+from app.db import activities, contacts, count_rows, deals, insert_row, organizations
 from app.deps import Conn, Today
 from app.routers.deals import deal_rows
 from app.rules import Status
 from app.schemas import (
-    PageLimit,
-    PageOffset,
-    RecordId,
     Contact,
     ContactCreate,
     ContactDetail,
@@ -21,6 +17,9 @@ from app.schemas import (
     ContactUpdate,
     FieldErrors,
     NotFound,
+    PageLimit,
+    PageOffset,
+    RecordId,
     Ref,
     StatusCounts,
 )
@@ -55,9 +54,9 @@ def contact_rows(conn: Connection, *where, limit: int | None = None, offset: int
             last.c.last_activity_on,
         )
         .select_from(
-            contacts.outerjoin(organizations, organizations.c.id == contacts.c.organization_id).outerjoin(
-                last, last.c.contact_id == contacts.c.id
-            )
+            contacts.outerjoin(
+                organizations, organizations.c.id == contacts.c.organization_id
+            ).outerjoin(last, last.c.contact_id == contacts.c.id)
         )
         .where(*where)
         .order_by(contacts.c.name, contacts.c.id)
@@ -79,7 +78,9 @@ def _check_organization(conn: Connection, organization_id: int | None) -> None:
     if organization_id is not None and not conn.scalar(
         select(organizations.c.id).where(organizations.c.id == organization_id)
     ):
-        raise FieldErrors({"organization_id": "That organization no longer exists. Choose another."})
+        raise FieldErrors(
+            {"organization_id": "That organization no longer exists. Choose another."}
+        )
 
 
 @router.get("")
@@ -91,7 +92,9 @@ def list_contacts(
 ) -> ContactList:
     where = [contacts.c.status == status] if status else []
     items = contact_rows(conn, *where, limit=limit, offset=offset)
-    counts = dict(conn.execute(select(contacts.c.status, func.count()).group_by(contacts.c.status)).all())
+    counts = dict(
+        conn.execute(select(contacts.c.status, func.count()).group_by(contacts.c.status)).all()
+    )
     status_counts = StatusCounts(
         all=sum(counts.values()),
         lead=counts.get("lead", 0),
@@ -99,13 +102,17 @@ def list_contacts(
         customer=counts.get("customer", 0),
     )
     total = status_counts.all if not status else getattr(status_counts, status)
-    return ContactList(items=[ContactRow(**row) for row in items], total=total, status_counts=status_counts)
+    return ContactList(
+        items=[ContactRow(**row) for row in items],
+        total=total,
+        status_counts=status_counts,
+    )
 
 
 @router.post("", status_code=201)
 def create_contact(body: ContactCreate, conn: Conn) -> Contact:
     _check_organization(conn, body.organization_id)
-    contact_id = conn.execute(insert(contacts).values(**body.model_dump())).inserted_primary_key[0]
+    contact_id = insert_row(conn, contacts, **body.model_dump())
     conn.commit()
     return Contact(**get_contact(conn, contact_id))
 
@@ -115,7 +122,10 @@ def read_contact(contact_id: RecordId, conn: Conn, today: Today) -> ContactDetai
     contact = get_contact(conn, contact_id)
     organization = None
     if contact["organization_id"] is not None:
-        name = conn.scalar(select(organizations.c.name).where(organizations.c.id == contact["organization_id"]))
+        # The foreign key guarantees the organization exists.
+        name = conn.execute(
+            select(organizations.c.name).where(organizations.c.id == contact["organization_id"])
+        ).scalar_one()
         organization = Ref(id=contact["organization_id"], name=name)
     return ContactDetail(
         **contact,
@@ -140,8 +150,8 @@ def contact_delete_impact(contact_id: RecordId, conn: Conn) -> ContactImpact:
     contact = get_contact(conn, contact_id)
     return ContactImpact(
         name=contact["name"],
-        deals=conn.scalar(select(func.count()).where(deals.c.contact_id == contact_id)),
-        activities=conn.scalar(select(func.count()).where(activities.c.contact_id == contact_id)),
+        deals=count_rows(conn, deals, deals.c.contact_id == contact_id),
+        activities=count_rows(conn, activities, activities.c.contact_id == contact_id),
     )
 
 

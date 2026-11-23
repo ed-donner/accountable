@@ -32,7 +32,13 @@ export function ConfirmDialog({ title, message, confirmLabel, busy, onConfirm, o
 
   return (
     <div className="overlay center">
-      <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+      <div
+        className="dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        aria-describedby="confirm-message"
+      >
         <h2 id="confirm-title">{title}</h2>
         <p id="confirm-message">{message}</p>
         <div className="dialog-actions">
@@ -53,22 +59,33 @@ export function ConfirmDialog({ title, message, confirmLabel, busy, onConfirm, o
 export function organizationDeleteMessage(impact: Schemas["OrganizationImpact"]): string {
   const { name, contacts, deals } = impact;
   if (!contacts && !deals) return `${name} has no contacts or deals. This can't be undone.`;
-  const linked = [contacts && plural(contacts, "contact"), deals && plural(deals, "deal")].filter(Boolean).join(" and ");
+  const linked = [contacts && plural(contacts, "contact"), deals && plural(deals, "deal")]
+    .filter(Boolean)
+    .join(" and ");
   return `${name} has ${linked}. They'll be kept, with no organization. This can't be undone.`;
 }
 
 export function contactDeleteMessage(impact: Schemas["ContactImpact"]): string {
   const { name, deals, activities } = impact;
   const parts: string[] = [];
-  if (deals) parts.push(`${name} is the main contact on ${plural(deals, "deal")}. They'll be kept, with no main contact.`);
-  if (activities) parts.push(`${plural(activities, "activity", "activities")} logged on ${name} will be deleted.`);
+  if (deals)
+    parts.push(
+      `${name} is the main contact on ${plural(deals, "deal")}. They'll be kept, with no main contact.`,
+    );
+  if (activities)
+    parts.push(
+      `${plural(activities, "activity", "activities")} logged on ${name} will be deleted.`,
+    );
   if (!parts.length) parts.push(`${name} has no deals or activities.`);
   return `${parts.join(" ")} This can't be undone.`;
 }
 
 export function dealDeleteMessage(impact: Schemas["DealImpact"]): string {
   const { name, activities, stage_changes: changes } = impact;
-  const linked = [activities && plural(activities, "activity", "activities"), changes && plural(changes, "stage change")]
+  const linked = [
+    activities && plural(activities, "activity", "activities"),
+    changes && plural(changes, "stage change"),
+  ]
     .filter(Boolean)
     .join(" and ");
   if (!linked) return `${name} will be deleted. This can't be undone.`;

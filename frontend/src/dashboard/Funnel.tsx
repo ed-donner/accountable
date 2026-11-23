@@ -16,12 +16,19 @@ export function Funnel({ steps }: { steps: Dashboard["funnel"] }) {
               {info.label}
               <span className="muted">{plural(step.count, "deal")}</span>
             </span>
-            <div style={{ marginLeft: `${(100 - width) / 2}%`, width: `${width}%` }}>
+            <div
+              style={{
+                marginLeft: `${(100 - width) / 2}%`,
+                width: `${width}%`,
+              }}
+            >
               <div className="bar" style={{ background: info.color }} />
             </div>
             <span className="pct">
               <b>{shortMoney(step.value)}</b>
-              {step.share_of_previous !== null ? `${Math.round(step.share_of_previous * 100)}% of previous` : " "}
+              {step.share_of_previous !== null
+                ? `${Math.round(step.share_of_previous * 100)}% of previous`
+                : " "}
             </span>
           </li>
         );

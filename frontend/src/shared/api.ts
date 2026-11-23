@@ -5,8 +5,10 @@ import { localToday } from "./today";
 
 export type Schemas = components["schemas"];
 
-export const NETWORK_MESSAGE = "Accountable isn't answering. Check it's still running, then try again.";
-export const GENERAL_MESSAGE = "Something went wrong in Accountable. Try again, and if it keeps happening, restart the app.";
+export const NETWORK_MESSAGE =
+  "Accountable isn't answering. Check it's still running, then try again.";
+export const GENERAL_MESSAGE =
+  "Something went wrong in Accountable. Try again, and if it keeps happening, restart the app.";
 
 export class ApiError extends Error {
   status: number;
@@ -46,9 +48,13 @@ export async function api<T>(path: string, method: Method = "GET", body?: unknow
   if (!response.ok) {
     const payload = (data ?? {}) as { message?: unknown; fields?: unknown };
     const message =
-      typeof payload.message === "string" && response.status < 500 ? payload.message : GENERAL_MESSAGE;
+      typeof payload.message === "string" && response.status < 500
+        ? payload.message
+        : GENERAL_MESSAGE;
     const fields =
-      payload.fields && typeof payload.fields === "object" ? (payload.fields as Record<string, string>) : {};
+      payload.fields && typeof payload.fields === "object"
+        ? (payload.fields as Record<string, string>)
+        : {};
     // A reply that isn't ours (such as the dev proxy failing) means the backend isn't running.
     const unreachable = data === null && response.status >= 500;
     throw new ApiError(unreachable ? NETWORK_MESSAGE : message, response.status, fields);

@@ -13,12 +13,19 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <span className="mark" aria-hidden="true">A</span>
+        <span className="mark" aria-hidden="true">
+          A
+        </span>
         Accountable
       </div>
       <nav aria-label="Sections">
         {LINKS.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? "on" : undefined)}>
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) => (isActive ? "on" : undefined)}
+          >
             <Icon size={18} aria-hidden="true" />
             {label}
           </NavLink>

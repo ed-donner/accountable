@@ -22,7 +22,9 @@ def test_foreign_key_enforced(conn):
 
 def _parents(conn):
     org_id = conn.execute(insert(organizations).values(name="Org")).inserted_primary_key[0]
-    contact_id = conn.execute(insert(contacts).values(name="C", status="lead")).inserted_primary_key[0]
+    contact_id = conn.execute(
+        insert(contacts).values(name="C", status="lead")
+    ).inserted_primary_key[0]
     deal_id = conn.execute(
         insert(deals).values(name="D", organization_id=org_id, stage="new", value=1, probability=10)
     ).inserted_primary_key[0]

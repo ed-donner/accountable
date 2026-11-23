@@ -1,12 +1,21 @@
 """TB42: migrations match db.py and keep data."""
 
+from datetime import date
+
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import func, select
 
-from app.db import activities, contacts, deals, metadata, migrate, organizations, stage_changes
+from app.db import (
+    activities,
+    contacts,
+    deals,
+    metadata,
+    migrate,
+    organizations,
+    stage_changes,
+)
 from app.seed import seed
-from datetime import date
 
 TODAY = date(2026, 11, 16)
 
@@ -41,17 +50,22 @@ def test_table_rebuild_in_a_migration_keeps_linked_rows(engine):
     tables = [contacts, deals, activities, stage_changes]
     with engine.connect() as conn:
         before = {t.name: conn.scalar(select(func.count()).select_from(t)) for t in tables}
-        linked = conn.scalar(select(func.count()).select_from(contacts).where(contacts.c.organization_id.is_not(None)))
-    with foreign_keys_off(engine) as conn:
-        with conn.begin():
-            ops = Operations(MigrationContext.configure(conn))
-            for parent in ("organizations", "contacts", "deals"):
-                with ops.batch_alter_table(parent, recreate="always") as batch:
-                    batch.add_column(Column("rv6_probe", Integer))
+        linked = conn.scalar(
+            select(func.count())
+            .select_from(contacts)
+            .where(contacts.c.organization_id.is_not(None))
+        )
+    with foreign_keys_off(engine) as conn, conn.begin():
+        ops = Operations(MigrationContext.configure(conn))
+        for parent in ("organizations", "contacts", "deals"):
+            with ops.batch_alter_table(parent, recreate="always") as batch:
+                batch.add_column(Column("rv6_probe", Integer))
     with engine.connect() as conn:
         after = {t.name: conn.scalar(select(func.count()).select_from(t)) for t in tables}
         still_linked = conn.scalar(
-            select(func.count()).select_from(contacts).where(contacts.c.organization_id.is_not(None))
+            select(func.count())
+            .select_from(contacts)
+            .where(contacts.c.organization_id.is_not(None))
         )
         assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
     assert after == before
@@ -91,10 +105,12 @@ def test_a_migration_that_breaks_links_is_stopped_and_foreign_keys_come_back(eng
     from app.db import foreign_keys_off
 
     seed(engine, TODAY)
-    with pytest.raises(RuntimeError, match="broken links"):
-        with foreign_keys_off(engine) as conn:
-            with conn.begin():
-                conn.exec_driver_sql("UPDATE contacts SET organization_id = 999999 WHERE id = 1")
+    with (
+        pytest.raises(RuntimeError, match="broken links"),
+        foreign_keys_off(engine) as conn,
+        conn.begin(),
+    ):
+        conn.exec_driver_sql("UPDATE contacts SET organization_id = 999999 WHERE id = 1")
     assert _pooled_foreign_keys(engine) == [1, 1, 1]
 
 
@@ -103,9 +119,8 @@ def test_a_failed_migration_still_turns_foreign_keys_back_on(engine):
 
     from app.db import foreign_keys_off
 
-    with pytest.raises(ZeroDivisionError):
-        with foreign_keys_off(engine):
-            1 / 0
+    with pytest.raises(ValueError, match="a migration step failed"), foreign_keys_off(engine):
+        raise ValueError("a migration step failed")
     assert _pooled_foreign_keys(engine) == [1, 1, 1]
 
 

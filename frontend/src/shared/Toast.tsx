@@ -2,7 +2,10 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 import { CircleAlert, Check, X } from "lucide-react";
 
 type Toast = { id: number; message: string; kind: "error" | "success" };
-type ToastApi = { error: (message: string) => void; success: (message: string) => void };
+type ToastApi = {
+  error: (message: string) => void;
+  success: (message: string) => void;
+};
 
 const ToastContext = createContext<ToastApi | null>(null);
 let nextId = 1;
@@ -10,7 +13,10 @@ let nextId = 1;
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const dismiss = useCallback((id: number) => setToasts((all) => all.filter((t) => t.id !== id)), []);
+  const dismiss = useCallback(
+    (id: number) => setToasts((all) => all.filter((t) => t.id !== id)),
+    [],
+  );
   const show = useCallback(
     (message: string, kind: Toast["kind"]) => {
       const id = nextId++;

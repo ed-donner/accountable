@@ -12,7 +12,14 @@ TODAY = date(2026, 11, 16)
 # TB01
 @pytest.mark.parametrize(
     "stage,expected",
-    [("new", 10), ("qualified", 25), ("proposal", 50), ("negotiation", 75), ("won", 100), ("lost", 0)],
+    [
+        ("new", 10),
+        ("qualified", 25),
+        ("proposal", 50),
+        ("negotiation", 75),
+        ("won", 100),
+        ("lost", 0),
+    ],
 )
 def test_usual_probability(stage, expected):
     assert rules.usual_probability(stage) == expected
@@ -35,7 +42,11 @@ def test_hand_set_probability_kept_until_stage_changes(api):
     deal = api.deal(org["id"], stage="qualified")
     deal = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"probability": 40})
     assert deal["probability"] == 40
-    deal = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"name": "Renamed", "stage": "qualified"})
+    deal = api.ok(
+        "PATCH",
+        f"/api/deals/{deal['id']}",
+        json={"name": "Renamed", "stage": "qualified"},
+    )
     assert deal["probability"] == 40
     deal = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"stage": "negotiation"})
     assert deal["probability"] == 75
@@ -82,7 +93,11 @@ def test_closed_deal_never_loses_its_close_date(api):
     api.ok("PATCH", f"/api/deals/{deal['id']}", json={"close_date": "2026-11-10"})
     cleared = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"close_date": None})
     assert cleared["close_date"] == TODAY.isoformat()
-    reopened = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"stage": "proposal", "close_date": None})
+    reopened = api.ok(
+        "PATCH",
+        f"/api/deals/{deal['id']}",
+        json={"stage": "proposal", "close_date": None},
+    )
     assert reopened["close_date"] is None
 
 
@@ -138,7 +153,9 @@ def test_every_way_into_a_closed_stage_sets_a_close_date(api, stage):
     assert api.deal(org["id"], stage=stage)["close_date"] == today
     assert api.deal(org["id"], stage=stage, close_date=None)["close_date"] == today
     edited = api.deal(org["id"], stage="proposal", close_date="2027-03-01")
-    assert api.ok("PATCH", f"/api/deals/{edited['id']}", json={"stage": stage})["close_date"] == today
+    assert (
+        api.ok("PATCH", f"/api/deals/{edited['id']}", json={"stage": stage})["close_date"] == today
+    )
     cleared = api.deal(org["id"], stage="proposal", close_date="2027-03-01")
     body = {"stage": stage, "close_date": None}
     assert api.ok("PATCH", f"/api/deals/{cleared['id']}", json=body)["close_date"] == today
@@ -161,22 +178,35 @@ def test_clearing_the_close_date_of_a_closed_deal_gives_today(api, stage):
     deal = api.deal(org["id"], stage=stage, close_date="2026-11-02")
     for blank in (None, ""):
         api.ok("PATCH", f"/api/deals/{deal['id']}", json={"close_date": "2026-11-02"})
-        assert api.ok("PATCH", f"/api/deals/{deal['id']}", json={"close_date": blank})["close_date"] == TODAY.isoformat()
+        assert (
+            api.ok("PATCH", f"/api/deals/{deal['id']}", json={"close_date": blank})["close_date"]
+            == TODAY.isoformat()
+        )
 
 
 @pytest.mark.parametrize("stage", OPEN)
 def test_an_open_deal_may_have_no_close_date(api, stage):
     org = api.org()
     deal = api.deal(org["id"], stage=stage, close_date="2027-01-01")
-    assert api.ok("PATCH", f"/api/deals/{deal['id']}", json={"close_date": None})["close_date"] is None
+    assert (
+        api.ok("PATCH", f"/api/deals/{deal['id']}", json={"close_date": None})["close_date"] is None
+    )
 
 
 @pytest.mark.parametrize("stage", CLOSED)
 def test_no_path_gives_a_closed_deal_a_future_close_date(api, client, stage):
     org = api.org()
     future = (TODAY + timedelta(days=1)).isoformat()
-    response = client.post("/api/deals", json={"name": "D", "organization_id": org["id"], "value": 1,
-                                               "stage": stage, "close_date": future})
+    response = client.post(
+        "/api/deals",
+        json={
+            "name": "D",
+            "organization_id": org["id"],
+            "value": 1,
+            "stage": stage,
+            "close_date": future,
+        },
+    )
     assert response.status_code == 400
     assert "close_date" in response.json()["fields"]
     deal = api.deal(org["id"], stage="proposal")
@@ -189,7 +219,11 @@ def test_no_path_gives_a_closed_deal_a_future_close_date(api, client, stage):
 def test_a_probability_typed_in_with_a_stage_change_wins(api):
     org = api.org()
     deal = api.deal(org["id"], stage="new")
-    edited = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"stage": "proposal", "probability": 65})
+    edited = api.ok(
+        "PATCH",
+        f"/api/deals/{deal['id']}",
+        json={"stage": "proposal", "probability": 65},
+    )
     assert edited["probability"] == 65
 
 
@@ -197,14 +231,22 @@ def test_an_unchanged_probability_sent_with_a_stage_change_is_reset(api):
     """The edit form sends every field; sending back the old figure isn't typing one in."""
     org = api.org()
     deal = api.deal(org["id"], stage="new")
-    edited = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"stage": "proposal", "probability": 10})
+    edited = api.ok(
+        "PATCH",
+        f"/api/deals/{deal['id']}",
+        json={"stage": "proposal", "probability": 10},
+    )
     assert edited["probability"] == 50
 
 
 def test_a_close_date_typed_in_with_a_win_wins(api):
     org = api.org()
     deal = api.deal(org["id"], stage="negotiation", close_date="2026-12-15")
-    won = api.ok("PATCH", f"/api/deals/{deal['id']}", json={"stage": "won", "close_date": "2026-11-12"})
+    won = api.ok(
+        "PATCH",
+        f"/api/deals/{deal['id']}",
+        json={"stage": "won", "close_date": "2026-11-12"},
+    )
     assert won["close_date"] == "2026-11-12"
 
 

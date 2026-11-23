@@ -13,7 +13,12 @@ def make_column(conn, stage: str, count: int) -> list[int]:
         ids.append(
             conn.execute(
                 insert(deals).values(
-                    name=f"D{i}", organization_id=org_id, stage=stage, value=1, probability=10, position=float(i + 1)
+                    name=f"D{i}",
+                    organization_id=org_id,
+                    stage=stage,
+                    value=1,
+                    probability=10,
+                    position=float(i + 1),
                 )
             ).inserted_primary_key[0]
         )

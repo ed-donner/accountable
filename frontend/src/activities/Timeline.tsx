@@ -64,9 +64,15 @@ export function Timeline({ kind, id }: Props) {
                 <div className="entry-main">
                   <div>{entry.text}</div>
                   <div className="entry-meta">
-                    {entry.deal && kind === "contact" && <Link to={`/deals/${entry.deal.id}`}>{entry.deal.name}</Link>}
+                    {entry.deal && kind === "contact" && (
+                      <Link to={`/deals/${entry.deal.id}`}>{entry.deal.name}</Link>
+                    )}
                     {entry.follow_up_on && entry.follow_up_status && (
-                      <FollowUpChip date={entry.follow_up_on} status={entry.follow_up_status} today={today} />
+                      <FollowUpChip
+                        date={entry.follow_up_on}
+                        status={entry.follow_up_status}
+                        today={today}
+                      />
                     )}
                     {entry.follow_up_status && entry.follow_up_status !== "done" && (
                       <button
@@ -76,7 +82,8 @@ export function Timeline({ kind, id }: Props) {
                         onClick={() =>
                           markDone.mutate(entry.id, {
                             onSuccess: () => toast.success("Follow-up marked done."),
-                            onError: (error) => toast.error(failureMessage("mark the follow-up done", error)),
+                            onError: (error) =>
+                              toast.error(failureMessage("mark the follow-up done", error)),
                           })
                         }
                       >
@@ -90,17 +97,22 @@ export function Timeline({ kind, id }: Props) {
                 <div className="entry-actions">
                   {entry.kind === "activity" && (
                     <>
-                    <button type="button" className="icon-btn" aria-label={`Edit ${TYPE_WORDS[entry.type!]}: ${entry.text}`} onClick={() => setEditing(entry)}>
-                      <Pencil size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn danger"
-                      aria-label={`Delete ${TYPE_WORDS[entry.type!]}: ${entry.text}`}
-                      onClick={() => setDeleting(entry)}
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Edit ${TYPE_WORDS[entry.type!]}: ${entry.text}`}
+                        onClick={() => setEditing(entry)}
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn danger"
+                        aria-label={`Delete ${TYPE_WORDS[entry.type!]}: ${entry.text}`}
+                        onClick={() => setDeleting(entry)}
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     </>
                   )}
                 </div>

@@ -38,7 +38,8 @@ test.each(Object.entries(sources))("%s only uses tokens that exist", (_file, tex
 });
 
 test("the brand colors are the spec's", () => {
-  const value = (name: string) => new RegExp(`${name}:\\s*([^;]+);`).exec(tokens)?.[1].trim().toLowerCase();
+  const value = (name: string) =>
+    new RegExp(`${name}:\\s*([^;]+);`).exec(tokens)?.[1].trim().toLowerCase();
   expect(value("--sea-green")).toBe("#06d6a0");
   expect(value("--marigold")).toBe("#ffc145");
   expect(value("--coral")).toBe("#f78c6b");

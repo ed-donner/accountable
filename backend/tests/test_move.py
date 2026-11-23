@@ -12,7 +12,12 @@ def column(api, stage):
 def test_move_to_won_applies_every_rule(api):
     org = api.org()
     contact = api.contact(organization_id=org["id"])
-    deal = api.deal(org["id"], contact_id=contact["id"], stage="negotiation", close_date="2027-01-31")
+    deal = api.deal(
+        org["id"],
+        contact_id=contact["id"],
+        stage="negotiation",
+        close_date="2027-01-31",
+    )
     moved = api.move(deal["id"], "won")
     assert moved["stage"] == "won"
     assert moved["probability"] == 100
@@ -27,7 +32,10 @@ def test_failed_move_changes_nothing(api, client):
     deal = api.deal(org["id"], stage="new")
     other = api.deal(org["id"], name="Other", stage="proposal")
     # The neighbor is in another column, so the move is refused as a whole.
-    response = client.post(f"/api/deals/{deal['id']}/move", json={"stage": "qualified", "before_id": other["id"]})
+    response = client.post(
+        f"/api/deals/{deal['id']}/move",
+        json={"stage": "qualified", "before_id": other["id"]},
+    )
     assert response.status_code == 400
     assert api.ok("GET", f"/api/deals/{deal['id']}")["stage"] == "new"
     assert len(api.ok("GET", f"/api/deals/{deal['id']}/timeline")["items"]) == 1

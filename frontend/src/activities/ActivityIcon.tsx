@@ -3,7 +3,12 @@ import { ArrowRight, Mail, Phone, StickyNote } from "lucide-react";
 type Kind = "note" | "call" | "email" | "stage";
 
 const ICONS = { note: StickyNote, call: Phone, email: Mail, stage: ArrowRight };
-const LABELS = { note: "Note", call: "Call", email: "Email", stage: "Stage change" };
+const LABELS = {
+  note: "Note",
+  call: "Call",
+  email: "Email",
+  stage: "Stage change",
+};
 
 export function ActivityIcon({ kind }: { kind: Kind }) {
   const Icon = ICONS[kind];

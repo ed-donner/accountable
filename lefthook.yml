@@ -1,0 +1,34 @@
+# Git hooks, installed by `npm install` (the root `prepare` script runs `lefthook install`).
+# The pre-commit hook formats the staged files, then runs lint, types and gitleaks.
+# It skips the tests so that it stays quick; `npm run check` runs everything.
+pre-commit:
+  piped: true # format first, then check what was formatted
+  jobs:
+    - name: format
+      group:
+        parallel: true
+        jobs:
+          - name: prettier
+            root: frontend/
+            glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,css,html,md}"
+            run: npx prettier --write --ignore-unknown {staged_files}
+            stage_fixed: true
+          - name: ruff format
+            glob: "*.py"
+            run: uv run ruff format {staged_files}
+            stage_fixed: true
+
+    - name: checks
+      group:
+        parallel: true
+        jobs:
+          - name: eslint
+            run: npm run lint --workspace frontend
+          - name: tsc
+            run: npm run typecheck --workspace frontend
+          - name: ruff check
+            run: uv run ruff check
+          - name: ty
+            run: uv run ty check
+          - name: gitleaks
+            run: gitleaks git --pre-commit --staged --config .gitleaks.toml --no-banner --redact

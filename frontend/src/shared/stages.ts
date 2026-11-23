@@ -14,12 +14,48 @@ export type StageInfo = {
 };
 
 export const STAGES: StageInfo[] = [
-  { key: "new", label: "New", color: "var(--stage-new)", usualProbability: 10, open: true },
-  { key: "qualified", label: "Qualified", color: "var(--stage-qualified)", usualProbability: 25, open: true },
-  { key: "proposal", label: "Proposal", color: "var(--stage-proposal)", usualProbability: 50, open: true },
-  { key: "negotiation", label: "Negotiation", color: "var(--stage-negotiation)", usualProbability: 75, open: true },
-  { key: "won", label: "Won", color: "var(--stage-won)", usualProbability: 100, open: false },
-  { key: "lost", label: "Lost", color: "var(--stage-lost)", usualProbability: 0, open: false },
+  {
+    key: "new",
+    label: "New",
+    color: "var(--stage-new)",
+    usualProbability: 10,
+    open: true,
+  },
+  {
+    key: "qualified",
+    label: "Qualified",
+    color: "var(--stage-qualified)",
+    usualProbability: 25,
+    open: true,
+  },
+  {
+    key: "proposal",
+    label: "Proposal",
+    color: "var(--stage-proposal)",
+    usualProbability: 50,
+    open: true,
+  },
+  {
+    key: "negotiation",
+    label: "Negotiation",
+    color: "var(--stage-negotiation)",
+    usualProbability: 75,
+    open: true,
+  },
+  {
+    key: "won",
+    label: "Won",
+    color: "var(--stage-won)",
+    usualProbability: 100,
+    open: false,
+  },
+  {
+    key: "lost",
+    label: "Lost",
+    color: "var(--stage-lost)",
+    usualProbability: 0,
+    open: false,
+  },
 ];
 
 export const OPEN_STAGES = STAGES.filter((s) => s.open).map((s) => s.key);

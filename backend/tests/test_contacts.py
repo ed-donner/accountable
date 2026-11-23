@@ -41,7 +41,12 @@ def test_status_filter_and_counts(api):
     api.contact("D", status="customer")
     everyone = api.ok("GET", "/api/contacts")
     assert everyone["total"] == 4
-    assert everyone["status_counts"] == {"all": 4, "lead": 1, "qualified": 1, "customer": 2}
+    assert everyone["status_counts"] == {
+        "all": 4,
+        "lead": 1,
+        "qualified": 1,
+        "customer": 2,
+    }
     customers = api.ok("GET", "/api/contacts?status=customer")
     assert [c["name"] for c in customers["items"]] == ["C", "D"]
     assert customers["total"] == 2

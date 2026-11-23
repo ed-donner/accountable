@@ -1,6 +1,6 @@
 // Starts Accountable: the backend on port 8000 and the frontend on port 5173,
-// then opens the browser. Written in plain Node so it works the same on Mac,
-// Linux and Windows. Set ACCOUNTABLE_NO_BROWSER=1 to skip opening the browser.
+// then opens the browser. Accountable runs on a Mac. Set ACCOUNTABLE_NO_BROWSER=1
+// to skip opening the browser.
 
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -9,7 +9,6 @@ import { fileURLToPath } from "node:url";
 import concurrently from "concurrently";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const isWindows = process.platform === "win32";
 const API_PORT = 8000;
 const WEB_PORT = 5173;
 const APP_URL = `http://localhost:${WEB_PORT}`;
@@ -29,7 +28,7 @@ if (nodeMajor < 24) {
 }
 
 // 2. uv, which runs the Python backend.
-const uv = spawnSync("uv", ["--version"], { shell: isWindows, stdio: "ignore" });
+const uv = spawnSync("uv", ["--version"], { stdio: "ignore" });
 if (uv.error || uv.status !== 0) {
   stop([
     "Accountable needs a tool called uv to run its backend, and it isn't installed yet.",
@@ -80,13 +79,7 @@ async function openWhenReady() {
 }
 
 function openBrowser(url) {
-  const [command, args] =
-    process.platform === "darwin"
-      ? ["open", [url]]
-      : isWindows
-        ? ["cmd", ["/c", "start", "", url]]
-        : ["xdg-open", [url]];
-  const child = spawn(command, args, { stdio: "ignore", detached: true });
+  const child = spawn("open", [url], { stdio: "ignore", detached: true });
   child.on("error", () => console.log(`Open ${url} in your browser.`));
   child.unref();
 }

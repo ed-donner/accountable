@@ -5,18 +5,42 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import type { DealRow } from "../deals/hooks";
 import { mockApi, testClient } from "../shared/test-utils";
 import { ToastProvider } from "../shared/Toast";
-import { applyMove, boardTotals, buildColumns, isNoMove, moveFrom, totals, withHiddenCards } from "./board";
+import {
+  applyMove,
+  boardTotals,
+  buildColumns,
+  isNoMove,
+  moveFrom,
+  totals,
+  withHiddenCards,
+} from "./board";
 import { BOARD_KEY, useMoveDeal } from "./hooks";
 
 afterEach(() => vi.unstubAllGlobals());
 
-function deal(id: number, stage: DealRow["stage"], position: number, value: number, probability: number): DealRow {
+function deal(
+  id: number,
+  stage: DealRow["stage"],
+  position: number,
+  value: number,
+  probability: number,
+): DealRow {
   return {
-    id, name: `Deal ${id}`, stage, position, value, probability,
+    id,
+    name: `Deal ${id}`,
+    stage,
+    position,
+    value,
+    probability,
     expected_revenue: Math.round((value * probability) / 100),
-    organization_id: 1, contact_id: null, organization_name: "Acme", contact_name: null,
-    close_date: "2026-10-01", is_late: stage !== "won" && stage !== "lost",
-    created_at: "2026-01-01T00:00:00", updated_at: "2026-01-01T00:00:00",
+    organization_id: 1,
+    contact_id: null,
+    organization_name: "Acme",
+    contact_name: null,
+    close_date: "2026-10-01",
+    is_late: stage !== "won" && stage !== "lost",
+    created_at: "2026-01-01T00:00:00",
+    updated_at: "2026-01-01T00:00:00",
   };
 }
 
@@ -28,7 +52,11 @@ const deals = [
 ];
 
 test("TF14 a move to another column updates column and board totals at once", () => {
-  const moved = applyMove(deals, { id: 2, stage: "proposal", afterId: null, beforeId: 3 }, "2026-11-16");
+  const moved = applyMove(
+    deals,
+    { id: 2, stage: "proposal", afterId: null, beforeId: 3 },
+    "2026-11-16",
+  );
   const column = (stage: string) => totals(moved.filter((d) => d.stage === stage));
   expect(column("new")).toEqual({ count: 1, value: 1000, expected: 100 });
   expect(column("proposal")).toEqual({ count: 2, value: 6000, expected: 3000 });
@@ -39,7 +67,13 @@ test("TF14 a move to another column updates column and board totals at once", ()
 test("TF14 dropping into Won closes the deal and takes it off the board's totals", () => {
   const moved = applyMove(deals, { id: 3, stage: "won", afterId: 4, beforeId: null }, "2026-11-16");
   const won = moved.find((d) => d.id === 3)!;
-  expect(won).toMatchObject({ stage: "won", probability: 100, close_date: "2026-11-16", is_late: false, position: 2 });
+  expect(won).toMatchObject({
+    stage: "won",
+    probability: 100,
+    close_date: "2026-11-16",
+    is_late: false,
+    position: 2,
+  });
   expect(boardTotals(moved)).toEqual({ count: 2, value: 3000, expected: 300 });
 });
 
@@ -75,13 +109,19 @@ test("TF15 a failed save puts the card back and says so", async () => {
   act(() => result.current.mutate({ id: 2, stage: "won", afterId: null, beforeId: 4 }));
   // Straight away the card shows in Won...
   await waitFor(() =>
-    expect(client.getQueryData<{ items: DealRow[] }>(BOARD_KEY)!.items.find((d) => d.id === 2)!.stage).toBe("won"),
+    expect(
+      client.getQueryData<{ items: DealRow[] }>(BOARD_KEY)!.items.find((d) => d.id === 2)!.stage,
+    ).toBe("won"),
   );
   // ...then the save fails and it goes back, with a message.
   fail();
   await waitFor(() => expect(result.current.isError).toBe(true));
-  expect(client.getQueryData<{ items: DealRow[] }>(BOARD_KEY)!.items.find((d) => d.id === 2)!.stage).toBe("new");
-  expect(await screen.findByText(/^Couldn't move Deal 2\. Something went wrong in Accountable/)).toBeInTheDocument();
+  expect(
+    client.getQueryData<{ items: DealRow[] }>(BOARD_KEY)!.items.find((d) => d.id === 2)!.stage,
+  ).toBe("new");
+  expect(
+    await screen.findByText(/^Couldn't move Deal 2\. Something went wrong in Accountable/),
+  ).toBeInTheDocument();
 });
 
 test("TF15 a failed save puts back only its own card, not another one still saving (RV7)", async () => {
@@ -96,9 +136,13 @@ test("TF15 a failed save puts back only its own card, not another one still savi
     }
     if (url.endsWith("/deals/3/move")) {
       await secondDone;
-      return new Response(JSON.stringify({ ...deals[2], stage: "won" }), { status: 200 });
+      return new Response(JSON.stringify({ ...deals[2], stage: "won" }), {
+        status: 200,
+      });
     }
-    return new Response(JSON.stringify({ items: deals, total: deals.length }), { status: 200 });
+    return new Response(JSON.stringify({ items: deals, total: deals.length }), {
+      status: 200,
+    });
   });
   const client = testClient();
   client.setQueryData(BOARD_KEY, { items: deals, total: deals.length });
@@ -109,9 +153,17 @@ test("TF15 a failed save puts back only its own card, not another one still savi
   );
   const first = renderHook(() => useMoveDeal(), { wrapper }).result;
   const second = renderHook(() => useMoveDeal(), { wrapper }).result;
-  const stageOf = (id: number) => client.getQueryData<{ items: DealRow[] }>(BOARD_KEY)!.items.find((d) => d.id === id)!.stage;
+  const stageOf = (id: number) =>
+    client.getQueryData<{ items: DealRow[] }>(BOARD_KEY)!.items.find((d) => d.id === id)!.stage;
 
-  act(() => first.current.mutate({ id: 2, stage: "proposal", afterId: null, beforeId: 3 }));
+  act(() =>
+    first.current.mutate({
+      id: 2,
+      stage: "proposal",
+      afterId: null,
+      beforeId: 3,
+    }),
+  );
   await waitFor(() => expect(stageOf(2)).toBe("proposal"));
   act(() => second.current.mutate({ id: 3, stage: "won", afterId: null, beforeId: 4 }));
   await waitFor(() => expect(stageOf(3)).toBe("won"));
@@ -139,13 +191,32 @@ test.each([
   ["won", 100, 2000],
   ["lost", 0, 0],
 ] as const)("a card dropped into %s expects %i%% of its value", (stage, probability, expected) => {
-  const moved = applyMove(deals, { id: 2, stage, afterId: null, beforeId: null }, "2026-11-16").find((d) => d.id === 2)!;
-  expect(moved).toMatchObject({ stage, probability, expected_revenue: expected, close_date: "2026-11-16", is_late: false });
+  const moved = applyMove(
+    deals,
+    { id: 2, stage, afterId: null, beforeId: null },
+    "2026-11-16",
+  ).find((d) => d.id === 2)!;
+  expect(moved).toMatchObject({
+    stage,
+    probability,
+    expected_revenue: expected,
+    close_date: "2026-11-16",
+    is_late: false,
+  });
 });
 
 test("a card moved back to an open stage keeps its close date and takes the stage's probability", () => {
-  const moved = applyMove(deals, { id: 4, stage: "negotiation", afterId: null, beforeId: null }, "2026-11-16").find((d) => d.id === 4)!;
-  expect(moved).toMatchObject({ stage: "negotiation", probability: 75, expected_revenue: 6000, close_date: "2026-10-01" });
+  const moved = applyMove(
+    deals,
+    { id: 4, stage: "negotiation", afterId: null, beforeId: null },
+    "2026-11-16",
+  ).find((d) => d.id === 4)!;
+  expect(moved).toMatchObject({
+    stage: "negotiation",
+    probability: 75,
+    expected_revenue: 6000,
+    close_date: "2026-10-01",
+  });
 });
 
 // RV7's sibling: a save that succeeds mustn't reload the board under a card still saving.
@@ -160,9 +231,13 @@ test("TF15 the board reloads from the server only once the last move has saved",
     if (moving && init.method === "POST") {
       const id = Number(moving[1]);
       await waits[id];
-      return new Response(JSON.stringify({ ...deals.find((d) => d.id === id)!, stage: "won" }), { status: 200 });
+      return new Response(JSON.stringify({ ...deals.find((d) => d.id === id)!, stage: "won" }), {
+        status: 200,
+      });
     }
-    return new Response(JSON.stringify({ items: deals, total: deals.length }), { status: 200 });
+    return new Response(JSON.stringify({ items: deals, total: deals.length }), {
+      status: 200,
+    });
   });
   const client = testClient();
   client.setQueryData(BOARD_KEY, { items: deals, total: deals.length });
@@ -187,25 +262,60 @@ test("TF15 the board reloads from the server only once the last move has saved",
 });
 
 // P4 with a search on: X (1) and Y (3) are visible, H (2) is hidden between them.
-const searched = [deal(11, "proposal", 1, 100, 50), deal(12, "proposal", 2, 100, 50), deal(13, "proposal", 3, 100, 50), deal(14, "new", 1, 100, 10)];
+const searched = [
+  deal(11, "proposal", 1, 100, 50),
+  deal(12, "proposal", 2, 100, 50),
+  deal(13, "proposal", 3, 100, 50),
+  deal(14, "new", 1, 100, 10),
+];
 
 test("TF14 with a search on, a drop between two visible cards goes directly under the upper one", () => {
-  const move = withHiddenCards(searched, { id: 14, stage: "proposal", afterId: 11, beforeId: 13 });
-  expect(move).toEqual({ id: 14, stage: "proposal", afterId: 11, beforeId: 12 });
+  const move = withHiddenCards(searched, {
+    id: 14,
+    stage: "proposal",
+    afterId: 11,
+    beforeId: 13,
+  });
+  expect(move).toEqual({
+    id: 14,
+    stage: "proposal",
+    afterId: 11,
+    beforeId: 12,
+  });
   const after = applyMove(searched, move, "2026-11-16");
   expect(buildColumns(after).proposal).toEqual([11, 14, 12, 13]);
 });
 
 test("TF14 with a search on, a drop at the top of the visible cards goes to the very top", () => {
-  expect(withHiddenCards(searched, { id: 14, stage: "proposal", afterId: null, beforeId: 13 })).toEqual({
-    id: 14, stage: "proposal", afterId: null, beforeId: 11,
+  expect(
+    withHiddenCards(searched, {
+      id: 14,
+      stage: "proposal",
+      afterId: null,
+      beforeId: 13,
+    }),
+  ).toEqual({
+    id: 14,
+    stage: "proposal",
+    afterId: null,
+    beforeId: 11,
   });
 });
 
 test("TF14 with no search, the drop is unchanged", () => {
-  const move = { id: 14, stage: "proposal" as const, afterId: 11, beforeId: 12 };
+  const move = {
+    id: 14,
+    stage: "proposal" as const,
+    afterId: 11,
+    beforeId: 12,
+  };
   expect(withHiddenCards(searched, move)).toEqual(move);
-  const last = { id: 14, stage: "proposal" as const, afterId: 13, beforeId: null };
+  const last = {
+    id: 14,
+    stage: "proposal" as const,
+    afterId: 13,
+    beforeId: null,
+  };
   expect(withHiddenCards(searched, last)).toEqual(last);
 });
 
@@ -219,9 +329,13 @@ test("TF15 moves save one after another, but each card moves on the board at onc
       const id = Number(moving[1]);
       sent.push(id);
       if (id === 2) await firstHeld;
-      return new Response(JSON.stringify({ ...deals.find((d) => d.id === id)!, stage: "won" }), { status: 200 });
+      return new Response(JSON.stringify({ ...deals.find((d) => d.id === id)!, stage: "won" }), {
+        status: 200,
+      });
     }
-    return new Response(JSON.stringify({ items: deals, total: deals.length }), { status: 200 });
+    return new Response(JSON.stringify({ items: deals, total: deals.length }), {
+      status: 200,
+    });
   });
   const client = testClient();
   client.setQueryData(BOARD_KEY, { items: deals, total: deals.length });
@@ -232,7 +346,8 @@ test("TF15 moves save one after another, but each card moves on the board at onc
   );
   const first = renderHook(() => useMoveDeal(), { wrapper }).result;
   const second = renderHook(() => useMoveDeal(), { wrapper }).result;
-  const stageOf = (id: number) => client.getQueryData<{ items: DealRow[] }>(BOARD_KEY)!.items.find((d) => d.id === id)!.stage;
+  const stageOf = (id: number) =>
+    client.getQueryData<{ items: DealRow[] }>(BOARD_KEY)!.items.find((d) => d.id === id)!.stage;
 
   act(() => first.current.mutate({ id: 2, stage: "won", afterId: null, beforeId: 4 }));
   // Dropped next to card 2 while card 2 is still saving.

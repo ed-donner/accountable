@@ -1,3 +1,7 @@
+---
+name: brand
+description: Accountable's brand guidelines for fonts, colors, surfaces and tone. Use for any UI work.
+---
 # Brand
 
 ## Fonts

@@ -42,6 +42,7 @@ The guides for each agent:
 - [OpenCode](course/coding_agents/opencode.md)
 - [Pi](course/coding_agents/pi.md)
 - [Antigravity CLI](course/coding_agents/antigravity.md)
+- [Devin CLI](community_contributions/LieBieS/devin.md) (community contribution)
 
 ## For immediate help
 

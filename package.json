@@ -1,0 +1,22 @@
+{
+  "name": "accountable",
+  "private": true,
+  "description": "Accountable: a sales CRM",
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently --names api,web --prefix-colors cyan,green --kill-others-on-fail \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "uv run uvicorn backend.app.main:app --reload --reload-dir backend --port 8000",
+    "dev:web": "npm run dev --workspace frontend",
+    "seed": "uv run python -m backend.app.seed --reset",
+    "test": "concurrently --max-processes 1 --success all --names backend,frontend,e2e --prefix-colors cyan,green,magenta \"npm:test:backend\" \"npm:test:frontend\" \"npm:test:e2e\"",
+    "test:backend": "uv run pytest",
+    "test:frontend": "npm run test --workspace frontend",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "concurrently": "^10.0.7"
+  }
+}
